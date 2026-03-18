@@ -1,0 +1,63 @@
+---
+description: Portal do Colaborador Gabi Fontes — especificação, blocos e convenções
+alwaysApply: true
+---
+
+# Portal do Colaborador — Gabi Fontes
+
+Contexto completo do projeto. **Não misturar com outros projetos.** Este arquivo é específico deste portal.
+
+## Stack
+
+- Next.js 14, Supabase, deploy Vercel
+- Admin: auth via cookie `admin_session`
+- Portal: sessão via cookies `portal_colaborador_id`, `portal_unidade_id`, `portal_role`
+
+## Escopo
+
+Gestão operacional, cultura e acolhimento para **Matriz, Mesquita, Nova Iguaçu e Barra**.
+
+## Hierarquia
+
+- Sócio, Administrador, Colaborador (sem Gerente)
+
+## Blocos (10 no total)
+
+| # | Bloco | Status |
+|---|-------|--------|
+| 1 | Gestão (perdas removido) | Concluído |
+| 2 | Hierarquia e cadastro | Concluído |
+| 3 | Perfil e foto | Concluído |
+| 4 | Onboarding (vídeo, quiz, termo) | Concluído |
+| 5 | Mural avisos segmentado + checklist confirmação | Concluído |
+| 6 | Mural social (aniversariantes, destaque) | Concluído |
+| 7 | Minha escala | Concluído |
+| 8 | Termômetro de emoções | Concluído |
+| 9 | Caixa de sugestões e canal de reclamações | Concluído |
+| 10 | Botão de ajuda rápida | Concluído |
+
+## Arquivos principais
+
+- `src/app/(portal)/portal/` — páginas do colaborador (home, mural, perfil, aniversariantes)
+- `src/app/(admin)/admin/` — dashboard, colaboradores, avisos, destaque
+- `src/app/api/` — rotas API (admin/*, portal/*, login/*)
+- `src/components/` — mural, aniversariantes, destaque, onboarding
+- `supabase/migrations/` — 001 a 008 (schema, avisos, destaque, etc.)
+
+## Banco (Supabase)
+
+- **unidades**: matriz, mesquita, barra, nova-iguacu
+- **colaboradores**: cpf, nome, unidade_id, data_nascimento, foto_url, onboarding_completo, role
+- **avisos**: unidade_id, titulo, conteudo, exige_confirmacao
+- **aviso_confirmacoes**: aviso_id, colaborador_id (checklist "Li e confirmei")
+- **destaque**: colaborador_id, titulo, descricao (colaborador em destaque)
+- **escalas**: colaborador_id, data, hora_entrada, hora_saida, observacao (turnos)
+- **emocional_registro**: colaborador_id, data, emocao (termômetro)
+- **sugestoes_reclamacoes**: tipo, texto, anonimo, colaborador_id, unidade_id
+
+## Convenções
+
+- APIs admin: checar cookie `admin_session`
+- APIs portal: checar `portal_colaborador_id`
+- Service role (`createAdminClient`) para operações que bypassam RLS
+- Estilo: Tailwind, cores dourado/coffee/cream (tema cafeteria)

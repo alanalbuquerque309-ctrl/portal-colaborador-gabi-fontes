@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cream-base: #FDFBF7;
+  --coffee-base: #3E2723;
+  --dourado-base: #D4AF37;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Source Sans 3', system-ui, sans-serif;
+}
+
+body {
+  @apply bg-cream-base text-coffee-base antialiased;
+  font-feature-settings: 'kern' 1;
+}
+
+/* Fix select nativo (fallback): iOS + Android — font-size 16px, área de toque 44px */
+select {
+  font-size: 16px !important;
+  min-height: 44px;
+  -webkit-appearance: menulist;
+  touch-action: manipulation;
+}
