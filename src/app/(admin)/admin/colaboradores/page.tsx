@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 interface Colaborador {
@@ -15,23 +16,37 @@ interface Colaborador {
   role?: string;
 }
 
+const OPCOES_FUNCAO = [
+  { value: '', label: 'Todas as funções' },
+  { value: 'socio', label: 'Sócio' },
+  { value: 'admin', label: 'Administrador' },
+  { value: 'colaborador', label: 'Colaborador' },
+];
+
 export default function ColaboradoresPage() {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtroSetor, setFiltroSetor] = useState('');
+  const [filtroFuncao, setFiltroFuncao] = useState('');
+  const [filtroUnidade, setFiltroUnidade] = useState('');
   const [excluindo, setExcluindo] = useState<string | null>(null);
-  const [bootstrapLoading, setBootstrapLoading] = useState(false);
-  const [diagLoading, setDiagLoading] = useState(false);
+  const [concluindo, setConcluindo] = useState<string | null>(null);
 
-  const handleDiagnostico = async () => {
-    setDiagLoading(true);
+  const handleConcluirOnboarding = async (id: string, nome: string) => {
+    if (!confirm(`Marcar onboarding de "${nome}" como concluído? Ela poderá acessar o portal sem passar pelo fluxo.`)) return;
+    setConcluindo(id);
     try {
-      const res = await fetch('/api/admin/diagnostico', { credentials: 'include' });
-      const d = await res.json();
-      alert(JSON.stringify(d, null, 2));
+      const res = await fetch(`/api/admin/colaboradores/concluir-onboarding?id=${id}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.ok) recarregar();
+      else alert(data.erro || 'Erro ao atualizar.');
     } catch {
-      alert('Erro ao buscar diagnóstico.');
+      alert('Erro ao atualizar.');
     } finally {
-      setDiagLoading(false);
+      setConcluindo(null);
     }
   };
 
@@ -59,30 +74,21 @@ export default function ColaboradoresPage() {
       .finally(() => setLoading(false));
   };
 
-  const handleBootstrap = async () => {
-    setBootstrapLoading(true);
-    try {
-      const res = await fetch('/api/admin/bootstrap-alan', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      const data = await res.json();
-      if (data.ok) {
-        alert(`Alan Albuquerque cadastrado com sucesso (${data.acao}). Faça login na tela de colaborador.`);
-        recarregar();
-      } else {
-        alert(data.erro || 'Erro ao cadastrar.');
-      }
-    } catch {
-      alert('Erro de conexão.');
-    } finally {
-      setBootstrapLoading(false);
-    }
-  };
-
   useEffect(() => {
     recarregar();
   }, []);
+
+  const { opcoesSetor, opcoesUnidade, colaboradoresFiltrados } = useMemo(() => {
+    const setores = Array.from(new Set(colaboradores.map((c) => c.cargo?.trim()).filter((v): v is string => !!v))).sort();
+    const unidades = Array.from(new Set(colaboradores.map((c) => c.unidade?.nome?.trim()).filter((v): v is string => !!v))).sort();
+    const filtrados = colaboradores.filter((c) => {
+      if (filtroSetor && (c.cargo?.trim() || '') !== filtroSetor) return false;
+      if (filtroFuncao && (c.role || 'colaborador') !== filtroFuncao) return false;
+      if (filtroUnidade && (c.unidade?.nome?.trim() || '') !== filtroUnidade) return false;
+      return true;
+    });
+    return { opcoesSetor: setores, opcoesUnidade: unidades, colaboradoresFiltrados: filtrados };
+  }, [colaboradores, filtroSetor, filtroFuncao, filtroUnidade]);
 
   const handleExcluir = async (id: string, nome: string) => {
     if (!confirm(`Excluir colaborador "${nome}"? Esta ação não pode ser desfeita.`)) return;
@@ -129,72 +135,140 @@ export default function ColaboradoresPage() {
         </a>
       </div>
 
-      <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-        <p className="text-sm text-coffee-base mb-2">
-          <strong>Aparece &quot;CPF não cadastrado&quot; ao entrar como colaborador?</strong>
-        </p>
-        <p className="text-xs text-coffee-100 mb-3">
-          Clique no botão abaixo para cadastrar Alan Albuquerque via serviço administrativo.
-        </p>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={handleBootstrap}
-            disabled={bootstrapLoading}
-            className="rounded-lg bg-amber-600 px-4 py-2 text-white text-sm font-medium hover:bg-amber-700 disabled:opacity-50"
-          >
-            {bootstrapLoading ? 'Cadastrando…' : 'Cadastrar Alan Albuquerque'}
-          </button>
-          <button
-            type="button"
-            onClick={handleDiagnostico}
-            disabled={diagLoading}
-            className="rounded-lg border border-amber-600 px-4 py-2 text-amber-700 text-sm font-medium hover:bg-amber-100 disabled:opacity-50"
-          >
-            {diagLoading ? 'Verificando…' : 'Ver diagnóstico'}
-          </button>
-        </div>
-      </div>
-
       {colaboradores.length === 0 ? (
         <p className="text-coffee-100 py-8">
           Nenhum colaborador cadastrado. Clique em Cadastrar para adicionar.
         </p>
       ) : (
-        <div className="rounded-xl border border-cream-300 overflow-hidden">
-          <table className="w-full text-sm">
+        <>
+          <div className="flex flex-wrap gap-4 mb-4 p-4 rounded-xl border border-cream-300 bg-cream-50">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-setor" className="text-xs font-medium text-coffee-100">Setor</label>
+              <select
+                id="filtro-setor"
+                value={filtroSetor}
+                onChange={(e) => setFiltroSetor(e.target.value)}
+                className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[140px]"
+              >
+                <option value="">Todos os setores</option>
+                {opcoesSetor.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-funcao" className="text-xs font-medium text-coffee-100">Função</label>
+              <select
+                id="filtro-funcao"
+                value={filtroFuncao}
+                onChange={(e) => setFiltroFuncao(e.target.value)}
+                className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[140px]"
+              >
+                {OPCOES_FUNCAO.map((opt) => (
+                  <option key={opt.value || 'todas'} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-unidade" className="text-xs font-medium text-coffee-100">Unidade</label>
+              <select
+                id="filtro-unidade"
+                value={filtroUnidade}
+                onChange={(e) => setFiltroUnidade(e.target.value)}
+                className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[140px]"
+              >
+                <option value="">Todas as unidades</option>
+                {opcoesUnidade.map((u) => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </div>
+            {(filtroSetor || filtroFuncao || filtroUnidade) && (
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={() => { setFiltroSetor(''); setFiltroFuncao(''); setFiltroUnidade(''); }}
+                  className="text-sm text-dourado-base hover:text-dourado-600 font-medium"
+                >
+                  Limpar filtros
+                </button>
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-coffee-100 mb-2">
+            {colaboradoresFiltrados.length} de {colaboradores.length} colaborador(es)
+          </p>
+          <p className="text-xs text-coffee-100 mb-3">
+            Para alterar a função (ex.: tornar administrador), use <strong>Editar perfil</strong> ao lado do nome.
+          </p>
+          <div className="rounded-xl border border-cream-300 overflow-x-auto shadow-sm">
+          <table className="w-full text-sm min-w-[920px] table-fixed">
             <thead className="bg-cream-200">
               <tr>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Nome</th>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Cargo</th>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Unidade</th>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Função</th>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Onboarding</th>
-                <th className="w-24 px-4 py-3"></th>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[28%] align-bottom">
+                  <span className="block leading-tight">Nome</span>
+                </th>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[18%] align-bottom">
+                  <span className="block leading-tight">Cargo</span>
+                </th>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[16%] align-bottom">
+                  <span className="block leading-tight">Unidade</span>
+                </th>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[14%] align-bottom">
+                  <span className="block leading-tight">Função</span>
+                </th>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[14%] align-bottom">
+                  <span className="block leading-tight">Onboarding</span>
+                </th>
+                <th className="text-right px-3 py-3 text-coffee-base font-medium w-[10%] align-bottom">
+                  <span className="block leading-tight">Ações</span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {colaboradores.map((c) => (
+              {colaboradoresFiltrados.map((c) => (
                 <tr key={c.id} className="border-t border-cream-300 hover:bg-cream-50">
-                  <td className="px-4 py-3 text-coffee-base">{c.nome}</td>
-                  <td className="px-4 py-3 text-coffee-100">{c.cargo || '-'}</td>
-                  <td className="px-4 py-3 text-coffee-100">{c.unidade.nome}</td>
-                  <td className="px-4 py-3 text-coffee-100">
-                    {c.role === 'socio' ? 'Sócio' : c.role === 'admin' ? 'Administrador' : 'Colaborador'}
+                  <td className="px-3 py-3 align-top">
+                    <div className="flex flex-col gap-1.5 min-w-0">
+                      <span className="text-coffee-base font-medium break-words">{c.nome}</span>
+                      <Link
+                        href={`/admin/colaboradores/${c.id}/editar`}
+                        className="text-dourado-base hover:text-dourado-600 text-xs font-semibold underline underline-offset-2 w-fit"
+                      >
+                        Editar perfil
+                      </Link>
+                    </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.cargo || '-'}</td>
+                  <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.unidade.nome}</td>
+                  <td className="px-3 py-3 text-coffee-100 align-top">
+                    <span className="inline-block">
+                      {c.role === 'socio' ? 'Sócio' : c.role === 'admin' ? 'Administrador' : 'Colaborador'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 align-top">
                     {c.onboarding_completo ? (
                       <span className="text-green-600">Concluído</span>
                     ) : (
-                      <span className="text-amber-600">Pendente</span>
+                      <>
+                        <span className="text-amber-600">Pendente</span>
+                        <button
+                          type="button"
+                          onClick={() => handleConcluirOnboarding(c.id, c.nome)}
+                          disabled={concluindo === c.id}
+                          className="ml-2 text-dourado-base hover:text-dourado-600 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {concluindo === c.id ? '…' : 'Concluir'}
+                        </button>
+                      </>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 text-right align-top">
                     <button
                       type="button"
                       onClick={() => handleExcluir(c.id, c.nome)}
                       disabled={excluindo === c.id}
-                      className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50"
+                      className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
                     >
                       {excluindo === c.id ? 'Excluindo…' : 'Excluir'}
                     </button>
@@ -203,7 +277,8 @@ export default function ColaboradoresPage() {
               ))}
             </tbody>
           </table>
-        </div>
+          </div>
+        </>
       )}
 
       <p className="mt-4 text-xs text-coffee-100">

@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ADMIN_COOKIE = 'admin_session';
+import { isAdminAuthorized } from '@/lib/admin-auth';
 
 /** Cadastra Alan via service role — resolve "CPF não cadastrado" quando inserção normal falha. */
 export async function POST() {
-  const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value !== '1') {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 

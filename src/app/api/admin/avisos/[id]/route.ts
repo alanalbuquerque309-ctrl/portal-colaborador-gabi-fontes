@@ -1,20 +1,13 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ADMIN_COOKIE = 'admin_session';
-
-function checkAuth(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  return cookieStore.get(ADMIN_COOKIE)?.value === '1';
-}
+import { isAdminAuthorized } from '@/lib/admin-auth';
 
 /** Atualiza aviso. */
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies();
-  if (!checkAuth(cookieStore)) {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 
@@ -60,8 +53,7 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cookieStore = await cookies();
-  if (!checkAuth(cookieStore)) {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 const BUCKET = 'fotos-perfil';
-const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const TIPOS_PERMITIDOS = ['image/jpeg', 'image/png', 'image/webp'];
 
 /** Upload de foto de perfil. Requer sessão do portal. */
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   }
   if (file.size > MAX_SIZE) {
     return NextResponse.json(
-      { ok: false, erro: 'Imagem deve ter no máximo 2 MB' },
+      { ok: false, erro: 'Imagem deve ter no máximo 5 MB' },
       { status: 400 }
     );
   }

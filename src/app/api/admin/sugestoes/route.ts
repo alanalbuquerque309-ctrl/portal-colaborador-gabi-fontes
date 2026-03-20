@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ADMIN_COOKIE = 'admin_session';
+import { isAdminAuthorized } from '@/lib/admin-auth';
 
 /** Lista sugestões e reclamações. */
 export async function GET(req: Request) {
-  const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value !== '1') {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 

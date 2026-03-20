@@ -8,7 +8,7 @@ export default function HomePage() {
           Portal do Colaborador
         </h1>
         <p className="text-cafeteria-700 text-lg mb-8">
-          Gabi Fontes · Cultura e Comunicação Interna
+          Cafeteria Gabi Fontes · Cultura e Comunicação Interna
         </p>
         <Link
           href="/login"

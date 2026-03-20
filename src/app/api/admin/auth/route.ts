@@ -4,12 +4,15 @@ import { cookies } from 'next/headers';
 const ADMIN_COOKIE = 'admin_session';
 const COOKIE_MAX_AGE = 60 * 60 * 8; // 8 horas
 
-/** Credenciais via env — nada fica no código. */
+/** Credenciais via env + fallbacks para admin/gabifontes. */
 function getAdminCredentials(): { login: string; senha: string }[] {
   const creds: { login: string; senha: string }[] = [];
   const login = process.env.ADMIN_ALAN_LOGIN?.trim().toLowerCase();
   const senha = process.env.ADMIN_ALAN_PASSWORD;
   if (login && senha) creds.push({ login, senha });
+  // Fallback: admin + gabifontes2019 ou gabifontes2024 (caso env não esteja configurada em prod)
+  creds.push({ login: 'admin', senha: 'gabifontes2019' });
+  creds.push({ login: 'admin', senha: 'gabifontes2024' });
   return creds;
 }
 
@@ -39,7 +42,7 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const session = cookieStore.get(ADMIN_COOKIE);
-  return NextResponse.json({ ok: session?.value === '1' });
+  const { isAdminAuthorized } = await import('@/lib/admin-auth');
+  const ok = await isAdminAuthorized();
+  return NextResponse.json({ ok });
 }

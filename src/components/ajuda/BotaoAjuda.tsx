@@ -2,8 +2,15 @@
 
 import { useState } from 'react';
 
-const WHATSAPP_NUMERO = process.env.NEXT_PUBLIC_WHATSAPP_AJUDA || '5521999999999';
-const EMAIL_AJUDA = process.env.NEXT_PUBLIC_EMAIL_AJUDA || 'rh@gabifontes.com.br';
+const WHATSAPP_NUMERO = process.env.NEXT_PUBLIC_WHATSAPP_AJUDA || '5521999409351';
+const EMAIL_AJUDA = process.env.NEXT_PUBLIC_EMAIL_AJUDA || 'colaboragabifontes@gmail.com';
+
+function formatarNumero( raw: string ): string {
+  const d = raw.replace(/\D/g, '');
+  if (d.length === 13 && d.startsWith('55')) return `+55 (${d.slice(2,4)}) ${d.slice(4,9)}-${d.slice(9)}`;
+  if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+  return raw;
+}
 
 export function BotaoAjuda() {
   const [aberto, setAberto] = useState(false);
@@ -18,7 +25,7 @@ export function BotaoAjuda() {
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-dourado-base text-cream-100 shadow-lg hover:bg-dourado-400 transition-colors flex items-center justify-center"
+        className="fixed bottom-24 right-4 md:bottom-6 md:right-6 z-50 w-14 h-14 rounded-full bg-dourado-base text-cream-100 shadow-lg hover:bg-dourado-400 transition-colors flex items-center justify-center"
         aria-label="Preciso de ajuda"
         title="Preciso de ajuda"
       >
@@ -34,8 +41,11 @@ export function BotaoAjuda() {
             onClick={() => setAberto(false)}
             aria-hidden
           />
-          <div className="fixed bottom-24 right-6 z-50 w-72 rounded-xl bg-white border border-dourado-200 shadow-xl p-4">
+          <div className="fixed bottom-36 right-4 left-4 md:bottom-24 md:left-auto md:right-6 md:w-72 z-50 rounded-xl bg-white border border-dourado-200 shadow-xl p-4">
             <h3 className="font-display font-semibold text-coffee-base mb-3">Precisa de ajuda?</h3>
+            <p className="text-xs text-coffee-100 mb-3">
+              Contato: WhatsApp {formatarNumero(WHATSAPP_NUMERO)} · {EMAIL_AJUDA}
+            </p>
             <div className="space-y-2">
               <a
                 href={linkWhatsApp}

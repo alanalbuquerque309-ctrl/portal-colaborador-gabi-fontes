@@ -8,6 +8,13 @@ node_modules
 out
 build
 
+# PWA (gerado pelo @ducanh2912/next-pwa)
+public/sw.js
+public/workbox-*.js
+public/worker-*.js
+public/sw.js.map
+public/workbox-*.js.map
+
 # Environment
 .env
 .env.local

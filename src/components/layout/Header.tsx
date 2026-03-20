@@ -1,32 +1,164 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { getPortalSession, clearPortalSession } from '@/lib/utils/session';
+
+const navItens = [
+  { href: '/portal/mural', label: 'Mural', short: 'Mural' },
+  { href: '/portal/aniversariantes', label: 'Mural da Família', short: 'Família' },
+  { href: '/portal/escala', label: 'Minha escala', short: 'Escala' },
+  { href: '/portal/sugestoes', label: 'Sugestões', short: 'Sugestões' },
+  { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil' },
+] as const;
+
+function NavIcon({ type }: { type: string }) {
+  const base = 'w-5 h-5 shrink-0';
+  switch (type) {
+    case 'mural':
+      return (
+        <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      );
+    case 'familia':
+      return (
+        <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      );
+    case 'escala':
+      return (
+        <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      );
+    case 'sugestoes':
+      return (
+        <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+        </svg>
+      );
+    case 'perfil':
+      return (
+        <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 export function Header() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [podeAdmin, setPodeAdmin] = useState(false);
+  useEffect(() => {
+    const s = getPortalSession();
+    setPodeAdmin(s?.role === 'socio' || s?.role === 'admin');
+  }, []);
+
+  const handleSair = () => {
+    if (typeof window !== 'undefined' && !window.confirm('Deseja sair do portal?')) {
+      return;
+    }
+    clearPortalSession();
+    router.push('/login');
+  };
+
+  const iconePorHref: Record<string, string> = {
+    '/portal/mural': 'mural',
+    '/portal/aniversariantes': 'familia',
+    '/portal/escala': 'escala',
+    '/portal/sugestoes': 'sugestoes',
+    '/portal/perfil': 'perfil',
+  };
+
   return (
-    <header className="bg-cream-100/80 backdrop-blur border-b border-cafeteria-200">
-      <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <Link href="/portal" className="font-display text-xl text-cafeteria-800 font-semibold">
-          Gabi Fontes
-        </Link>
-        <nav className="flex gap-6 text-cafeteria-700">
-          <Link href="/portal/mural" className="hover:text-cafeteria-900">
-            Mural
+    <>
+      <header className="bg-cream-100/80 backdrop-blur border-b border-cafeteria-200">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link href="/portal" className="font-display text-xl text-cafeteria-800 font-semibold shrink-0">
+            Cafeteria Gabi Fontes
           </Link>
-          <Link href="/portal/aniversariantes" className="hover:text-cafeteria-900">
-            Mural da Família
-          </Link>
-          <Link href="/portal/escala" className="hover:text-cafeteria-900">
-            Minha escala
-          </Link>
-          <Link href="/portal/sugestoes" className="hover:text-cafeteria-900">
-            Sugestões
-          </Link>
-          <Link href="/portal/perfil" className="hover:text-cafeteria-900">
-            Meu perfil
-          </Link>
-        </nav>
-      </div>
-    </header>
+          <nav className="hidden md:flex gap-6 text-cafeteria-700 items-center">
+            {navItens.map(({ href, label }) => {
+              const ativo = pathname === href || pathname.startsWith(href + '/');
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`hover:text-cafeteria-900 ${ativo ? 'font-semibold text-cafeteria-800' : ''}`}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+            {podeAdmin && (
+              <Link
+                href="/admin/dashboard"
+                className="text-dourado-base font-medium hover:text-dourado-600"
+              >
+                Admin
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={handleSair}
+              className="text-cafeteria-600 hover:text-cafeteria-900 text-sm font-medium"
+            >
+              Sair
+            </button>
+          </nav>
+        </div>
+      </header>
+      {/* Nav inferior no mobile — flex com scroll para garantir que Perfil sempre apareça */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-cafeteria-200 pb-2">
+        <div className="flex overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
+          {navItens.map(({ href, label, short }) => {
+            const ativo = pathname === href || pathname.startsWith(href + '/');
+            const iconKey = iconePorHref[href] ?? 'mural';
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex flex-col items-center justify-center py-3 flex-1 min-w-[52px] shrink-0 ${
+                  ativo ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
+                }`}
+              >
+                <NavIcon type={iconKey} />
+                <span className="text-[10px] mt-0.5 truncate max-w-full text-center">{short}</span>
+              </Link>
+            );
+          })}
+          {podeAdmin && (
+            <Link
+              href="/admin/dashboard"
+              className={`flex flex-col items-center justify-center py-3 flex-1 min-w-[52px] shrink-0 ${
+                pathname?.startsWith('/admin') ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
+              }`}
+            >
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="text-[10px] mt-0.5 truncate max-w-full text-center">Admin</span>
+            </Link>
+          )}
+          <button
+            type="button"
+            onClick={handleSair}
+            className="flex flex-col items-center justify-center py-3 flex-1 min-w-[52px] shrink-0 text-cafeteria-600"
+          >
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="text-[10px] mt-0.5 truncate max-w-full text-center">Sair</span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 }

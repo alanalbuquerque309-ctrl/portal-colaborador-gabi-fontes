@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { finalizarOnboarding } from '@/app/(auth)/onboarding/actions';
 import { Button } from '@/components/ui/Button';
 import { VideoBoasVindas } from './VideoBoasVindas';
-import { CulturaCards } from './CulturaCards';
-import { QuizCultura } from './QuizCultura';
+import { ManualOnboarding } from './ManualOnboarding';
+import { QuizManual } from './QuizCultura';
 import { setPortalSession } from '@/lib/utils/session';
 
 interface OnboardingFlowProps {
@@ -16,28 +16,29 @@ interface OnboardingFlowProps {
 }
 
 const ETAPAS = [
-  { id: 'video', titulo: 'Vídeo de boas-vindas' },
-  { id: 'cultura', titulo: 'Nossa cultura' },
-  { id: 'quiz', titulo: 'Quiz' },
+  { id: 'video', titulo: 'Vídeo institucional' },
+  { id: 'manual', titulo: 'Manual do Colaborador' },
+  { id: 'quiz', titulo: 'Questionário do manual' },
   { id: 'termo', titulo: 'Termo de compromisso' },
 ];
 
 export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: OnboardingFlowProps) {
   const router = useRouter();
   const [etapa, setEtapa] = useState(0);
+  const [videoCompleto, setVideoCompleto] = useState(false);
+  const [manualOk, setManualOk] = useState(false);
   const [quizValido, setQuizValido] = useState(false);
   const [aceite, setAceite] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const atual = ETAPAS[etapa];
-  const isTermo = atual.id === 'termo';
 
   const podeAvancar =
     etapa === 0
-      ? true
+      ? videoCompleto
       : etapa === 1
-      ? true
+      ? manualOk
       : etapa === 2
       ? quizValido
       : aceite;
@@ -61,12 +62,17 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
   };
 
   const handleVoltar = () => {
-    if (etapa > 0) setEtapa((e) => e - 1);
+    if (etapa > 0) {
+      setEtapa((e) => e - 1);
+      return;
+    }
+    if (typeof window !== 'undefined' && window.confirm('Deseja sair e voltar ao login?')) {
+      router.push('/login');
+    }
   };
 
   return (
     <div className="min-h-screen pb-8 md:pb-12 bg-cream-100">
-      {/* Barra de progresso */}
       <div className="sticky top-0 z-20 bg-cream-100 border-b border-dourado-200 px-4 py-3">
         <div className="max-w-xl mx-auto">
           <div className="flex gap-1">
@@ -86,7 +92,6 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
         </div>
       </div>
 
-      {/* Conteúdo da etapa */}
       <section className="max-w-xl mx-auto px-4 pt-6 md:pt-8">
         <div className="rounded-2xl bg-white shadow-xl border border-dourado-200 overflow-hidden">
           <div className="p-4 md:p-6">
@@ -96,15 +101,18 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
 
             {atual.id === 'video' && (
               <div className="rounded-xl border-2 border-dourado-200 p-2 bg-cream-50 shadow-inner overflow-hidden">
-                <VideoBoasVindas src={videoSrc} className="w-full" />
+                <VideoBoasVindas
+                  src={videoSrc}
+                  className="w-full"
+                  assistidoCompleto={videoCompleto}
+                  onFirstWatchComplete={() => setVideoCompleto(true)}
+                />
               </div>
             )}
 
-            {atual.id === 'cultura' && <CulturaCards />}
+            {atual.id === 'manual' && <ManualOnboarding onReadyChange={setManualOk} />}
 
-            {atual.id === 'quiz' && (
-              <QuizCultura onValidityChange={setQuizValido} />
-            )}
+            {atual.id === 'quiz' && <QuizManual onValidityChange={setQuizValido} />}
 
             {atual.id === 'termo' && (
               <>
@@ -140,10 +148,10 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
               <Button
                 variant="outline"
                 onClick={handleVoltar}
-                disabled={etapa === 0 || loading}
+                disabled={loading}
                 className="min-w-[100px] border-coffee-200 text-coffee-base hover:bg-cream-100"
               >
-                Voltar
+                {etapa === 0 ? 'Sair' : 'Voltar'}
               </Button>
               <Button
                 onClick={handleProximo}

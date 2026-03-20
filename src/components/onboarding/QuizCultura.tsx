@@ -8,10 +8,19 @@ interface QuizPergunta {
   opcoes: { texto: string; correta: boolean }[];
 }
 
+/** Perguntas alinhadas ao manual / resumo do onboarding */
 const PERGUNTAS: QuizPergunta[] = [
   {
+    id: 'pilares',
+    pergunta: 'Segundo o manual, quais são os três pilares da Cafeteria Gabi Fontes?',
+    opcoes: [
+      { texto: 'Qualidade, Aconchego e Atendimento', correta: true },
+      { texto: 'Preço, Rapidez e Volume', correta: false },
+    ],
+  },
+  {
     id: 'brigadeiro',
-    pergunta: 'Qual o segredo do nosso brigadeiro?',
+    pergunta: 'O que o manual destaca sobre o segredo do nosso brigadeiro?',
     opcoes: [
       { texto: 'Leite Moça e Nescau', correta: true },
       { texto: 'Achocolatado comum', correta: false },
@@ -19,29 +28,22 @@ const PERGUNTAS: QuizPergunta[] = [
   },
   {
     id: 'regra',
-    pergunta: 'Qual a nossa regra de ouro em caso de erro da casa?',
+    pergunta: 'Qual a orientação do manual em caso de erro da casa que prejudique o cliente?',
     opcoes: [
-      { texto: 'O cliente não paga a conta', correta: true },
-      { texto: 'Oferecemos 10% de desconto', correta: false },
-    ],
-  },
-  {
-    id: 'pilares',
-    pergunta: 'Quais os nossos 3 pilares?',
-    opcoes: [
-      { texto: 'Qualidade, Aconchego e Atendimento', correta: true },
-      { texto: 'Preço, Rapidez e Volume', correta: false },
+      { texto: 'O cliente não paga a conta (regra de ouro)', correta: true },
+      { texto: 'Oferecemos apenas 10% de desconto', correta: false },
     ],
   },
 ];
 
-const ALERTA_ERRO = 'Quase lá! Releia os pilares no manual para prosseguir.';
+const ALERTA_ERRO = 'Revise o resumo do manual e o PDF e tente novamente.';
 
-interface QuizCulturaProps {
+interface QuizManualProps {
   onValidityChange?: (valid: boolean) => void;
 }
 
-export function QuizCultura({ onValidityChange }: QuizCulturaProps) {
+/** Questionário sobre o conteúdo do manual (após leitura e ciência). */
+export function QuizManual({ onValidityChange }: QuizManualProps) {
   const [respostas, setRespostas] = useState<Record<string, string>>({});
   const [ultimoErro, setUltimoErro] = useState(false);
 
@@ -71,7 +73,8 @@ export function QuizCultura({ onValidityChange }: QuizCulturaProps) {
   return (
     <div className="space-y-6">
       <p className="text-coffee-base text-sm font-medium">
-        Responda corretamente para desbloquear o próximo passo.
+        Responda com base no manual e no resumo que você acabou de ler. Todas as respostas devem
+        estar corretas para seguir.
       </p>
       {perguntaAtual ? (
         <div className="space-y-4">
@@ -98,7 +101,10 @@ export function QuizCultura({ onValidityChange }: QuizCulturaProps) {
       ) : (
         <div className="rounded-xl bg-dourado-50 border border-dourado-300 p-4">
           <p className="text-coffee-base font-medium flex items-center gap-2">
-            <span className="text-dourado-base text-lg">✓</span> Todas as respostas corretas!
+            <svg className="w-5 h-5 text-dourado-base shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Todas as respostas corretas.
           </p>
         </div>
       )}
@@ -107,10 +113,15 @@ export function QuizCultura({ onValidityChange }: QuizCulturaProps) {
           role="alert"
           className="rounded-xl bg-cream-200 border border-dourado-300 p-4 flex items-start gap-3"
         >
-          <span className="text-dourado-base shrink-0 text-xl">💡</span>
+          <span className="text-dourado-base shrink-0 text-lg leading-none" aria-hidden>
+            !
+          </span>
           <p className="text-coffee-base text-sm">{ALERTA_ERRO}</p>
         </div>
       )}
     </div>
   );
 }
+
+/** @deprecated use QuizManual */
+export const QuizCultura = QuizManual;

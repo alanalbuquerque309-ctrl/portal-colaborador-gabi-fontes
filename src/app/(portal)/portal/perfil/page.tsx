@@ -46,8 +46,8 @@ export default function PerfilPage() {
       setErro('Selecione uma imagem (JPG, PNG ou WebP).');
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setErro('A imagem deve ter no máximo 2 MB.');
+    if (file.size > 5 * 1024 * 1024) {
+      setErro('A imagem deve ter no máximo 5 MB.');
       return;
     }
     setErro('');

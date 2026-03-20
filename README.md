@@ -49,6 +49,7 @@ Portal do Colaborador - Gabi Fontes/
 1. Copie `.env.local.example` para `.env.local`
 2. Preencha as variáveis do Supabase
 3. Execute as migrations no Supabase Dashboard
+4. Coloque o Manual do Colaborador em PDF em `public/manual-colaborador.pdf` (para o onboarding)
 
 ## Scripts
 

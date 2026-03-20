@@ -1,13 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ADMIN_COOKIE = 'admin_session';
+import { isAdminAuthorized } from '@/lib/admin-auth';
 
 /** Lista colaboradores. Apenas admins autenticados. */
 export async function GET() {
-  const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value !== '1') {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
   try {
@@ -28,8 +25,7 @@ export async function GET() {
 
 /** Cadastra colaborador. Apenas admins autenticados. */
 export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value !== '1') {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 
@@ -91,13 +87,16 @@ export async function POST(req: Request) {
     if (!unidadeIdResolvido) {
       return NextResponse.json({ ok: false, erro: 'Unidade inválida' }, { status: 400 });
     }
+    // Sócios e admins: acesso total desde o primeiro login (sem onboarding obrigatório)
+    const acessoMaster = roleFinal === 'socio' || roleFinal === 'admin';
+
     const payload: Record<string, unknown> = {
       nome: nome.trim(),
       cpf: cpfLimpo,
       email: email?.trim() || null,
       unidade_id: unidadeIdResolvido,
       role: roleFinal,
-      onboarding_completo: false,
+      onboarding_completo: acessoMaster,
     };
     if (telefone?.trim()) payload.telefone = telefone.trim();
     if (endereco?.trim()) payload.endereco = endereco.trim();

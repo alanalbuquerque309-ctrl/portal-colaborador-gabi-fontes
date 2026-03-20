@@ -1,30 +1,43 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import Link from 'next/link';
+
+interface Colaborador {
+  id: string;
+  nome: string;
+  onboarding_completo: boolean;
+}
 
 export default function AdminDashboardPage() {
   const [linkCopiado, setLinkCopiado] = useState(false);
-  const [stats, setStats] = useState({
-    colaboradores: 0,
-    avisos: 0,
-    onboardingPendente: 0,
-  });
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [avisos, setAvisos] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const supabase = createClient();
     Promise.all([
-      supabase.from('colaboradores').select('id', { count: 'exact', head: true }),
-      supabase.from('avisos').select('id', { count: 'exact', head: true }).eq('ativo', true),
-      supabase.from('colaboradores').select('id', { count: 'exact', head: true }).eq('onboarding_completo', false),
-    ]).then(([c, a, o]) => {
-      setStats({
-        colaboradores: c.count ?? 0,
-        avisos: a.count ?? 0,
-        onboardingPendente: o.count ?? 0,
-      });
+      fetch('/api/admin/colaboradores', { credentials: 'include' }).then((r) => r.json()),
+      fetch('/api/admin/avisos', { credentials: 'include' }).then((r) => r.json()),
+    ]).then(([cols, avs]) => {
+      if (cols.ok && Array.isArray(cols.colaboradores)) {
+        setColaboradores(
+          cols.colaboradores.map((c: { id: string; nome: string; onboarding_completo?: boolean }) => ({
+            id: c.id,
+            nome: c.nome,
+            onboarding_completo: c.onboarding_completo === true,
+          }))
+        );
+      }
+      if (avs.ok && Array.isArray(avs.avisos)) {
+        setAvisos(avs.avisos.filter((a: { ativo?: boolean }) => a.ativo !== false).length);
+      }
+      setLoading(false);
     });
   }, []);
+
+  const ativos = colaboradores.filter((c) => c.onboarding_completo);
+  const pendentes = colaboradores.filter((c) => !c.onboarding_completo);
 
   return (
     <div>
@@ -34,17 +47,48 @@ export default function AdminDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm">
           <p className="text-coffee-100 text-sm">Colaboradores</p>
-          <p className="text-2xl font-display font-semibold text-coffee-base">{stats.colaboradores}</p>
+          <p className="text-2xl font-display font-semibold text-coffee-base">
+            {loading ? '…' : colaboradores.length}
+          </p>
         </div>
         <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm">
           <p className="text-coffee-100 text-sm">Avisos ativos</p>
-          <p className="text-2xl font-display font-semibold text-coffee-base">{stats.avisos}</p>
+          <p className="text-2xl font-display font-semibold text-coffee-base">{loading ? '…' : avisos}</p>
         </div>
         <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm">
           <p className="text-coffee-100 text-sm">Onboarding pendente</p>
-          <p className="text-2xl font-display font-semibold text-dourado-500">{stats.onboardingPendente}</p>
+          <p className="text-2xl font-display font-semibold text-dourado-500">
+            {loading ? '…' : pendentes.length}
+          </p>
         </div>
       </div>
+
+      {!loading && colaboradores.length > 0 && (
+        <div className="mt-6 rounded-xl border border-dourado-200 bg-white p-6 shadow-sm">
+          <h2 className="font-display font-semibold text-coffee-base mb-3">Colaboradores cadastrados</h2>
+          <div className="space-y-2 text-sm">
+            {ativos.map((c) => (
+              <div key={c.id} className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Ativo" />
+                <span className="text-coffee-base">{c.nome}</span>
+                <span className="text-green-600">• ativo</span>
+              </div>
+            ))}
+            {pendentes.map((c) => (
+              <div key={c.id} className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Pendente" />
+                <span className="text-coffee-base">{c.nome}</span>
+                <span className="text-amber-600">• pendente</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3">
+            <Link href="/admin/colaboradores" className="text-dourado-500 hover:underline text-sm">
+              Ver todos →
+            </Link>
+          </p>
+        </div>
+      )}
       <div className="mt-8 rounded-xl border border-dourado-200 bg-white p-6 shadow-sm">
         <h2 className="font-display font-semibold text-coffee-base mb-2">Link para convite</h2>
         <p className="text-sm text-coffee-100 mb-3">

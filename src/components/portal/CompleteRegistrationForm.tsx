@@ -70,6 +70,9 @@ export function CompleteRegistrationForm() {
   };
 
   const handleSair = () => {
+    if (typeof window !== 'undefined' && !window.confirm('Deseja sair e voltar ao login?')) {
+      return;
+    }
     clearPortalSession();
     router.push('/login');
   };

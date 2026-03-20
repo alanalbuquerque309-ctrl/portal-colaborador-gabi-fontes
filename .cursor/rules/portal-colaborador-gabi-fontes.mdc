@@ -61,3 +61,41 @@ Gestão operacional, cultura e acolhimento para **Matriz, Mesquita, Nova Iguaçu
 - APIs portal: checar `portal_colaborador_id`
 - Service role (`createAdminClient`) para operações que bypassam RLS
 - Estilo: Tailwind, cores dourado/coffee/cream (tema cafeteria)
+
+---
+
+## Login e acesso
+
+- **Portal (colaboradores):** CPF + senha; `colaboradores.senha_hash` (scrypt). Primeiro acesso: `/api/login/portal` retorna `needsPassword` → `/api/login/primeira-senha`. Recuperação: `/login/esqueci-senha` + `/api/login/recuperar-senha` (valida CPF + e-mail; **redefine** senha — nunca exibir senha em texto).
+- APIs `/api/login/portal` e `entrar-socio-admin` fazem lookup no servidor (evita RLS).
+- **Admin:** usuário `admin` + senha OU sessão portal como sócio/admin (sem novo login).
+- **4 sócios:** Alan Albuquerque, Gabriela Fontes, Hilton Jorge, Daniele Fontes.
+- `lib/admin-auth.ts`: `isAdminAuthorized()` considera cookie admin e sessão portal (role socio/admin).
+
+## Foto de perfil
+
+- Limite: **5 MB** (API `/api/portal/perfil/foto` e validação client em `portal/perfil/page.tsx`).
+- Bucket: `fotos-perfil`.
+
+## Header e navegação mobile
+
+- Nav inferior: flex com scroll horizontal; **Meu perfil** sempre visível.
+- 5 itens base: Mural, Família, Escala, Sugestões, Perfil.
+- Se sócio/admin: 6º item "Admin" (link para `/admin/dashboard`).
+- `components/layout/Header.tsx`: `navItens`, `NavIcon`, `iconePorHref`.
+
+## Colaboradores (admin)
+
+- **Filtros:** Setor (cargo), Função (role), Unidade.
+- Opções derivadas dos colaboradores cadastrados (não fixas).
+- Função: Sócio, Administrador, Colaborador.
+- `page.tsx`: `filtroSetor`, `filtroFuncao`, `filtroUnidade`; `colaboradoresFiltrados` via `useMemo`.
+- Usar `Array.from(new Set(...))` (evita downlevelIteration).
+
+## PWA e ícone
+
+- **@ducanh2912/next-pwa**: Service Worker gerado em `public/sw.js` no build.
+- `next.config.js`: `withPWA({ dest: 'public', disable: NODE_ENV===development })`.
+- Ícone limpo vs símbolo navegador: PWA instalado (com SW) = limpo; atalho sem SW = badge do navegador.
+- Gabriela: remover atalho antigo e adicionar de novo via "Instalar app" / "Adicionar à tela inicial".
+- `.gitignore`: `public/sw.js`, `public/workbox-*.js`, `public/worker-*.js`, `*.map`.

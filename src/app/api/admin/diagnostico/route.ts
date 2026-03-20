@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ADMIN_COOKIE = 'admin_session';
+import { isAdminAuthorized } from '@/lib/admin-auth';
 
 /** Diagnóstico: descobre por que "CPF não cadastrado" aparece. */
 export async function GET() {
-  const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value !== '1') {
-    return NextResponse.json({ erro: 'Faça login em /admin primeiro' }, { status: 401 });
+  if (!(await isAdminAuthorized())) {
+    return NextResponse.json({ erro: 'Faça login em /admin ou portal (como sócio/admin)' }, { status: 401 });
   }
 
   const diag: Record<string, unknown> = {

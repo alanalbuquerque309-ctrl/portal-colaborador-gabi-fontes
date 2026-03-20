@@ -1,17 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const ADMIN_COOKIE = 'admin_session';
-
-function checkAuth(cookieStore: Awaited<ReturnType<typeof cookies>>) {
-  return cookieStore.get(ADMIN_COOKIE)?.value === '1';
-}
+import { isAdminAuthorized } from '@/lib/admin-auth';
 
 /** Lista escalas (filtro por colaborador ou por período). */
 export async function GET(req: Request) {
-  const cookieStore = await cookies();
-  if (!checkAuth(cookieStore)) {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 
@@ -53,8 +46,7 @@ export async function GET(req: Request) {
 
 /** Cria escala(s). Aceita array para cadastro em lote. */
 export async function POST(req: Request) {
-  const cookieStore = await cookies();
-  if (!checkAuth(cookieStore)) {
+  if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 
