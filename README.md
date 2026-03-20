@@ -51,6 +51,10 @@ Portal do Colaborador - Gabi Fontes/
 3. Execute as migrations no Supabase Dashboard
 4. Coloque o Manual do Colaborador em PDF em `public/manual-colaborador.pdf` (para o onboarding)
 
+## Git / GitHub (`git push`)
+
+Se o `origin` estiver errado ou você colou um texto de exemplo do tutorial, veja **`docs/GIT-E-GITHUB.md`**. O endereço certo é o que aparece em **Vercel → Settings → Git** (repositório conectado).
+
 ## Scripts
 
 ```bash
