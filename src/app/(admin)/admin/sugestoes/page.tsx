@@ -9,6 +9,8 @@ interface Item {
   texto: string;
   anonimo: boolean;
   created_at: string;
+  visualizado_em: string | null;
+  curtidas: number;
   autor: string;
   unidade: string;
 }
@@ -17,8 +19,10 @@ export default function SugestoesPage() {
   const [itens, setItens] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<string>('');
+  const [marcando, setMarcando] = useState<string | null>(null);
 
-  useEffect(() => {
+  const carregar = () => {
+    setLoading(true);
     const params = filtro ? `?tipo=${filtro}` : '';
     fetch(`/api/admin/sugestoes${params}`, { credentials: 'include' })
       .then((r) => r.json())
@@ -26,7 +30,31 @@ export default function SugestoesPage() {
         if (data.ok && data.itens) setItens(data.itens);
       })
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    carregar();
   }, [filtro]);
+
+  const marcarVisto = async (id: string) => {
+    setMarcando(id);
+    try {
+      const res = await fetch(`/api/admin/sugestoes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ visualizado: true }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setItens((prev) =>
+          prev.map((i) => (i.id === id ? { ...i, visualizado_em: new Date().toISOString() } : i))
+        );
+      }
+    } finally {
+      setMarcando(null);
+    }
+  };
 
   return (
     <div>
@@ -62,7 +90,7 @@ export default function SugestoesPage() {
                 i.tipo === 'reclamacao' ? 'border-amber-200 bg-amber-50/50' : 'border-dourado-200 bg-cream-50'
               }`}
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                 <span className="text-xs font-medium text-coffee-100 uppercase">
                   {i.tipo === 'sugestao' ? 'Sugestão' : 'Reclamação'}
                 </span>
@@ -72,7 +100,30 @@ export default function SugestoesPage() {
                 </span>
               </div>
               <p className="text-coffee-base whitespace-pre-wrap">{i.texto}</p>
-              <p className="text-coffee-100 text-xs mt-2">— {i.autor}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
+                <p className="text-coffee-100 text-xs">— {i.autor}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {i.tipo === 'sugestao' && (
+                    <span className="text-xs text-coffee-100">
+                      {i.curtidas} curtida{i.curtidas === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  {!i.visualizado_em ? (
+                    <button
+                      type="button"
+                      onClick={() => marcarVisto(i.id)}
+                      disabled={marcando === i.id}
+                      className="text-xs rounded-lg border border-dourado-base px-3 py-1 text-dourado-base hover:bg-dourado-50 disabled:opacity-50"
+                    >
+                      {marcando === i.id ? '…' : 'Marcar como visto / em análise'}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-green-700">
+                      Visto em {new Date(i.visualizado_em).toLocaleString('pt-BR')}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
           ))}
         </div>

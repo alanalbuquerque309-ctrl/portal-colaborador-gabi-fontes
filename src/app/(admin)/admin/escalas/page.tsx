@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 interface Colaborador {
@@ -37,18 +36,15 @@ export default function EscalasPage() {
   const daquiUmaSemana = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase
-      .from('colaboradores')
-      .select('id, nome, unidades(nome)')
-      .order('nome')
-      .then((res) => {
-        if (res.data) {
+    fetch('/api/admin/colaboradores-para-escala', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && Array.isArray(data.colaboradores)) {
           setColaboradores(
-            res.data.map((c: Record<string, unknown>) => ({
-              id: String(c.id ?? ''),
-              nome: String(c.nome ?? ''),
-              unidade_nome: (c.unidades as { nome?: string } | null)?.nome ?? undefined,
+            data.colaboradores.map((c: { id: string; nome: string; unidade_nome?: string }) => ({
+              id: c.id,
+              nome: c.nome,
+              unidade_nome: c.unidade_nome,
             }))
           );
         }

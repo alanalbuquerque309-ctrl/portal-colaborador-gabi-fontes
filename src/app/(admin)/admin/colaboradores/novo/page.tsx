@@ -2,18 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 
 const OPCOES_ROLE = [
-  { value: 'socio', label: 'Sócio', desc: 'Proprietários' },
-  { value: 'admin', label: 'Administrador', desc: 'Gerente geral, coordenação' },
-  { value: 'colaborador', label: 'Colaborador', desc: 'Equipe' },
-];
-
-const OPCOES_UNIDADE = [
-  { value: 'matriz', label: 'Matriz (todas as lojas)' },
-  { value: 'mesquita', label: 'Mesquita' },
-  { value: 'barra', label: 'Barra' },
-  { value: 'nova-iguacu', label: 'Nova Iguaçu' },
+  { value: 'admin', label: 'Administrador', desc: 'Portal + painel (sócios costumam usar este perfil)' },
+  { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — apenas portal' },
 ];
 
 function isUuid(s: string): boolean {
@@ -38,6 +31,7 @@ export default function NovoColaboradorPage() {
     endereco: '',
     dataAdmissao: '',
     cargo: '',
+    setor: '',
     role: 'colaborador',
     unidade: '',
   });
@@ -59,6 +53,7 @@ export default function NovoColaboradorPage() {
       endereco: form.endereco.trim() || undefined,
       data_admissao: form.dataAdmissao ? formatDateForInput(form.dataAdmissao) : undefined,
       cargo: form.cargo.trim() || undefined,
+      setor: form.setor.trim() || undefined,
       role: form.role,
     };
     if (isUuid(valorSelecionado)) {
@@ -165,6 +160,20 @@ export default function NovoColaboradorPage() {
           />
         </div>
         <div>
+          <label htmlFor="setor" className="block text-sm font-medium text-coffee-base mb-1">Setor</label>
+          <select
+            id="setor"
+            value={form.setor}
+            onChange={(e) => setForm((f) => ({ ...f, setor: e.target.value }))}
+            className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
+          >
+            <option value="">Selecione o setor (opcional)</option>
+            {SETORES_PREDEFINIDOS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label htmlFor="cargo" className="block text-sm font-medium text-coffee-base mb-1">Cargo</label>
           <input
             id="cargo"
@@ -177,8 +186,8 @@ export default function NovoColaboradorPage() {
           />
         </div>
         <div>
-          <span className="block text-sm font-medium text-coffee-base mb-2">Função</span>
-          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Selecione a função">
+          <span className="block text-sm font-medium text-coffee-base mb-2">Acesso</span>
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Selecione o acesso">
             {OPCOES_ROLE.map((opt) => (
               <label
                 key={opt.value}
@@ -202,17 +211,17 @@ export default function NovoColaboradorPage() {
             ))}
           </div>
           <p className="text-xs text-coffee-100 mt-2">
-            Sócio e Administrador têm acesso total (portal + admin). Colaborador = apenas portal.
+            Administrador: portal + painel. Colaborador: apenas portal.
           </p>
         </div>
         <div>
           <span className="block text-sm font-medium text-coffee-base mb-2">Unidade *</span>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Selecione a unidade">
-            {OPCOES_UNIDADE.map((opt) => (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Selecione a unidade">
+            {UNIDADES_CADASTRO.map((opt) => (
               <label
-                key={opt.value}
+                key={opt.slug}
                 className={`flex items-center min-h-[48px] rounded-lg border-2 px-4 py-3 text-left text-sm font-medium transition-colors cursor-pointer touch-manipulation ${
-                  form.unidade === opt.value
+                  form.unidade === opt.slug
                     ? 'border-dourado-base bg-dourado-50 text-coffee-base'
                     : 'border-cream-300 bg-cream-50 text-coffee-base hover:border-cream-400'
                 }`}
@@ -220,9 +229,9 @@ export default function NovoColaboradorPage() {
                 <input
                   type="radio"
                   name="unidade"
-                  value={opt.value}
-                  checked={form.unidade === opt.value}
-                  onChange={() => setForm((f) => ({ ...f, unidade: opt.value }))}
+                  value={opt.slug}
+                  checked={form.unidade === opt.slug}
+                  onChange={() => setForm((f) => ({ ...f, unidade: opt.slug }))}
                   className="sr-only"
                 />
                 {opt.label}

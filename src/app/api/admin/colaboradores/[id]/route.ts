@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
+import { isSetorValido } from '@/lib/constants/colaborador-org';
 
-const ROLES = ['colaborador', 'admin', 'socio'] as const;
+/** Inclui sócio para não quebrar perfis já existentes ao salvar. Cadastro novo só colaborador/admin. */
+const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio'] as const;
 
 const UNIDADES_PADRAO: { nome: string; slug: string }[] = [
-  { nome: 'Matriz (todas as lojas)', slug: 'matriz' },
   { nome: 'Mesquita', slug: 'mesquita' },
   { nome: 'Barra', slug: 'barra' },
   { nome: 'Nova Iguaçu', slug: 'nova-iguacu' },
+  { nome: 'Fábrica', slug: 'fabrica' },
+  { nome: 'Administrativo', slug: 'administrativo' },
+  /** Legado — não oferecido no cadastro novo; mantém edição de quem já estava em Matriz. */
+  { nome: 'Matriz (todas as lojas)', slug: 'matriz' },
 ];
 
 async function resolverUnidadeId(
@@ -40,7 +45,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     const { data, error } = await supabase
       .from('colaboradores')
       .select(
-        'id, nome, cpf, email, telefone, endereco, data_admissao, cargo, onboarding_completo, role, unidade_id, unidades(slug, nome)'
+        'id, nome, cpf, email, telefone, endereco, data_admissao, cargo, setor, onboarding_completo, role, unidade_id, unidades(slug, nome)'
       )
       .eq('id', id)
       .single();
@@ -72,6 +77,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     endereco?: string | null;
     data_admissao?: string | null;
     cargo?: string | null;
+    setor?: string | null;
     unidade_id?: string;
     unidade_slug?: string;
     role?: string;
@@ -106,9 +112,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (body.data_admissao !== undefined) payload.data_admissao = body.data_admissao?.trim() || null;
     if (body.cargo !== undefined) payload.cargo = body.cargo?.trim() || null;
 
+    if (body.setor !== undefined) {
+      const s = body.setor === null || body.setor === '' ? null : String(body.setor).trim();
+      if (s && !isSetorValido(s)) {
+        return NextResponse.json({ ok: false, erro: 'Setor inválido' }, { status: 400 });
+      }
+      payload.setor = s;
+    }
+
     if (body.role !== undefined) {
       const role = body.role;
-      if (!ROLES.includes(role as (typeof ROLES)[number])) {
+      if (!ROLES_EDITAVEIS.includes(role as (typeof ROLES_EDITAVEIS)[number])) {
         return NextResponse.json({ ok: false, erro: 'Função inválida' }, { status: 400 });
       }
       payload.role = role;

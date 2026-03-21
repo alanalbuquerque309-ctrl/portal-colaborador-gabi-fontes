@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 
 interface Colaborador {
   id: string;
@@ -11,13 +12,14 @@ interface Colaborador {
   email: string | null;
   telefone?: string | null;
   cargo?: string | null;
-  unidade: { nome: string };
+  setor?: string | null;
+  unidade: { nome: string; slug?: string };
   onboarding_completo: boolean;
   role?: string;
 }
 
-const OPCOES_FUNCAO = [
-  { value: '', label: 'Todas as funções' },
+const OPCOES_ACESSO = [
+  { value: '', label: 'Todos os acessos' },
   { value: 'socio', label: 'Sócio' },
   { value: 'admin', label: 'Administrador' },
   { value: 'colaborador', label: 'Colaborador' },
@@ -27,7 +29,8 @@ export default function ColaboradoresPage() {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroSetor, setFiltroSetor] = useState('');
-  const [filtroFuncao, setFiltroFuncao] = useState('');
+  const [filtroCargo, setFiltroCargo] = useState('');
+  const [filtroAcesso, setFiltroAcesso] = useState('');
   const [filtroUnidade, setFiltroUnidade] = useState('');
   const [excluindo, setExcluindo] = useState<string | null>(null);
   const [concluindo, setConcluindo] = useState<string | null>(null);
@@ -64,7 +67,8 @@ export default function ColaboradoresPage() {
               email: c.email != null ? String(c.email) : null,
               telefone: c.telefone != null ? String(c.telefone) : null,
               cargo: c.cargo != null ? String(c.cargo) : null,
-              unidade: (c.unidades as { nome?: string }) ?? { nome: '-' },
+              setor: c.setor != null ? String(c.setor) : null,
+              unidade: (c.unidades as { nome?: string; slug?: string }) ?? { nome: '-' },
               onboarding_completo: c.onboarding_completo === true,
               role: c.role ? String(c.role) : undefined,
             }))
@@ -78,17 +82,24 @@ export default function ColaboradoresPage() {
     recarregar();
   }, []);
 
-  const { opcoesSetor, opcoesUnidade, colaboradoresFiltrados } = useMemo(() => {
-    const setores = Array.from(new Set(colaboradores.map((c) => c.cargo?.trim()).filter((v): v is string => !!v))).sort();
-    const unidades = Array.from(new Set(colaboradores.map((c) => c.unidade?.nome?.trim()).filter((v): v is string => !!v))).sort();
+  const { opcoesUnidadeDados, colaboradoresFiltrados } = useMemo(() => {
+    const nomesExtras = Array.from(
+      new Set(colaboradores.map((c) => c.unidade?.nome?.trim()).filter((v): v is string => !!v))
+    ).sort();
     const filtrados = colaboradores.filter((c) => {
-      if (filtroSetor && (c.cargo?.trim() || '') !== filtroSetor) return false;
-      if (filtroFuncao && (c.role || 'colaborador') !== filtroFuncao) return false;
+      if (filtroSetor && (c.setor?.trim() || '') !== filtroSetor) return false;
+      if (filtroCargo.trim()) {
+        const q = filtroCargo.trim().toLowerCase();
+        if (!(c.cargo?.toLowerCase().includes(q) ?? false)) return false;
+      }
+      if (filtroAcesso && (c.role || 'colaborador') !== filtroAcesso) return false;
       if (filtroUnidade && (c.unidade?.nome?.trim() || '') !== filtroUnidade) return false;
       return true;
     });
-    return { opcoesSetor: setores, opcoesUnidade: unidades, colaboradoresFiltrados: filtrados };
-  }, [colaboradores, filtroSetor, filtroFuncao, filtroUnidade]);
+    const rotulos = [...UNIDADES_CADASTRO.map((u) => u.label), ...nomesExtras.filter((n) => !UNIDADES_CADASTRO.some((u) => u.label === n))];
+    const opcoesUnidadeDados = Array.from(new Set(rotulos)).sort();
+    return { opcoesUnidadeDados, colaboradoresFiltrados: filtrados };
+  }, [colaboradores, filtroSetor, filtroCargo, filtroAcesso, filtroUnidade]);
 
   const handleExcluir = async (id: string, nome: string) => {
     if (!confirm(`Excluir colaborador "${nome}"? Esta ação não pode ser desfeita.`)) return;
@@ -148,23 +159,34 @@ export default function ColaboradoresPage() {
                 id="filtro-setor"
                 value={filtroSetor}
                 onChange={(e) => setFiltroSetor(e.target.value)}
-                className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[140px]"
+                className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[160px]"
               >
                 <option value="">Todos os setores</option>
-                {opcoesSetor.map((s) => (
+                {SETORES_PREDEFINIDOS.map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="filtro-funcao" className="text-xs font-medium text-coffee-100">Função</label>
+              <label htmlFor="filtro-cargo" className="text-xs font-medium text-coffee-100">Cargo (contém)</label>
+              <input
+                id="filtro-cargo"
+                type="search"
+                placeholder="Filtrar por cargo"
+                value={filtroCargo}
+                onChange={(e) => setFiltroCargo(e.target.value)}
+                className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[140px]"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="filtro-acesso" className="text-xs font-medium text-coffee-100">Acesso</label>
               <select
-                id="filtro-funcao"
-                value={filtroFuncao}
-                onChange={(e) => setFiltroFuncao(e.target.value)}
+                id="filtro-acesso"
+                value={filtroAcesso}
+                onChange={(e) => setFiltroAcesso(e.target.value)}
                 className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[140px]"
               >
-                {OPCOES_FUNCAO.map((opt) => (
+                {OPCOES_ACESSO.map((opt) => (
                   <option key={opt.value || 'todas'} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
@@ -178,16 +200,21 @@ export default function ColaboradoresPage() {
                 className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[140px]"
               >
                 <option value="">Todas as unidades</option>
-                {opcoesUnidade.map((u) => (
+                {opcoesUnidadeDados.map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
             </div>
-            {(filtroSetor || filtroFuncao || filtroUnidade) && (
+            {(filtroSetor || filtroCargo.trim() || filtroAcesso || filtroUnidade) && (
               <div className="flex items-end">
                 <button
                   type="button"
-                  onClick={() => { setFiltroSetor(''); setFiltroFuncao(''); setFiltroUnidade(''); }}
+                  onClick={() => {
+                    setFiltroSetor('');
+                    setFiltroCargo('');
+                    setFiltroAcesso('');
+                    setFiltroUnidade('');
+                  }}
                   className="text-sm text-dourado-base hover:text-dourado-600 font-medium"
                 >
                   Limpar filtros
@@ -199,25 +226,28 @@ export default function ColaboradoresPage() {
             {colaboradoresFiltrados.length} de {colaboradores.length} colaborador(es)
           </p>
           <p className="text-xs text-coffee-100 mb-3">
-            Para alterar a função (ex.: tornar administrador), use <strong>Editar perfil</strong> ao lado do nome.
+            Para alterar o acesso (ex.: administrador), use <strong>Editar perfil</strong> ao lado do nome.
           </p>
           <div className="rounded-xl border border-cream-300 overflow-x-auto shadow-sm">
-          <table className="w-full text-sm min-w-[920px] table-fixed">
+          <table className="w-full text-sm min-w-[980px] table-fixed">
             <thead className="bg-cream-200">
               <tr>
-                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[28%] align-bottom">
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[22%] align-bottom">
                   <span className="block leading-tight">Nome</span>
                 </th>
-                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[18%] align-bottom">
-                  <span className="block leading-tight">Cargo</span>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[14%] align-bottom">
+                  <span className="block leading-tight">Setor</span>
                 </th>
                 <th className="text-left px-3 py-3 text-coffee-base font-medium w-[16%] align-bottom">
+                  <span className="block leading-tight">Cargo</span>
+                </th>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[14%] align-bottom">
                   <span className="block leading-tight">Unidade</span>
                 </th>
-                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[14%] align-bottom">
-                  <span className="block leading-tight">Função</span>
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[12%] align-bottom">
+                  <span className="block leading-tight">Acesso</span>
                 </th>
-                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[14%] align-bottom">
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[12%] align-bottom">
                   <span className="block leading-tight">Onboarding</span>
                 </th>
                 <th className="text-right px-3 py-3 text-coffee-base font-medium w-[10%] align-bottom">
@@ -239,6 +269,7 @@ export default function ColaboradoresPage() {
                       </Link>
                     </div>
                   </td>
+                  <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.setor || '-'}</td>
                   <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.cargo || '-'}</td>
                   <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.unidade.nome}</td>
                   <td className="px-3 py-3 text-coffee-100 align-top">

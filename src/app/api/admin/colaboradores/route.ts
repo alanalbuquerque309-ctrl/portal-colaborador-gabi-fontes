@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
+import { isSetorValido, ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
 
 /** Lista colaboradores. Apenas admins autenticados. */
 export async function GET() {
@@ -11,7 +12,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('colaboradores')
-      .select('id, nome, cpf, email, telefone, cargo, onboarding_completo, role, unidades(nome)')
+      .select('id, nome, cpf, email, telefone, cargo, setor, onboarding_completo, role, unidades(nome, slug)')
       .order('nome');
     if (error) {
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
@@ -29,10 +30,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 
-  const ROLES = ['colaborador', 'admin', 'socio'] as const;
   let body: {
     nome?: string; cpf?: string; email?: string; telefone?: string;
-    endereco?: string; data_admissao?: string; cargo?: string;
+    endereco?: string; data_admissao?: string; cargo?: string; setor?: string | null;
     unidade_id?: string; unidade_slug?: string; role?: string;
   };
   try {
@@ -41,8 +41,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, erro: 'Corpo inválido' }, { status: 400 });
   }
 
-  const { nome, cpf, email, telefone, endereco, data_admissao, cargo, unidade_id, unidade_slug, role } = body;
-  const roleFinal = role && ROLES.includes(role as (typeof ROLES)[number]) ? role : 'colaborador';
+  const { nome, cpf, email, telefone, endereco, data_admissao, cargo, setor, unidade_id, unidade_slug, role } = body;
+  const roleFinal =
+    role && (ROLES_CADASTRO as readonly string[]).includes(role) ? role : 'colaborador';
+  if (setor !== undefined && setor !== null && String(setor).trim() && !isSetorValido(String(setor))) {
+    return NextResponse.json({ ok: false, erro: 'Setor inválido' }, { status: 400 });
+  }
   if (!nome?.trim() || !cpf?.trim() || (!unidade_id && !unidade_slug)) {
     return NextResponse.json(
       { ok: false, erro: 'Nome, CPF e unidade são obrigatórios' },
@@ -68,10 +72,11 @@ export async function POST(req: Request) {
         unidadeIdResolvido = porSlug.id;
       } else {
         const UNIDADES_PADRAO: { nome: string; slug: string }[] = [
-          { nome: 'Matriz (todas as lojas)', slug: 'matriz' },
           { nome: 'Mesquita', slug: 'mesquita' },
           { nome: 'Barra', slug: 'barra' },
           { nome: 'Nova Iguaçu', slug: 'nova-iguacu' },
+          { nome: 'Fábrica', slug: 'fabrica' },
+          { nome: 'Administrativo', slug: 'administrativo' },
         ];
         const def = UNIDADES_PADRAO.find((u) => u.slug === unidade_slug);
         if (def) {
@@ -102,6 +107,10 @@ export async function POST(req: Request) {
     if (endereco?.trim()) payload.endereco = endereco.trim();
     if (data_admissao?.trim()) payload.data_admissao = data_admissao.trim();
     if (cargo?.trim()) payload.cargo = cargo.trim();
+    if (setor !== undefined) {
+      const s = setor === null || setor === '' ? null : String(setor).trim();
+      payload.setor = s;
+    }
 
     const { data, error } = await supabase
       .from('colaboradores')

@@ -15,7 +15,9 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     let query = supabase
       .from('sugestoes_reclamacoes')
-      .select('id, tipo, texto, anonimo, created_at, colaborador_id, colaboradores(nome), unidades(nome)')
+      .select(
+        'id, tipo, texto, anonimo, created_at, visualizado_em, curtidas, colaborador_id, colaboradores(nome), unidades(nome)'
+      )
       .order('created_at', { ascending: false })
       .limit(100);
 
@@ -32,6 +34,8 @@ export async function GET(req: Request) {
       texto: r.texto,
       anonimo: r.anonimo === true,
       created_at: r.created_at,
+      visualizado_em: r.visualizado_em ?? null,
+      curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
       autor: r.anonimo ? 'Anônimo' : (r.colaboradores as { nome?: string } | null)?.nome ?? '-',
       unidade: (r.unidades as { nome?: string } | null)?.nome ?? '-',
     }));

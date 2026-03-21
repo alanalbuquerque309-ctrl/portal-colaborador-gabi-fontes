@@ -1,21 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — portal' },
-  { value: 'admin', label: 'Administrador', desc: 'Portal + painel admin (liberado por sócio/admin)' },
-  { value: 'socio', label: 'Sócio', desc: 'Proprietários — acesso total' },
-];
-
-const OPCOES_UNIDADE = [
-  { value: 'matriz', label: 'Matriz (todas as lojas)' },
-  { value: 'mesquita', label: 'Mesquita' },
-  { value: 'barra', label: 'Barra' },
-  { value: 'nova-iguacu', label: 'Nova Iguaçu' },
+  { value: 'admin', label: 'Administrador', desc: 'Portal + painel admin' },
+  { value: 'socio', label: 'Sócio', desc: 'Perfil legado — acesso total' },
 ];
 
 function isUuid(s: string): boolean {
@@ -44,9 +38,19 @@ export default function EditarColaboradorPage() {
     endereco: '',
     dataAdmissao: '',
     cargo: '',
+    setor: '',
     role: 'colaborador',
     unidade: '',
   });
+  const [unidadeLegado, setUnidadeLegado] = useState<{ slug: string; label: string } | null>(null);
+
+  const opcoesUnidade = useMemo(() => {
+    const base = [...UNIDADES_CADASTRO];
+    if (unidadeLegado && !base.some((u) => u.slug === unidadeLegado.slug)) {
+      base.push({ slug: unidadeLegado.slug, label: unidadeLegado.label });
+    }
+    return base;
+  }, [unidadeLegado]);
 
   useEffect(() => {
     if (!id) return;
@@ -59,9 +63,17 @@ export default function EditarColaboradorPage() {
           return;
         }
         const c = data.colaborador as Record<string, unknown>;
-        const rawUn = c.unidades as { slug?: string } | { slug?: string }[] | null;
+        const rawUn = c.unidades as { slug?: string; nome?: string } | { slug?: string; nome?: string }[] | null;
         const un = Array.isArray(rawUn) ? rawUn[0] : rawUn;
         const slug = un?.slug ?? '';
+        if (slug && !UNIDADES_CADASTRO.some((u) => u.slug === slug)) {
+          setUnidadeLegado({
+            slug,
+            label: `${un?.nome?.trim() || slug} (legado — troque pela unidade correta)`,
+          });
+        } else {
+          setUnidadeLegado(null);
+        }
         setForm({
           nome: String(c.nome ?? ''),
           cpf: String(c.cpf ?? ''),
@@ -70,6 +82,7 @@ export default function EditarColaboradorPage() {
           endereco: c.endereco != null ? String(c.endereco) : '',
           dataAdmissao: formatDateForInput(c.data_admissao as string | undefined),
           cargo: c.cargo != null ? String(c.cargo) : '',
+          setor: c.setor != null ? String(c.setor) : '',
           role: (c.role as string) || 'colaborador',
           unidade: slug,
         });
@@ -97,6 +110,7 @@ export default function EditarColaboradorPage() {
       endereco: form.endereco.trim() || null,
       data_admissao: form.dataAdmissao ? form.dataAdmissao : null,
       cargo: form.cargo.trim() || null,
+      setor: form.setor.trim() || null,
       role: form.role,
     };
     if (isUuid(form.unidade)) {
@@ -147,7 +161,7 @@ export default function EditarColaboradorPage() {
         </Link>
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Editar colaborador</h1>
         <p className="text-sm text-coffee-100 mt-1">
-          Ajuste dados e a <strong>função</strong> (ex.: tornar administrador). CPF não pode ser alterado aqui.
+          Ajuste dados, setor, cargo, unidade e <strong>acesso</strong>. CPF não pode ser alterado aqui.
         </p>
       </div>
 
@@ -226,13 +240,30 @@ export default function EditarColaboradorPage() {
           />
         </div>
         <div>
+          <label htmlFor="setor" className="block text-sm font-medium text-coffee-base mb-1">
+            Setor
+          </label>
+          <select
+            id="setor"
+            value={form.setor}
+            onChange={(e) => setForm((f) => ({ ...f, setor: e.target.value }))}
+            className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
+          >
+            <option value="">Nenhum / definir depois</option>
+            {SETORES_PREDEFINIDOS.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
           <label htmlFor="cargo" className="block text-sm font-medium text-coffee-base mb-1">
-            Cargo / setor
+            Cargo
           </label>
           <input
             id="cargo"
             type="text"
-            placeholder="Ex: Barista, CD, Fábrica"
+            placeholder="Ex: Barista, coordenador"
             value={form.cargo}
             onChange={(e) => setForm((f) => ({ ...f, cargo: e.target.value }))}
             className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
@@ -240,7 +271,7 @@ export default function EditarColaboradorPage() {
         </div>
 
         <div>
-          <span className="block text-sm font-medium text-coffee-base mb-2">Função *</span>
+          <span className="block text-sm font-medium text-coffee-base mb-2">Acesso *</span>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Função">
             {OPCOES_ROLE.map((opt) => (
               <label
@@ -268,12 +299,12 @@ export default function EditarColaboradorPage() {
 
         <div>
           <span className="block text-sm font-medium text-coffee-base mb-2">Unidade *</span>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Unidade">
-            {OPCOES_UNIDADE.map((opt) => (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Unidade">
+            {opcoesUnidade.map((opt) => (
               <label
-                key={opt.value}
+                key={opt.slug}
                 className={`flex items-center min-h-[48px] rounded-lg border-2 px-3 py-2 text-left text-sm font-medium transition-colors cursor-pointer touch-manipulation ${
-                  form.unidade === opt.value
+                  form.unidade === opt.slug
                     ? 'border-dourado-base bg-dourado-50 text-coffee-base'
                     : 'border-cream-300 bg-cream-50 text-coffee-base hover:border-cream-400'
                 }`}
@@ -281,9 +312,9 @@ export default function EditarColaboradorPage() {
                 <input
                   type="radio"
                   name="unidade"
-                  value={opt.value}
-                  checked={form.unidade === opt.value}
-                  onChange={() => setForm((f) => ({ ...f, unidade: opt.value }))}
+                  value={opt.slug}
+                  checked={form.unidade === opt.slug}
+                  onChange={() => setForm((f) => ({ ...f, unidade: opt.slug }))}
                   className="sr-only"
                 />
                 {opt.label}
