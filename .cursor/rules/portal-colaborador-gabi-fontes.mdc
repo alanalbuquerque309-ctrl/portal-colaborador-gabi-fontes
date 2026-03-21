@@ -28,7 +28,7 @@ Gestão operacional, cultura e acolhimento para **Matriz, Mesquita, Nova Iguaçu
 | 1 | Gestão (perdas removido) | Concluído |
 | 2 | Hierarquia e cadastro | Concluído |
 | 3 | Perfil e foto | Concluído |
-| 4 | Onboarding (vídeo, quiz, termo) | Concluído |
+| 4 | Onboarding (vídeo obrigatório, manual, quiz, termo) | Concluído |
 | 5 | Mural avisos segmentado + checklist confirmação | Concluído |
 | 6 | Mural social (aniversariantes, destaque) | Concluído |
 | 7 | Minha escala | Concluído |
@@ -42,12 +42,12 @@ Gestão operacional, cultura e acolhimento para **Matriz, Mesquita, Nova Iguaçu
 - `src/app/(admin)/admin/` — dashboard, colaboradores, avisos, destaque
 - `src/app/api/` — rotas API (admin/*, portal/*, login/*)
 - `src/components/` — mural, aniversariantes, destaque, onboarding
-- `supabase/migrations/` — 001 a 008 (schema, avisos, destaque, etc.)
+- `supabase/migrations/` — schema evolutivo; inclui `014_colaboradores_senha_hash.sql` (coluna `senha_hash` para login com senha)
 
 ## Banco (Supabase)
 
 - **unidades**: matriz, mesquita, barra, nova-iguacu
-- **colaboradores**: cpf, nome, unidade_id, data_nascimento, foto_url, onboarding_completo, role
+- **colaboradores**: cpf, nome, unidade_id, data_nascimento, foto_url, onboarding_completo, role, **senha_hash** (hash da senha do portal)
 - **avisos**: unidade_id, titulo, conteudo, exige_confirmacao
 - **aviso_confirmacoes**: aviso_id, colaborador_id (checklist "Li e confirmei")
 - **destaque**: colaborador_id, titulo, descricao (colaborador em destaque)
@@ -67,6 +67,8 @@ Gestão operacional, cultura e acolhimento para **Matriz, Mesquita, Nova Iguaçu
 ## Login e acesso
 
 - **Portal (colaboradores):** CPF + senha; `colaboradores.senha_hash` (scrypt). Primeiro acesso: `/api/login/portal` retorna `needsPassword` → `/api/login/primeira-senha`. Recuperação: `/login/esqueci-senha` + `/api/login/recuperar-senha` (valida CPF + e-mail; **redefine** senha — nunca exibir senha em texto).
+- **Sócio/admin no portal:** `entrar-socio-admin` exige CPF + senha (mesma regra de segurança).
+- Helpers: `lib/password.ts`, `lib/portal-login-response.ts`.
 - APIs `/api/login/portal` e `entrar-socio-admin` fazem lookup no servidor (evita RLS).
 - **Admin:** usuário `admin` + senha OU sessão portal como sócio/admin (sem novo login).
 - **4 sócios:** Alan Albuquerque, Gabriela Fontes, Hilton Jorge, Daniele Fontes.
@@ -89,8 +91,22 @@ Gestão operacional, cultura e acolhimento para **Matriz, Mesquita, Nova Iguaçu
 - **Filtros:** Setor (cargo), Função (role), Unidade.
 - Opções derivadas dos colaboradores cadastrados (não fixas).
 - Função: Sócio, Administrador, Colaborador.
+- **Listagem:** tabela com rolagem horizontal se precisar; coluna **Função** por extenso; link **Editar perfil** ao lado do nome → `/admin/colaboradores/[id]/editar`.
+- **Editar colaborador:** formulário com dados + **função** e unidade; CPF só leitura. Sócio ou admin concede **Administrador** por aqui. API: `GET` e `PATCH` em `/api/admin/colaboradores/[id]`.
 - `page.tsx`: `filtroSetor`, `filtroFuncao`, `filtroUnidade`; `colaboradoresFiltrados` via `useMemo`.
 - Usar `Array.from(new Set(...))` (evita downlevelIteration).
+
+## Onboarding (fluxo atual)
+
+- **Ordem:** (1) Vídeo institucional até o fim — só então libera **Próximo**; pode **Assistir novamente** depois. (2) **Manual:** resumo rolável até o fim + ciência + link PDF. (3) **Questionário** sobre o manual (`QuizManual` em `QuizCultura.tsx`). (4) **Termo** de compromisso.
+- **Removido** do fluxo: etapa separada “Nossa cultura” (conteúdo parte no resumo do manual).
+- Componentes: `VideoBoasVindas.tsx`, `ManualOnboarding.tsx`, `OnboardingFlow.tsx`.
+- Vídeo: `NEXT_PUBLIC_VIDEO_BOAS_VINDAS` (YouTube, Vimeo ou arquivo); em desenvolvimento sem URL há botão opcional para simular conclusão.
+
+## Sair e confirmação
+
+- **Header:** botão **Sair** (desktop e barra inferior no celular) pede confirmação antes de limpar sessão e ir ao login.
+- **Onboarding:** na primeira etapa o botão é **Sair** (com confirmação). **Cadastro pendente** (`CompleteRegistrationForm`): sair também confirma.
 
 ## PWA e ícone
 
