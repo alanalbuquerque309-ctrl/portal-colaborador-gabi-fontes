@@ -4,7 +4,7 @@ import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
 
 /** Inclui sócio para não quebrar perfis já existentes ao salvar. Cadastro novo só colaborador/admin. */
-const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio'] as const;
+const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'master'] as const;
 
 const UNIDADES_PADRAO: { nome: string; slug: string }[] = [
   { nome: 'Mesquita', slug: 'mesquita' },
@@ -45,7 +45,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     const { data, error } = await supabase
       .from('colaboradores')
       .select(
-        'id, nome, cpf, email, telefone, endereco, data_admissao, cargo, setor, onboarding_completo, role, unidade_id, unidades(slug, nome)'
+        'id, nome, cpf, email, telefone, endereco, data_admissao, cargo, setor, onboarding_completo, role, unidade_id, lider_id, unidades(slug, nome)'
       )
       .eq('id', id)
       .single();
@@ -81,6 +81,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     unidade_id?: string;
     unidade_slug?: string;
     role?: string;
+    lider_id?: string | null;
   };
   try {
     body = await req.json();
@@ -126,9 +127,40 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         return NextResponse.json({ ok: false, erro: 'Função inválida' }, { status: 400 });
       }
       payload.role = role;
-      if (role === 'socio' || role === 'admin') {
+      if (role === 'socio' || role === 'admin' || role === 'master') {
         payload.onboarding_completo = true;
         payload.termo_aceite_em = new Date().toISOString();
+      }
+    }
+
+    if (body.lider_id !== undefined) {
+      const raw = body.lider_id;
+      if (raw === null || raw === '') {
+        payload.lider_id = null;
+      } else {
+        const lid = String(raw).trim();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lid)) {
+          return NextResponse.json({ ok: false, erro: 'Líder inválido' }, { status: 400 });
+        }
+        if (lid === id) {
+          return NextResponse.json({ ok: false, erro: 'Colaborador não pode ser líder de si mesmo' }, { status: 400 });
+        }
+        const { data: selfRow } = await supabase.from('colaboradores').select('unidade_id').eq('id', id).single();
+        const { data: leadRow } = await supabase
+          .from('colaboradores')
+          .select('id, unidade_id')
+          .eq('id', lid)
+          .maybeSingle();
+        if (!leadRow) {
+          return NextResponse.json({ ok: false, erro: 'Líder não encontrado' }, { status: 400 });
+        }
+        if (selfRow?.unidade_id && leadRow.unidade_id !== selfRow.unidade_id) {
+          return NextResponse.json(
+            { ok: false, erro: 'Líder precisa ser da mesma unidade do colaborador' },
+            { status: 400 }
+          );
+        }
+        payload.lider_id = lid;
       }
     }
 

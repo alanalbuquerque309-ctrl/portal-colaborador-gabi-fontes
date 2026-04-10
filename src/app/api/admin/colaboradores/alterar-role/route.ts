@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 
-const ROLES = ['colaborador', 'admin', 'socio'] as const;
+const ROLES = ['colaborador', 'admin', 'socio', 'master'] as const;
 
 /** Altera o role de um colaborador. Sócios recebem onboarding_completo=true. */
 export async function PATCH(req: Request) {
@@ -24,7 +24,7 @@ export async function PATCH(req: Request) {
   try {
     const supabase = createAdminClient();
     const payload: Record<string, unknown> = { role };
-    if (role === 'socio' || role === 'admin') {
+    if (role === 'socio' || role === 'admin' || role === 'master') {
       payload.onboarding_completo = true;
       payload.termo_aceite_em = new Date().toISOString();
     }

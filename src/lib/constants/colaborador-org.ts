@@ -21,8 +21,8 @@ export const UNIDADES_CADASTRO: { slug: string; label: string }[] = [
   { slug: 'administrativo', label: 'Administrativo' },
 ];
 
-/** Acesso ao portal/painel: só Colaborador ou Administrador (sócios usam perfil admin). */
-export const ROLES_CADASTRO = ['colaborador', 'admin'] as const;
+/** Acesso ao portal/painel: Colaborador, Administrador ou Master (líder com avaliação de equipe). */
+export const ROLES_CADASTRO = ['colaborador', 'admin', 'master'] as const;
 
 export function isSetorValido(s: string | null | undefined): boolean {
   if (!s || !s.trim()) return false;

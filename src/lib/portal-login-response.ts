@@ -12,7 +12,7 @@ export function buildPortalLoginJson(col: ColaboradorLoginRow, cleanCpf: string)
   const role = col.role || 'colaborador';
   const onboardingCompleto = !!col.onboarding_completo;
 
-  if (!onboardingCompleto && (role === 'socio' || role === 'admin')) {
+  if (!onboardingCompleto && (role === 'socio' || role === 'admin' || role === 'master')) {
     return {
       ok: true as const,
       action: 'socio_admin' as const,

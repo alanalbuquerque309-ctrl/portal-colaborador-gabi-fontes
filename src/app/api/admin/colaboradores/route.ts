@@ -12,7 +12,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('colaboradores')
-      .select('id, nome, cpf, email, telefone, cargo, setor, onboarding_completo, role, unidades(nome, slug)')
+      .select('id, nome, cpf, email, telefone, cargo, setor, onboarding_completo, role, unidade_id, unidades(nome, slug)')
       .order('nome');
     if (error) {
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Unidade inválida' }, { status: 400 });
     }
     // Sócios e admins: acesso total desde o primeiro login (sem onboarding obrigatório)
-    const acessoMaster = roleFinal === 'socio' || roleFinal === 'admin';
+    const acessoMaster = roleFinal === 'socio' || roleFinal === 'admin' || roleFinal === 'master';
 
     const payload: Record<string, unknown> = {
       nome: nome.trim(),

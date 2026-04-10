@@ -8,6 +8,7 @@ import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colabor
 
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — portal' },
+  { value: 'master', label: 'Master (líder)', desc: 'Portal + avaliação da equipe' },
   { value: 'admin', label: 'Administrador', desc: 'Portal + painel admin' },
   { value: 'socio', label: 'Sócio', desc: 'Perfil legado — acesso total' },
 ];
@@ -43,6 +44,11 @@ export default function EditarColaboradorPage() {
     unidade: '',
   });
   const [unidadeLegado, setUnidadeLegado] = useState<{ slug: string; label: string } | null>(null);
+  const [unidadeIdAtual, setUnidadeIdAtual] = useState<string | null>(null);
+  const [todosColaboradores, setTodosColaboradores] = useState<
+    { id: string; nome: string; unidade_id: string | null }[]
+  >([]);
+  const [liderId, setLiderId] = useState<string>('');
 
   const opcoesUnidade = useMemo(() => {
     const base = [...UNIDADES_CADASTRO];
@@ -51,6 +57,23 @@ export default function EditarColaboradorPage() {
     }
     return base;
   }, [unidadeLegado]);
+
+  useEffect(() => {
+    fetch('/api/admin/colaboradores', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && Array.isArray(data.colaboradores)) {
+          setTodosColaboradores(
+            data.colaboradores.map((c: { id: string; nome: string; unidade_id?: string | null }) => ({
+              id: c.id,
+              nome: c.nome,
+              unidade_id: c.unidade_id ?? null,
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -74,6 +97,9 @@ export default function EditarColaboradorPage() {
         } else {
           setUnidadeLegado(null);
         }
+        setUnidadeIdAtual((c.unidade_id as string) || null);
+        const lid = c.lider_id != null ? String(c.lider_id) : '';
+        setLiderId(lid);
         setForm({
           nome: String(c.nome ?? ''),
           cpf: String(c.cpf ?? ''),
@@ -90,6 +116,11 @@ export default function EditarColaboradorPage() {
       .catch(() => setErro('Erro de conexão.'))
       .finally(() => setCarregando(false));
   }, [id]);
+
+  const opcoesLider = useMemo(() => {
+    if (!unidadeIdAtual) return [];
+    return todosColaboradores.filter((c) => c.unidade_id === unidadeIdAtual && c.id !== id);
+  }, [todosColaboradores, unidadeIdAtual, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -118,6 +149,7 @@ export default function EditarColaboradorPage() {
     } else {
       body.unidade_slug = form.unidade;
     }
+    body.lider_id = liderId.trim() ? liderId.trim() : null;
     try {
       const res = await fetch(`/api/admin/colaboradores/${id}`, {
         method: 'PATCH',
@@ -272,7 +304,7 @@ export default function EditarColaboradorPage() {
 
         <div>
           <span className="block text-sm font-medium text-coffee-base mb-2">Acesso *</span>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Função">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="Função">
             {OPCOES_ROLE.map((opt) => (
               <label
                 key={opt.value}
@@ -295,6 +327,28 @@ export default function EditarColaboradorPage() {
               </label>
             ))}
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="lider_id" className="block text-sm font-medium text-coffee-base mb-1">
+            Líder direto (avaliações Master)
+          </label>
+          <select
+            id="lider_id"
+            value={liderId}
+            onChange={(e) => setLiderId(e.target.value)}
+            className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
+          >
+            <option value="">Nenhum</option>
+            {opcoesLider.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nome}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-coffee-100 mt-1">
+            Quem aparece na lista de avaliação diária do Master (mesma unidade).
+          </p>
         </div>
 
         <div>

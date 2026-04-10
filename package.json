@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:apply-setor": "node scripts/aplicar-migration-setor.mjs",
+    "db:apply-avaliacao": "node scripts/aplicar-migration-017-avaliacao.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

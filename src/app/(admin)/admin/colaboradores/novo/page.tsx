@@ -6,6 +6,7 @@ import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colabor
 
 const OPCOES_ROLE = [
   { value: 'admin', label: 'Administrador', desc: 'Portal + painel (sócios costumam usar este perfil)' },
+  { value: 'master', label: 'Master (líder)', desc: 'Portal + avaliação da equipe' },
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — apenas portal' },
 ];
 
@@ -187,7 +188,7 @@ export default function NovoColaboradorPage() {
         </div>
         <div>
           <span className="block text-sm font-medium text-coffee-base mb-2">Acesso</span>
-          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Selecione o acesso">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Selecione o acesso">
             {OPCOES_ROLE.map((opt) => (
               <label
                 key={opt.value}
