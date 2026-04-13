@@ -6,6 +6,11 @@ import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { ColaboradorAvaliacaoCard, type AvaliacaoServidor } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
 
+function isRoleGerenteAvaliadorPortal(role: string | null | undefined): boolean {
+  const r = (role || '').trim().toLowerCase();
+  return r === 'gerente' || r === 'master';
+}
+
 function dataLocalISO(): string {
   const d = new Date();
   const y = d.getFullYear();
@@ -33,7 +38,7 @@ export default function AvaliacaoMasterPage() {
   const autorizado =
     !!session?.colaboradorId &&
     session.colaboradorId !== 'pending' &&
-    session.role === 'master';
+    isRoleGerenteAvaliadorPortal(session.role);
 
   useEffect(() => {
     const s = getPortalSession();
@@ -41,7 +46,7 @@ export default function AvaliacaoMasterPage() {
       router.replace('/login');
       return;
     }
-    if (s.role !== 'master') {
+    if (!isRoleGerenteAvaliadorPortal(s.role)) {
       router.replace('/portal');
       return;
     }
@@ -90,11 +95,11 @@ export default function AvaliacaoMasterPage() {
           ← Voltar ao portal
         </Link>
         <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
-          Avaliação Master
+          Avaliação da equipe
         </h1>
         <p className="text-cafeteria-600 mt-1 text-sm md:text-base max-w-2xl">
-          Avaliação diária da equipe vinculada a você. Configure o <strong>líder direto</strong> de cada
-          colaborador no painel administrativo para que apareçam aqui.
+          Avaliação diária dos colaboradores com você como <strong>líder direto</strong>. No painel admin,
+          defina o líder em cada perfil (mesma unidade). Após o envio, a avaliação fica só leitura.
         </p>
       </div>
 
@@ -129,7 +134,7 @@ export default function AvaliacaoMasterPage() {
           <p className="font-medium">Nenhum colaborador na sua equipe</p>
           <p className="text-sm mt-2 text-cafeteria-700">
             Peça ao administrador para definir o campo <strong>Líder direto</strong> nos perfis que você
-            avalia (mesma unidade). O seu usuário precisa ter função <strong>Master</strong>.
+            avalia (mesma unidade). O seu usuário precisa ter função <strong>Gerente</strong>.
           </p>
         </div>
       ) : (

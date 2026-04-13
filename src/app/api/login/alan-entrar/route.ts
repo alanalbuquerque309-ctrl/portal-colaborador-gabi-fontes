@@ -15,11 +15,20 @@ const UNIDADES_PADRAO = [
  * Nunca exige "Complete seu cadastro" — cadastra tudo no servidor.
  */
 export async function POST(req: Request) {
-  let body: { cpf?: string };
+  let body: { cpf?: string; senha?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, erro: 'Corpo inválido' }, { status: 400 });
+  }
+
+  const senhaEsperada = process.env.ADMIN_ALAN_PASSWORD?.trim();
+  if (!senhaEsperada) {
+    return NextResponse.json({ ok: false, erro: 'Rota desativada.' }, { status: 503 });
+  }
+  const senha = String(body.senha ?? '').trim();
+  if (senha !== senhaEsperada) {
+    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 
   const cpf = String(body.cpf ?? '').replace(/\D/g, '');

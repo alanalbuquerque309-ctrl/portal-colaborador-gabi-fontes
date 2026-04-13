@@ -64,12 +64,10 @@ export function getPortalSession(): {
   role?: string;
 } | null {
   const c = getCookie(COOKIE_COLABORADOR);
-  const u = getCookie(COOKIE_UNIDADE);
-  if (c && u) {
-    const role = getCookie(COOKIE_ROLE);
-    return { colaboradorId: c, unidadeId: u, role: role || undefined };
-  }
-  return null;
+  if (!c) return null;
+  const u = getCookie(COOKIE_UNIDADE) ?? '';
+  const role = getCookie(COOKIE_ROLE);
+  return { colaboradorId: c, unidadeId: u, role: role || undefined };
 }
 
 /** true se o colaborador é sócio ou admin (acesso às 3 lojas) */

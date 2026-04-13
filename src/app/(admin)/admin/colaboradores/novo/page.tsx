@@ -6,7 +6,7 @@ import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colabor
 
 const OPCOES_ROLE = [
   { value: 'admin', label: 'Administrador', desc: 'Portal + painel (sócios costumam usar este perfil)' },
-  { value: 'master', label: 'Master (líder)', desc: 'Portal + avaliação da equipe' },
+  { value: 'gerente', label: 'Gerente (líder)', desc: 'Portal + avaliação da equipe' },
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — apenas portal' },
 ];
 

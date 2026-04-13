@@ -14,7 +14,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('colaboradores')
-      .select('nome, email, telefone, cargo, foto_url, unidades(nome)')
+      .select('nome, email, telefone, cargo, foto_url, role, unidades(nome)')
       .eq('id', colaboradorId)
       .single();
 
@@ -33,6 +33,7 @@ export async function GET() {
         telefone: data.telefone ?? null,
         cargo: data.cargo ?? null,
         foto_url: data.foto_url ?? null,
+        role: (data as { role?: string }).role ?? null,
         unidades: unidadeNome != null ? { nome: unidadeNome } : undefined,
       },
     });

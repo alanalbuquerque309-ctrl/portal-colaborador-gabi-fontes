@@ -126,6 +126,11 @@ export default function AdminDashboardPage() {
               Criar avisos para as unidades
             </a>
           </li>
+          <li>
+            <a href="/admin/avaliacoes-diarias" className="text-dourado-500 hover:underline">
+              Relatório de avaliações diárias
+            </a>
+          </li>
         </ul>
       </div>
     </div>

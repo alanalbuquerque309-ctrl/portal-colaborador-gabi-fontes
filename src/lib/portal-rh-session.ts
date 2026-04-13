@@ -1,13 +1,14 @@
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 
-export type PortalMasterContext = {
+export type PortalRhContext = {
   colaboradorId: string;
   unidadeId: string;
 };
 
-export async function requirePortalMasterSession(): Promise<
-  { ok: true; ctx: PortalMasterContext } | { ok: false; response: Response }
+/** Administrativo ou sócio: relatórios consolidados de avaliação. */
+export async function requirePortalAdminSocioSession(): Promise<
+  { ok: true; ctx: PortalRhContext } | { ok: false; response: Response }
 > {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
@@ -26,10 +27,14 @@ export async function requirePortalMasterSession(): Promise<
       .eq('id', colaboradorId)
       .maybeSingle();
 
-    if (error || !data || data.role !== 'master') {
+    const role = ((data as { role?: string } | null)?.role || '').trim().toLowerCase();
+    if (error || !data || (role !== 'admin' && role !== 'socio')) {
       return {
         ok: false,
-        response: Response.json({ ok: false, erro: 'Acesso restrito a perfil Master' }, { status: 403 }),
+        response: Response.json(
+          { ok: false, erro: 'Apenas administrativo ou sócio podem consultar estes relatórios' },
+          { status: 403 }
+        ),
       };
     }
 

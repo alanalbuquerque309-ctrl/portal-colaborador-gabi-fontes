@@ -4,10 +4,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 const CPF = '05376259765';
 
 /**
- * Teste público do fluxo de login — retorna cada passo para diagnóstico.
- * Remover em produção.
+ * Diagnóstico de login (apenas desenvolvimento).
  */
 export async function GET() {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ ok: false, erro: 'Não disponível' }, { status: 404 });
+  }
   const steps: Record<string, unknown> = {};
   try {
     const supabase = createAdminClient();

@@ -21,8 +21,8 @@ export const UNIDADES_CADASTRO: { slug: string; label: string }[] = [
   { slug: 'administrativo', label: 'Administrativo' },
 ];
 
-/** Acesso ao portal/painel: Colaborador, Administrador ou Master (líder com avaliação de equipe). */
-export const ROLES_CADASTRO = ['colaborador', 'admin', 'master'] as const;
+/** Perfis cadastráveis via fluxo principal: colaborador, gerente (líder / avaliação da equipe), admin. */
+export const ROLES_CADASTRO = ['colaborador', 'gerente', 'admin'] as const;
 
 export function isSetorValido(s: string | null | undefined): boolean {
   if (!s || !s.trim()) return false;

@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Unidade inválida' }, { status: 400 });
     }
     // Sócios e admins: acesso total desde o primeiro login (sem onboarding obrigatório)
-    const acessoMaster = roleFinal === 'socio' || roleFinal === 'admin' || roleFinal === 'master';
+    const acessoSemOnboarding = roleFinal === 'socio' || roleFinal === 'admin';
 
     const payload: Record<string, unknown> = {
       nome: nome.trim(),
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       email: email?.trim() || null,
       unidade_id: unidadeIdResolvido,
       role: roleFinal,
-      onboarding_completo: acessoMaster,
+      onboarding_completo: acessoSemOnboarding,
     };
     if (telefone?.trim()) payload.telefone = telefone.trim();
     if (endereco?.trim()) payload.endereco = endereco.trim();

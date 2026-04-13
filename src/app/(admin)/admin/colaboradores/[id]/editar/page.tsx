@@ -8,7 +8,7 @@ import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colabor
 
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — portal' },
-  { value: 'master', label: 'Master (líder)', desc: 'Portal + avaliação da equipe' },
+  { value: 'gerente', label: 'Gerente (líder)', desc: 'Portal + avaliação da equipe' },
   { value: 'admin', label: 'Administrador', desc: 'Portal + painel admin' },
   { value: 'socio', label: 'Sócio', desc: 'Perfil legado — acesso total' },
 ];
@@ -46,7 +46,7 @@ export default function EditarColaboradorPage() {
   const [unidadeLegado, setUnidadeLegado] = useState<{ slug: string; label: string } | null>(null);
   const [unidadeIdAtual, setUnidadeIdAtual] = useState<string | null>(null);
   const [todosColaboradores, setTodosColaboradores] = useState<
-    { id: string; nome: string; unidade_id: string | null }[]
+    { id: string; nome: string; unidade_id: string | null; role: string | null }[]
   >([]);
   const [liderId, setLiderId] = useState<string>('');
 
@@ -64,11 +64,14 @@ export default function EditarColaboradorPage() {
       .then((data) => {
         if (data.ok && Array.isArray(data.colaboradores)) {
           setTodosColaboradores(
-            data.colaboradores.map((c: { id: string; nome: string; unidade_id?: string | null }) => ({
-              id: c.id,
-              nome: c.nome,
-              unidade_id: c.unidade_id ?? null,
-            }))
+            data.colaboradores.map(
+              (c: { id: string; nome: string; unidade_id?: string | null; role?: string | null }) => ({
+                id: c.id,
+                nome: c.nome,
+                unidade_id: c.unidade_id ?? null,
+                role: c.role ?? null,
+              })
+            )
           );
         }
       })
@@ -100,6 +103,8 @@ export default function EditarColaboradorPage() {
         setUnidadeIdAtual((c.unidade_id as string) || null);
         const lid = c.lider_id != null ? String(c.lider_id) : '';
         setLiderId(lid);
+        const rawRole = String(c.role || 'colaborador').toLowerCase();
+        const roleNormalizado = rawRole === 'master' ? 'gerente' : rawRole;
         setForm({
           nome: String(c.nome ?? ''),
           cpf: String(c.cpf ?? ''),
@@ -109,7 +114,7 @@ export default function EditarColaboradorPage() {
           dataAdmissao: formatDateForInput(c.data_admissao as string | undefined),
           cargo: c.cargo != null ? String(c.cargo) : '',
           setor: c.setor != null ? String(c.setor) : '',
-          role: (c.role as string) || 'colaborador',
+          role: roleNormalizado || 'colaborador',
           unidade: slug,
         });
       })
@@ -119,7 +124,11 @@ export default function EditarColaboradorPage() {
 
   const opcoesLider = useMemo(() => {
     if (!unidadeIdAtual) return [];
-    return todosColaboradores.filter((c) => c.unidade_id === unidadeIdAtual && c.id !== id);
+    return todosColaboradores.filter((c) => {
+      if (c.unidade_id !== unidadeIdAtual || c.id === id) return false;
+      const r = (c.role || '').toLowerCase();
+      return r === 'gerente' || r === 'master';
+    });
   }, [todosColaboradores, unidadeIdAtual, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -331,7 +340,7 @@ export default function EditarColaboradorPage() {
 
         <div>
           <label htmlFor="lider_id" className="block text-sm font-medium text-coffee-base mb-1">
-            Líder direto (avaliações Master)
+            Líder direto (gerente)
           </label>
           <select
             id="lider_id"
@@ -347,7 +356,7 @@ export default function EditarColaboradorPage() {
             ))}
           </select>
           <p className="text-xs text-coffee-100 mt-1">
-            Quem aparece na lista de avaliação diária do Master (mesma unidade).
+            Gerente que avalia este colaborador na avaliação diária (mesma unidade).
           </p>
         </div>
 

@@ -15,7 +15,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('colaboradores')
       .select('id, nome, role, unidades(nome)')
-      .or('role.eq.colaborador,role.eq.admin,role.is.null')
+      .or('role.eq.colaborador,role.eq.admin,role.eq.gerente,role.is.null')
       .order('nome');
 
     if (error) {

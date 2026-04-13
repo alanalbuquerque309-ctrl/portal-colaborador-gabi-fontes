@@ -4,7 +4,7 @@ import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
 
 /** Inclui sócio para não quebrar perfis já existentes ao salvar. Cadastro novo só colaborador/admin. */
-const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'master'] as const;
+const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente'] as const;
 
 const UNIDADES_PADRAO: { nome: string; slug: string }[] = [
   { nome: 'Mesquita', slug: 'mesquita' },
@@ -127,7 +127,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         return NextResponse.json({ ok: false, erro: 'Função inválida' }, { status: 400 });
       }
       payload.role = role;
-      if (role === 'socio' || role === 'admin' || role === 'master') {
+      if (role === 'socio' || role === 'admin') {
         payload.onboarding_completo = true;
         payload.termo_aceite_em = new Date().toISOString();
       }

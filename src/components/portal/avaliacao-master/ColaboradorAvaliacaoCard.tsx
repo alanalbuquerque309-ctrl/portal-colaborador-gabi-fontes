@@ -61,6 +61,8 @@ export function ColaboradorAvaliacaoCard({
   avaliacaoInicial,
   onSalvo,
 }: Props) {
+  const somenteLeitura = avaliacaoInicial != null;
+
   const inicial = useMemo(() => {
     if (!avaliacaoInicial) {
       return {
@@ -95,7 +97,7 @@ export function ColaboradorAvaliacaoCard({
 
   const injustificada = assiduidade === 'falta_injustificada';
   const justificada = assiduidade === 'falta_justificada';
-  const estrelasDesabilitadas = injustificada || justificada;
+  const estrelasDesabilitadas = somenteLeitura || injustificada || justificada;
 
   const previewMedia = useMemo(() => {
     return calcularMediaDia(assiduidade, {
@@ -131,6 +133,7 @@ export function ColaboradorAvaliacaoCard({
   }, []);
 
   const salvar = async () => {
+    if (somenteLeitura) return;
     setErro(null);
     setMsg(null);
     setSalvando(true);
@@ -177,9 +180,19 @@ export function ColaboradorAvaliacaoCard({
       </div>
 
       <div className="p-4 space-y-5">
+        {somenteLeitura && (
+          <p className="text-sm text-cafeteria-800 bg-dourado-50 border border-dourado-200 rounded-lg px-3 py-2">
+            <strong>Avaliação enviada</strong> — leitura apenas. Alterações só pelo administrativo/RH.
+          </p>
+        )}
         <div>
           <span className="block text-sm font-medium text-cafeteria-800 mb-2">Assiduidade</span>
-          <div className="flex flex-col gap-2" role="radiogroup" aria-label="Assiduidade">
+          <div
+            className={`flex flex-col gap-2 ${somenteLeitura ? 'pointer-events-none opacity-90' : ''}`}
+            role="radiogroup"
+            aria-label="Assiduidade"
+            aria-readonly={somenteLeitura}
+          >
             {(
               [
                 { value: 'presente' as const, label: 'Presente' },
@@ -257,28 +270,32 @@ export function ColaboradorAvaliacaoCard({
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-cafeteria-100">
           <p className="text-sm text-cafeteria-700">
-            Média do dia (prévia):{' '}
+            Média do dia{somenteLeitura ? '' : ' (prévia)'}:{' '}
             <strong>
-              {justificada
-                ? 'Isenta'
-                : previewMedia === null
-                  ? assiduidade === 'presente'
-                    ? 'Preencha as 4 notas'
-                    : '—'
-                  : previewMedia.toFixed(2)}
+              {somenteLeitura && avaliacaoInicial?.media_dia != null
+                ? Number(avaliacaoInicial.media_dia).toFixed(2)
+                : justificada
+                  ? 'Isenta'
+                  : previewMedia === null
+                    ? assiduidade === 'presente'
+                      ? 'Preencha as 4 notas'
+                      : '—'
+                    : previewMedia.toFixed(2)}
             </strong>
-            {assiduidade === 'presente' && previewMedia !== null && (
+            {!somenteLeitura && assiduidade === 'presente' && previewMedia !== null && (
               <span className="text-cafeteria-500 font-normal"> (inclui presença = 5)</span>
             )}
           </p>
-          <button
-            type="button"
-            onClick={salvar}
-            disabled={salvando}
-            className="rounded-lg bg-cafeteria-700 text-cream-50 px-4 py-2 text-sm font-medium hover:bg-cafeteria-800 disabled:opacity-50"
-          >
-            {salvando ? 'Salvando…' : 'Salvar avaliação'}
-          </button>
+          {!somenteLeitura && (
+            <button
+              type="button"
+              onClick={salvar}
+              disabled={salvando}
+              className="rounded-lg bg-cafeteria-700 text-cream-50 px-4 py-2 text-sm font-medium hover:bg-cafeteria-800 disabled:opacity-50"
+            >
+              {salvando ? 'Salvando…' : 'Salvar avaliação'}
+            </button>
+          )}
         </div>
         {erro && <p className="text-sm text-red-600">{erro}</p>}
         {msg && !erro && <p className="text-sm text-green-700">{msg}</p>}

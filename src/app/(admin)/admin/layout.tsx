@@ -102,6 +102,7 @@ export default function AdminLayout({
           {navLink('/admin/avisos', 'Avisos')}
           {navLink('/admin/destaque', 'Destaque')}
           {navLink('/admin/escalas', 'Escalas')}
+          {navLink('/admin/avaliacoes-diarias', 'Avaliações diárias')}
           {navLink('/admin/sugestoes', 'Sugestões')}
         </nav>
         <form action="/api/admin/logout" method="POST" className="mt-8">

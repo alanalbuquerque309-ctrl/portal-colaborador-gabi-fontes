@@ -7,9 +7,6 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { setPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
-const BYPASS_CPF = '05376259765';
-const BYPASS_SENHA = 'Alan030813.';
-
 async function processarRespostaLogin(
   data: Record<string, unknown>,
   cleanCpf: string,
@@ -84,32 +81,6 @@ function LoginContent() {
 
     const cleanCpf = cpf.replace(/\D/g, '').trim().padStart(11, '0');
     const senhaTrim = (senha ?? '').trim();
-
-    const ehCpfAlan = cleanCpf === BYPASS_CPF;
-    if (ehCpfAlan && senhaTrim === BYPASS_SENHA) {
-      try {
-        const res = await fetch('/api/login/alan-entrar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cpf: BYPASS_CPF }),
-          credentials: 'include',
-        });
-        const data = await res.json();
-        if (data.ok && data.colaborador) {
-          setPortalSession(data.colaborador.id, data.colaborador.unidade_id, data.colaborador.role || 'socio');
-          router.push('/portal');
-          return;
-        }
-        setError(data.erro || 'Erro ao entrar. Tente novamente.');
-      } catch {
-        setError('Erro de conexão. Verifique a internet e tente novamente.');
-      }
-      return;
-    }
-    if (ehCpfAlan && senhaTrim) {
-      setError('Senha incorreta. Tente novamente.');
-      return;
-    }
 
     if (!validateCpf(cleanCpf)) {
       setError('CPF inválido. Verifique os dígitos.');

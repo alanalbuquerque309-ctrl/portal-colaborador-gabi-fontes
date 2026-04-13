@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requirePortalMasterSession } from '@/lib/portal-master-session';
+import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
 import {
   calcularMediaDia,
   type AssiduidadeTipo,
@@ -11,9 +11,9 @@ function isDateIso(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
 
-/** Equipe do Master + avaliações já salvas na data. */
+/** Equipe do gerente + avaliações já salvas na data (leitura após envio). */
 export async function GET(req: Request) {
-  const auth = await requirePortalMasterSession();
+  const auth = await requirePortalGerenteSession();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
@@ -85,9 +85,9 @@ function isAssiduidade(s: string): s is AssiduidadeTipo {
   return s === 'presente' || s === 'falta_justificada' || s === 'falta_injustificada';
 }
 
-/** Salva ou atualiza uma avaliação diária. */
+/** Primeiro envio da avaliação; depois bloqueado (sem edição). */
 export async function POST(req: Request) {
-  const auth = await requirePortalMasterSession();
+  const auth = await requirePortalGerenteSession();
   if (!auth.ok) return auth.response;
 
   let body: BodyPost;
@@ -157,6 +157,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Colaborador não pertence à sua equipe' }, { status: 403 });
     }
 
+    const { data: existente } = await supabase
+      .from('avaliacoes_diarias')
+      .select('id')
+      .eq('colaborador_id', colaboradorAlvo)
+      .eq('avaliador_id', colaboradorId)
+      .eq('data_referencia', dataRef)
+      .maybeSingle();
+
+    if (existente) {
+      return NextResponse.json(
+        {
+          ok: false,
+          erro:
+            'Esta avaliação já foi enviada e não pode ser alterada. Para correção, contacte o administrativo/RH.',
+        },
+        { status: 409 }
+      );
+    }
+
     const row = {
       colaborador_id: colaboradorAlvo,
       avaliador_id: colaboradorId,
@@ -169,12 +188,10 @@ export async function POST(req: Request) {
       media_dia: media,
     };
 
-    const { error: upErr } = await supabase.from('avaliacoes_diarias').upsert(row, {
-      onConflict: 'colaborador_id,avaliador_id,data_referencia',
-    });
+    const { error: insErr } = await supabase.from('avaliacoes_diarias').insert(row);
 
-    if (upErr) {
-      return NextResponse.json({ ok: false, erro: upErr.message }, { status: 500 });
+    if (insErr) {
+      return NextResponse.json({ ok: false, erro: insErr.message }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, media_dia: media });
