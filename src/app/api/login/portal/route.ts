@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
+import { selectColaboradorLoginRow } from '@/lib/colaborador-forca-troca-compat';
 
 /**
  * Login do portal por CPF + senha — consulta no servidor (contorna RLS do Supabase).
@@ -28,13 +29,12 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { data: col, error } = await supabase
-      .from('colaboradores')
-      .select('id, unidade_id, onboarding_completo, role, senha_hash, forca_troca_senha')
-      .eq('cpf', cleanCpf)
-      .single();
+    const { data: col, error: fetchErr } = await selectColaboradorLoginRow(supabase, cleanCpf);
 
-    if (error || !col) {
+    if (fetchErr) {
+      return NextResponse.json({ ok: false, erro: fetchErr.message || 'Erro ao consultar cadastro.' }, { status: 500 });
+    }
+    if (!col) {
       return NextResponse.json({ ok: false, erro: 'CPF não cadastrado. Entre em contato com o RH.' }, { status: 404 });
     }
 

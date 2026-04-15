@@ -121,11 +121,22 @@ export async function POST(req: Request) {
       payload.setor = s;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('colaboradores')
       .insert(payload)
       .select('id, nome')
       .single();
+
+    if (error && obrigaOnboarding && payload.forca_troca_senha) {
+      const msg = String(error.message ?? '').toLowerCase();
+      if (msg.includes('forca_troca_senha') || msg.includes('column')) {
+        const fallback = { ...payload };
+        delete fallback.forca_troca_senha;
+        const retry = await supabase.from('colaboradores').insert(fallback).select('id, nome').single();
+        data = retry.data;
+        error = retry.error;
+      }
+    }
 
     if (error) {
       if (error.code === '23505') {

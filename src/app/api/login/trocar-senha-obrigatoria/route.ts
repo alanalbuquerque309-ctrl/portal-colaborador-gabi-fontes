@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { hashPassword, verifyPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
+import { selectColaboradorLoginRow, updateSenhaColaboradorCompat } from '@/lib/colaborador-forca-troca-compat';
 
 /**
  * Troca senha quando `forca_troca_senha` ou senha atual é a padrão (123456).
@@ -42,13 +43,12 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { data: col, error } = await supabase
-      .from('colaboradores')
-      .select('id, unidade_id, onboarding_completo, role, senha_hash, forca_troca_senha')
-      .eq('cpf', cleanCpf)
-      .single();
+    const { data: col, error: fetchErr } = await selectColaboradorLoginRow(supabase, cleanCpf);
 
-    if (error || !col) {
+    if (fetchErr) {
+      return NextResponse.json({ ok: false, erro: fetchErr.message || 'Erro ao consultar cadastro.' }, { status: 500 });
+    }
+    if (!col) {
       return NextResponse.json({ ok: false, erro: 'CPF não cadastrado.' }, { status: 404 });
     }
 
@@ -58,14 +58,7 @@ export async function POST(req: Request) {
     }
 
     const hash = hashPassword(senhaNova);
-    const { error: upErr } = await supabase
-      .from('colaboradores')
-      .update({
-        senha_hash: hash,
-        forca_troca_senha: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('cpf', cleanCpf);
+    const { error: upErr } = await updateSenhaColaboradorCompat(supabase, cleanCpf, hash, true);
 
     if (upErr) {
       return NextResponse.json({ ok: false, erro: 'Não foi possível salvar a nova senha.' }, { status: 500 });

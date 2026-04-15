@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { hashPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
+import { updateSenhaColaboradorCompat } from '@/lib/colaborador-forca-troca-compat';
 
 /**
  * Primeiro acesso: define senha quando ainda não existe hash no banco.
@@ -55,10 +56,7 @@ export async function POST(req: Request) {
     }
 
     const hash = hashPassword(senha);
-    const { error: upErr } = await supabase
-      .from('colaboradores')
-      .update({ senha_hash: hash, forca_troca_senha: false, updated_at: new Date().toISOString() })
-      .eq('cpf', cleanCpf);
+    const { error: upErr } = await updateSenhaColaboradorCompat(supabase, cleanCpf, hash, true);
 
     if (upErr) {
       return NextResponse.json({ ok: false, erro: 'Não foi possível salvar a senha.' }, { status: 500 });
