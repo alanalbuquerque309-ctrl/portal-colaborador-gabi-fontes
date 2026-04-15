@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { canViewReclamacoesAdmin, getAdminViewerContext, isAdminAuthorized } from '@/lib/admin-auth';
 
 /** Marca sugestão/reclamação como vista pela administração. */
 export async function PATCH(
@@ -10,6 +10,7 @@ export async function PATCH(
   if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
+  const ctx = await getAdminViewerContext();
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });
@@ -28,6 +29,19 @@ export async function PATCH(
 
   try {
     const supabase = createAdminClient();
+    const { data: row, error: errRow } = await supabase
+      .from('sugestoes_reclamacoes')
+      .select('tipo')
+      .eq('id', id)
+      .single();
+
+    if (errRow || !row) {
+      return NextResponse.json({ ok: false, erro: 'Registro não encontrado' }, { status: 404 });
+    }
+    if ((row as { tipo?: string }).tipo === 'reclamacao' && !canViewReclamacoesAdmin(ctx)) {
+      return NextResponse.json({ ok: false, erro: 'Sem permissão para reclamações' }, { status: 403 });
+    }
+
     const { error } = await supabase
       .from('sugestoes_reclamacoes')
       .update({ visualizado_em: new Date().toISOString() })

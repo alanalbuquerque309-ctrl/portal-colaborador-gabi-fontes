@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
+import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 
 function normalizarRole(raw: unknown): string {
   if (typeof raw !== 'string') return 'colaborador';
@@ -18,7 +19,7 @@ function aplicarFlagsRole(
 ) {
   const isG = role === 'gerente' || role === 'master';
   const isA = role === 'admin' || role === 'socio';
-  /** Colaborador explícito ou outro valor no banco (ex.: legado): mostra atalho; a API restringe o conteúdo. */
+  /** Colaborador explícito ou outro valor no banco: mostra atalho; a API restringe o conteúdo. */
   const isC = role === 'colaborador' || (!isG && !isA);
   setG(isG);
   setA(isA);
@@ -34,6 +35,7 @@ export function AvaliacoesPortalHome() {
   const [mostrarGerente, setMostrarGerente] = useState(false);
   const [mostrarColaborador, setMostrarColaborador] = useState(false);
   const [mostrarAdmin, setMostrarAdmin] = useState(false);
+  const [mostrarRelatoriosSocio, setMostrarRelatoriosSocio] = useState(false);
 
   useEffect(() => {
     let cancelado = false;
@@ -51,12 +53,9 @@ export function AvaliacoesPortalHome() {
         };
         if (cancelado) return;
         if (data.ok && data.colaborador) {
-          aplicarFlagsRole(
-            normalizarRole(data.colaborador.role),
-            setMostrarGerente,
-            setMostrarColaborador,
-            setMostrarAdmin
-          );
+          const nr = normalizarRole(data.colaborador.role);
+          aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador, setMostrarAdmin);
+          setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
           finalizar();
           return;
         }
@@ -67,12 +66,9 @@ export function AvaliacoesPortalHome() {
       if (cancelado) return;
       const s = getPortalSession();
       if (s?.colaboradorId && s.colaboradorId !== 'pending') {
-        aplicarFlagsRole(
-          normalizarRole(s.role),
-          setMostrarGerente,
-          setMostrarColaborador,
-          setMostrarAdmin
-        );
+        const nr = normalizarRole(s.role);
+        aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador, setMostrarAdmin);
+        setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
       }
       finalizar();
     })();
@@ -93,7 +89,7 @@ export function AvaliacoesPortalHome() {
     );
   }
 
-  if (!mostrarGerente && !mostrarColaborador && !mostrarAdmin) {
+  if (!mostrarGerente && !mostrarColaborador && !mostrarAdmin && !mostrarRelatoriosSocio) {
     return null;
   }
 
@@ -103,6 +99,23 @@ export function AvaliacoesPortalHome() {
         Avaliações
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
+        {mostrarRelatoriosSocio && (
+          <Link
+            href="/portal/relatorios-avaliacoes"
+            className="group rounded-2xl border-2 border-dourado-base/50 bg-gradient-to-br from-cream-50 to-white p-5 shadow-sm hover:border-dourado-base hover:shadow-md transition-all sm:col-span-2"
+          >
+            <p className="text-xs font-medium text-dourado-600 uppercase tracking-wider mb-2">Sócio</p>
+            <h3 className="font-display font-semibold text-cafeteria-900 text-lg group-hover:text-dourado-700">
+              Relatórios por filial
+            </h3>
+            <p className="text-sm text-cafeteria-600 mt-2">
+              Avaliações da equipe (diárias) e feedback sobre liderança, unidade a unidade, no mesmo lugar.
+            </p>
+            <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
+              Abrir visão completa →
+            </span>
+          </Link>
+        )}
         {mostrarGerente && (
           <Link
             href="/portal/avaliacao-master"

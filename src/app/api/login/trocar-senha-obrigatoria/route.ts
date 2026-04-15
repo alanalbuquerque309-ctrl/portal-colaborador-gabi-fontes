@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { hashPassword } from '@/lib/password';
+import { hashPassword, verifyPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
 
 /**
- * Primeiro acesso: define senha quando ainda não existe hash no banco.
+ * Troca senha quando `forca_troca_senha` ou senha atual é a padrão (123456).
+ * Nova senha: exatamente 6 dígitos numéricos.
  */
 export async function POST(req: Request) {
-  let body: { cpf?: string; senha?: string; senhaConfirmacao?: string };
+  let body: { cpf?: string; senha_atual?: string; senha_nova?: string; senha_confirmacao?: string };
   try {
     body = await req.json();
   } catch {
@@ -19,27 +20,31 @@ export async function POST(req: Request) {
     .replace(/\D/g, '')
     .trim()
     .padStart(11, '0');
-  const senha = String(body.senha ?? '').trim();
-  const senha2 = String(body.senhaConfirmacao ?? '').trim();
+  const senhaAtual = String(body.senha_atual ?? '').trim();
+  const senhaNova = String(body.senha_nova ?? '').trim();
+  const senha2 = String(body.senha_confirmacao ?? '').trim();
 
   if (cleanCpf.length !== 11) {
     return NextResponse.json({ ok: false, erro: 'CPF inválido' }, { status: 400 });
   }
-  if (!senhaNumerica6Valida(senha)) {
+  if (!senhaAtual) {
+    return NextResponse.json({ ok: false, erro: 'Informe a senha atual.' }, { status: 400 });
+  }
+  if (!senhaNumerica6Valida(senhaNova)) {
     return NextResponse.json(
-      { ok: false, erro: 'A senha deve ter exatamente 6 números.' },
+      { ok: false, erro: 'A nova senha deve ter exatamente 6 números.' },
       { status: 400 }
     );
   }
-  if (senha !== senha2) {
-    return NextResponse.json({ ok: false, erro: 'As senhas não coincidem.' }, { status: 400 });
+  if (senhaNova !== senha2) {
+    return NextResponse.json({ ok: false, erro: 'A confirmação não confere.' }, { status: 400 });
   }
 
   try {
     const supabase = createAdminClient();
     const { data: col, error } = await supabase
       .from('colaboradores')
-      .select('id, unidade_id, onboarding_completo, role, senha_hash')
+      .select('id, unidade_id, onboarding_completo, role, senha_hash, forca_troca_senha')
       .eq('cpf', cleanCpf)
       .single();
 
@@ -47,21 +52,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'CPF não cadastrado.' }, { status: 404 });
     }
 
-    if ((col as { senha_hash?: string | null }).senha_hash) {
-      return NextResponse.json(
-        { ok: false, erro: 'Senha já cadastrada. Use o login com CPF e senha.' },
-        { status: 400 }
-      );
+    const senhaHash = (col as { senha_hash?: string | null }).senha_hash;
+    if (!senhaHash || !verifyPassword(senhaAtual, senhaHash)) {
+      return NextResponse.json({ ok: false, erro: 'Senha atual incorreta.' }, { status: 401 });
     }
 
-    const hash = hashPassword(senha);
+    const hash = hashPassword(senhaNova);
     const { error: upErr } = await supabase
       .from('colaboradores')
-      .update({ senha_hash: hash, forca_troca_senha: false, updated_at: new Date().toISOString() })
+      .update({
+        senha_hash: hash,
+        forca_troca_senha: false,
+        updated_at: new Date().toISOString(),
+      })
       .eq('cpf', cleanCpf);
 
     if (upErr) {
-      return NextResponse.json({ ok: false, erro: 'Não foi possível salvar a senha.' }, { status: 500 });
+      return NextResponse.json({ ok: false, erro: 'Não foi possível salvar a nova senha.' }, { status: 500 });
     }
 
     const payload = buildPortalLoginJson(

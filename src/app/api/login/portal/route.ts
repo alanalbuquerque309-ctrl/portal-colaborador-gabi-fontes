@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     const supabase = createAdminClient();
     const { data: col, error } = await supabase
       .from('colaboradores')
-      .select('id, unidade_id, onboarding_completo, role, senha_hash')
+      .select('id, unidade_id, onboarding_completo, role, senha_hash, forca_troca_senha')
       .eq('cpf', cleanCpf)
       .single();
 
@@ -54,6 +54,20 @@ export async function POST(req: Request) {
 
     if (!verifyPassword(senhaTrim, senhaHash)) {
       return NextResponse.json({ ok: false, erro: 'Senha incorreta.' }, { status: 401 });
+    }
+
+    const forcaTroca = (col as { forca_troca_senha?: boolean | null }).forca_troca_senha === true;
+    if (forcaTroca) {
+      return NextResponse.json({
+        ok: true,
+        mustChangePassword: true,
+        cpf: cleanCpf,
+        colaborador: {
+          id: col.id,
+          unidade_id: col.unidade_id,
+          role: (col as { role?: string }).role,
+        },
+      });
     }
 
     const payload = buildPortalLoginJson(

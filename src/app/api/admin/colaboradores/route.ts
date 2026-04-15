@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido, ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { hashPassword } from '@/lib/password';
+import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
 
 /** Lista colaboradores. Apenas admins autenticados. */
 export async function GET() {
@@ -95,6 +97,9 @@ export async function POST(req: Request) {
     // Sócios e admins: acesso total desde o primeiro login (sem onboarding obrigatório)
     const acessoSemOnboarding = roleFinal === 'socio' || roleFinal === 'admin';
 
+    const senhaPadraoHash = hashPassword(SENHA_PADRAO_INICIAL);
+    const obrigaOnboarding = !acessoSemOnboarding;
+
     const payload: Record<string, unknown> = {
       nome: nome.trim(),
       cpf: cpfLimpo,
@@ -103,6 +108,10 @@ export async function POST(req: Request) {
       role: roleFinal,
       onboarding_completo: acessoSemOnboarding,
     };
+    if (obrigaOnboarding) {
+      payload.senha_hash = senhaPadraoHash;
+      payload.forca_troca_senha = true;
+    }
     if (telefone?.trim()) payload.telefone = telefone.trim();
     if (endereco?.trim()) payload.endereco = endereco.trim();
     if (data_admissao?.trim()) payload.data_admissao = data_admissao.trim();

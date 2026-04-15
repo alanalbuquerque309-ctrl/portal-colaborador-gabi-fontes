@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
 
-/** Inclui sócio e master (legado) para não quebrar perfis; preferir gerente no cadastro. */
+/** Inclui `master` (tratado como gerente no app) para não quebrar cadastros antigos. */
 const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
 
 const UNIDADES_PADRAO: { nome: string; slug: string }[] = [

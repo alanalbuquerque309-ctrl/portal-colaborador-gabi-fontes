@@ -1,4 +1,4 @@
-/** Rótulo curto para listagens admin (mantém legado master). */
+/** Rótulo curto para listagens admin. */
 export function labelAcessoPortal(role: string | null | undefined): string {
   const r = (role || 'colaborador').trim().toLowerCase();
   switch (r) {
@@ -9,7 +9,7 @@ export function labelAcessoPortal(role: string | null | undefined): string {
     case 'gerente':
       return 'Gerente';
     case 'master':
-      return 'Gerente (legado)';
+      return 'Gerente';
     case 'colaborador':
     default:
       return 'Colaborador';

@@ -20,6 +20,19 @@ export default function SugestoesPage() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<string>('');
   const [marcando, setMarcando] = useState<string | null>(null);
+  const [podeReclamacoes, setPodeReclamacoes] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data: { ok?: boolean; podeVerReclamacoes?: boolean }) => {
+        if (data.ok && data.podeVerReclamacoes === false) {
+          setPodeReclamacoes(false);
+          setFiltro((f) => (f === 'reclamacao' ? '' : f));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const carregar = () => {
     setLoading(true);
@@ -58,18 +71,26 @@ export default function SugestoesPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-display font-semibold text-coffee-base">
-          Sugestões e Reclamações
-        </h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-coffee-base">
+            {podeReclamacoes ? 'Sugestões e Reclamações' : 'Sugestões'}
+          </h1>
+          {!podeReclamacoes && (
+            <p className="text-sm text-coffee-100 mt-1 max-w-xl">
+              Reclamações ficam visíveis apenas para sócios (evita conflito quando a mensagem envolve a própria
+              equipe administrativa).
+            </p>
+          )}
+        </div>
         <select
           value={filtro}
           onChange={(e) => setFiltro(e.target.value)}
-          className="rounded-lg border border-cream-300 px-3 py-2 text-sm"
+          className="rounded-lg border border-cream-300 px-3 py-2 text-sm w-full sm:w-auto"
         >
-          <option value="">Todos</option>
+          <option value="">{podeReclamacoes ? 'Todos' : 'Todas as sugestões'}</option>
           <option value="sugestao">Sugestões</option>
-          <option value="reclamacao">Reclamações</option>
+          {podeReclamacoes ? <option value="reclamacao">Reclamações</option> : null}
         </select>
       </div>
 

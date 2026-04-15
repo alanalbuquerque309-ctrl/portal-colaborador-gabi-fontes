@@ -42,7 +42,14 @@ export async function POST(req: Request) {
 }
 
 export async function GET() {
-  const { isAdminAuthorized } = await import('@/lib/admin-auth');
+  const { isAdminAuthorized, getAdminViewerContext, canViewReclamacoesAdmin } = await import(
+    '@/lib/admin-auth'
+  );
   const ok = await isAdminAuthorized();
-  return NextResponse.json({ ok });
+  if (!ok) return NextResponse.json({ ok: false });
+  const ctx = await getAdminViewerContext();
+  return NextResponse.json({
+    ok: true,
+    podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
+  });
 }

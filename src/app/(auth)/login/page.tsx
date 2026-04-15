@@ -44,7 +44,41 @@ function LoginContent() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [primeiraSenha, setPrimeiraSenha] = useState(false);
+  const [trocaObrigatoria, setTrocaObrigatoria] = useState(false);
   const [cpfPrimeiraSenha, setCpfPrimeiraSenha] = useState('');
+
+  const handleTrocarSenhaObrigatoria = async (
+    cpf: string,
+    senhaAtual: string,
+    senhaNova: string,
+    senhaConfirmacao: string
+  ) => {
+    setError(null);
+    try {
+      const res = await fetch('/api/login/trocar-senha-obrigatoria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          cpf,
+          senha_atual: senhaAtual,
+          senha_nova: senhaNova,
+          senha_confirmacao: senhaConfirmacao,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setError(data.erro || 'Não foi possível alterar a senha.');
+        return;
+      }
+      const ok = await processarRespostaLogin(data as Record<string, unknown>, cpf, senhaNova, router);
+      if (!ok) {
+        setError('Erro ao entrar após alterar a senha.');
+      }
+    } catch {
+      setError('Erro de conexão. Verifique a internet e tente novamente.');
+    }
+  };
 
   const handleLogin = async (cpf: string, senha?: string, senhaConfirmacao?: string) => {
     setError(null);
@@ -104,6 +138,14 @@ function LoginContent() {
       if (data.needsPassword === true) {
         setCpfPrimeiraSenha(cleanCpf);
         setPrimeiraSenha(true);
+        setTrocaObrigatoria(false);
+        return;
+      }
+
+      if (data.mustChangePassword === true) {
+        setCpfPrimeiraSenha(cleanCpf);
+        setTrocaObrigatoria(true);
+        setPrimeiraSenha(false);
         return;
       }
 
@@ -125,16 +167,20 @@ function LoginContent() {
     <div className="min-h-screen flex flex-col items-center justify-center bg-cream-100 px-4 py-8">
       <LoginForm
         onSubmit={handleLogin}
+        onTrocarSenhaObrigatoria={handleTrocarSenhaObrigatoria}
         error={error}
         formatCpf={formatCpf}
-        mode={primeiraSenha ? 'primeira_senha' : 'login'}
+        mode={
+          trocaObrigatoria ? 'trocar_senha_obrigatoria' : primeiraSenha ? 'primeira_senha' : 'login'
+        }
         cpfBloqueado={cpfPrimeiraSenha}
       />
-      {primeiraSenha && (
+      {(primeiraSenha || trocaObrigatoria) && (
         <button
           type="button"
           onClick={() => {
             setPrimeiraSenha(false);
+            setTrocaObrigatoria(false);
             setCpfPrimeiraSenha('');
             setError(null);
           }}

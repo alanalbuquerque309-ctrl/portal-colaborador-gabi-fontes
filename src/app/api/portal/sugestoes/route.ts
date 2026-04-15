@@ -46,6 +46,21 @@ export async function GET() {
       curtiu: boolean;
     }> = [];
 
+    let feed_reclamacoes: Array<{
+      id: string;
+      texto: string;
+      created_at: string;
+      autor: string;
+    }> = [];
+
+    const { data: perfil } = await supabase
+      .from('colaboradores')
+      .select('role')
+      .eq('id', colaboradorId)
+      .single();
+    const meuRole = String((perfil as { role?: string } | null)?.role || '').toLowerCase();
+    const socioVeReclamacoes = meuRole === 'socio';
+
     if (unidadeId) {
       const { data: feedRaw, error: errFeed } = await supabase
         .from('sugestoes_reclamacoes')
@@ -79,9 +94,31 @@ export async function GET() {
           };
         });
       }
+
+      if (socioVeReclamacoes) {
+        const { data: reclRaw } = await supabase
+          .from('sugestoes_reclamacoes')
+          .select('id, texto, created_at, anonimo, colaboradores(nome)')
+          .eq('unidade_id', unidadeId)
+          .eq('tipo', 'reclamacao')
+          .order('created_at', { ascending: false })
+          .limit(40);
+
+        feed_reclamacoes = (reclRaw ?? []).map((r: Record<string, unknown>) => {
+          const anon = r.anonimo === true;
+          const nome = (r.colaboradores as { nome?: string } | null)?.nome;
+          const autor = anon ? 'Anônimo' : nome ?? '—';
+          return {
+            id: String(r.id ?? ''),
+            texto: String(r.texto ?? ''),
+            created_at: String(r.created_at ?? ''),
+            autor,
+          };
+        });
+      }
     }
 
-    return NextResponse.json({ ok: true, minhas, feed });
+    return NextResponse.json({ ok: true, minhas, feed, feed_reclamacoes });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

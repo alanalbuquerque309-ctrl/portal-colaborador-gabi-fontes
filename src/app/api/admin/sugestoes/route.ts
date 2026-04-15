@@ -1,15 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { canViewReclamacoesAdmin, getAdminViewerContext, isAdminAuthorized } from '@/lib/admin-auth';
 
-/** Lista sugestões e reclamações. */
+/** Lista sugestões e reclamações. Role administrativo (`admin`) não vê reclamações. */
 export async function GET(req: Request) {
   if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
 
+  const ctx = await getAdminViewerContext();
+  const podeReclamacoes = canViewReclamacoesAdmin(ctx);
+
   const { searchParams } = new URL(req.url);
   const tipo = searchParams.get('tipo');
+
+  if (!podeReclamacoes && tipo === 'reclamacao') {
+    return NextResponse.json({ ok: false, erro: 'Sem permissão para reclamações' }, { status: 403 });
+  }
 
   try {
     const supabase = createAdminClient();
@@ -21,7 +28,9 @@ export async function GET(req: Request) {
       .order('created_at', { ascending: false })
       .limit(100);
 
-    if (tipo === 'sugestao' || tipo === 'reclamacao') {
+    if (!podeReclamacoes) {
+      query = query.eq('tipo', 'sugestao');
+    } else if (tipo === 'sugestao' || tipo === 'reclamacao') {
       query = query.eq('tipo', tipo);
     }
 

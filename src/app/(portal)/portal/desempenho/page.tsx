@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
+import { estrelasParaFrase } from '@/lib/frases-motivacao-desempenho';
 
 type TopItem = { id: string; nome: string; media: number };
 
@@ -12,6 +13,8 @@ type ApiOk = {
   mes_referencia: string;
   min_dias_ranking: number;
   top_unidade: TopItem[];
+  media_media_top3: number | null;
+  frase_motivacional: string;
   meu_desempenho: { nome: string; media_mes: number | null; dias_com_avaliacao: number } | null;
   nota_privacidade?: string;
 };
@@ -141,17 +144,25 @@ export default function DesempenhoPortalPage() {
             {dados.top_unidade.length === 0 ? (
               <p className="text-sm text-cafeteria-700">Ainda não há destaques para este mês.</p>
             ) : (
-              <ol className="list-decimal list-inside space-y-2 text-cafeteria-800">
-                {dados.top_unidade.map((p, i) => (
-                  <li key={p.id}>
-                    <span className="font-medium">{p.nome}</span>
-                    <span className="text-cafeteria-600"> — média {p.media.toFixed(2)}</span>
-                    {i === 3 && dados.top_unidade.length === 4 && (
-                      <span className="text-cafeteria-500 text-sm"> (empate no 3.º lugar)</span>
-                    )}
-                  </li>
-                ))}
-              </ol>
+              <>
+                <ol className="list-decimal list-inside space-y-2 text-cafeteria-800">
+                  {dados.top_unidade.map((p, i) => (
+                    <li key={p.id}>
+                      <span className="font-medium">{p.nome}</span>
+                      <span className="text-cafeteria-600"> — média {p.media.toFixed(2)}</span>
+                      {i === 3 && dados.top_unidade.length === 4 && (
+                        <span className="text-cafeteria-500 text-sm"> (empate no 3.º lugar)</span>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+                {dados.media_media_top3 != null && (
+                  <p className="mt-4 text-sm text-cafeteria-700">
+                    Média dos destaques (média das notas de quem aparece acima):{' '}
+                    <strong>{dados.media_media_top3.toFixed(2)}</strong>
+                  </p>
+                )}
+              </>
             )}
           </section>
 
@@ -161,6 +172,14 @@ export default function DesempenhoPortalPage() {
               <p className="text-cafeteria-800">
                 <strong>{dados.meu_desempenho.nome}</strong>
               </p>
+              {dados.meu_desempenho.media_mes != null && (
+                <p className="mt-2 text-amber-700 text-lg tracking-wide" aria-hidden>
+                  {'★'.repeat(estrelasParaFrase(dados.meu_desempenho.media_mes))}
+                  <span className="sr-only">
+                    {estrelasParaFrase(dados.meu_desempenho.media_mes)} estrelas de 5
+                  </span>
+                </p>
+              )}
               <p className="text-sm text-cafeteria-700 mt-2">
                 {dados.meu_desempenho.media_mes != null ? (
                   <>
@@ -175,6 +194,9 @@ export default function DesempenhoPortalPage() {
                   <>Ainda não há média neste mês (sem dias avaliados com nota).</>
                 )}
               </p>
+              <blockquote className="mt-4 border-l-4 border-dourado-base pl-4 text-cafeteria-800 italic leading-relaxed">
+                {dados.frase_motivacional ?? ''}
+              </blockquote>
               <p className="text-xs text-cafeteria-600 mt-3">
                 Não exibimos a sua posição no ranking nem comparamos diretamente com colegas.
               </p>

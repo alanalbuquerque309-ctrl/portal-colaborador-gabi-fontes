@@ -7,6 +7,7 @@ import {
   topTresComEmpateNoTerceiro,
   type ScoreMensal,
 } from '@/lib/avaliacao-ranking';
+import { fraseMotivacionalDesempenho } from '@/lib/frases-motivacao-desempenho';
 
 function mesBoundsUTC(ano: number, mes: number): { ini: string; fim: string } {
   const ini = `${ano}-${String(mes).padStart(2, '0')}-01`;
@@ -92,12 +93,20 @@ export async function GET(req: Request) {
       dias_com_avaliacao: agg.dias,
     };
 
+    const mesRef = `${ano}-${String(mes).padStart(2, '0')}`;
+
     if (idsRanking.length === 0) {
       return NextResponse.json({
         ok: true,
-        mes_referencia: `${ano}-${String(mes).padStart(2, '0')}`,
+        mes_referencia: mesRef,
         min_dias_ranking: AVALIACAO_RANKING_MIN_DIAS,
         top_unidade: [],
+        media_media_top3: null,
+        frase_motivacional: fraseMotivacionalDesempenho(
+          meu_desempenho.media_mes,
+          colaboradorId,
+          mesRef
+        ),
         meu_desempenho,
         nota_privacidade:
           'Reconhecimento interno: destaque dos melhores desempenhos da unidade no mês. O seu resultado é exibido apenas para si, sem comparação direta nem posição no ranking.',
@@ -137,11 +146,23 @@ export async function GET(req: Request) {
 
     const top_unidade = topTresComEmpateNoTerceiro(scored);
 
+    const mediasTop = top_unidade.map((t) => t.media);
+    const media_media_top3 =
+      mediasTop.length > 0
+        ? Math.round((mediasTop.reduce((a, b) => a + b, 0) / mediasTop.length) * 100) / 100
+        : null;
+
     return NextResponse.json({
       ok: true,
-      mes_referencia: `${ano}-${String(mes).padStart(2, '0')}`,
+      mes_referencia: mesRef,
       min_dias_ranking: AVALIACAO_RANKING_MIN_DIAS,
       top_unidade,
+      media_media_top3,
+      frase_motivacional: fraseMotivacionalDesempenho(
+        meu_desempenho.media_mes,
+        colaboradorId,
+        mesRef
+      ),
       meu_desempenho,
       nota_privacidade:
         'Reconhecimento interno: destaque dos melhores desempenhos da unidade no mês. O seu resultado é exibido apenas para si, sem comparação direta nem posição no ranking.',

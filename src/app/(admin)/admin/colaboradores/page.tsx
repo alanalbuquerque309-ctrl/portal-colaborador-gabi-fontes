@@ -24,7 +24,7 @@ const OPCOES_ACESSO = [
   { value: 'socio', label: 'Sócio' },
   { value: 'admin', label: 'Administrador' },
   { value: 'gerente', label: 'Gerente' },
-  { value: 'master', label: 'Gerente (legado master)' },
+  { value: 'master', label: 'Gerente' },
   { value: 'colaborador', label: 'Colaborador' },
 ];
 

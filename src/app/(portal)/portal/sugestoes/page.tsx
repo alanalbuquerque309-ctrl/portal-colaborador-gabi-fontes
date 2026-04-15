@@ -24,6 +24,13 @@ interface FeedItem {
   curtiu: boolean;
 }
 
+interface ReclamacaoFeedItem {
+  id: string;
+  texto: string;
+  created_at: string;
+  autor: string;
+}
+
 function mensagemAcolhimento(tipo: string, visualizado: boolean): string | null {
   if (!visualizado) return null;
   if (tipo === 'sugestao') {
@@ -43,6 +50,7 @@ export default function SugestoesPage() {
   const [erro, setErro] = useState('');
   const [minhas, setMinhas] = useState<MinhaMsg[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [feedReclamacoes, setFeedReclamacoes] = useState<ReclamacaoFeedItem[]>([]);
   const [carregandoMural, setCarregandoMural] = useState(true);
   const [curtindo, setCurtindo] = useState<string | null>(null);
 
@@ -54,6 +62,8 @@ export default function SugestoesPage() {
         if (data.ok) {
           if (Array.isArray(data.minhas)) setMinhas(data.minhas);
           if (Array.isArray(data.feed)) setFeed(data.feed);
+          if (Array.isArray(data.feed_reclamacoes)) setFeedReclamacoes(data.feed_reclamacoes);
+          else setFeedReclamacoes([]);
         }
       })
       .finally(() => setCarregandoMural(false));
@@ -258,6 +268,29 @@ export default function SugestoesPage() {
           </ul>
         )}
       </section>
+
+      {feedReclamacoes.length > 0 && (
+        <section className="max-w-xl mb-10">
+          <h2 className="text-lg font-semibold text-cafeteria-800 mb-3">Reclamações da unidade</h2>
+          <p className="text-sm text-coffee-100 mb-3">
+            Visível apenas para sócios. Use com responsabilidade e siga o tratamento interno.
+          </p>
+          <ul className="space-y-3">
+            {feedReclamacoes.map((r) => (
+              <li
+                key={r.id}
+                className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-sm"
+              >
+                <p className="text-coffee-base whitespace-pre-wrap">{r.texto}</p>
+                <div className="flex flex-wrap justify-between gap-2 text-xs text-coffee-100 mt-2">
+                  <span>— {r.autor}</span>
+                  <span>{new Date(r.created_at).toLocaleString('pt-BR')}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section className="max-w-xl">
         <h2 className="text-lg font-semibold text-cafeteria-800 mb-3">Sugestões da sua unidade</h2>

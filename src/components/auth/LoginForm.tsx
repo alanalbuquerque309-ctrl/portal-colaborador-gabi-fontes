@@ -6,16 +6,19 @@ import { Button } from '@/components/ui/Button';
 
 interface LoginFormProps {
   onSubmit: (cpf: string, senha?: string, senhaConfirmacao?: string) => void;
+  /** Troca obrigatória após senha padrão 123456 */
+  onTrocarSenhaObrigatoria?: (cpf: string, senhaAtual: string, senhaNova: string, senhaConfirmacao: string) => void;
   error: string | null;
   formatCpf: (value: string) => string;
   /** Fluxo de primeiro acesso — definir senha */
-  mode?: 'login' | 'primeira_senha';
+  mode?: 'login' | 'primeira_senha' | 'trocar_senha_obrigatoria';
   /** CPF (só dígitos) travado no modo primeira senha */
   cpfBloqueado?: string;
 }
 
 export function LoginForm({
   onSubmit,
+  onTrocarSenhaObrigatoria,
   error,
   formatCpf,
   mode = 'login',
@@ -25,10 +28,12 @@ export function LoginForm({
   const [masked, setMasked] = useState('');
   const [senha, setSenha] = useState('');
   const [senha2, setSenha2] = useState('');
+  const [senhaAtual, setSenhaAtual] = useState('');
   const [showSenha, setShowSenha] = useState(false);
   const [showSenha2, setShowSenha2] = useState(false);
 
   const primeiraSenha = mode === 'primeira_senha';
+  const trocarObrigatoria = mode === 'trocar_senha_obrigatoria';
   const maskedBloqueado = cpfBloqueado ? formatCpf(cpfBloqueado) : '';
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,6 +44,10 @@ export function LoginForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (trocarObrigatoria && onTrocarSenhaObrigatoria) {
+      onTrocarSenhaObrigatoria(cpfBloqueado, senhaAtual, senha, senha2);
+      return;
+    }
     if (primeiraSenha) {
       onSubmit(cpfBloqueado, senha, senha2);
     } else {
@@ -49,16 +58,22 @@ export function LoginForm({
   return (
     <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
       <h1 className="mb-2 text-2xl font-display font-semibold text-cafeteria-800">
-        {primeiraSenha ? 'Crie sua senha' : 'Portal do Colaborador'}
+        {trocarObrigatoria
+          ? 'Defina sua nova senha'
+          : primeiraSenha
+            ? 'Crie sua senha'
+            : 'Portal do Colaborador'}
       </h1>
       <p className="mb-6 text-sm text-cafeteria-600">
-        {primeiraSenha
-          ? 'É seu primeiro acesso. Defina uma senha para continuar.'
-          : 'Cafeteria Gabi Fontes'}
+        {trocarObrigatoria
+          ? 'Por segurança, troque a senha padrão (123456) por uma senha só sua: 6 números.'
+          : primeiraSenha
+            ? 'É seu primeiro acesso. Defina uma senha de 6 números para continuar.'
+            : 'Cafeteria Gabi Fontes'}
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block text-sm font-medium text-cafeteria-700">CPF</label>
-        {primeiraSenha ? (
+        {primeiraSenha || trocarObrigatoria ? (
           <input
             type="text"
             readOnly
@@ -78,7 +93,42 @@ export function LoginForm({
           />
         )}
 
-        {!primeiraSenha && (
+        {trocarObrigatoria && (
+          <>
+            <label className="block text-sm font-medium text-cafeteria-700">Senha atual</label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={senhaAtual}
+              onChange={(e) => setSenhaAtual(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="123456"
+              inputMode="numeric"
+              className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base text-cafeteria-800 placeholder:text-cafeteria-300 focus:border-cafeteria-500 focus:outline-none focus:ring-1 focus:ring-cafeteria-500 min-h-[44px] touch-manipulation"
+            />
+            <label className="block text-sm font-medium text-cafeteria-700">Nova senha (6 números)</label>
+            <input
+              type={showSenha ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="••••••"
+              inputMode="numeric"
+              className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base text-cafeteria-800 placeholder:text-cafeteria-300 focus:border-cafeteria-500 focus:outline-none focus:ring-1 focus:ring-cafeteria-500 min-h-[44px] touch-manipulation"
+            />
+            <label className="block text-sm font-medium text-cafeteria-700">Confirmar nova senha</label>
+            <input
+              type={showSenha2 ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={senha2}
+              onChange={(e) => setSenha2(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="••••••"
+              inputMode="numeric"
+              className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base text-cafeteria-800 placeholder:text-cafeteria-300 focus:border-cafeteria-500 focus:outline-none focus:ring-1 focus:ring-cafeteria-500 min-h-[44px] touch-manipulation"
+            />
+          </>
+        )}
+
+        {!primeiraSenha && !trocarObrigatoria && (
           <>
             <label className="block text-sm font-medium text-cafeteria-700">Senha</label>
             <div className="relative">
@@ -122,14 +172,15 @@ export function LoginForm({
 
         {primeiraSenha && (
           <>
-            <label className="block text-sm font-medium text-cafeteria-700">Nova senha</label>
+            <label className="block text-sm font-medium text-cafeteria-700">Nova senha (6 números)</label>
             <div className="relative">
               <input
                 type={showSenha ? 'text' : 'password'}
                 autoComplete="new-password"
                 value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="Mínimo 6 caracteres"
+                onChange={(e) => setSenha(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                inputMode="numeric"
                 className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 pr-12 text-base text-cafeteria-800 placeholder:text-cafeteria-300 focus:border-cafeteria-500 focus:outline-none focus:ring-1 focus:ring-cafeteria-500 min-h-[44px] touch-manipulation"
               />
               <button
@@ -157,8 +208,9 @@ export function LoginForm({
                 type={showSenha2 ? 'text' : 'password'}
                 autoComplete="new-password"
                 value={senha2}
-                onChange={(e) => setSenha2(e.target.value)}
-                placeholder="Repita a senha"
+                onChange={(e) => setSenha2(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="••••••"
+                inputMode="numeric"
                 className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 pr-12 text-base text-cafeteria-800 placeholder:text-cafeteria-300 focus:border-cafeteria-500 focus:outline-none focus:ring-1 focus:ring-cafeteria-500 min-h-[44px] touch-manipulation"
               />
               <button
@@ -185,10 +237,14 @@ export function LoginForm({
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" className="w-full">
-          {primeiraSenha ? 'Definir senha e continuar' : 'Entrar'}
+          {trocarObrigatoria
+            ? 'Salvar e continuar'
+            : primeiraSenha
+              ? 'Definir senha e continuar'
+              : 'Entrar'}
         </Button>
       </form>
-      {!primeiraSenha && (
+      {!primeiraSenha && !trocarObrigatoria && (
         <p className="mt-6 pt-4 border-t border-cafeteria-200 text-center text-sm">
           <span className="text-coffee-100">Sócios e admins:</span>{' '}
           <Link

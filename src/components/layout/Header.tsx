@@ -69,12 +69,14 @@ export function Header() {
   const [podeAdmin, setPodeAdmin] = useState(false);
   const [podeGerenteAvaliador, setPodeGerenteAvaliador] = useState(false);
   const [podeVerDesempenho, setPodeVerDesempenho] = useState(false);
+  const [podeRelatoriosAvaliacoes, setPodeRelatoriosAvaliacoes] = useState(false);
   useEffect(() => {
     const s = getPortalSession();
     const r = (s?.role || '').toLowerCase();
     setPodeAdmin(r === 'socio' || r === 'admin');
     setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
     setPodeVerDesempenho(r === 'colaborador');
+    setPodeRelatoriosAvaliacoes(r === 'socio');
   }, []);
 
   const navItens = [
@@ -87,6 +89,12 @@ export function Header() {
             short: 'Avaliação',
             icon: 'avaliacao' as const,
           },
+          {
+            href: '/portal/gerente-equipe' as const,
+            label: 'Equipe no mês',
+            short: 'Equipe',
+            icon: 'desempenho' as const,
+          },
         ]
       : []),
     ...(podeVerDesempenho
@@ -96,6 +104,22 @@ export function Header() {
             label: 'Desempenho',
             short: 'Desempenho',
             icon: 'desempenho' as const,
+          },
+          {
+            href: '/portal/avaliacao-lideranca' as const,
+            label: 'Avaliar liderança',
+            short: 'Líder',
+            icon: 'avaliacao' as const,
+          },
+        ]
+      : []),
+    ...(podeRelatoriosAvaliacoes
+      ? [
+          {
+            href: '/portal/relatorios-avaliacoes' as const,
+            label: 'Relatórios avaliações',
+            short: 'Relatórios',
+            icon: 'avaliacao' as const,
           },
         ]
       : []),

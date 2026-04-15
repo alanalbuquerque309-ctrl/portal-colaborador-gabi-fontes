@@ -6,7 +6,7 @@ export type PortalGerenteContext = {
   unidadeId: string;
 };
 
-/** Aceita gerente; mantém compatibilidade temporária com role legada master. */
+/** Aceita perfil de quem avalia a equipe (gerente no cadastro; `master` é tratado como gerente). */
 export function isRoleGerenteAvaliador(role: string | null | undefined): boolean {
   const r = (role || '').trim().toLowerCase();
   return r === 'gerente' || r === 'master';
