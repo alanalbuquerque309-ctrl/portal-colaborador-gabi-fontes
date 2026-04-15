@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { hrefManual } from '@/lib/manual-por-setor';
 
+function iframeSrcAbs(arquivo: string): string {
+  if (typeof window === 'undefined') return hrefManual(arquivo);
+  return `${window.location.origin}${hrefManual(arquivo)}`;
+}
+
 type ManualHtmlLeituraProps = {
   titulo: string;
   arquivo: string;
@@ -17,6 +22,11 @@ export function ManualHtmlLeitura({ titulo, arquivo, onReadyChange }: ManualHtml
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [chegouAoFim, setChegouAoFim] = useState(false);
   const [ciencia, setCiencia] = useState(false);
+  const [srcIframe, setSrcIframe] = useState<string>('');
+
+  useEffect(() => {
+    setSrcIframe(iframeSrcAbs(arquivo));
+  }, [arquivo]);
 
   useEffect(() => {
     const root = scrollRef.current;
@@ -41,19 +51,36 @@ export function ManualHtmlLeitura({ titulo, arquivo, onReadyChange }: ManualHtml
     notify();
   }, [notify]);
 
-  const src = hrefManual(arquivo);
+  const hrefRel = hrefManual(arquivo);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-coffee-base">
         <strong>{titulo}</strong> — role até o final do documento e confirme a ciência abaixo.
       </p>
+      <p className="text-xs text-coffee-100">
+        Se o manual não carregar na caixa abaixo,{' '}
+        <a href={hrefRel} target="_blank" rel="noopener noreferrer" className="text-dourado-base font-medium underline">
+          abra em nova aba
+        </a>
+        .
+      </p>
       <div
         ref={scrollRef}
         className="max-h-[min(55vh,520px)] overflow-y-auto rounded-xl border-2 border-dourado-200 bg-cream-50 p-2"
         aria-label={titulo}
       >
-        <iframe title={titulo} src={src} className="h-[min(50vh,480px)] w-full bg-white" />
+        {srcIframe ? (
+          <iframe
+            title={titulo}
+            src={srcIframe}
+            className="h-[min(50vh,480px)] w-full bg-white"
+          />
+        ) : (
+          <div className="h-[min(50vh,480px)] w-full bg-cream-100 flex items-center justify-center text-sm text-coffee-100">
+            A carregar manual…
+          </div>
+        )}
         <div ref={sentinelRef} className="h-px w-full" aria-hidden />
       </div>
       <label
