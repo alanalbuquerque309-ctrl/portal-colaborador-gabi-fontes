@@ -1,16 +1,22 @@
 /**
- * Mapeia setor/cargo do colaborador → manual HTML em /manuais/.
+ * Mapeia setor/cargo do colaborador → manual HTML em /manuais/ (servido por `app/manuais/[[...path]]/route.ts`, pasta `manuals/` na raiz).
  * Fallback: manual geral.
  */
 
 const MANUAL_BASE = '/manuais';
+
+/**
+ * Incremente ao alterar qualquer HTML em `manuals/` (raiz do projeto) para obrigar browser/CDN
+ * a buscar o ficheiro novo (evita ver manual antigo em cache).
+ */
+export const MANUAL_ASSET_VERSION = '20260416-4';
 
 export type ManualRef = { file: string; titulo: string };
 
 /** Manual HTML obrigatório para todos os colaboradores (onboarding). */
 export const MANUAL_GERAL_COLABORADOR: ManualRef = {
   file: 'Manual do colaborador (Geral).html',
-  titulo: 'Manual geral (cultura e conduta)',
+  titulo: 'Manual geral — Cultura e Conduta (Família Gabi Fontes)',
 };
 
 const GERAL = MANUAL_GERAL_COLABORADOR;
@@ -68,5 +74,7 @@ export function manualPorSetor(setor: string | null | undefined, role?: string |
 }
 
 export function hrefManual(file: string): string {
-  return `${MANUAL_BASE}/${encodeURIComponent(file)}`;
+  const path = `${MANUAL_BASE}/${encodeURIComponent(file)}`;
+  const v = encodeURIComponent(MANUAL_ASSET_VERSION);
+  return `${path}?v=${v}`;
 }

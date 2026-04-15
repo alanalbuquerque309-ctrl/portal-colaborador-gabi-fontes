@@ -11,12 +11,7 @@ import {
   Sparkles,
   UserCircle,
 } from 'lucide-react';
-
-const MANUAL_BASE = '/manuais';
-
-function manualHref(filename: string) {
-  return `${MANUAL_BASE}/${encodeURIComponent(filename)}`;
-}
+import { hrefManual } from '@/lib/manual-por-setor';
 
 const manuals = [
   {
@@ -172,7 +167,7 @@ export function ManuaisInlineSection() {
                 </div>
                 <iframe
                   title={aberto}
-                  src={manualHref(file)}
+                  src={hrefManual(file)}
                   className="h-[min(85vh,900px)] w-full bg-white"
                   sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                 />

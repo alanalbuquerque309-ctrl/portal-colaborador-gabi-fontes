@@ -3,8 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Gabi Fontes — Manual do Colaborador (Geral)</title>
+  <!-- EDITAR: título do manual (aba do navegador e PDF) -->
+  <title>Gabi Fontes — [Título do manual]</title>
   <!-- PDF: Chrome/Edge → Imprimir → Mais definições → ative "Gráficos de fundo" para cores no arquivo. -->
+  <!-- MODELO: mesmo layout visual dos manuais atuais (manual-colab-body). Copie este ficheiro, altere só textos e o <title>. -->
+  <!-- Mantenha a pasta assets/ ao lado deste HTML com logo-gabi-fontes.png (RGBA transparente). -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -98,7 +101,6 @@
       }
     }
 
-    /* Paleta viva — mesmo tratamento do Manual do Colaborador */
     .manual-colab-body {
       background:
         radial-gradient(ellipse 90% 45% at 95% 5%, rgba(252, 218, 210, 0.4) 0%, transparent 52%),
@@ -182,6 +184,10 @@
 
     .manual-colab-body .print-section:nth-of-type(6) .chapter-accent-bar {
       background: linear-gradient(90deg, #a67c52, #e8b4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(7) .chapter-accent-bar {
+      background: linear-gradient(90deg, #f0c4b8, #e8b4b8, #d4896e);
     }
 
     .manual-closing-page {
@@ -440,165 +446,67 @@
 </head>
 <body class="manual-colab-body font-body font-medium text-gf-coffee antialiased">
   <div class="doc-frame mx-auto my-6 max-w-4xl px-6 py-10 md:my-10 md:px-12 md:py-14">
+    <!-- ========== CAPA (editar textos) ========== -->
     <header class="cover-block text-center">
       <p class="text-xs font-semibold uppercase tracking-[0.35em] text-gf-latte">Cafeteria</p>
       <h1 class="font-display mt-3 text-4xl font-semibold leading-tight text-gf-coffee md:text-5xl">
         Gabi Fontes
       </h1>
       <p class="mx-auto mt-6 max-w-lg font-body text-sm font-normal leading-relaxed text-gf-coffee/85">
-        Este é o nosso guia de cultura e conduta: o que nos une, como nos portamos e o que esperamos uns dos outros na Cafeteria Gabi Fontes — do primeiro dia ao próximo passo na carreira.
+        [Introdução curta: propósito deste manual e para quem se destina.]
       </p>
       <div class="mx-auto mt-10 max-w-md border-t border-gf-baby/70 pt-8">
-        <p class="font-display text-xl text-gf-coffee">Manual do Colaborador (Geral)</p>
+        <p class="font-display text-xl text-gf-coffee">[Nome ou tipo do documento]</p>
         <ul class="mt-4 space-y-2 text-sm text-gf-coffee/80">
-          <li>Manual de cultura e conduta — Cafeteria Gabi Fontes</li>
+          <li>[Linha opcional — ex.: versão, data, área]</li>
         </ul>
       </div>
     </header>
 
+    <!-- ========== CONTEÚDO: um artigo; duplicar <section class="print-section"> para mais capítulos (até 6 filetes de capítulo com gradientes distintos) ========== -->
     <article class="manual-part">
       <div class="manual-header-banner mb-12 border-b border-gf-baby/25 pb-8 pl-5 pr-4 pt-6 text-center md:border-b-0 md:pl-7 md:text-left">
-        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-gf-latte">Cultura e conduta</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-gf-latte">[Etiqueta — ex.: Manual operacional]</p>
         <h2 class="font-display mt-2 text-3xl font-semibold text-gf-coffee md:text-4xl">
-          Manual de cultura e conduta
+          [Título principal do documento]
         </h2>
-        <p class="mt-2 font-body text-sm font-normal text-gf-coffeeSoft/90">Cafeteria Gabi Fontes — identidade, postura e ética</p>
+        <p class="mt-2 font-body text-sm font-normal text-gf-coffeeSoft/90">[Subtítulo ou público-alvo]</p>
       </div>
 
+      <!-- Capítulo 1 — copiar o bloco <section> inteiro para novos capítulos -->
       <section class="print-section">
         <div class="print-topic">
-        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">1. Nossa identidade (a base)</h3>
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">1. [Título do capítulo]</h3>
         <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
 
         <div class="mt-8 space-y-6">
           <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">O jeito Gabi Fontes de ser</p>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">[Título do card]</p>
             <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Não somos apenas uma cafeteria. Somos um refúgio de acolhimento. Ser um colaborador aqui significa entender que o café é o veículo, mas o <strong class="font-semibold text-gf-coffee">encantamento</strong> é o produto final.
+              [Texto do corpo. Pode usar negrito com a classe font-semibold nos trechos importantes.]
             </p>
           </div>
           <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Os 3 pilares inegociáveis</p>
-            <ul class="mt-3 list-disc space-y-2 pl-5 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              <li><strong class="font-semibold text-gf-coffee">Qualidade:</strong> do grão ao brigadeiro feito com amor, nada sai da cozinha se não estiver perfeito.</li>
-              <li><strong class="font-semibold text-gf-coffee">Aconchego:</strong> nossa loja deve ser o lugar mais agradável do dia do cliente.</li>
-              <li><strong class="font-semibold text-gf-coffee">Presença:</strong> estar inteiro no que faz. Um anfitrião atento percebe o detalhe antes do cliente pedir.</li>
-            </ul>
-          </div>
-        </div>
-        </div>
-      </section>
-
-      <section class="print-section">
-        <div class="print-topic">
-        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">2. Postura e imagem profissional</h3>
-        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
-
-        <div class="mt-8 space-y-6">
-          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">O uniforme como orgulho</p>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">[Título do card]</p>
             <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              O uniforme é a sua &ldquo;vitrine&rdquo;. Mantenha-o sempre impecável, limpo e passado. Você representa a excelência da marca.
-            </p>
-          </div>
-          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Comunicação interna</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Tratamos nossos colegas com a mesma empatia que tratamos nossos clientes. Respeito, educação e tom de voz moderado mantêm a nossa <strong class="font-semibold text-gf-coffee">Harmonia</strong>.
-            </p>
-          </div>
-          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Foco no momento</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Durante o expediente, seu foco é a operação e a experiência do cliente. O uso de celulares deve ser deixado para os horários de pausa, garantindo que nenhum detalhe da loja passe despercebido.
+              [Texto.]
             </p>
           </div>
         </div>
         </div>
       </section>
 
+      <!-- Capítulo 2 — exemplo com um único card (print-topic--together) -->
       <section class="print-section">
-        <div class="print-topic">
-        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">3. Tecnologia como sua aliada</h3>
+        <div class="print-topic print-topic--together">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">2. [Título do capítulo]</h3>
         <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
 
-        <div class="mt-8 space-y-6">
-          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Portal do Colaborador</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              É a sua bússola. Use para consultar processos, tirar dúvidas e acompanhar as novidades da empresa.
-            </p>
-          </div>
-          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Segurança e organização</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Utilizamos sistemas inteligentes para facilitar o seu dia a dia. Registrar as movimentações de estoque e vendas corretamente serve para que você tenha tudo o que precisa à mão e para que possamos crescer juntos com base em dados reais e seguros. A transparência é o que nos permite ser profissionais de alto nível.
-            </p>
-          </div>
-        </div>
-        </div>
-      </section>
-
-      <section class="print-section">
-        <div class="print-topic">
-        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">4. Atitude de dono e zeladoria</h3>
-        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
-
-        <div class="mt-8 space-y-6">
-          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Olhar clínico</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Viu algo fora do lugar? Organize. Notou uma vitrine precisando de atenção? Limpe. Cuidar da loja como se fosse sua é o que diferencia um colaborador comum de um futuro líder.
-            </p>
-          </div>
-          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Zelo pelos insumos</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Nossa matéria-prima é valiosa. O cuidado com o desperdício é uma demonstração de respeito pelo trabalho de toda a equipe e pela sustentabilidade do nosso negócio.
-            </p>
-          </div>
-        </div>
-        </div>
-      </section>
-
-      <section class="print-section">
-        <div class="print-topic">
-        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">5. Crescimento e oportunidades</h3>
-        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
-
-        <div class="mt-8 space-y-6">
-          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Plano de carreira</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Valorizamos quem domina os processos e busca se superar. Com a nossa expansão para novas filiais e franquias, as oportunidades de liderança surgirão primeiro para quem já está &ldquo;em casa&rdquo;.
-            </p>
-          </div>
-          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Sua voz importa</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Tem uma ideia para melhorar o dia a dia? Use o nosso canal de sugestões. Quem está na ponta atendendo é quem melhor conhece os nossos desafios.
-            </p>
-          </div>
-        </div>
-        </div>
-      </section>
-
-      <section class="print-section">
-        <div class="print-topic">
-        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">6. Compromisso e ética</h3>
-        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
-
-        <div class="mt-8 space-y-6">
-          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Pontualidade e respeito</p>
-            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              Nosso trabalho é em equipe. Chegar no horário é respeitar o descanso do colega que você está substituindo e garantir que o cliente encontre a loja pronta para recebê-lo.
-            </p>
-          </div>
+        <div class="mt-8">
           <div class="content-card rounded-2xl border border-gf-baby/40 bg-gradient-to-br from-gf-babySoft/90 to-gf-creamWarm/80 p-6 shadow-gfCard ring-1 ring-gf-baby/25 md:p-8">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Confiança mútua</p>
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">[Título do card]</p>
             <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
-              A honestidade e a transparência são as bases da nossa família. É o que nos permite trabalhar com tranquilidade e foco no crescimento.
+              [Texto.]
             </p>
           </div>
         </div>
@@ -606,6 +514,7 @@
       </section>
     </article>
 
+    <!-- ========== ASSINATURA (não alterar estrutura; logo em PNG transparente na pasta assets/) ========== -->
     <section class="manual-closing-page" aria-label="Encerramento">
       <img
         class="manual-logo-signature"

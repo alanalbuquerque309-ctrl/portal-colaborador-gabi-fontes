@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { hrefManual } from '@/lib/manual-por-setor';
+import { hrefManual, MANUAL_ASSET_VERSION } from '@/lib/manual-por-setor';
 
 function iframeSrcAbs(arquivo: string): string {
   if (typeof window === 'undefined') return hrefManual(arquivo);
@@ -26,7 +26,7 @@ export function ManualHtmlLeitura({ titulo, arquivo, onReadyChange }: ManualHtml
 
   useEffect(() => {
     setSrcIframe(iframeSrcAbs(arquivo));
-  }, [arquivo]);
+  }, [arquivo, MANUAL_ASSET_VERSION]);
 
   useEffect(() => {
     const root = scrollRef.current;
@@ -72,6 +72,7 @@ export function ManualHtmlLeitura({ titulo, arquivo, onReadyChange }: ManualHtml
       >
         {srcIframe ? (
           <iframe
+            key={`${arquivo}-${MANUAL_ASSET_VERSION}`}
             title={titulo}
             src={srcIframe}
             className="h-[min(50vh,480px)] w-full bg-white"

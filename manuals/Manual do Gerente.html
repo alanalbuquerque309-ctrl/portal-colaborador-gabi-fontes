@@ -25,6 +25,10 @@
               latteLight: '#C4A574',
               frame: '#B9A48E',
               frameDark: '#4B3621',
+              coral: '#D4896E',
+              peach: '#F0C4B8',
+              terracotta: '#C17F59',
+              sage: '#B8C4B0',
             },
           },
           fontFamily: {
@@ -93,6 +97,122 @@
         min-height: 52vh;
         padding: 2.5rem 2rem;
       }
+    }
+
+    /* Paleta viva — alinhada ao Manual do Colaborador (Geral) */
+    .manual-colab-body {
+      background:
+        radial-gradient(ellipse 90% 45% at 95% 5%, rgba(252, 218, 210, 0.4) 0%, transparent 52%),
+        radial-gradient(ellipse 70% 50% at 5% 95%, rgba(214, 190, 165, 0.28) 0%, transparent 48%),
+        linear-gradient(168deg, #fff9f6 0%, #f3e8df 38%, #f8f1ec 100%);
+    }
+
+    .manual-colab-body .doc-frame {
+      border-color: rgba(200, 130, 118, 0.48);
+      outline-color: rgba(232, 175, 168, 0.6);
+      background: linear-gradient(
+        185deg,
+        rgba(255, 252, 250, 0.95) 0%,
+        rgba(252, 235, 230, 0.55) 45%,
+        rgba(245, 228, 215, 0.5) 100%
+      );
+      box-shadow:
+        0 14px 48px rgba(91, 58, 48, 0.09),
+        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+
+    .manual-colab-body .cover-block {
+      background: linear-gradient(145deg, #ffffff 0%, #fce8ec 32%, #f5e4d4 68%, #faf3ef 100%);
+      border: 1px solid rgba(212, 140, 130, 0.5);
+      box-shadow: 0 10px 40px rgba(91, 58, 48, 0.08);
+    }
+
+    .manual-header-banner {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1rem;
+      border: 1px solid rgba(229, 180, 184, 0.55);
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.92) 0%, rgba(252, 228, 230, 0.75) 45%, rgba(245, 232, 220, 0.85) 100%);
+      box-shadow: 0 4px 24px rgba(75, 54, 33, 0.06);
+    }
+
+    .manual-header-banner::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      border-radius: 1rem 0 0 1rem;
+      background: linear-gradient(180deg, #e8b4b8 0%, #c4a574 50%, #d4896e 100%);
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(odd) .content-card:not([class*='babySoft']) {
+      border-color: rgba(212, 145, 130, 0.38) !important;
+      background: linear-gradient(145deg, #fffefd 0%, #fdf2f0 55%, #faf0eb 100%) !important;
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(even) .content-card:not([class*='babySoft']) {
+      border-color: rgba(196, 165, 116, 0.42) !important;
+      background: linear-gradient(145deg, #fffefd 0%, #f7f0e6 55%, #fdf8f3 100%) !important;
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(even) .content-card[class*='border-l-gf-baby']:not([class*='babySoft']) {
+      background: linear-gradient(95deg, #fffefd 0%, #f5ebe3 100%) !important;
+    }
+
+    .manual-colab-body .print-section:nth-of-type(1) .chapter-accent-bar {
+      background: linear-gradient(90deg, #d4896e, #e8b4b8, #f0c4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(2) .chapter-accent-bar {
+      background: linear-gradient(90deg, #c4a574, #e5b4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(3) .chapter-accent-bar {
+      background: linear-gradient(90deg, #b8a06e, #f0c4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(4) .chapter-accent-bar {
+      background: linear-gradient(90deg, #d4896e, #c4a574);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(5) .chapter-accent-bar {
+      background: linear-gradient(90deg, #e8b4b8, #d4896e);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(6) .chapter-accent-bar {
+      background: linear-gradient(90deg, #a67c52, #e8b4b8);
+    }
+
+    .manual-closing-page {
+      position: relative;
+      page-break-before: always;
+      break-before: page;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      min-height: 70vh;
+      margin-top: 0;
+      padding: 2rem 1rem 3rem;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .manual-logo-signature {
+      position: relative;
+      display: block;
+      width: 100%;
+      max-width: 200px;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+      object-fit: contain;
     }
 
     /* Marca final: arte PNG com fundo transparente (integra no gradiente do manual) */
@@ -326,6 +446,25 @@
         margin-top: 0.45rem !important;
       }
 
+      body.manual-colab-body {
+        background: linear-gradient(165deg, #fff9f6 0%, #f0e4d8 45%, #faf2ec 100%) !important;
+      }
+
+      body.manual-colab-body .doc-frame {
+        background: linear-gradient(185deg, rgba(255, 252, 250, 0.98) 0%, rgba(245, 232, 222, 0.9) 100%) !important;
+      }
+
+      body.manual-colab-body header.cover-block {
+        background: linear-gradient(135deg, #ffffff 0%, #fce8ec 38%, #f0e4d4 100%) !important;
+        border-color: rgba(200, 140, 130, 0.5) !important;
+      }
+
+      body.manual-colab-body .manual-header-banner {
+        background: linear-gradient(120deg, rgba(255, 255, 255, 0.97) 0%, rgba(252, 228, 230, 0.85) 100%) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
       a {
         color: inherit !important;
         text-decoration: none !important;
@@ -333,7 +472,7 @@
     }
   </style>
 </head>
-<body class="font-body font-medium text-gf-coffee antialiased">
+<body class="manual-colab-body font-body font-medium text-gf-coffee antialiased">
   <div class="doc-frame mx-auto my-6 max-w-4xl px-6 py-10 md:my-10 md:px-12 md:py-14">
     <!-- Capa -->
     <header class="cover-block text-center">
