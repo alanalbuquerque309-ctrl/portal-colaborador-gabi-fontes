@@ -14,7 +14,9 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from('colaboradores')
-      .select('nome, email, telefone, cargo, setor, foto_url, role, unidades(nome)')
+      .select(
+        'nome, email, telefone, cargo, setor, foto_url, role, onboarding_completo, onboarding_video_visto, onboarding_quiz_video_ok, onboarding_manual_geral_lido_ok, onboarding_quiz_manual_geral_ok, onboarding_manual_escolhido_file, onboarding_manual_escolhido_concluido, unidades(nome)'
+      )
       .eq('id', colaboradorId)
       .single();
 
@@ -36,6 +38,17 @@ export async function GET() {
         foto_url: data.foto_url ?? null,
         role: (data as { role?: string }).role ?? null,
         unidades: unidadeNome != null ? { nome: unidadeNome } : undefined,
+        onboarding_completo: !!(data as { onboarding_completo?: boolean }).onboarding_completo,
+        onboarding_video_visto: !!(data as { onboarding_video_visto?: boolean }).onboarding_video_visto,
+        onboarding_quiz_video_ok: !!(data as { onboarding_quiz_video_ok?: boolean }).onboarding_quiz_video_ok,
+        onboarding_manual_geral_lido_ok: !!(data as { onboarding_manual_geral_lido_ok?: boolean })
+          .onboarding_manual_geral_lido_ok,
+        onboarding_quiz_manual_geral_ok: !!(data as { onboarding_quiz_manual_geral_ok?: boolean })
+          .onboarding_quiz_manual_geral_ok,
+        onboarding_manual_escolhido_file:
+          (data as { onboarding_manual_escolhido_file?: string | null }).onboarding_manual_escolhido_file ?? null,
+        onboarding_manual_escolhido_concluido: !!(data as { onboarding_manual_escolhido_concluido?: boolean })
+          .onboarding_manual_escolhido_concluido,
       },
     });
   } catch (e) {

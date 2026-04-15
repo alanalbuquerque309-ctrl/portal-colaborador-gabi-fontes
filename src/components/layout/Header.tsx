@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getPortalSession, clearPortalSession } from '@/lib/utils/session';
+import { hrefManual } from '@/lib/manual-por-setor';
 
 const navItensBase = [
   { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' as const },
@@ -48,6 +49,7 @@ function NavIcon({ type }: { type: string }) {
         </svg>
       );
     case 'manuais':
+    case 'meu-manual':
       return (
         <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -77,6 +79,8 @@ export function Header() {
   const [podeGerenteAvaliador, setPodeGerenteAvaliador] = useState(false);
   const [podeVerDesempenho, setPodeVerDesempenho] = useState(false);
   const [podeRelatoriosAvaliacoes, setPodeRelatoriosAvaliacoes] = useState(false);
+  const [meuManualHref, setMeuManualHref] = useState<string | null>(null);
+
   useEffect(() => {
     const s = getPortalSession();
     const r = (s?.role || '').toLowerCase();
@@ -86,8 +90,56 @@ export function Header() {
     setPodeRelatoriosAvaliacoes(r === 'socio');
   }, []);
 
+  useEffect(() => {
+    let cancel = false;
+    fetch('/api/portal/perfil', { credentials: 'include' })
+      .then((r) => r.json())
+      .then(
+        (data: {
+          ok?: boolean;
+          colaborador?: {
+            onboarding_completo?: boolean;
+            onboarding_manual_escolhido_file?: string | null;
+          };
+        }) => {
+          if (cancel) return;
+          const c = data.colaborador;
+          if (
+            data.ok &&
+            c?.onboarding_completo &&
+            c.onboarding_manual_escolhido_file?.trim()
+          ) {
+            setMeuManualHref(hrefManual(c.onboarding_manual_escolhido_file.trim()));
+          } else {
+            setMeuManualHref(null);
+          }
+        }
+      )
+      .catch(() => {
+        if (!cancel) setMeuManualHref(null);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [pathname]);
+
+  const navItensInicio = [
+    navItensBase[0],
+    ...(meuManualHref
+      ? [
+          {
+            href: meuManualHref,
+            label: 'Meu manual',
+            short: 'Meu manual',
+            icon: 'meu-manual' as const,
+          },
+        ]
+      : []),
+    ...navItensBase.slice(1),
+  ];
+
   const navItens = [
-    ...navItensBase,
+    ...navItensInicio,
     ...(podeGerenteAvaliador
       ? [
           {
