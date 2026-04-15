@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 
-const ROLES = ['colaborador', 'admin', 'socio', 'gerente'] as const;
+const ROLES = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
 
 /** Altera o role de um colaborador. Sócios recebem onboarding_completo=true. */
 export async function PATCH(req: Request) {
@@ -28,14 +28,20 @@ export async function PATCH(req: Request) {
       payload.onboarding_completo = true;
       payload.termo_aceite_em = new Date().toISOString();
     }
+    if (role === 'gerente' || role === 'master' || role === 'admin' || role === 'socio') {
+      payload.lider_id = null;
+    }
 
-    const { error } = await supabase
+    const { data: row, error } = await supabase
       .from('colaboradores')
       .update({ ...payload, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select('id, role')
+      .single();
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    if (!row) return NextResponse.json({ ok: false, erro: 'Colaborador não encontrado' }, { status: 404 });
+    return NextResponse.json({ ok: true, colaborador: row });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

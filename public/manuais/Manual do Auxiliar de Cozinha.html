@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gabi Fontes — Manual do Auxiliar de Cozinha</title>
+  <!-- PDF: Chrome/Edge → Imprimir → Mais definições → ative "Gráficos de fundo" para cores no arquivo. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gf: {
+              cream: '#F5F1E9',
+              creamWarm: '#F8F2EA',
+              creamBlush: '#FBF5F2',
+              coffee: '#4B3621',
+              coffeeSoft: '#5C4435',
+              rose: '#E8C4B8',
+              roseMuted: '#D4A89A',
+              baby: '#E5B4B8',
+              babySoft: '#F5E4E6',
+              latte: '#A67C52',
+              latteLight: '#C4A574',
+              frame: '#B9A48E',
+              frameDark: '#4B3621',
+              coral: '#D4896E',
+              peach: '#F0C4B8',
+              terracotta: '#C17F59',
+              sage: '#B8C4B0',
+            },
+          },
+          fontFamily: {
+            display: ['"Playfair Display"', 'Georgia', 'serif'],
+            body: ['Montserrat', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            card: '0 4px 24px rgba(75, 54, 33, 0.08), 0 1px 3px rgba(75, 54, 33, 0.06)',
+            cardHover: '0 8px 32px rgba(75, 54, 33, 0.12)',
+            gfCard:
+              '0 4px 28px rgba(75, 54, 33, 0.085), 0 2px 10px rgba(166, 124, 82, 0.07)',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(165deg, #f8f2ea 0%, #f5f1e9 42%, #faf0ee 100%);
+    }
+
+    .doc-frame {
+      position: relative;
+      border: 3px double rgba(166, 124, 82, 0.42);
+      outline: 1px solid rgba(229, 180, 184, 0.48);
+      outline-offset: 4px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(251, 245, 242, 0.72) 55%, rgba(248, 242, 234, 0.5) 100%);
+      box-shadow:
+        0 12px 48px rgba(75, 54, 33, 0.07),
+        inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .cover-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 48vh;
+      border-radius: 1rem;
+      padding: 2rem 1.25rem;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 228, 230, 0.35) 55%, rgba(248, 242, 234, 0.45) 100%);
+      border: 1px solid rgba(229, 180, 184, 0.35);
+      box-shadow: 0 6px 28px rgba(75, 54, 33, 0.05);
+    }
+
+    .cover-block h1 {
+      width: 100%;
+    }
+
+    .cover-block ul {
+      list-style: none;
+      padding-left: 0;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+
+    @media (min-width: 768px) {
+      .cover-block {
+        min-height: 52vh;
+        padding: 2.5rem 2rem;
+      }
+    }
+
+    /* Paleta viva — mesmo tratamento do Manual do Colaborador */
+    .manual-colab-body {
+      background:
+        radial-gradient(ellipse 90% 45% at 95% 5%, rgba(252, 218, 210, 0.4) 0%, transparent 52%),
+        radial-gradient(ellipse 70% 50% at 5% 95%, rgba(214, 190, 165, 0.28) 0%, transparent 48%),
+        linear-gradient(168deg, #fff9f6 0%, #f3e8df 38%, #f8f1ec 100%);
+    }
+
+    .manual-colab-body .doc-frame {
+      border-color: rgba(200, 130, 118, 0.48);
+      outline-color: rgba(232, 175, 168, 0.6);
+      background: linear-gradient(
+        185deg,
+        rgba(255, 252, 250, 0.95) 0%,
+        rgba(252, 235, 230, 0.55) 45%,
+        rgba(245, 228, 215, 0.5) 100%
+      );
+      box-shadow:
+        0 14px 48px rgba(91, 58, 48, 0.09),
+        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+
+    .manual-colab-body .cover-block {
+      background: linear-gradient(145deg, #ffffff 0%, #fce8ec 32%, #f5e4d4 68%, #faf3ef 100%);
+      border: 1px solid rgba(212, 140, 130, 0.5);
+      box-shadow: 0 10px 40px rgba(91, 58, 48, 0.08);
+    }
+
+    .manual-header-banner {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1rem;
+      border: 1px solid rgba(229, 180, 184, 0.55);
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.92) 0%, rgba(252, 228, 230, 0.75) 45%, rgba(245, 232, 220, 0.85) 100%);
+      box-shadow: 0 4px 24px rgba(75, 54, 33, 0.06);
+    }
+
+    .manual-header-banner::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      border-radius: 1rem 0 0 1rem;
+      background: linear-gradient(180deg, #e8b4b8 0%, #c4a574 50%, #d4896e 100%);
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(odd) .content-card:not([class*='babySoft']) {
+      border-color: rgba(212, 145, 130, 0.38) !important;
+      background: linear-gradient(145deg, #fffefd 0%, #fdf2f0 55%, #faf0eb 100%) !important;
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(even) .content-card:not([class*='babySoft']) {
+      border-color: rgba(196, 165, 116, 0.42) !important;
+      background: linear-gradient(145deg, #fffefd 0%, #f7f0e6 55%, #fdf8f3 100%) !important;
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(even) .content-card[class*='border-l-gf-baby']:not([class*='babySoft']) {
+      background: linear-gradient(95deg, #fffefd 0%, #f5ebe3 100%) !important;
+    }
+
+    .manual-colab-body .print-section:nth-of-type(1) .chapter-accent-bar {
+      background: linear-gradient(90deg, #d4896e, #e8b4b8, #f0c4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(2) .chapter-accent-bar {
+      background: linear-gradient(90deg, #c4a574, #e5b4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(3) .chapter-accent-bar {
+      background: linear-gradient(90deg, #b8a06e, #f0c4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(4) .chapter-accent-bar {
+      background: linear-gradient(90deg, #d4896e, #c4a574);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(5) .chapter-accent-bar {
+      background: linear-gradient(90deg, #e8b4b8, #d4896e);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(6) .chapter-accent-bar {
+      background: linear-gradient(90deg, #a67c52, #e8b4b8);
+    }
+
+    .manual-closing-page {
+      position: relative;
+      page-break-before: always;
+      break-before: page;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      min-height: 70vh;
+      margin-top: 0;
+      padding: 2rem 1rem 3rem;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .manual-logo-signature {
+      position: relative;
+      display: block;
+      width: 100%;
+      max-width: 200px;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+      object-fit: contain;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 16mm 18mm;
+        background-color: #f5f1e9;
+        border: 2px double #b9a48e;
+      }
+
+      html {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: #f5f1e9 !important;
+      }
+
+      body {
+        background: linear-gradient(165deg, #f8f2ea 0%, #f5f1e9 38%, #faf0ee 100%) !important;
+        font-size: 10.5pt;
+        line-height: 1.45;
+      }
+
+      .doc-frame {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: linear-gradient(180deg, #f8f2ea 0%, #fbf5f2 55%, #f3ebe4 100%) !important;
+      }
+
+      header.cover-block {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+        min-height: 258mm;
+        padding: 14mm 12mm !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 2px solid #c4a574 !important;
+        border-left: 6px solid #e5b4b8 !important;
+        border-radius: 0.75rem !important;
+        background: linear-gradient(135deg, #fffefb 0%, #f8e8ea 38%, #f5f0e8 100%) !important;
+        box-shadow: none !important;
+        color: #4b3621 !important;
+      }
+
+      header.cover-block .text-gf-latte {
+        color: #a67c52 !important;
+      }
+
+      header.cover-block h1 {
+        color: #4b3621 !important;
+      }
+
+      header.cover-block [class*='border-gf-baby'] {
+        border-color: rgba(229, 180, 184, 0.85) !important;
+      }
+
+      h2,
+      h3 {
+        color: #4b3621 !important;
+      }
+
+      h2 {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .text-gf-latte {
+        color: #a67c52 !important;
+      }
+
+      .content-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        padding: 0.55rem 0.75rem !important;
+        border: 1px solid rgba(166, 124, 82, 0.4) !important;
+        background: linear-gradient(to bottom right, #ffffff 0%, #fbf5f2 100%) !important;
+      }
+
+      .content-card[class*='from-gf-babySoft'] {
+        background: linear-gradient(to bottom right, #f5e4e6 0%, #f8f2ea 100%) !important;
+        border-color: rgba(229, 180, 184, 0.75) !important;
+      }
+
+      .content-card.border-l-gf-baby,
+      [class*='border-l-gf-baby'] {
+        border-left-color: #e5b4b8 !important;
+      }
+
+      .print-section {
+        page-break-before: auto;
+        break-before: auto;
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+
+      article.manual-part:nth-of-type(2) {
+        page-break-before: always;
+        break-before: page;
+        margin-top: 0 !important;
+      }
+
+      .print-topic > h3 {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .print-topic > h3 + div {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .print-topic > h3 + div + div {
+        page-break-before: avoid;
+        break-before: avoid;
+      }
+
+      .print-topic--together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      p {
+        widows: 3;
+        orphans: 3;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .print-section li {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      header.cover-block p {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .manual-closing-page {
+        page-break-before: always !important;
+        break-before: page !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        min-height: 210mm !important;
+        justify-content: flex-end !important;
+        padding: 0 4mm 16mm !important;
+        margin: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .manual-logo-signature {
+        max-width: 200px !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .doc-frame {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0.25rem 0.5rem !important;
+        max-width: 100% !important;
+      }
+
+      article.manual-part:first-of-type {
+        margin-top: 0.35rem !important;
+      }
+
+      .mb-12 {
+        margin-bottom: 0.85rem !important;
+      }
+
+      .pb-8 {
+        padding-bottom: 0.5rem !important;
+      }
+
+      .mt-8 {
+        margin-top: 0.65rem !important;
+      }
+
+      .mt-20 {
+        margin-top: 1rem !important;
+      }
+
+      .space-y-6 > :not([hidden]) ~ * {
+        margin-top: 0.45rem !important;
+      }
+
+      body.manual-colab-body {
+        background: linear-gradient(165deg, #fff9f6 0%, #f0e4d8 45%, #faf2ec 100%) !important;
+      }
+
+      body.manual-colab-body .doc-frame {
+        background: linear-gradient(185deg, rgba(255, 252, 250, 0.98) 0%, rgba(245, 232, 222, 0.9) 100%) !important;
+      }
+
+      body.manual-colab-body header.cover-block {
+        background: linear-gradient(135deg, #ffffff 0%, #fce8ec 38%, #f0e4d4 100%) !important;
+        border-color: rgba(200, 140, 130, 0.5) !important;
+      }
+
+      body.manual-colab-body .manual-header-banner {
+        background: linear-gradient(120deg, rgba(255, 255, 255, 0.97) 0%, rgba(252, 228, 230, 0.85) 100%) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      a {
+        color: inherit !important;
+        text-decoration: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="manual-colab-body font-body font-medium text-gf-coffee antialiased">
+  <div class="doc-frame mx-auto my-6 max-w-4xl px-6 py-10 md:my-10 md:px-12 md:py-14">
+    <header class="cover-block text-center">
+      <p class="text-xs font-semibold uppercase tracking-[0.35em] text-gf-latte">Cafeteria</p>
+      <h1 class="font-display mt-3 text-4xl font-semibold leading-tight text-gf-coffee md:text-5xl">
+        Gabi Fontes
+      </h1>
+      <p class="mx-auto mt-6 max-w-lg font-body text-sm font-normal leading-relaxed text-gf-coffee/85">
+        Na cozinha, cada grama e cada detalhe contam. Este manual orienta os auxiliares de cozinha a produzir com padrão, segurança e o mesmo sabor Gabi Fontes em todas as unidades.
+      </p>
+      <div class="mx-auto mt-10 max-w-md border-t border-gf-baby/70 pt-8">
+        <p class="font-display text-xl text-gf-coffee">Manual do Auxiliar de Cozinha</p>
+        <ul class="mt-4 space-y-2 text-sm text-gf-coffee/80">
+          <li>Manual operacional — Excelência na produção</li>
+        </ul>
+      </div>
+    </header>
+
+    <article class="manual-part">
+      <div class="manual-header-banner mb-12 border-b border-gf-baby/25 pb-8 pl-5 pr-4 pt-6 text-center md:border-b-0 md:pl-7 md:text-left">
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-gf-latte">Manual operacional</p>
+        <h2 class="font-display mt-2 text-3xl font-semibold text-gf-coffee md:text-4xl">
+          Excelência na produção (Auxiliares de cozinha)
+        </h2>
+        <p class="mt-2 font-body text-sm font-normal text-gf-coffeeSoft/90">Padrão, segurança alimentar e trabalho em equipe</p>
+      </div>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">1. O padrão Gabi Fontes de produção</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Fidelidade à receita</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Na nossa cozinha, não existe &ldquo;olhômetro&rdquo;. O sabor que encantou o cliente na Barra precisa ser o mesmo de Mesquita. Use sempre as balanças, medidores e fichas técnicas.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Apresentação (o prato &ldquo;instagramável&rdquo;)</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              O cliente come primeiro com os olhos. Garanta que as fatias estejam retas, os recheios bem distribuídos e as louças de servir estejam perfeitamente limpas, sem marcas de dedos nas bordas, e sempre na temperatura correta: se é quente, é quente — não morno.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">2. Organização e agilidade (o ritmo da cozinha)</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Mise en place (tudo no lugar)</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Antes de começar a correria, garanta que seus insumos estejam picados, pesados e organizados. Cozinha organizada é cozinha rápida.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Comunicação com o salão</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Mantenha um tom de voz profissional e claro. Se o movimento estiver alto e os pedidos começarem a demorar mais que o padrão, avise o atendente imediatamente para que ele alinhe a expectativa do cliente.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">3. Manual de boas práticas (segurança alimentar)</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Higiene pessoal</p>
+            <ul class="mt-3 list-disc space-y-2 pl-5 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              <li>Uso obrigatório de toca cobrindo todo o cabelo.</li>
+              <li>Unhas curtas, limpas e sem esmalte.</li>
+              <li>Sem adornos (anéis, pulseiras ou relógios) durante o preparo.</li>
+              <li>Lavagem das mãos: sempre que trocar de tarefa, chegar da rua, tossir ou manusear lixo.</li>
+            </ul>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Controle de validade (sistema PVPS)</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              <strong class="font-semibold text-gf-coffee">Primeiro que vence é o primeiro que sai.</strong> Todo insumo aberto ou preparado deve ser etiquetado com: nome do produto, data de fabricação e data de validade.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Contaminação cruzada</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Nunca use a mesma tábua ou faca para alimentos crus e cozidos sem higienizar entre os processos. Mantenha a bancada limpa após cada preparo.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">4. Gestão de estoque e desperdício</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Zelo pelo insumo</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Evite desperdícios no corte e informe imediatamente qualquer perda para registro no sistema.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Armazenamento</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Mantenha a geladeira organizada. Alimentos nunca devem ficar em contato direto com o chão.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">5. Higiene do ambiente e utensílios</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Limpe enquanto trabalha</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Não espere o fim do dia para limpar. Sujou a bancada? Limpe na hora. Caiu algo no chão? Retire imediatamente para evitar acidentes.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Cuidado com os equipamentos</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Nossas máquinas e utensílios são ferramentas de trabalho valiosas. Use-os com cuidado e reporte qualquer barulho ou mau funcionamento ao gestor.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">6. Ética e trabalho em equipe</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Sincronia</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Você é a base para o trabalho do atendente. Trabalhe com harmonia e respeito. Uma cozinha silenciosa e organizada produz muito melhor.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-baby/40 bg-gradient-to-br from-gf-babySoft/90 to-gf-creamWarm/80 p-6 shadow-gfCard ring-1 ring-gf-baby/25 md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Foco na entrega</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Lembre-se de que o seu carinho no preparo é o que o cliente sente lá na ponta. O &ldquo;ingrediente secreto&rdquo; (amor) começa nas suas mãos.
+            </p>
+            <p class="mt-4 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Pense sempre que você está servindo quem você ama: seus pais, seus filhos etc.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+    </article>
+
+    <section class="manual-closing-page" aria-label="Encerramento">
+      <img
+        class="manual-logo-signature"
+        src="assets/logo-gabi-fontes.png"
+        width="1024"
+        height="671"
+        alt="Gabi Fontes — Cafeteria e Doceria"
+      />
+    </section>
+  </div>
+</body>
+</html>

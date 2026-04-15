@@ -3,8 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
 
-/** Inclui sócio para não quebrar perfis já existentes ao salvar. Cadastro novo só colaborador/admin. */
-const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente'] as const;
+/** Inclui sócio e master (legado) para não quebrar perfis; preferir gerente no cadastro. */
+const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
 
 const UNIDADES_PADRAO: { nome: string; slug: string }[] = [
   { nome: 'Mesquita', slug: 'mesquita' },
@@ -91,10 +91,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const supabase = createAdminClient();
-    const { data: existe } = await supabase.from('colaboradores').select('id').eq('id', id).maybeSingle();
+    const { data: existe } = await supabase
+      .from('colaboradores')
+      .select('id, role')
+      .eq('id', id)
+      .maybeSingle();
     if (!existe) {
       return NextResponse.json({ ok: false, erro: 'Colaborador não encontrado' }, { status: 404 });
     }
+    const roleAnterior = String((existe as { role?: string }).role ?? 'colaborador').toLowerCase();
+    const roleProximo =
+      body.role !== undefined ? String(body.role).trim().toLowerCase() : roleAnterior;
 
     const payload: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
@@ -122,7 +129,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     if (body.role !== undefined) {
-      const role = body.role;
+      const role = String(body.role).trim();
       if (!ROLES_EDITAVEIS.includes(role as (typeof ROLES_EDITAVEIS)[number])) {
         return NextResponse.json({ ok: false, erro: 'Função inválida' }, { status: 400 });
       }
@@ -131,9 +138,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         payload.onboarding_completo = true;
         payload.termo_aceite_em = new Date().toISOString();
       }
+      if (role === 'gerente' || role === 'master' || role === 'admin' || role === 'socio') {
+        payload.lider_id = null;
+      }
     }
 
-    if (body.lider_id !== undefined) {
+    const perfilSemLiderDireto = ['gerente', 'master', 'admin', 'socio'];
+    if (body.lider_id !== undefined && !perfilSemLiderDireto.includes(roleProximo)) {
       const raw = body.lider_id;
       if (raw === null || raw === '') {
         payload.lider_id = null;
@@ -162,6 +173,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         }
         payload.lider_id = lid;
       }
+    } else if (body.lider_id !== undefined && perfilSemLiderDireto.includes(roleProximo)) {
+      payload.lider_id = null;
     }
 
     if (body.unidade_id !== undefined || body.unidade_slug !== undefined) {
@@ -176,12 +189,23 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ ok: false, erro: 'Nada para atualizar' }, { status: 400 });
     }
 
-    const { error } = await supabase.from('colaboradores').update(payload).eq('id', id);
+    const { data: atualizado, error } = await supabase
+      .from('colaboradores')
+      .update(payload)
+      .eq('id', id)
+      .select('id, role, lider_id')
+      .single();
 
     if (error) {
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
-    return NextResponse.json({ ok: true });
+    if (!atualizado) {
+      return NextResponse.json(
+        { ok: false, erro: 'Nenhuma linha foi atualizada. Tente novamente ou verifique o id.' },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ ok: true, colaborador: atualizado });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

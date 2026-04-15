@@ -32,6 +32,13 @@ const config: Config = {
           400: '#b8941f',
           500: '#8b6914',
         },
+        portal: {
+          bg: '#F9F7F2',
+          rose: '#F5E4E6',
+          roseHover: '#FCE8EC',
+          ink: '#4B3621',
+          inkMuted: '#5C4435',
+        },
         cafeteria: {
           50: '#faf6f2',
           100: '#f5ede3',
@@ -49,6 +56,7 @@ const config: Config = {
       fontFamily: {
         display: ['var(--font-playfair)', 'Georgia', 'serif'],
         body: ['var(--font-source-sans)', 'system-ui', 'sans-serif'],
+        portal: ['var(--font-montserrat)', 'Montserrat', 'system-ui', 'sans-serif'],
       },
       keyframes: {
         'xicara-encher': {

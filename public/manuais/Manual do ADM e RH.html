@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gabi Fontes — Manual do ADM e RH</title>
+  <!-- PDF: Chrome/Edge → Imprimir → Mais definições → ative "Gráficos de fundo" para cores no arquivo. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gf: {
+              cream: '#F5F1E9',
+              creamWarm: '#F8F2EA',
+              creamBlush: '#FBF5F2',
+              coffee: '#4B3621',
+              coffeeSoft: '#5C4435',
+              rose: '#E8C4B8',
+              roseMuted: '#D4A89A',
+              baby: '#E5B4B8',
+              babySoft: '#F5E4E6',
+              latte: '#A67C52',
+              latteLight: '#C4A574',
+              frame: '#B9A48E',
+              frameDark: '#4B3621',
+              coral: '#D4896E',
+              peach: '#F0C4B8',
+              terracotta: '#C17F59',
+              sage: '#B8C4B0',
+            },
+          },
+          fontFamily: {
+            display: ['"Playfair Display"', 'Georgia', 'serif'],
+            body: ['Montserrat', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            card: '0 4px 24px rgba(75, 54, 33, 0.08), 0 1px 3px rgba(75, 54, 33, 0.06)',
+            cardHover: '0 8px 32px rgba(75, 54, 33, 0.12)',
+            gfCard:
+              '0 4px 28px rgba(75, 54, 33, 0.085), 0 2px 10px rgba(166, 124, 82, 0.07)',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(165deg, #f8f2ea 0%, #f5f1e9 42%, #faf0ee 100%);
+    }
+
+    .doc-frame {
+      position: relative;
+      border: 3px double rgba(166, 124, 82, 0.42);
+      outline: 1px solid rgba(229, 180, 184, 0.48);
+      outline-offset: 4px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(251, 245, 242, 0.72) 55%, rgba(248, 242, 234, 0.5) 100%);
+      box-shadow:
+        0 12px 48px rgba(75, 54, 33, 0.07),
+        inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .cover-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 48vh;
+      border-radius: 1rem;
+      padding: 2rem 1.25rem;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 228, 230, 0.35) 55%, rgba(248, 242, 234, 0.45) 100%);
+      border: 1px solid rgba(229, 180, 184, 0.35);
+      box-shadow: 0 6px 28px rgba(75, 54, 33, 0.05);
+    }
+
+    .cover-block h1 {
+      width: 100%;
+    }
+
+    .cover-block ul {
+      list-style: none;
+      padding-left: 0;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+
+    @media (min-width: 768px) {
+      .cover-block {
+        min-height: 52vh;
+        padding: 2.5rem 2rem;
+      }
+    }
+
+    /* Paleta viva — mesmo tratamento do Manual do Colaborador */
+    .manual-colab-body {
+      background:
+        radial-gradient(ellipse 90% 45% at 95% 5%, rgba(252, 218, 210, 0.4) 0%, transparent 52%),
+        radial-gradient(ellipse 70% 50% at 5% 95%, rgba(214, 190, 165, 0.28) 0%, transparent 48%),
+        linear-gradient(168deg, #fff9f6 0%, #f3e8df 38%, #f8f1ec 100%);
+    }
+
+    .manual-colab-body .doc-frame {
+      border-color: rgba(200, 130, 118, 0.48);
+      outline-color: rgba(232, 175, 168, 0.6);
+      background: linear-gradient(
+        185deg,
+        rgba(255, 252, 250, 0.95) 0%,
+        rgba(252, 235, 230, 0.55) 45%,
+        rgba(245, 228, 215, 0.5) 100%
+      );
+      box-shadow:
+        0 14px 48px rgba(91, 58, 48, 0.09),
+        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    }
+
+    .manual-colab-body .cover-block {
+      background: linear-gradient(145deg, #ffffff 0%, #fce8ec 32%, #f5e4d4 68%, #faf3ef 100%);
+      border: 1px solid rgba(212, 140, 130, 0.5);
+      box-shadow: 0 10px 40px rgba(91, 58, 48, 0.08);
+    }
+
+    .manual-header-banner {
+      position: relative;
+      overflow: hidden;
+      border-radius: 1rem;
+      border: 1px solid rgba(229, 180, 184, 0.55);
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.92) 0%, rgba(252, 228, 230, 0.75) 45%, rgba(245, 232, 220, 0.85) 100%);
+      box-shadow: 0 4px 24px rgba(75, 54, 33, 0.06);
+    }
+
+    .manual-header-banner::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 5px;
+      border-radius: 1rem 0 0 1rem;
+      background: linear-gradient(180deg, #e8b4b8 0%, #c4a574 50%, #d4896e 100%);
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(odd) .content-card:not([class*='babySoft']) {
+      border-color: rgba(212, 145, 130, 0.38) !important;
+      background: linear-gradient(145deg, #fffefd 0%, #fdf2f0 55%, #faf0eb 100%) !important;
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(even) .content-card:not([class*='babySoft']) {
+      border-color: rgba(196, 165, 116, 0.42) !important;
+      background: linear-gradient(145deg, #fffefd 0%, #f7f0e6 55%, #fdf8f3 100%) !important;
+    }
+
+    .manual-colab-body article.manual-part .print-section:nth-of-type(even) .content-card[class*='border-l-gf-baby']:not([class*='babySoft']) {
+      background: linear-gradient(95deg, #fffefd 0%, #f5ebe3 100%) !important;
+    }
+
+    .manual-colab-body .print-section:nth-of-type(1) .chapter-accent-bar {
+      background: linear-gradient(90deg, #d4896e, #e8b4b8, #f0c4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(2) .chapter-accent-bar {
+      background: linear-gradient(90deg, #c4a574, #e5b4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(3) .chapter-accent-bar {
+      background: linear-gradient(90deg, #b8a06e, #f0c4b8);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(4) .chapter-accent-bar {
+      background: linear-gradient(90deg, #d4896e, #c4a574);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(5) .chapter-accent-bar {
+      background: linear-gradient(90deg, #e8b4b8, #d4896e);
+    }
+
+    .manual-colab-body .print-section:nth-of-type(6) .chapter-accent-bar {
+      background: linear-gradient(90deg, #a67c52, #e8b4b8);
+    }
+
+    .manual-closing-page {
+      position: relative;
+      page-break-before: always;
+      break-before: page;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      min-height: 70vh;
+      margin-top: 0;
+      padding: 2rem 1rem 3rem;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+    }
+
+    .manual-logo-signature {
+      position: relative;
+      display: block;
+      width: 100%;
+      max-width: 200px;
+      height: auto;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      box-shadow: none;
+      background: transparent;
+      object-fit: contain;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 16mm 18mm;
+        background-color: #f5f1e9;
+        border: 2px double #b9a48e;
+      }
+
+      html {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: #f5f1e9 !important;
+      }
+
+      body {
+        background: linear-gradient(165deg, #f8f2ea 0%, #f5f1e9 38%, #faf0ee 100%) !important;
+        font-size: 10.5pt;
+        line-height: 1.45;
+      }
+
+      .doc-frame {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: linear-gradient(180deg, #f8f2ea 0%, #fbf5f2 55%, #f3ebe4 100%) !important;
+      }
+
+      header.cover-block {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+        min-height: 258mm;
+        padding: 14mm 12mm !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 2px solid #c4a574 !important;
+        border-left: 6px solid #e5b4b8 !important;
+        border-radius: 0.75rem !important;
+        background: linear-gradient(135deg, #fffefb 0%, #f8e8ea 38%, #f5f0e8 100%) !important;
+        box-shadow: none !important;
+        color: #4b3621 !important;
+      }
+
+      header.cover-block .text-gf-latte {
+        color: #a67c52 !important;
+      }
+
+      header.cover-block h1 {
+        color: #4b3621 !important;
+      }
+
+      header.cover-block [class*='border-gf-baby'] {
+        border-color: rgba(229, 180, 184, 0.85) !important;
+      }
+
+      h2,
+      h3 {
+        color: #4b3621 !important;
+      }
+
+      h2 {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .text-gf-latte {
+        color: #a67c52 !important;
+      }
+
+      .content-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        padding: 0.55rem 0.75rem !important;
+        border: 1px solid rgba(166, 124, 82, 0.4) !important;
+        background: linear-gradient(to bottom right, #ffffff 0%, #fbf5f2 100%) !important;
+      }
+
+      .content-card[class*='from-gf-babySoft'] {
+        background: linear-gradient(to bottom right, #f5e4e6 0%, #f8f2ea 100%) !important;
+        border-color: rgba(229, 180, 184, 0.75) !important;
+      }
+
+      .content-card.border-l-gf-baby,
+      [class*='border-l-gf-baby'] {
+        border-left-color: #e5b4b8 !important;
+      }
+
+      .print-section {
+        page-break-before: auto;
+        break-before: auto;
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+
+      article.manual-part:nth-of-type(2) {
+        page-break-before: always;
+        break-before: page;
+        margin-top: 0 !important;
+      }
+
+      .print-topic > h3 {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .print-topic > h3 + div {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .print-topic > h3 + div + div {
+        page-break-before: avoid;
+        break-before: avoid;
+      }
+
+      .print-topic--together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      p {
+        widows: 3;
+        orphans: 3;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .print-section li {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      header.cover-block p {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .manual-closing-page {
+        page-break-before: always !important;
+        break-before: page !important;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        min-height: 210mm !important;
+        justify-content: flex-end !important;
+        padding: 0 4mm 16mm !important;
+        margin: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+      }
+
+      .manual-logo-signature {
+        max-width: 200px !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .doc-frame {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0.25rem 0.5rem !important;
+        max-width: 100% !important;
+      }
+
+      article.manual-part:first-of-type {
+        margin-top: 0.35rem !important;
+      }
+
+      .mb-12 {
+        margin-bottom: 0.85rem !important;
+      }
+
+      .pb-8 {
+        padding-bottom: 0.5rem !important;
+      }
+
+      .mt-8 {
+        margin-top: 0.65rem !important;
+      }
+
+      .mt-20 {
+        margin-top: 1rem !important;
+      }
+
+      .space-y-6 > :not([hidden]) ~ * {
+        margin-top: 0.45rem !important;
+      }
+
+      body.manual-colab-body {
+        background: linear-gradient(165deg, #fff9f6 0%, #f0e4d8 45%, #faf2ec 100%) !important;
+      }
+
+      body.manual-colab-body .doc-frame {
+        background: linear-gradient(185deg, rgba(255, 252, 250, 0.98) 0%, rgba(245, 232, 222, 0.9) 100%) !important;
+      }
+
+      body.manual-colab-body header.cover-block {
+        background: linear-gradient(135deg, #ffffff 0%, #fce8ec 38%, #f0e4d4 100%) !important;
+        border-color: rgba(200, 140, 130, 0.5) !important;
+      }
+
+      body.manual-colab-body .manual-header-banner {
+        background: linear-gradient(120deg, rgba(255, 255, 255, 0.97) 0%, rgba(252, 228, 230, 0.85) 100%) !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      a {
+        color: inherit !important;
+        text-decoration: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="manual-colab-body font-body font-medium text-gf-coffee antialiased">
+  <div class="doc-frame mx-auto my-6 max-w-4xl px-6 py-10 md:my-10 md:px-12 md:py-14">
+    <header class="cover-block text-center">
+      <p class="text-xs font-semibold uppercase tracking-[0.35em] text-gf-latte">Cafeteria</p>
+      <h1 class="font-display mt-3 text-4xl font-semibold leading-tight text-gf-coffee md:text-5xl">
+        Gabi Fontes
+      </h1>
+      <p class="mx-auto mt-6 max-w-lg font-body text-sm font-normal leading-relaxed text-gf-coffee/85">
+        Por trás de cada loja que pulsa há processos, pessoas e números alinhados. Este manual orienta quem sustenta a operação administrativa e o coração do RH na Cafeteria Gabi Fontes.
+      </p>
+      <div class="mx-auto mt-10 max-w-md border-t border-gf-baby/70 pt-8">
+        <p class="font-display text-xl text-gf-coffee">Manual do ADM e RH</p>
+        <ul class="mt-4 space-y-2 text-sm text-gf-coffee/80">
+          <li>Manual operacional — Pilar de sustentação</li>
+        </ul>
+      </div>
+    </header>
+
+    <article class="manual-part">
+      <div class="manual-header-banner mb-12 border-b border-gf-baby/25 pb-8 pl-5 pr-4 pt-6 text-center md:border-b-0 md:pl-7 md:text-left">
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-gf-latte">Manual operacional</p>
+        <h2 class="font-display mt-2 text-3xl font-semibold text-gf-coffee md:text-4xl">
+          Pilar de sustentação (Administrativo e RH)
+        </h2>
+        <p class="mt-2 font-body text-sm font-normal text-gf-coffeeSoft/90">Administrativo e recursos humanos</p>
+      </div>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">1. A missão do ADM</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Cérebro da empresa</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              A sua função é garantir que a operação tenha todos os recursos necessários para funcionar sem interrupções. Você cuida para que os processos sejam seguidos e a cultura Gabi Fontes seja mantida em <strong class="font-semibold text-gf-coffee">todas as unidades</strong>.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Exemplo de conduta</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              O ADM deve ser o maior exemplo de ética, pontualidade e organização. Você é a <strong class="font-semibold text-gf-coffee">referência</strong> para os colaboradores.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">2. Gestão de pessoas (o coração do RH)</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Onboarding e treinamento</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Garanta que todo novo colaborador passe pela trilha de integração: assista ao vídeo da Gabi, leia os manuais e assine o termo de compromisso no Portal.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Escalas e clima</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Organize as escalas de trabalho de forma justa e equilibrada. Esteja atento ao clima organizacional: ouça os colaboradores, identifique conflitos e promova a <strong class="font-semibold text-gf-coffee">Harmonia</strong>.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Documentação</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Mantenha os registros de cada colaborador atualizados. O rigor com a documentação protege tanto a empresa quanto o funcionário.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">3. Gestão de processos (cérebro do negócio)</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Auditoria de dados</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              O ADM deve conferir se o estoque está sendo lançado corretamente e se o financeiro bate com a realidade das lojas.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Controle de insumos</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Apoie o estoque na análise de compras, garantindo que os preços sejam consultados e comparados para mantermos a rentabilidade.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">4. Financeiro e suprimentos</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Fluxo de caixa</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Monitore entradas e saídas com rigor absoluto. Nenhuma despesa deve ser feita sem o registro correto e a devida autorização.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Relacionamento com fornecedores</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Mantenha parcerias sólidas, buscando sempre a melhor qualidade com o custo-benefício que sustenta as nossas metas de filiais e franquias.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">5. Atendimento ao colaborador</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Suporte interno</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              O ADM é o ponto de apoio para dúvidas sobre pagamentos, benefícios e carreira. Atenda o colaborador com a mesma <strong class="font-semibold text-gf-coffee">Empatia</strong> que exigimos no atendimento ao cliente final.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Feedback</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Auxilie os gestores de unidade a dar feedbacks construtivos, focando sempre na evolução profissional do time.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">6. Ética, confidencialidade e futuro</h3>
+        <div class="chapter-accent-bar mt-2 h-1 w-28 rounded-full shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Sigilo de dados</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Você lida com informações sensíveis da empresa e dos colegas. A discrição e a confidencialidade são pilares inegociáveis do seu cargo.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-baby/40 bg-gradient-to-br from-gf-babySoft/90 to-gf-creamWarm/80 p-6 shadow-gfCard ring-1 ring-gf-baby/25 md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Visão estratégica</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              O ADM não olha apenas para o hoje. Você ajuda a preparar a estrutura administrativa para suportar as próximas 10, 20 lojas.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+    </article>
+
+    <section class="manual-closing-page" aria-label="Encerramento">
+      <img
+        class="manual-logo-signature"
+        src="assets/logo-gabi-fontes.png"
+        width="1024"
+        height="671"
+        alt="Gabi Fontes — Cafeteria e Doceria"
+      />
+    </section>
+  </div>
+</body>
+</html>

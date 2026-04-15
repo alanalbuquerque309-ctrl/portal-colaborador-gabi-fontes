@@ -5,7 +5,14 @@ alwaysApply: true
 
 # Portal do Colaborador — Gabi Fontes
 
-Contexto completo do projeto. **Não misturar com outros projetos.** Este arquivo é específico deste portal.
+Contexto completo do projeto. **Não misturar com o Estoque Inteligente** (outro repositório). Regras de produto, LGPD e âmbito: **`.cursorrules`** na raiz deste projeto. Este ficheiro é a especificação técnica detalhada.
+
+## Crítico — colaboradores (migrações e scripts SQL)
+
+- **Nunca** apagar colaboradores em massa: **proibido** `DELETE FROM colaboradores` ou `TRUNCATE` como “reset organizacional”.
+- **Reset organizacional permitido** = somente **`UPDATE`**: limpar ou alterar **`cargo`**, **`setor`**, **`unidade_id`** e, se a política de negócio exigir, **`role` (função)** — com cuidado para não remover todos os acessos administrativos.
+- **Dados pessoais** (nome, CPF, e-mail, telefone, endereço, etc.) **não** devem ser apagados nem zerados em lote.
+- A migration **`015_setor_sugestoes_curtidas.sql`** usa apenas **`UPDATE ... SET ... NULL`** em cargo/setor/unidade (não é `DELETE`); as **linhas** de colaboradores permanecem no banco; o que pode ser zerado são só esses campos organizacionais até recadastrar no admin.
 
 ## Stack
 
@@ -68,6 +75,7 @@ Gestão operacional, cultura e acolhimento para **Matriz, Mesquita, Nova Iguaçu
 
 - **Portal (colaboradores):** CPF + senha; `colaboradores.senha_hash` (scrypt). Primeiro acesso: `/api/login/portal` retorna `needsPassword` → `/api/login/primeira-senha`. Recuperação: `/login/esqueci-senha` + `/api/login/recuperar-senha` (valida CPF + e-mail; **redefine** senha — nunca exibir senha em texto).
 - **Sócio/admin no portal:** `entrar-socio-admin` exige CPF + senha (mesma regra de segurança).
+- **`/api/login/alan-entrar`:** só para bootstrap técnico; exige `ADMIN_ALAN_PASSWORD` no servidor e `senha` no JSON do POST; **não** há bypass de senha no cliente.
 - Helpers: `lib/password.ts`, `lib/portal-login-response.ts`.
 - APIs `/api/login/portal` e `entrar-socio-admin` fazem lookup no servidor (evita RLS).
 - **Admin:** usuário `admin` + senha OU sessão portal como sócio/admin (sem novo login).

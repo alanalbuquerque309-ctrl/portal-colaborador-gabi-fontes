@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Source_Sans_3 } from 'next/font/google';
+import { Montserrat, Playfair_Display, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 
 const siteUrl =
@@ -16,6 +16,13 @@ const sourceSans = Source_Sans_3({
   variable: '--font-source-sans',
   subsets: ['latin'],
   display: 'swap',
+});
+
+const montserrat = Montserrat({
+  variable: '--font-montserrat',
+  subsets: ['latin'],
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
 });
 
 export const metadata: Metadata = {
@@ -44,7 +51,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: '#925a41',
+  themeColor: '#F9F7F2',
 };
 
 export default function RootLayout({
@@ -53,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${playfair.variable} ${sourceSans.variable}`}>
+    <html lang="pt-BR" className={`${playfair.variable} ${sourceSans.variable} ${montserrat.variable}`}>
       <body className="font-body">{children}</body>
     </html>
   );

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { labelAcessoPortal } from '@/lib/colaborador-role-ui';
 
 interface Colaborador {
   id: string;
@@ -22,6 +23,8 @@ const OPCOES_ACESSO = [
   { value: '', label: 'Todos os acessos' },
   { value: 'socio', label: 'Sócio' },
   { value: 'admin', label: 'Administrador' },
+  { value: 'gerente', label: 'Gerente' },
+  { value: 'master', label: 'Gerente (legado master)' },
   { value: 'colaborador', label: 'Colaborador' },
 ];
 
@@ -92,7 +95,7 @@ export default function ColaboradoresPage() {
         const q = filtroCargo.trim().toLowerCase();
         if (!(c.cargo?.toLowerCase().includes(q) ?? false)) return false;
       }
-      if (filtroAcesso && (c.role || 'colaborador') !== filtroAcesso) return false;
+      if (filtroAcesso && String(c.role || 'colaborador').toLowerCase() !== filtroAcesso) return false;
       if (filtroUnidade && (c.unidade?.nome?.trim() || '') !== filtroUnidade) return false;
       return true;
     });
@@ -273,9 +276,7 @@ export default function ColaboradoresPage() {
                   <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.cargo || '-'}</td>
                   <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.unidade.nome}</td>
                   <td className="px-3 py-3 text-coffee-100 align-top">
-                    <span className="inline-block">
-                      {c.role === 'socio' ? 'Sócio' : c.role === 'admin' ? 'Administrador' : 'Colaborador'}
-                    </span>
+                    <span className="inline-block">{labelAcessoPortal(c.role)}</span>
                   </td>
                   <td className="px-3 py-3 align-top">
                     {c.onboarding_completo ? (

@@ -16,13 +16,26 @@ export default function AdminLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/api/admin/auth', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => setAuthorized(d.ok === true))
-      .catch(() => setAuthorized(false));
+    const ac = new AbortController();
+    const timeoutMs = 15000;
+    const timer = window.setTimeout(() => ac.abort(), timeoutMs);
+    const url = `/api/admin/auth?_=${Date.now()}`;
+    fetch(url, {
+      credentials: 'include',
+      cache: 'no-store',
+      signal: ac.signal,
+      headers: { Accept: 'application/json' },
+    })
+      .then(async (r) => {
+        const d = (await r.json().catch(() => ({ ok: false }))) as { ok?: boolean };
+        setAuthorized(d.ok === true);
+      })
+      .catch(() => setAuthorized(false))
+      .finally(() => window.clearTimeout(timer));
   }, []);
 
-  const isLoginPage = pathname === '/admin';
+  const pathNorm = pathname?.replace(/\/$/, '') ?? '';
+  const isLoginPage = pathNorm === '/admin';
 
   useEffect(() => {
     if (authorized === false && !isLoginPage) {
@@ -47,7 +60,17 @@ export default function AdminLayout({
   }
 
   if (!authorized) {
-    return null;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-cream-100 px-4">
+        <p className="text-coffee-base text-center mb-4">Sessão administrativa não encontrada ou expirada.</p>
+        <Link
+          href="/admin"
+          className="rounded-lg bg-dourado-base px-5 py-2.5 text-cream-100 text-sm font-medium hover:bg-dourado-400"
+        >
+          Ir para o login
+        </Link>
+      </div>
+    );
   }
 
   const navLink = (href: string, label: string) => {

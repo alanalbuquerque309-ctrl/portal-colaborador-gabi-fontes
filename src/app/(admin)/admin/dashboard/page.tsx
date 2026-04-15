@@ -14,13 +14,18 @@ export default function AdminDashboardPage() {
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [avisos, setAvisos] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [erroApi, setErroApi] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/admin/colaboradores', { credentials: 'include' }).then((r) => r.json()),
-      fetch('/api/admin/avisos', { credentials: 'include' }).then((r) => r.json()),
+      fetch('/api/admin/colaboradores', { credentials: 'include', cache: 'no-store' }).then((r) => r.json()),
+      fetch('/api/admin/avisos', { credentials: 'include', cache: 'no-store' }).then((r) => r.json()),
     ]).then(([cols, avs]) => {
-      if (cols.ok && Array.isArray(cols.colaboradores)) {
+      if (!cols.ok) {
+        setErroApi(
+          typeof cols.erro === 'string' ? cols.erro : 'Não foi possível carregar os colaboradores.'
+        );
+      } else if (Array.isArray(cols.colaboradores)) {
         setColaboradores(
           cols.colaboradores.map((c: { id: string; nome: string; onboarding_completo?: boolean }) => ({
             id: c.id,
@@ -31,6 +36,8 @@ export default function AdminDashboardPage() {
       }
       if (avs.ok && Array.isArray(avs.avisos)) {
         setAvisos(avs.avisos.filter((a: { ativo?: boolean }) => a.ativo !== false).length);
+      } else if (!avs.ok) {
+        setErroApi((prev) => prev ?? (typeof avs.erro === 'string' ? avs.erro : null));
       }
       setLoading(false);
     });
@@ -44,6 +51,15 @@ export default function AdminDashboardPage() {
       <h1 className="text-2xl font-display font-semibold text-coffee-base mb-6">
         Dashboard Admin
       </h1>
+      {erroApi && (
+        <div
+          className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          role="alert"
+        >
+          <strong className="font-semibold">Atenção:</strong> {erroApi} Verifique se o banco está
+          configurado e a variável de ambiente do Supabase está correta.
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm">
           <p className="text-coffee-100 text-sm">Colaboradores</p>
@@ -63,6 +79,20 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {!loading && !erroApi && colaboradores.length === 0 && (
+        <div className="mt-6 rounded-xl border border-dourado-200 bg-white p-6 shadow-sm">
+          <h2 className="font-display font-semibold text-coffee-base mb-2">Colaboradores</h2>
+          <p className="text-sm text-coffee-100 mb-4">
+            Ainda não há colaboradores cadastrados. Comece pelo cadastro para convidar a equipe ao portal.
+          </p>
+          <Link
+            href="/admin/colaboradores"
+            className="inline-flex min-h-[44px] items-center rounded-lg bg-dourado-base px-4 py-2 text-sm font-medium text-cream-100 hover:bg-dourado-400"
+          >
+            Cadastrar colaborador
+          </Link>
+        </div>
+      )}
       {!loading && colaboradores.length > 0 && (
         <div className="mt-6 rounded-xl border border-dourado-200 bg-white p-6 shadow-sm">
           <h2 className="font-display font-semibold text-coffee-base mb-3">Colaboradores cadastrados</h2>

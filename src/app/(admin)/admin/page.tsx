@@ -1,20 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const [login, setLogin] = useState('');
 
   useEffect(() => {
-    fetch('/api/admin/auth', { credentials: 'include' })
+    fetch(`/api/admin/auth?_=${Date.now()}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
-        if (d.ok) router.replace('/admin/dashboard');
+        if (d.ok) window.location.assign('/admin/dashboard');
       });
-  }, [router]);
+  }, []);
   const [senha, setSenha] = useState('');
   const [showSenha, setShowSenha] = useState(false);
   const [erro, setErro] = useState('');
@@ -24,13 +22,14 @@ export default function AdminLoginPage() {
     setErro('');
     const res = await fetch('/api/admin/auth', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ login: login.trim(), senha }),
     });
     const data = await res.json();
     if (data.ok) {
-      router.push('/admin/dashboard');
-      router.refresh();
+      // Navegação completa garante que o cookie admin_session seja enviado na próxima página
+      window.location.assign('/admin/dashboard');
     } else {
       setErro('Usuário ou senha incorretos.');
     }

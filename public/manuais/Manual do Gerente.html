@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gabi Fontes — Manual do Gerente</title>
+  <!-- PDF: no Chrome/Edge, Imprimir → Mais definições → ative "Gráficos de fundo" para cores e gradientes no arquivo. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gf: {
+              cream: '#F5F1E9',
+              creamWarm: '#F8F2EA',
+              creamBlush: '#FBF5F2',
+              coffee: '#4B3621',
+              coffeeSoft: '#5C4435',
+              rose: '#E8C4B8',
+              roseMuted: '#D4A89A',
+              baby: '#E5B4B8',
+              babySoft: '#F5E4E6',
+              latte: '#A67C52',
+              latteLight: '#C4A574',
+              frame: '#B9A48E',
+              frameDark: '#4B3621',
+            },
+          },
+          fontFamily: {
+            display: ['"Playfair Display"', 'Georgia', 'serif'],
+            body: ['Montserrat', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            card: '0 4px 24px rgba(75, 54, 33, 0.08), 0 1px 3px rgba(75, 54, 33, 0.06)',
+            cardHover: '0 8px 32px rgba(75, 54, 33, 0.12)',
+            gfCard:
+              '0 4px 28px rgba(75, 54, 33, 0.085), 0 2px 10px rgba(166, 124, 82, 0.07)',
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(165deg, #f8f2ea 0%, #f5f1e9 42%, #faf0ee 100%);
+    }
+
+    /* Moldura dupla + leve profundidade (marrom claro + toque rosa no contorno) */
+    .doc-frame {
+      position: relative;
+      border: 3px double rgba(166, 124, 82, 0.42);
+      outline: 1px solid rgba(229, 180, 184, 0.48);
+      outline-offset: 4px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.58) 0%, rgba(251, 245, 242, 0.72) 55%, rgba(248, 242, 234, 0.5) 100%);
+      box-shadow:
+        0 12px 48px rgba(75, 54, 33, 0.07),
+        inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    }
+
+    .cover-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      min-height: 48vh;
+      border-radius: 1rem;
+      padding: 2rem 1.25rem;
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.5) 0%, rgba(245, 228, 230, 0.35) 55%, rgba(248, 242, 234, 0.45) 100%);
+      border: 1px solid rgba(229, 180, 184, 0.35);
+      box-shadow: 0 6px 28px rgba(75, 54, 33, 0.05);
+    }
+
+    .cover-block h1 {
+      width: 100%;
+    }
+
+    .cover-block ul {
+      list-style: none;
+      padding-left: 0;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+
+    @media (min-width: 768px) {
+      .cover-block {
+        min-height: 52vh;
+        padding: 2.5rem 2rem;
+      }
+    }
+
+    /* Marca final: arte PNG com fundo transparente (integra no gradiente do manual) */
+    .logo-final-page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem 1rem 2rem;
+      background: transparent;
+    }
+
+    .logo-final-img {
+      display: block;
+      width: 100%;
+      max-width: min(200px, 88vw);
+      height: auto;
+      object-fit: contain;
+      background: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        /* Margens um pouco menores = mais texto por folha, menos páginas */
+        margin: 16mm 18mm;
+        background-color: #F5F1E9;
+        border: 2px double #B9A48E;
+      }
+
+      html {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: #F5F1E9 !important;
+      }
+
+      body {
+        background: linear-gradient(165deg, #f8f2ea 0%, #f5f1e9 38%, #faf0ee 100%) !important;
+        font-size: 10.5pt;
+        line-height: 1.45;
+      }
+
+      .doc-frame {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: linear-gradient(180deg, #f8f2ea 0%, #fbf5f2 55%, #f3ebe4 100%) !important;
+      }
+
+      /*
+        Capa: altura ~área útil A4 (297mm − margens) + flex para centralizar na folha do PDF.
+        Se o PDF sair sem cores: no Chrome/Edge ative "Mais definições" → Gráficos de fundo.
+      */
+      header.cover-block {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+        min-height: 258mm;
+        padding: 14mm 12mm !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        border: 2px solid #c4a574 !important;
+        border-left: 6px solid #e5b4b8 !important;
+        border-radius: 0.75rem !important;
+        background: linear-gradient(135deg, #fffefb 0%, #f8e8ea 38%, #f5f0e8 100%) !important;
+        box-shadow: none !important;
+        color: #4b3621 !important;
+      }
+
+      header.cover-block .text-gf-latte {
+        color: #a67c52 !important;
+      }
+
+      header.cover-block h1 {
+        color: #4b3621 !important;
+      }
+
+      header.cover-block [class*='border-gf-baby'] {
+        border-color: rgba(229, 180, 184, 0.85) !important;
+      }
+
+      h2,
+      h3 {
+        color: #4b3621 !important;
+      }
+
+      h2 {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      .text-gf-latte {
+        color: #a67c52 !important;
+      }
+
+      /* Cards: cor mesmo em PDF (com gráficos de fundo ligados) */
+      .content-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        padding: 0.55rem 0.75rem !important;
+        border: 1px solid rgba(166, 124, 82, 0.4) !important;
+        background: linear-gradient(to bottom right, #ffffff 0%, #fbf5f2 100%) !important;
+      }
+
+      .content-card[class*='from-gf-babySoft'] {
+        background: linear-gradient(to bottom right, #f5e4e6 0%, #f8f2ea 100%) !important;
+        border-color: rgba(229, 180, 184, 0.75) !important;
+      }
+
+      .content-card.border-l-gf-baby,
+      [class*='border-l-gf-baby'] {
+        border-left-color: #e5b4b8 !important;
+      }
+
+      /* Capítulos seguem o fluxo (sem “1 capítulo = 1 página”); podem partir entre páginas */
+      .print-section {
+        page-break-before: auto;
+        break-before: auto;
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+
+      /* Quebra só entre os dois manuais; sem margem extra no topo da nova página */
+      article.manual-part:nth-of-type(2) {
+        page-break-before: always;
+        break-before: page;
+        margin-top: 0 !important;
+      }
+
+      /*
+        Título + filete + corpo do capítulo como um bloco: não deixar o h3 sozinho no fim da folha
+        (ex.: “6. Ética…” numa página e o texto na outra).
+      */
+      .print-topic > h3 {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .print-topic > h3 + div {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .print-topic > h3 + div + div {
+        page-break-before: avoid;
+        break-before: avoid;
+      }
+
+      /* Capítulos curtos (ex.: um card): o navegador tenta não partir o bloco inteiro */
+      .print-topic--together {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* PDF: parágrafos e cards como unidades; viúvas/órfãs mín. 3 linhas */
+      p {
+        widows: 3;
+        orphans: 3;
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .print-section li {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      header.cover-block p,
+      footer p {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* Compacta espaçamentos da tela para o PDF não “respirar” demais */
+      .doc-frame {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0.25rem 0.5rem !important;
+        max-width: 100% !important;
+      }
+
+      article.manual-part:first-of-type {
+        margin-top: 0.35rem !important;
+      }
+
+      .mb-12 {
+        margin-bottom: 0.85rem !important;
+      }
+
+      .pb-8 {
+        padding-bottom: 0.5rem !important;
+      }
+
+      .mt-8 {
+        margin-top: 0.65rem !important;
+      }
+
+      .mt-20 {
+        margin-top: 1rem !important;
+      }
+
+      footer {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-top: 1.25rem !important;
+        padding-top: 0.65rem !important;
+      }
+
+      .logo-final-page {
+        padding: 5mm 4mm 8mm !important;
+        page-break-inside: avoid;
+        background: transparent !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .logo-final-img {
+        max-width: 53mm !important;
+      }
+
+      .space-y-6 > :not([hidden]) ~ * {
+        margin-top: 0.45rem !important;
+      }
+
+      a {
+        color: inherit !important;
+        text-decoration: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="font-body font-medium text-gf-coffee antialiased">
+  <div class="doc-frame mx-auto my-6 max-w-4xl px-6 py-10 md:my-10 md:px-12 md:py-14">
+    <!-- Capa -->
+    <header class="cover-block text-center">
+      <p class="text-xs font-semibold uppercase tracking-[0.35em] text-gf-latte">Cafeteria</p>
+      <h1 class="font-display mt-3 text-4xl font-semibold leading-tight text-gf-coffee md:text-5xl">
+        Gabi Fontes
+      </h1>
+      <p class="mx-auto mt-6 max-w-lg font-body text-sm font-normal leading-relaxed text-gf-coffee/85">
+        Orientações para quem lidera operações na Cafeteria Gabi Fontes: missão, experiência do cliente, gestão técnica e ética — sempre alinhados à nossa cultura e aos valores da casa.
+      </p>
+      <div class="mx-auto mt-10 max-w-md border-t border-gf-baby/70 pt-8">
+        <p class="font-display text-xl text-gf-coffee">Manual do Gerente</p>
+        <p class="mt-2 font-body text-sm text-gf-coffee/80">Manual operacional — Liderança e gestão</p>
+        <p class="mt-1 font-body text-sm text-gf-coffee/75">Gerentes e chefes de setor</p>
+      </div>
+    </header>
+
+    <!-- ========== MANUAL 1: LIDERANÇA ========== -->
+    <article class="manual-part">
+      <div class="mb-12 border-b border-gf-latte/30 pb-8 text-center md:text-left">
+        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-gf-latte">Manual operacional</p>
+        <h2 class="font-display mt-2 text-3xl font-semibold text-gf-coffee md:text-4xl">
+          Liderança e gestão
+        </h2>
+        <p class="mt-2 font-body text-sm font-normal text-gf-coffeeSoft/90">Gerentes e chefes de setor</p>
+      </div>
+
+      <!-- Seção 1 -->
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">1. A missão do líder</h3>
+        <div class="mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-gf-latteLight to-gf-baby shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Ser o exemplo</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Você é a tradução viva dos valores da Gabi Fontes. Se deseja ver o time acolher com sorriso, <strong class="font-semibold text-gf-coffee">seja o primeiro a acolher</strong>. Se exige limpeza e cuidado, <strong class="font-semibold text-gf-coffee">seu olhar deve ser o mais criterioso</strong>. O time espelha o que vê no salão — e começa por você.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Desenvolvedor de pessoas</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              O sucesso do líder não se mede só pelo que faz com as próprias mãos, mas pelo que a equipe entrega com consistência e orgulho. <strong class="font-semibold text-gf-coffee">Descubra talentos</strong>, acompanhe de perto e ajude cada pessoa a crescer na trilha que desenhamos — aqui, quem brilha junto, cresce junto.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <!-- Seção 2 -->
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">2. Gestão da experiência — o olhar do cliente</h3>
+        <div class="mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-gf-latteLight to-gf-baby shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Ronda de qualidade</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Circule pela loja com presença constante — não para fiscalizar, mas para <em sentir</em> o ambiente. Ajuste música (volume e estilo), temperatura do ar, o aroma que o cliente percebe ao entrar e o arranjo das mesas. O cenário inteiro é parte do cardápio emocional que oferecemos.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Recuperação de clientes</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Nos momentos mais delicados, você é a voz calma da casa. Se algo sair do esperado, <strong class="font-semibold text-gf-coffee">assuma a conversa</strong>, ouça com empatia e conduza a solução com dignidade — para que a pessoa saia lembrando não só do problema, mas de <strong class="font-semibold text-gf-coffee">como foi tratada</strong>.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <!-- Seção 3 -->
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">3. Gestão operacional e técnica</h3>
+        <div class="mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-gf-latteLight to-gf-baby shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Apoio aos sistemas</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Estoque, cozinha e balcão precisam conversar com os sistemas com a mesma precisão que um espresso bem calibrado. Informação incorreta vira decisão errada — e o cliente percebe no prato, na espera ou no estoque. Seja o elo que mantém tudo alinhado.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Checklist de abertura e fechamento</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Abrir com brilho e fechar com ordem é cuidar da casa como quem prepara mesa para convidados. Esse ritmo evita perdas, desperdício de insumos e surpresas no dia seguinte — e mostra respeito por quem entra cedo e por quem fecha a noite.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Conferência de padrão</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              O chefe de setor é guardião da ficha técnica. Se o café ou o doce sair da linha que desenhamos, <strong class="font-semibold text-gf-coffee">corrija com clareza e apoio</strong> — ensinando o “porquê” para que o padrão volte a brilhar sem humilhar quem produz.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <!-- Seção 4 -->
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">4. Comunicação e clima organizacional</h3>
+        <div class="mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-gf-latteLight to-gf-baby shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Reuniões de alinhamento — briefing</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Antes de abrir as portas, reúna o time em poucos minutos vivos: metas do dia, um valor da casa que quer ver em cena e uma palavra de encorajamento. Clareza no início evita ruído depois — e lembra a todos que estamos na mesma mesa.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/25 bg-gradient-to-br from-white/95 to-gf-creamBlush p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Gestão de conflitos</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Seja mediador com firmeza gentil. Cultive a <strong class="font-semibold text-gf-coffee">Harmonia</strong> — nosso valor central — sem tolerar fofoca nem clima pesado. Trate desempenho em particular; celebre conquistas em público. Assim a casa permanece leve para quem trabalha e para quem visita.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <!-- Seção 5 -->
+      <section class="print-section">
+        <div class="print-topic">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">5. Foco em resultados e expansão</h3>
+        <div class="mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-gf-latteLight to-gf-baby shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8 space-y-6">
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Cultura de dono</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Trate insumos, energia e equipamentos como se fossem da sua própria casa — porque, em certo sentido, são. Cada economia inteligente e cada cuidado alimentam o sonho de novas filiais e franquias que construímos com responsabilidade.
+            </p>
+          </div>
+          <div class="content-card rounded-2xl border border-gf-latte/20 border-l-4 border-l-gf-baby bg-gradient-to-r from-white/95 to-gf-creamBlush/95 p-6 shadow-gfCard md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Visão de futuro</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Prepare-se para desafios maiores: os próximos líderes de expansão tendem a surgir entre quem hoje demonstra competência técnica e alinhamento cultural sem abrir mão do acolhimento.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+
+      <!-- Seção 6 — um único card: mantém título + texto no mesmo bloco de impressão -->
+      <section class="print-section">
+        <div class="print-topic print-topic--together">
+        <h3 class="font-display text-2xl font-semibold text-gf-coffee md:text-3xl">6. Ética e responsabilidade</h3>
+        <div class="mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-gf-latteLight to-gf-baby shadow-sm" aria-hidden="true"></div>
+
+        <div class="mt-8">
+          <div class="content-card rounded-2xl border border-gf-baby/40 bg-gradient-to-br from-gf-babySoft/90 to-gf-creamWarm/80 p-6 shadow-gfCard ring-1 ring-gf-baby/25 md:p-8">
+            <p class="text-xs font-semibold uppercase tracking-wider text-gf-latte">Confiança dos sócios</p>
+            <p class="mt-3 font-body text-sm font-normal leading-relaxed text-gf-coffee/90">
+              Você é a ponte entre Gabi, Alan, Dani, Hilton e a equipe da ponta. <strong class="font-semibold text-gf-coffee">Lealdade e transparência</strong> com a diretoria sustentam decisões pensadas em conjunto — e mantêm a família que fundou a marca alinhada com quem faz a casa pulsar todos os dias.
+            </p>
+          </div>
+        </div>
+        </div>
+      </section>
+    </article>
+
+    <footer class="mt-20 border-t border-gf-latte/35 pt-10 text-center">
+      <p class="font-display text-lg text-gf-coffee">Cafeteria Gabi Fontes</p>
+      <p class="mt-2 font-body text-sm font-normal text-gf-coffee/70">
+        Encantar pessoas através dos nossos cafés, sabores e sensações.
+      </p>
+    </footer>
+
+    <section class="logo-final-page mt-12" aria-label="Marca Gabi Fontes">
+      <img
+        class="logo-final-img"
+        src="assets/logo-gabi-fontes.png"
+        width="1024"
+        height="671"
+        alt="Gabi Fontes — Cafeteria e Doceria"
+      />
+    </section>
+  </div>
+</body>
+</html>
