@@ -10,5 +10,6 @@ export const MANUAIS_ESCOLHA_POS_GERAL: ManualRef[] = [
   { file: 'Manual do Atendimento.html', titulo: 'Atendimento' },
   { file: 'Manual do ASG.html', titulo: 'ASG / limpeza e higiene' },
   { file: 'Manual da Copa.html', titulo: 'Copa' },
+  { file: 'Manual do Estoquista.html', titulo: 'Estoque / recebimento e armazenagem' },
   { file: 'Manual do ADM e RH.html', titulo: 'Administrativo e RH' },
 ];
