@@ -3,30 +3,36 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { hashPassword, verifyPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
-import { selectColaboradorLoginRow, updateSenhaColaboradorCompat } from '@/lib/colaborador-forca-troca-compat';
+import {
+  selectColaboradorLoginRowByLogin,
+  updateSenhaColaboradorByIdCompat,
+} from '@/lib/colaborador-forca-troca-compat';
 
 /**
  * Troca senha quando `forca_troca_senha` ou senha atual é a padrão (123456).
  * Nova senha: exatamente 6 dígitos numéricos.
  */
 export async function POST(req: Request) {
-  let body: { cpf?: string; senha_atual?: string; senha_nova?: string; senha_confirmacao?: string };
+  let body: {
+    login?: string;
+    telefone?: string;
+    senha_atual?: string;
+    senha_nova?: string;
+    senha_confirmacao?: string;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, erro: 'Dados inválidos' }, { status: 400 });
   }
 
-  const cleanCpf = String(body.cpf ?? '')
-    .replace(/\D/g, '')
-    .trim()
-    .padStart(11, '0');
+  const loginInput = String(body.login ?? body.telefone ?? '').trim();
   const senhaAtual = String(body.senha_atual ?? '').trim();
   const senhaNova = String(body.senha_nova ?? '').trim();
   const senha2 = String(body.senha_confirmacao ?? '').trim();
 
-  if (cleanCpf.length !== 11) {
-    return NextResponse.json({ ok: false, erro: 'CPF inválido' }, { status: 400 });
+  if (!loginInput) {
+    return NextResponse.json({ ok: false, erro: 'Informe celular ou e-mail.' }, { status: 400 });
   }
   if (!senhaAtual) {
     return NextResponse.json({ ok: false, erro: 'Informe a senha atual.' }, { status: 400 });
@@ -43,13 +49,16 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { data: col, error: fetchErr } = await selectColaboradorLoginRow(supabase, cleanCpf);
+    const { data: col, loginCanonical, error: fetchErr } = await selectColaboradorLoginRowByLogin(
+      supabase,
+      loginInput
+    );
 
     if (fetchErr) {
       return NextResponse.json({ ok: false, erro: fetchErr.message || 'Erro ao consultar cadastro.' }, { status: 500 });
     }
     if (!col) {
-      return NextResponse.json({ ok: false, erro: 'CPF não cadastrado.' }, { status: 404 });
+      return NextResponse.json({ ok: false, erro: 'Login não cadastrado.' }, { status: 404 });
     }
 
     const senhaHash = (col as { senha_hash?: string | null }).senha_hash;
@@ -58,11 +67,13 @@ export async function POST(req: Request) {
     }
 
     const hash = hashPassword(senhaNova);
-    const { error: upErr } = await updateSenhaColaboradorCompat(supabase, cleanCpf, hash, true);
+    const { error: upErr } = await updateSenhaColaboradorByIdCompat(supabase, col.id, hash, true);
 
     if (upErr) {
       return NextResponse.json({ ok: false, erro: 'Não foi possível salvar a nova senha.' }, { status: 500 });
     }
+
+    const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
 
     const payload = buildPortalLoginJson(
       {
@@ -71,7 +82,8 @@ export async function POST(req: Request) {
         role: (col as { role?: string }).role,
         onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
       },
-      cleanCpf
+      loginCanonical || loginInput,
+      cpfPendente ? { cpfPendente: true } : undefined
     );
 
     return NextResponse.json(payload);

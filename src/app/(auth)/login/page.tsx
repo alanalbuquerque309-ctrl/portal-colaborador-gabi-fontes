@@ -2,22 +2,30 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { formatCpf, validateCpf } from '@/lib/utils/cpf';
+import { formatTelefoneBr, normalizeTelefoneLogin, telefoneLoginValido } from '@/lib/telefone';
+import { normalizeEmail } from '@/lib/password';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { setPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 async function processarRespostaLogin(
   data: Record<string, unknown>,
-  cleanCpf: string,
+  loginCanonical: string,
   senhaTrim: string,
   router: ReturnType<typeof useRouter>
 ): Promise<boolean> {
+  if (data.mustCompleteCpf === true && data.colaborador && typeof data.colaborador === 'object') {
+    const c = data.colaborador as { id: string; unidade_id: string; role?: string };
+    setPortalSession(c.id, c.unidade_id, c.role);
+    router.push('/completar-cpf');
+    return true;
+  }
+
   if (data.action === 'socio_admin') {
     const skipRes = await fetch('/api/login/entrar-socio-admin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cpf: cleanCpf, senha: senhaTrim }),
+      body: JSON.stringify({ login: loginCanonical, senha: senhaTrim }),
       credentials: 'include',
     });
     const skipData = await skipRes.json();
@@ -45,10 +53,10 @@ function LoginContent() {
   const [error, setError] = useState<string | null>(null);
   const [primeiraSenha, setPrimeiraSenha] = useState(false);
   const [trocaObrigatoria, setTrocaObrigatoria] = useState(false);
-  const [cpfPrimeiraSenha, setCpfPrimeiraSenha] = useState('');
+  const [loginPrimeiraSenha, setLoginPrimeiraSenha] = useState('');
 
   const handleTrocarSenhaObrigatoria = async (
-    cpf: string,
+    login: string,
     senhaAtual: string,
     senhaNova: string,
     senhaConfirmacao: string
@@ -60,7 +68,7 @@ function LoginContent() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          cpf,
+          login,
           senha_atual: senhaAtual,
           senha_nova: senhaNova,
           senha_confirmacao: senhaConfirmacao,
@@ -71,7 +79,7 @@ function LoginContent() {
         setError(data.erro || 'Não foi possível alterar a senha.');
         return;
       }
-      const ok = await processarRespostaLogin(data as Record<string, unknown>, cpf, senhaNova, router);
+      const ok = await processarRespostaLogin(data as Record<string, unknown>, login, senhaNova, router);
       if (!ok) {
         setError('Erro ao entrar após alterar a senha.');
       }
@@ -80,11 +88,11 @@ function LoginContent() {
     }
   };
 
-  const handleLogin = async (cpf: string, senha?: string, senhaConfirmacao?: string) => {
+  const handleLogin = async (login: string, senha?: string, senhaConfirmacao?: string) => {
     setError(null);
 
     if (primeiraSenha) {
-      const clean = cpf.replace(/\D/g, '').trim().padStart(11, '0');
+      const loginClean = (login || loginPrimeiraSenha).trim();
       const s1 = (senha ?? '').trim();
       const s2 = (senhaConfirmacao ?? '').trim();
       try {
@@ -93,7 +101,7 @@ function LoginContent() {
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({
-            cpf: clean || cpfPrimeiraSenha,
+            login: loginClean,
             senha: s1,
             senhaConfirmacao: s2,
           }),
@@ -103,7 +111,12 @@ function LoginContent() {
           setError(data.erro || 'Não foi possível definir a senha.');
           return;
         }
-        const ok = await processarRespostaLogin(data, clean || cpfPrimeiraSenha, s1, router);
+        const ok = await processarRespostaLogin(
+          data,
+          String(data.login ?? loginClean),
+          s1,
+          router
+        );
         if (!ok) {
           setError('Erro ao entrar após definir a senha.');
         }
@@ -113,11 +126,17 @@ function LoginContent() {
       return;
     }
 
-    const cleanCpf = cpf.replace(/\D/g, '').trim().padStart(11, '0');
+    const loginTrim = login.trim();
+    const loginCanonical = loginTrim.includes('@')
+      ? normalizeEmail(loginTrim)
+      : normalizeTelefoneLogin(loginTrim);
     const senhaTrim = (senha ?? '').trim();
 
-    if (!validateCpf(cleanCpf)) {
-      setError('CPF inválido. Verifique os dígitos.');
+    if (
+      !loginCanonical ||
+      (!loginTrim.includes('@') && !telefoneLoginValido(loginCanonical))
+    ) {
+      setError('Informe um celular válido com DDD ou um e-mail válido.');
       return;
     }
 
@@ -126,24 +145,24 @@ function LoginContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ cpf: cleanCpf, senha: senhaTrim }),
+        body: JSON.stringify({ login: loginCanonical, senha: senhaTrim }),
       });
       const data = await res.json();
 
       if (!data.ok) {
-        setError(data.erro || 'CPF não cadastrado. Entre em contato com o RH.');
+        setError(data.erro || 'Login não cadastrado. Entre em contato com o RH.');
         return;
       }
 
       if (data.needsPassword === true) {
-        setCpfPrimeiraSenha(cleanCpf);
+        setLoginPrimeiraSenha(String(data.login ?? loginCanonical));
         setPrimeiraSenha(true);
         setTrocaObrigatoria(false);
         return;
       }
 
       if (data.mustChangePassword === true) {
-        setCpfPrimeiraSenha(cleanCpf);
+        setLoginPrimeiraSenha(String(data.login ?? loginCanonical));
         setTrocaObrigatoria(true);
         setPrimeiraSenha(false);
         return;
@@ -151,7 +170,7 @@ function LoginContent() {
 
       const ok = await processarRespostaLogin(
         data as Record<string, unknown>,
-        cleanCpf,
+        String(data.login ?? loginCanonical),
         senhaTrim,
         router
       );
@@ -169,11 +188,11 @@ function LoginContent() {
         onSubmit={handleLogin}
         onTrocarSenhaObrigatoria={handleTrocarSenhaObrigatoria}
         error={error}
-        formatCpf={formatCpf}
+        formatTelefone={formatTelefoneBr}
         mode={
           trocaObrigatoria ? 'trocar_senha_obrigatoria' : primeiraSenha ? 'primeira_senha' : 'login'
         }
-        cpfBloqueado={cpfPrimeiraSenha}
+        loginBloqueado={loginPrimeiraSenha}
       />
       {(primeiraSenha || trocaObrigatoria) && (
         <button
@@ -181,7 +200,7 @@ function LoginContent() {
           onClick={() => {
             setPrimeiraSenha(false);
             setTrocaObrigatoria(false);
-            setCpfPrimeiraSenha('');
+            setLoginPrimeiraSenha('');
             setError(null);
           }}
           className="mt-4 text-sm text-cafeteria-600 hover:text-cafeteria-800 underline"

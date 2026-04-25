@@ -2,40 +2,43 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
-import { selectColaboradorLoginRow } from '@/lib/colaborador-forca-troca-compat';
+import { selectColaboradorLoginRowByLogin } from '@/lib/colaborador-forca-troca-compat';
+import { normalizePortalRole } from '@/lib/roles';
 
 /**
- * Login do portal por CPF + senha — consulta no servidor (contorna RLS do Supabase).
+ * Login do portal por celular OU e-mail + senha — consulta no servidor (contorna RLS do Supabase).
  * Sem senha cadastrada: retorna needsPassword para o cliente abrir fluxo de primeira senha.
  */
 export async function POST(req: Request) {
-  let body: { cpf?: string; senha?: string };
+  let body: { login?: string; telefone?: string; senha?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, erro: 'Dados inválidos' }, { status: 400 });
   }
 
-  const cleanCpf = String(body.cpf ?? '')
-    .replace(/\D/g, '')
-    .trim()
-    .padStart(11, '0');
-
+  const loginInput = String(body.login ?? body.telefone ?? '').trim();
   const senhaTrim = String(body.senha ?? '').trim();
 
-  if (cleanCpf.length !== 11) {
-    return NextResponse.json({ ok: false, erro: 'CPF inválido' }, { status: 400 });
+  if (!loginInput) {
+    return NextResponse.json({ ok: false, erro: 'Informe celular ou e-mail.' }, { status: 400 });
   }
 
   try {
     const supabase = createAdminClient();
-    const { data: col, error: fetchErr } = await selectColaboradorLoginRow(supabase, cleanCpf);
+    const { data: col, loginCanonical, error: fetchErr } = await selectColaboradorLoginRowByLogin(
+      supabase,
+      loginInput
+    );
 
     if (fetchErr) {
       return NextResponse.json({ ok: false, erro: fetchErr.message || 'Erro ao consultar cadastro.' }, { status: 500 });
     }
     if (!col) {
-      return NextResponse.json({ ok: false, erro: 'CPF não cadastrado. Entre em contato com o RH.' }, { status: 404 });
+      return NextResponse.json(
+        { ok: false, erro: 'Login não cadastrado. Entre em contato com o RH.' },
+        { status: 404 }
+      );
     }
 
     const senhaHash = (col as { senha_hash?: string | null }).senha_hash;
@@ -44,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         needsPassword: true,
-        cpf: cleanCpf,
+        login: loginCanonical,
       });
     }
 
@@ -61,14 +64,16 @@ export async function POST(req: Request) {
       return NextResponse.json({
         ok: true,
         mustChangePassword: true,
-        cpf: cleanCpf,
+        login: loginCanonical,
         colaborador: {
           id: col.id,
           unidade_id: col.unidade_id,
-          role: (col as { role?: string }).role,
+          role: normalizePortalRole((col as { role?: string }).role),
         },
       });
     }
+
+    const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
 
     const payload = buildPortalLoginJson(
       {
@@ -77,7 +82,8 @@ export async function POST(req: Request) {
         role: (col as { role?: string }).role,
         onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
       },
-      cleanCpf
+      loginCanonical || loginInput,
+      cpfPendente ? { cpfPendente: true } : undefined
     );
 
     return NextResponse.json(payload);

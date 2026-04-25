@@ -1,6 +1,7 @@
 /**
- * Resposta JSON unificada após CPF+senha validados (portal / primeira-senha).
+ * Resposta JSON unificada após telefone+senha validados (portal / primeira-senha).
  */
+import { normalizePortalRole } from '@/lib/roles';
 export type ColaboradorLoginRow = {
   id: string;
   unidade_id: string;
@@ -8,15 +9,32 @@ export type ColaboradorLoginRow = {
   onboarding_completo?: boolean | null;
 };
 
-export function buildPortalLoginJson(col: ColaboradorLoginRow, cleanCpf: string) {
-  const role = col.role || 'colaborador';
+export function buildPortalLoginJson(
+  col: ColaboradorLoginRow,
+  telefoneLogin: string,
+  opts?: { cpfPendente?: boolean }
+) {
+  if (opts?.cpfPendente) {
+    return {
+      ok: true as const,
+      mustCompleteCpf: true as const,
+      telefone: telefoneLogin,
+      colaborador: {
+        id: col.id,
+        unidade_id: col.unidade_id,
+        role: normalizePortalRole(col.role),
+      },
+    };
+  }
+
+  const role = normalizePortalRole(col.role);
   const onboardingCompleto = !!col.onboarding_completo;
 
   if (!onboardingCompleto && (role === 'socio' || role === 'admin')) {
     return {
       ok: true as const,
       action: 'socio_admin' as const,
-      cpf: cleanCpf,
+      telefone: telefoneLogin,
       colaborador: { id: col.id, unidade_id: col.unidade_id, role },
     };
   }

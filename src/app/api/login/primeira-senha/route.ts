@@ -3,28 +3,25 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { hashPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
-import { updateSenhaColaboradorCompat } from '@/lib/colaborador-forca-troca-compat';
+import { selectColaboradorLoginRowByLogin, updateSenhaColaboradorByIdCompat } from '@/lib/colaborador-forca-troca-compat';
 
 /**
  * Primeiro acesso: define senha quando ainda não existe hash no banco.
  */
 export async function POST(req: Request) {
-  let body: { cpf?: string; senha?: string; senhaConfirmacao?: string };
+  let body: { login?: string; telefone?: string; senha?: string; senhaConfirmacao?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, erro: 'Dados inválidos' }, { status: 400 });
   }
 
-  const cleanCpf = String(body.cpf ?? '')
-    .replace(/\D/g, '')
-    .trim()
-    .padStart(11, '0');
+  const loginInput = String(body.login ?? body.telefone ?? '').trim();
   const senha = String(body.senha ?? '').trim();
   const senha2 = String(body.senhaConfirmacao ?? '').trim();
 
-  if (cleanCpf.length !== 11) {
-    return NextResponse.json({ ok: false, erro: 'CPF inválido' }, { status: 400 });
+  if (!loginInput) {
+    return NextResponse.json({ ok: false, erro: 'Informe celular ou e-mail.' }, { status: 400 });
   }
   if (!senhaNumerica6Valida(senha)) {
     return NextResponse.json(
@@ -38,29 +35,30 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { data: col, error } = await supabase
-      .from('colaboradores')
-      .select('id, unidade_id, onboarding_completo, role, senha_hash')
-      .eq('cpf', cleanCpf)
-      .single();
+    const { data: col, loginCanonical, error } = await selectColaboradorLoginRowByLogin(supabase, loginInput);
 
-    if (error || !col) {
-      return NextResponse.json({ ok: false, erro: 'CPF não cadastrado.' }, { status: 404 });
+    if (error) {
+      return NextResponse.json({ ok: false, erro: error.message || 'Erro ao consultar cadastro.' }, { status: 500 });
+    }
+    if (!col) {
+      return NextResponse.json({ ok: false, erro: 'Login não cadastrado.' }, { status: 404 });
     }
 
     if ((col as { senha_hash?: string | null }).senha_hash) {
       return NextResponse.json(
-        { ok: false, erro: 'Senha já cadastrada. Use o login com CPF e senha.' },
+        { ok: false, erro: 'Senha já cadastrada. Use o login com telefone e senha.' },
         { status: 400 }
       );
     }
 
     const hash = hashPassword(senha);
-    const { error: upErr } = await updateSenhaColaboradorCompat(supabase, cleanCpf, hash, true);
+    const { error: upErr } = await updateSenhaColaboradorByIdCompat(supabase, col.id, hash, true);
 
     if (upErr) {
       return NextResponse.json({ ok: false, erro: 'Não foi possível salvar a senha.' }, { status: 500 });
     }
+
+    const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
 
     const payload = buildPortalLoginJson(
       {
@@ -69,7 +67,8 @@ export async function POST(req: Request) {
         role: (col as { role?: string }).role,
         onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
       },
-      cleanCpf
+      loginCanonical || loginInput,
+      cpfPendente ? { cpfPendente: true } : undefined
     );
 
     return NextResponse.json(payload);

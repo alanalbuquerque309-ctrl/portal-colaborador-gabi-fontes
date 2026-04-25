@@ -5,27 +5,31 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 
 interface LoginFormProps {
-  onSubmit: (cpf: string, senha?: string, senhaConfirmacao?: string) => void;
+  onSubmit: (login: string, senha?: string, senhaConfirmacao?: string) => void;
   /** Troca obrigatória após senha padrão 123456 */
-  onTrocarSenhaObrigatoria?: (cpf: string, senhaAtual: string, senhaNova: string, senhaConfirmacao: string) => void;
+  onTrocarSenhaObrigatoria?: (
+    login: string,
+    senhaAtual: string,
+    senhaNova: string,
+    senhaConfirmacao: string
+  ) => void;
   error: string | null;
-  formatCpf: (value: string) => string;
+  formatTelefone: (value: string) => string;
   /** Fluxo de primeiro acesso — definir senha */
   mode?: 'login' | 'primeira_senha' | 'trocar_senha_obrigatoria';
-  /** CPF (só dígitos) travado no modo primeira senha */
-  cpfBloqueado?: string;
+  /** Login travado no modo primeira senha / troca obrigatória */
+  loginBloqueado?: string;
 }
 
 export function LoginForm({
   onSubmit,
   onTrocarSenhaObrigatoria,
   error,
-  formatCpf,
+  formatTelefone,
   mode = 'login',
-  cpfBloqueado = '',
+  loginBloqueado = '',
 }: LoginFormProps) {
-  const [cpf, setCpf] = useState('');
-  const [masked, setMasked] = useState('');
+  const [login, setLogin] = useState('');
   const [senha, setSenha] = useState('');
   const [senha2, setSenha2] = useState('');
   const [senhaAtual, setSenhaAtual] = useState('');
@@ -34,24 +38,29 @@ export function LoginForm({
 
   const primeiraSenha = mode === 'primeira_senha';
   const trocarObrigatoria = mode === 'trocar_senha_obrigatoria';
-  const maskedBloqueado = cpfBloqueado ? formatCpf(cpfBloqueado) : '';
+  const maskedBloqueado =
+    loginBloqueado && !loginBloqueado.includes('@') ? formatTelefone(loginBloqueado) : loginBloqueado;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setCpf(digits);
-    setMasked(formatCpf(digits));
+    const raw = e.target.value.trimStart();
+    if (raw.includes('@')) {
+      setLogin(raw.toLowerCase());
+      return;
+    }
+    const digits = raw.replace(/\D/g, '').slice(0, 11);
+    setLogin(digits);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (trocarObrigatoria && onTrocarSenhaObrigatoria) {
-      onTrocarSenhaObrigatoria(cpfBloqueado, senhaAtual, senha, senha2);
+      onTrocarSenhaObrigatoria(loginBloqueado, senhaAtual, senha, senha2);
       return;
     }
     if (primeiraSenha) {
-      onSubmit(cpfBloqueado, senha, senha2);
+      onSubmit(loginBloqueado, senha, senha2);
     } else {
-      onSubmit(cpf, senha);
+      onSubmit(login, senha);
     }
   };
 
@@ -72,7 +81,7 @@ export function LoginForm({
             : 'Cafeteria Gabi Fontes'}
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <label className="block text-sm font-medium text-cafeteria-700">CPF</label>
+        <label className="block text-sm font-medium text-cafeteria-700">Celular (com DDD) ou e-mail</label>
         {primeiraSenha || trocarObrigatoria ? (
           <input
             type="text"
@@ -84,11 +93,11 @@ export function LoginForm({
         ) : (
           <input
             type="text"
-            inputMode="numeric"
             autoComplete="username"
-            value={masked}
+            inputMode={login.includes('@') ? 'email' : 'numeric'}
+            value={login.includes('@') ? login : formatTelefone(login)}
             onChange={handleChange}
-            placeholder="000.000.000-00"
+            placeholder="(21) 99999-9999 ou nome@empresa.com"
             className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base text-cafeteria-800 placeholder:text-cafeteria-300 focus:border-cafeteria-500 focus:outline-none focus:ring-1 focus:ring-cafeteria-500 min-h-[44px] touch-manipulation"
           />
         )}
@@ -246,13 +255,9 @@ export function LoginForm({
       </form>
       {!primeiraSenha && !trocarObrigatoria && (
         <p className="mt-6 pt-4 border-t border-cafeteria-200 text-center text-sm">
-          <span className="text-coffee-100">Sócios e admins:</span>{' '}
-          <Link
-            href="/admin"
-            className="text-dourado-base font-medium hover:underline"
-          >
-            Entrar no painel Admin (usuário + senha)
-          </Link>
+          <span className="text-coffee-100">
+            Todos os perfis entram por aqui com celular/e-mail e senha. O acesso é aplicado conforme o cargo.
+          </span>
         </p>
       )}
     </div>
