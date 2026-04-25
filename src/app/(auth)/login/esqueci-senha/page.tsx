@@ -3,33 +3,31 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { formatCpf } from '@/lib/utils/cpf';
+import { formatTelefoneBr, normalizeTelefoneLogin, telefoneLoginValido } from '@/lib/telefone';
 import { Button } from '@/components/ui/Button';
 
 export default function EsqueciSenhaPage() {
   const router = useRouter();
-  const [cpf, setCpf] = useState('');
+  const [telefone, setTelefone] = useState('');
   const [masked, setMasked] = useState('');
   const [email, setEmail] = useState('');
-  const [nova, setNova] = useState('');
-  const [nova2, setNova2] = useState('');
   const [erro, setErro] = useState('');
   const [okMsg, setOkMsg] = useState('');
   const [enviando, setEnviando] = useState(false);
 
-  const handleCpf = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTelefone = (e: React.ChangeEvent<HTMLInputElement>) => {
     const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
-    setCpf(digits);
-    setMasked(formatCpf(digits));
+    setTelefone(digits);
+    setMasked(formatTelefoneBr(digits));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
     setOkMsg('');
-    const cleanCpf = cpf.replace(/\D/g, '').trim().padStart(11, '0');
-    if (cleanCpf.length !== 11) {
-      setErro('CPF inválido.');
+    const telefoneLogin = normalizeTelefoneLogin(telefone);
+    if (!telefoneLoginValido(telefoneLogin)) {
+      setErro('Informe um celular válido com DDD (10 ou 11 dígitos).');
       return;
     }
     setEnviando(true);
@@ -38,10 +36,8 @@ export default function EsqueciSenhaPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          cpf: cleanCpf,
+          telefone: telefoneLogin,
           email: email.trim(),
-          novaSenha: nova.trim(),
-          novaSenhaConfirmacao: nova2.trim(),
         }),
       });
       const data = await res.json();
@@ -65,18 +61,18 @@ export default function EsqueciSenhaPage() {
           Redefinir senha
         </h1>
         <p className="mb-6 text-sm text-cafeteria-600">
-          Informe o CPF e o e-mail cadastrados no RH e defina uma nova senha. Por segurança, a senha
-          antiga não pode ser exibida.
+          Informe o celular (com DDD) e o e-mail cadastrados no RH. Se os dados conferirem, sua senha
+          volta para 123456 e o portal pede uma nova senha no próximo login.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-cafeteria-700 mb-1">CPF</label>
+            <label className="block text-sm font-medium text-cafeteria-700 mb-1">Celular (com DDD)</label>
             <input
               type="text"
               inputMode="numeric"
               value={masked}
-              onChange={handleCpf}
-              placeholder="000.000.000-00"
+              onChange={handleTelefone}
+              placeholder="(21) 99999-9999"
               className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base min-h-[44px]"
               required
             />
@@ -92,34 +88,10 @@ export default function EsqueciSenhaPage() {
               required
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-cafeteria-700 mb-1">Nova senha</label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={nova}
-              onChange={(e) => setNova(e.target.value)}
-              className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base min-h-[44px]"
-              required
-              minLength={6}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-cafeteria-700 mb-1">Confirmar nova senha</label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={nova2}
-              onChange={(e) => setNova2(e.target.value)}
-              className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base min-h-[44px]"
-              required
-              minLength={6}
-            />
-          </div>
           {erro && <p className="text-sm text-red-600">{erro}</p>}
           {okMsg && <p className="text-sm text-green-700">{okMsg}</p>}
           <Button type="submit" className="w-full" disabled={enviando}>
-            {enviando ? 'Salvando…' : 'Redefinir senha'}
+            {enviando ? 'Redefinindo…' : 'Voltar para senha 123456'}
           </Button>
         </form>
         <p className="mt-6 text-center text-sm">
