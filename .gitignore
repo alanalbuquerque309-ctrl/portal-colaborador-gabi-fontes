@@ -43,3 +43,8 @@ tsconfig.tsbuildinfo
 
 # Cópia local dos manuais (oficial em public/manuais)
 Portal do colaborador Manuais/
+
+# Gerado em prebuild a partir de manuals/ (não versionar duplicado)
+public/manuais/
+
+.vercel
