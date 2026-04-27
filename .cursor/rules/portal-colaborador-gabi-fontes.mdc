@@ -1,177 +1,194 @@
 ---
-description: Portal do Colaborador Gabi Fontes — produto, onboarding, BD, deploy e convenções
+description: Portal do Colaborador Gabi Fontes — produto único de referência (stack, auth, BD, ajuda, deploy, LGPD)
 alwaysApply: true
 ---
 
 # Portal do Colaborador — Gabi Fontes
 
-**Âmbito:** este repositório apenas. Não misturar com o projeto **Estoque Inteligente** nem outros apps.
+**Âmbito:** este repositório apenas. **Não** misturar com **ISA AI / Gestão 360**, **Estoque Inteligente** (`core_system`) nem outros apps.
 
-## Crítico — colaboradores (SQL / LGPD)
+**Caminho no PC do Alan (monorepo):** `ALAN.IA/Portal do Colaborador - Gabi Fontes`. Este ficheiro é a **fonte única** de regras Cursor para o Portal; não duplicar listas longas noutros `.md`.
 
-- **Nunca** `DELETE`/`TRUNCATE` em massa em `colaboradores`.
-- Reset organizacional permitido = só **`UPDATE`** em `cargo`, `setor`, `unidade_id`, `role` (com cuidado).
-- Dados pessoais (nome, CPF, e-mail, etc.) não apagar em lote.
+---
+
+## Separação explícita — Estoque Inteligente / outros
+
+- Sem imputação de ficheiros de stock, `estoque.json`, nem ecrãs de Master de **estoque**.
+- Identidades e dados deste portal **não** se misturam com `web_users.json` / API de movimentação de stock salvo integração futura explícita e documentada nos dois lados.
+
+---
+
+## LGPD e perfil (premissa de negócio)
+
+- **Nunca** `DELETE`/`TRUNCATE` em massa em `colaboradores`. Reset organizacional permitido = só **`UPDATE`** em `cargo`, `setor`, `unidade_id`, `role` (com cuidado). Dados pessoais não apagar em lote.
+- O **perfil completo** só é visível a (1) **Master do portal** (administração e sócios) e (2) o **próprio colaborador** autenticado. Sem listagem pública nem partilha do perfil entre colaboradores. **RLS/políticas** no Supabase devem refletir isto.
+- **Campos previstos do perfil:** nome, endereço, telefone, e-mail, função/cargo, setor, unidade. Fora deste conjunto (folha, salários, dados bancários, saúde, etc.) não entram salvo decisão posterior documentada.
+
+---
 
 ## Stack e deploy
 
 - **Next.js 14**, **Supabase** (Postgres + PostgREST), **Vercel**.
 - **PWA:** `@ducanh2912/next-pwa`; em `next.config.js`, `runtimeCaching` com **NetworkOnly** para `GET /manuais/` (evita SW a servir HTML errado nos iframes dos manuais).
-- **Variáveis Vercel:** `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, e para o vídeo de onboarding **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** (YouTube, Vimeo ou ficheiro). Sem isto em **produção**, o colaborador na 1.ª etapa **não** tem o botão `[Dev] Simular vídeo` (só existe em `NODE_ENV === development`).
+- **Variáveis Vercel:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, e para o vídeo de onboarding **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`**. Sem vídeo em **produção**, o colaborador na 1.ª etapa não tem o botão `[Dev] Simular vídeo` (só em `NODE_ENV === development`).
+- **Ajuda (produção):** `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` (UUID em `colaboradores.id`), opcional `NEXT_PUBLIC_AJUDA_RESPONSAVEL_NOME`. Opcional: `ADMIN_ALAN_LOGIN`, `ADMIN_ALAN_PASSWORD`.
+- Branch **`main`**; push → Vercel CI. Só **commit + push** entra em produção; comparar `git rev-parse HEAD` com o deploy na Vercel antes de afirmar que produção está corrigida.
+
+---
+
+## PostgREST / Supabase — embeds ambíguos (obrigatório ler)
+
+Quando uma tabela tem **mais de uma FK** para a **mesma** tabela referenciada, `select('outra_tabela(...)')` **falha** com: *Could not embed because more than one relationship was found*.
+
+**Regra:** qualificar com o nome da constraint FK: `colaboradores!nome_da_constraint_fkey(cols)`.
+
+**Tabela `ajuda_chat`:**
+
+| Coluna              | FK PostgreSQL típica                    | Uso no código |
+|---------------------|-----------------------------------------|-----------------|
+| `colaborador_id`    | `ajuda_chat_colaborador_id_fkey`        | Remetente (GET admin inbox) |
+| `respondido_por_id` | `ajuda_chat_respondido_por_id_fkey`    | Quem respondeu (GET/POST portal) |
+
+Exemplos já usados no repo:
+
+- Admin inbox: `colaboradores!ajuda_chat_colaborador_id_fkey(nome, telefone)`
+- Portal: `respondido_por:colaboradores!ajuda_chat_respondido_por_id_fkey(nome)`
+
+Se em produção a constraint tiver outro nome, ajustar o hint no `.select()` para coincidir com `\d ajuda_chat` no SQL do Supabase.
+
+---
 
 ## Sessão e auth
 
 - **Portal:** cookies `portal_colaborador_id`, `portal_unidade_id`, `portal_role` (`lib/utils/session.ts`).
-- **Admin:** `admin_session`; `lib/admin-auth.ts` — também aceita sessão portal com `role` **socio** ou **admin**.
-- **Login portal:** `POST /api/login/portal` (server-side, bypass RLS). Senhas: `lib/password.ts` (formato `scrypt$...`).
-- **Login atual do portal:** celular com DDD **ou e-mail** + senha. Não regressar para CPF como identificador principal.
+- **Admin:** `admin_session`; `lib/admin-auth.ts` — aceita sessão portal com `role` **socio** ou **admin**.
+- **Login portal:** `POST /api/login/portal` (server-side, bypass RLS). Senhas: `lib/password.ts` (`scrypt$...`).
+- **Login:** celular com DDD **ou** e-mail + senha (não usar CPF como identificador principal).
 - **Primeira senha:** `POST /api/login/primeira-senha` quando não há `senha_hash`.
-- **Troca obrigatória (senha padrão):** coluna `forca_troca_senha`; `POST /api/login/trocar-senha-obrigatoria`; resposta alinhada a `buildPortalLoginJson`.
-- **Esqueci senha:** `POST /api/login/recuperar-senha` valida celular + e-mail, volta senha para **123456** e marca `forca_troca_senha=true`.
-- **Compatibilidade recuperação/login:** produção pode não ter `telefone_login`; rotas devem cair para `telefone` normalizado e não falhar só porque essa coluna falta.
-- **Compatibilidade BD:** `lib/colaborador-forca-troca-compat.ts` — se colunas antigas faltarem, fallback em `select`/`update`.
+- **Troca obrigatória:** `forca_troca_senha`; `POST /api/login/trocar-senha-obrigatoria`.
+- **Esqueci senha:** `POST /api/login/recuperar-senha`; valida celular + e-mail; pode resetar para padrão e marcar troca obrigatória.
+- **Compatibilidade:** produção pode não ter `telefone_login`; rotas devem cair para `telefone` normalizado. `lib/colaborador-forca-troca-compat.ts` para colunas antigas em falta.
 
-## Quem vê o onboarding (importante)
+---
 
-- **`lib/portal-login-response.ts`:** se `onboarding_completo` é falso e `role` é **socio** ou **admin**, a resposta é `action: 'socio_admin'` → fluxo **entrar-socio-admin** → **portal** — **não** vai a `/onboarding`.
-- **Colaborador** com onboarding incompleto → `redirect` para `/onboarding?colaborador_id=...`.
-- **Sócios/admins** não passam pelo fluxo longo (vídeo + quizzes + manuais) salvo alteração explícita de regra de negócio.
+## Quem vê o onboarding
 
-## Onboarding (fluxo actual — 6 etapas)
+- **`lib/portal-login-response.ts`:** se `onboarding_completo` é falso e `role` é **socio** ou **admin**, a resposta é `action: 'socio_admin'` → **não** vai a `/onboarding`.
+- Colaborador com onboarding incompleto → `redirect` para `/onboarding?colaborador_id=...`.
+
+---
+
+## Onboarding (fluxo atual — 6 etapas)
 
 Ordem e ficheiros principais:
 
-1. **Vídeo** — `VideoBoasVindas.tsx`; gravar `onboarding_video_visto` ao concluir (API).
-   - **Temporário (produção atual):** botão **`Pular vídeo (temporário)`** no `OnboardingFlow.tsx`.
-   - Ao usar o botão, marca **`onboarding_video_visto=true`** e **`onboarding_quiz_video_ok=true`** e avança direto para o manual geral.
-   - Flag de controlo: `NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO` (`false` desativa o botão e volta à obrigatoriedade do vídeo + quiz).
-2. **Quiz vídeo** — `QuizOnboardingBloco` + `src/content/onboarding-quizzes.ts` (`PERGUNTAS_QUIZ_VIDEO`). 1.º erro: tentar de novo; **2.º erro na mesma pergunta:** mensagem e **reset** (`reset_video_e_quiz` em `POST /api/portal/onboarding/progresso`) → volta ao vídeo (quando não estiver em modo de pulo temporário).
-3. **Manual geral (HTML)** — `ManualHtmlLeitura` + `MANUAL_GERAL_COLABORADOR` em `lib/manual-por-setor.ts`; `onboarding_manual_geral_lido_ok`.
-4. **Quiz manual geral** — 3 perguntas por tentativa.
-   - Banco A: `PERGUNTAS_QUIZ_MANUAL_GERAL`
-   - Banco B: `PERGUNTAS_QUIZ_MANUAL_GERAL_B` (usado após reset por erro)
-   - 2.º erro na mesma pergunta → `reset_manual_geral_e_quiz` + mensagem para reler com calma + volta ao manual geral + troca para o banco alternativo.
-5. **Escolha do manual de setor** — `EscolhaManualOnboarding.tsx`; lista em `lib/manuais-escolha-onboarding.ts` (sem o geral); pode abrir vários; **“Manual concluído”** grava `onboarding_manual_escolhido_file` + `onboarding_manual_escolhido_concluido`.
-6. **Termo** — checkbox; `finalizarOnboarding` em `app/(auth)/onboarding/actions.ts` (`onboarding_completo`, `termo_aceite_em`).
+1. **Vídeo** — `VideoBoasVindas.tsx`; flags `onboarding_video_visto` / quiz. Botão temporário **Pular vídeo** em `OnboardingFlow.tsx`; `NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO`.
+2. **Quiz vídeo** — `QuizOnboardingBloco` + `src/content/onboarding-quizzes.ts` (`PERGUNTAS_QUIZ_VIDEO`). Erros → reset via `POST /api/portal/onboarding/progresso`.
+3. **Manual geral (HTML)** — `ManualHtmlLeitura` + `MANUAL_GERAL_COLABORADOR` em `lib/manual-por-setor.ts`.
+4. **Quiz manual geral** — bancos A/B em `onboarding-quizzes.ts`; reset `reset_manual_geral_e_quiz` se necessário.
+5. **Escolha manual de setor** — `EscolhaManualOnboarding.tsx`; `lib/manuais-escolha-onboarding.ts`; `onboarding_manual_escolhido_file`, `onboarding_manual_escolhido_concluido`.
+6. **Termo** — `finalizarOnboarding` em `app/(auth)/onboarding/actions.ts`.
 
 - **Barra de progresso:** 6 passos em `OnboardingFlow.tsx`.
-- **Retomar:** `inferOnboardingEtapaIndex` em `lib/onboarding-step.ts` + flags no GET `/api/portal/perfil`.
-- **Componente antigo** `ManualOnboarding` / quiz antigo em `QuizCultura.tsx` — substituído pelo fluxo acima para o onboarding principal.
+- **Retomar:** `inferOnboardingEtapaIndex` em `lib/onboarding-step.ts` + GET `/api/portal/perfil`.
 
-## Manuais (ficheiros e rotas)
+---
 
-- HTML estáticos em **`public/manuais/`** (servidos em `/manuais/...`).
-- Fonte canónica no repo: **`manuals/`**; no build, `prebuild` (`scripts/sync-manuals-to-public.cjs`) copia para `public/manuais/`.
-- A rota `src/app/manuais/[[...path]]/route.ts` deve conseguir servir de `manuals/` e também de `public/manuais/`, porque a Vercel pode não encontrar arquivos fora da cópia gerada.
-- Mapeamento setor/função: `lib/manual-por-setor.ts` (`manualPorSetor`, `hrefManual`).
-- Página **`/portal/manuais`** — lista geral + específico conforme perfil.
-- **Landing pública `/`:** só logo + CTA login — **sem** manuais nem vídeo públicos (regra de produto).
-- `Manual do Estoquista.html` deve constar nas listas de onboarding (`lib/manuais-escolha-onboarding.ts`) e biblioteca do portal (`lib/manuais-biblioteca-portal.ts`); em `/portal/manuais` manter fallback de garantia para evitar regressão de exibição.
-- Em `index.html`, links estáticos de manuais devem apontar para `manuals/...` (não usar caminho legado `Portal do colaborador Manuais/...`).
+## Manuais
+
+- HTML: fonte **`manuals/`**; `prebuild` copia para **`public/manuais/`** (`scripts/sync-manuals-to-public.cjs`).
+- Rota `src/app/manuais/[[...path]]/route.ts`: servir de `manuals/` e `public/manuais`.
+- Mapeamento: `lib/manual-por-setor.ts`.
+- **Landing `/`:** só logo + CTA login — sem manuais públicos.
+- `Manual do Estoquista.html`: presente em onboarding e biblioteca (`lib/manuais-escolha-onboarding.ts`, `lib/manuais-biblioteca-portal.ts`).
+- **`index.html`:** links para `manuals/...`, não pasta legado `Portal do colaborador Manuais/`.
+
+---
 
 ## Menu portal — “Meu manual”
 
-- `Header.tsx`: após **Mural**, link **Meu manual** quando `onboarding_completo` **e** `onboarding_manual_escolhido_file` (href via `hrefManual`).
-- Ícone `meu-manual` (mesmo SVG que manuais).
+- `Header.tsx`: link **Meu manual** quando `onboarding_completo` e `onboarding_manual_escolhido_file`.
 
-## Relatórios de avaliações
-
-- **`lib/avaliacoes-relatorio-access.ts`:** `podeVerRelatoriosAvaliacoesCompletos` — **`socio` e `admin`**.
-- Página: `/portal/relatorios-avaliacoes`.
-- Avaliações diárias e de liderança exigem `justificativa_nota_baixa` quando qualquer nota for **3 ou menor**.
+---
 
 ## Chat de ajuda
 
-- Colaborador envia em `POST /api/portal/ajuda-chat`; UI: `BotaoAjuda` (FAB) em `PortalLayout`.
-- **Responder:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` = UUID do colaborador (ex.: Daniel), **só ele** pode `PATCH /api/admin/ajuda-chat/:id`. Sem esse env, mantém-se o legado (**admin/RH** respondem).
-- **Visualizar inbox:** sócios + o próprio responsável (quando dedicado); sem env dedicado, admin/RH também veem (`canVisualizarAjuda` em `src/lib/roles.ts`).
-- **Sócio** visualiza todas as conversas em `/portal/ajuda-inbox`; campo de resposta só aparece para quem pode responder.
+- Colaborador: `POST /api/portal/ajuda-chat`; FAB `BotaoAjuda` em `PortalLayout`.
+- **Responder:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID`, só esse UUID pode `PATCH /api/admin/ajuda-chat/:id`. Sem env: legado **admin/RH** (`canResponderAjudaFinal` em `src/lib/roles.ts`).
+- **Inbox:** `/portal/ajuda-inbox`; lista via `GET /api/admin/ajuda-chat`. Sócios veem tudo; campo responder só para quem pode.
+- **Pendências / badge:** `GET /api/portal/ajuda-chat/pendencias` para quem passa `canVisualizarAjuda`.
+- Ver secção **PostgREST** acima para embeds em `ajuda_chat`.
 
-## Avaliação da liderança (novo padrão de produto)
+---
 
-- Escopo de avaliação do colaborador é **opcional** e **restrito** a:
-  1) vínculos ativos em `colaboradores_lideres` (chefes diretos; fallback legado em `lider_id`)  
-  2) **RH global** (1 utilizador com role `rh`)  
-  3) **Administrador global** (1 utilizador com role `admin`)
-- **Administrador** também pode usar `/portal/avaliacao-lideranca`, porém para avaliar **somente subordinados diretos elegíveis** (cargos operacionais definidos no backend).
-- API: `GET/POST /api/portal/avaliacao-lideranca` aplica essa regra; não permite avaliar fora da lista semanal.
-- Tela do colaborador (`/portal/avaliacao-lideranca`) mostra:
-  - aba **Líderes que vou avaliar** (com `papel_label`)  
-  - aba **Reconhecimento entre pares** (placeholder)
-- Anonimato: avaliador aparece como anónimo para o avaliado.
-- Visibilidade:
-  - colaborador: **não** vê relatório consolidado (`403`)
-  - sócio/admin: veem consolidado em `/portal/relatorios-avaliacoes`
-  - no campo "Quem avaliou", **somente sócio e admin** veem nome real do avaliador (auditoria); demais perfis veem anônimo
-  - líder (gerente/master/admin): vê **apenas a própria análise** em `/portal/minha-lideranca` (`GET /api/portal/avaliacao-lideranca/minha`)
-- Mensagens de obrigatoriedade:
-  - colaborador: avaliação de liderança = opcional
-  - liderança (`/portal/avaliacao-master`): aviso interno de avaliação da equipe obrigatória
+## Manual eventos (notificações)
 
-## Avaliação diária da equipe (gerente/master/admin)
+- Admin: `/admin/manual-eventos`; APIs `api/admin/manual-eventos`, `api/portal/manual-eventos`. Migração `026_manual_eventos.sql`. Toast: `components/notificacoes/ManualEventosToast.tsx`.
 
-- Acesso em `/portal/avaliacao-master` para **gerente, master e admin**.
-- Lista da equipe considera vínculo por `colaboradores_lideres` (fallback legado em `lider_id`), subordinados diretos na mesma unidade.
-- Fluxo é **write-once por dia**: após enviar, fica apenas leitura.
-- Anti-duplicidade: colaborador só pode receber **uma avaliação por data**, mesmo se tiver mais de um líder vinculado.
-- Assiduidade suportada no UI:
-  - `presente`
-  - `folga` (isenta da média)
-  - `outra_escala` (isenta da média; uso típico 12x36)
-  - `falta_justificada` (isenta da média)
-  - `falta_injustificada` (zera os critérios e média do dia = 0)
-- Compatibilidade de banco: `folga` e `outra_escala` podem ser persistidas como `falta_justificada` (mantendo regra de isenção sem quebrar schema legado).
-- Home de avaliações deve mostrar alerta diário quando houver pendentes para liderança/admin.
-- Tela deve exibir checklist por colaborador (✅/⬜) para controle operacional do fechamento do dia.
+---
 
-## Cadastro de líder direto no admin
+## Relatórios de avaliações
 
-- No perfil de colaborador (`/admin/colaboradores/[id]/editar`), a seleção de **líderes diretos** deve permitir mais de uma liderança e gravar em `colaboradores_lideres`; `lider_id` fica só como compatibilidade/primeiro líder.
-- A lista deve conter **somente lideranças reais**, sem restrição de unidade/setor.
-- Perfis/cargos permitidos como líder:
-  - roles canônicas: `admin`, `gerente`, `master`
-  - cargos/roles contendo: `gerente`, `sub gerente`, `subgerente`, `chefe`, `confeiteiro`, `administrador` (incluindo typo `adminisrtador`)
-- Não permitir:
-  - `socio` como líder direto
-  - líder igual ao próprio colaborador
-  - líder fora da lista de lideranças permitidas (validar também no backend, não só na UI)
+- **`lib/avaliacoes-relatorio-access.ts`:** relatórios completos — **socio** e **admin**.
+- Página: `/portal/relatorios-avaliacoes`.
+- Notas baixas: `justificativa_nota_baixa` quando nota ≤ 3 (migração `028`).
 
-## Migrações recentes obrigatórias (produção)
+---
 
-- `017_avaliacoes_diarias_e_lider.sql` (tabela `avaliacoes_diarias` + `lider_id`)
-- `025_avaliacoes_lideranca_5_pilares.sql` (colunas `n_exemplo`, `n_comunicacao`, `n_suporte`, `n_justica`, `n_clima`)
-- `028_justificativa_nota_baixa.sql` (`justificativa_nota_baixa` nas avaliações)
-- `029_multiplos_lideres_colaborador.sql` (`colaboradores_lideres`, múltiplos líderes por colaborador)
+## Avaliação da liderança (5 pilares)
 
-## Migrações Supabase (ordem relevante)
+- Alvos: `colaboradores_lideres` (+ fallback `lider_id`), um **RH**, um **admin**, regras em APIs `avaliacao-lideranca`.
+- Colaborador: `/portal/avaliacao-lideranca`; líder: `/portal/minha-lideranca` (`/api/portal/avaliacao-lideranca/minha`).
+- Consolidado sócios/admin em relatórios; anonimato conforme `lib/roles` e APIs.
 
-- **`021_forca_troca_senha.sql`** — coluna `forca_troca_senha`.
-- **`022_onboarding_etapas.sql`** — `onboarding_video_visto`, `onboarding_quiz_video_ok`, `onboarding_manual_geral_lido_ok`, `onboarding_quiz_manual_geral_ok`, `onboarding_manual_escolhido_file`, `onboarding_manual_escolhido_concluido`.
+---
 
-Aplicar no **SQL Editor** do projeto Supabase (produção). `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` → mensagem “Sucesso. Nenhuma linha retornada” é **normal**.
+## Avaliação diária da equipe (master)
 
-## API onboarding
+- `/portal/avaliacao-master`; write-once por dia; vínculos `colaboradores_lideres`; assiduidade (presente, folga, outra_escala, faltas, etc.) conforme página e APIs.
 
-- **`POST /api/portal/onboarding/progresso`** — corpo JSON com flags parciais e/ou `reset_video_e_quiz` / `reset_manual_geral_e_quiz`. Cookie `portal_colaborador_id` obrigatório.
+---
+
+## Cadastro de líderes no admin
+
+- `/admin/colaboradores/[id]/editar`: múltiplos líderes em `colaboradores_lideres`; validar perfis permitidos e excluir `socio`, auto-vínculo, etc. (ver regra já documentada nas APIs).
+
+---
+
+## Migrações Supabase — referência (produção)
+
+Aplicar em ordem no SQL Editor quando necessário; `ADD COLUMN IF NOT EXISTS` sem linhas é normal.
+
+- Base e políticas: `001_initial_schema.sql`, `002_rls_policies.sql`, …
+- Destaque: `017_avaliacoes_diarias_e_lider.sql`
+- Onboarding/força senha: `021_forca_troca_senha.sql`, `022_onboarding_etapas.sql`
+- `023_telefone_login_colaboradores.sql`, `024_colaboradores_cpf_opcional.sql`
+- `025_avaliacoes_lideranca_5_pilares.sql`
+- `026_manual_eventos.sql`
+- **`027_ajuda_chat.sql`** (tabela ajuda + duas FK para `colaboradores`)
+- `028_justificativa_nota_baixa.sql`
+- `029_multiplos_lideres_colaborador.sql`
+
+---
 
 ## Convenções de código
 
 - APIs portal: validar `portal_colaborador_id` (não `pending`).
-- Operações elevadas: `createAdminClient()` (`lib/supabase/admin.ts`).
-- UI: Tailwind, tema dourado / coffee / cream (`components/ui`, `Button`).
+- Operações privilegiadas: `createAdminClient()` (`lib/supabase/admin.ts`).
+- UI: Tailwind, tema dourado / coffee / cream.
 
-## Git e Vercel
+---
 
-- Branch principal: **`main`**; remoto típico: `origin` no GitHub.
-- Deploy: push para `main` → Vercel constrói. Para forçar redeploy: `git commit --allow-empty -m "chore: trigger redeploy"` && `git push origin main`.
-- Só o que está **commitado e enviado** entra na Vercel. Antes de responder que produção foi corrigida, confirmar `git ls-remote origin main` contra `git rev-parse HEAD` ou testar o endpoint público.
-- Com working tree suja, publicar apenas arquivos relacionados ao problema. Evitar commits enormes que misturem login, manuais, avaliações e ajustes visuais.
-- Após deploy: hard refresh (Ctrl+Shift+R) ou janela anónima; PWA antigo pode cachear — limpar dados do site se necessário.
+## Git — o que não versionar
 
-## Referências rápidas de pastas
+- **`.gitignore`:** `.env`, `.env.local`, `supabase/.temp/`, `public/manuais/` (gerado), scripts operacionais locais com IDs/telefones (ex.: `scripts/set_*password*.mjs`, `set_alan_phone_login.mjs`, `set_senha_padrao.mjs`). Nunca commitar segredos nem scripts de reset com PII.
 
-- `src/app/(portal)/portal/` — área logada colaborador.
-- `src/app/(auth)/onboarding/` — página onboarding + `actions.ts` (finalizar).
-- `src/app/api/portal/` — perfil, onboarding/progresso, etc.
-- `src/content/onboarding-quizzes.ts` — textos dos questionários (editar aqui).
-- `supabase/migrations/` — evolução do schema.
+---
+
+## Referências de pastas
+
+- `src/app/(portal)/portal/` — área logada.
+- `src/app/(auth)/onboarding/` — onboarding + `actions.ts`.
+- `src/app/api/portal/`, `src/app/api/admin/` — APIs.
+- `src/content/onboarding-quizzes.ts` — perguntas.
+- `supabase/migrations/` — schema.

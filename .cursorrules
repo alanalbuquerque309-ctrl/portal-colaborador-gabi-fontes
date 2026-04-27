@@ -1,20 +1,5 @@
 # Portal do Colaborador — Gabi Fontes
 
-**Âmbito:** rege **somente** este projeto (Next.js, Supabase, Vercel). **Não** rege o **Estoque Inteligente** — esse sistema é outro repositório (`core_system`) com `.cursorrules` próprio.
+Toda a orientação persistente para agentes Cursor está em **`.cursor/rules/portal-colaborador-gabi-fontes.mdc`** (produto, stack, auth, LGPD, PostgREST/embeds, ajuda, migrações, deploy e convenções). Não duplicar listas aqui.
 
-**Detalhe técnico (stack, rotas, SQL, PWA, etc.):** `.cursor/rules/portal-colaborador-gabi-fontes.mdc`.
-
----
-
-## Separação em relação ao Estoque Inteligente
-
-- Sem imputação de ficheiros de stock, `estoque.json`, nem ecrãs de Master de **estoque**.
-- Identidades e dados deste portal **não** se misturam com `web_users.json` / API de movimentação de stock salvo integração futura explícita, documentada e restrita nos dois lados.
-
-## Perfil do colaborador — acesso e LGPD (premissa de negócio)
-
-O **perfil completo** só é visível a (1) **Master do portal** (administração e sócios) e (2) o **próprio colaborador** autenticado. Sem listagem pública nem partilha do perfil entre colaboradores. **RLS/políticas** no Supabase devem refletir isto.
-
-## Campos previstos do perfil (escopo de dados)
-
-**Nome**, **endereço**, **telefone**, **e-mail**, **função/cargo**, **setor**, **unidade**. Fora deste conjunto (folha, salários, dados bancários, saúde, etc.) **não** entram salvo decisão posterior documentada.
+Este projeto é independente do **Estoque Inteligente** / outros repositórios na pasta ISA AI.
