@@ -1,14 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getPortalSession, clearPortalSession } from '@/lib/utils/session';
-import { hrefManual } from '@/lib/manual-por-setor';
+import { hrefManual, manualPorSetor } from '@/lib/manual-por-setor';
+import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
+import {
+  canResponderAjudaFinal,
+  canVisualizarAjuda,
+  normalizePortalRole,
+} from '@/lib/roles';
 
 const navItensBase = [
   { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' as const },
-  { href: '/portal/aniversariantes', label: 'Mural da Família', short: 'Família', icon: 'familia' as const },
   { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' as const },
   { href: '/portal/sugestoes', label: 'Sugestões', short: 'Sugestões', icon: 'sugestoes' as const },
   { href: '/portal/manuais', label: 'Manuais', short: 'Manuais', icon: 'manuais' as const },
@@ -77,18 +82,101 @@ export function Header() {
   const router = useRouter();
   const [podeAdmin, setPodeAdmin] = useState(false);
   const [podeGerenteAvaliador, setPodeGerenteAvaliador] = useState(false);
+  const [podeAvaliarEquipe, setPodeAvaliarEquipe] = useState(false);
+  const [podeVerMinhaLideranca, setPodeVerMinhaLideranca] = useState(false);
   const [podeVerDesempenho, setPodeVerDesempenho] = useState(false);
+  const [podeAvaliarLideranca, setPodeAvaliarLideranca] = useState(false);
   const [podeRelatoriosAvaliacoes, setPodeRelatoriosAvaliacoes] = useState(false);
+  const [podeResponderAjuda, setPodeResponderAjuda] = useState(false);
+  const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
+  const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
+  const [alertaAjuda, setAlertaAjuda] = useState<{ id: string; nome: string; mensagem: string } | null>(null);
   const [meuManualHref, setMeuManualHref] = useState<string | null>(null);
+  const ajudaConhecidosRef = useRef<Set<string>>(new Set());
+  const ajudaPollingIniciadoRef = useRef(false);
 
   useEffect(() => {
     const s = getPortalSession();
-    const r = (s?.role || '').toLowerCase();
+    const r = normalizePortalRole(s?.role);
+    const cid = s?.colaboradorId;
     setPodeAdmin(r === 'socio' || r === 'admin');
     setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
+    setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
+    setPodeVerMinhaLideranca(r === 'gerente' || r === 'master' || r === 'admin');
     setPodeVerDesempenho(r === 'colaborador');
-    setPodeRelatoriosAvaliacoes(r === 'socio');
+    setPodeAvaliarLideranca(r === 'colaborador' || r === 'admin');
+    setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(r));
+    setPodeResponderAjuda(canResponderAjudaFinal(cid, r));
+    setPodeVisualizarAjuda(canVisualizarAjuda(r, cid));
   }, []);
+
+  useEffect(() => {
+    if (!podeVisualizarAjuda) {
+      setPendenciasAjuda(0);
+      setAlertaAjuda(null);
+      ajudaConhecidosRef.current = new Set();
+      ajudaPollingIniciadoRef.current = false;
+      return;
+    }
+    let cancel = false;
+    const carregar = () => {
+      fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+        .then((r) => r.json())
+        .then((data: { ok?: boolean; pendentes?: number; itens?: Array<{ id?: string; colaborador_nome?: string; mensagem?: string }> }) => {
+          if (cancel || !data.ok) return;
+          const atual = typeof data.pendentes === 'number' ? data.pendentes : 0;
+          setPendenciasAjuda(atual);
+
+          const itens = Array.isArray(data.itens) ? data.itens : [];
+          const idsAtuais = itens
+            .map((item) => (item?.id ? String(item.id) : ''))
+            .filter((id) => !!id);
+
+          if (!ajudaPollingIniciadoRef.current) {
+            ajudaConhecidosRef.current = new Set(idsAtuais);
+            ajudaPollingIniciadoRef.current = true;
+            if (itens.length > 0 && pathname !== '/portal/ajuda-inbox') {
+              const recente = itens[0];
+              if (recente?.id) {
+                setAlertaAjuda({
+                  id: String(recente.id),
+                  nome: String(recente.colaborador_nome ?? 'Colaborador'),
+                  mensagem: String(recente.mensagem ?? ''),
+                });
+              }
+            }
+          } else {
+            const conhecidos = ajudaConhecidosRef.current;
+            const novo = itens.find((item) => item?.id && !conhecidos.has(String(item.id)));
+            if (novo?.id) {
+              setAlertaAjuda({
+                id: String(novo.id),
+                nome: String(novo.colaborador_nome ?? 'Colaborador'),
+                mensagem: String(novo.mensagem ?? ''),
+              });
+            }
+            ajudaConhecidosRef.current = new Set(idsAtuais);
+          }
+        })
+        .catch(() => {});
+    };
+    carregar();
+    const timer = window.setInterval(carregar, 10000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') carregar();
+    };
+    window.addEventListener('focus', carregar);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancel = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', carregar);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [pathname, podeVisualizarAjuda]);
 
   useEffect(() => {
     let cancel = false;
@@ -98,18 +186,42 @@ export function Header() {
         (data: {
           ok?: boolean;
           colaborador?: {
+            role?: string | null;
+            setor?: string | null;
+            cargo?: string | null;
             onboarding_completo?: boolean;
             onboarding_manual_escolhido_file?: string | null;
           };
         }) => {
           if (cancel) return;
+          const roleApi = normalizePortalRole(data?.colaborador?.role ?? '');
+          const cidApi = data?.colaborador && typeof data.colaborador === 'object' && 'id' in data.colaborador
+            ? String((data.colaborador as { id?: string }).id ?? '')
+            : '';
+          if (data.ok && roleApi) {
+            setPodeAdmin(roleApi === 'socio' || roleApi === 'admin');
+            setPodeGerenteAvaliador(roleApi === 'gerente' || roleApi === 'master');
+            setPodeAvaliarEquipe(roleApi === 'gerente' || roleApi === 'master' || roleApi === 'admin');
+            setPodeVerMinhaLideranca(
+              roleApi === 'gerente' || roleApi === 'master' || roleApi === 'admin'
+            );
+            setPodeVerDesempenho(roleApi === 'colaborador');
+            setPodeAvaliarLideranca(roleApi === 'colaborador' || roleApi === 'admin');
+            setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(roleApi));
+            setPodeResponderAjuda(canResponderAjudaFinal(cidApi || undefined, roleApi));
+            setPodeVisualizarAjuda(canVisualizarAjuda(roleApi, cidApi || undefined));
+          }
           const c = data.colaborador;
-          if (
-            data.ok &&
-            c?.onboarding_completo &&
-            c.onboarding_manual_escolhido_file?.trim()
-          ) {
-            setMeuManualHref(hrefManual(c.onboarding_manual_escolhido_file.trim()));
+          const escolhido = c?.onboarding_manual_escolhido_file?.trim();
+          const porSetor = manualPorSetor(c?.setor, c?.role, c?.cargo);
+          let file: string | null = null;
+          if (data.ok && c?.onboarding_completo && escolhido) {
+            file = escolhido;
+          } else if (porSetor?.file) {
+            file = porSetor.file;
+          }
+          if (data.ok && file) {
+            setMeuManualHref(hrefManual(file));
           } else {
             setMeuManualHref(null);
           }
@@ -140,7 +252,7 @@ export function Header() {
 
   const navItens = [
     ...navItensInicio,
-    ...(podeGerenteAvaliador
+    ...(podeAvaliarEquipe
       ? [
           {
             href: '/portal/avaliacao-master' as const,
@@ -148,10 +260,24 @@ export function Header() {
             short: 'Avaliação',
             icon: 'avaliacao' as const,
           },
+        ]
+      : []),
+    ...(podeGerenteAvaliador
+      ? [
           {
             href: '/portal/gerente-equipe' as const,
             label: 'Equipe no mês',
             short: 'Equipe',
+            icon: 'desempenho' as const,
+          },
+        ]
+      : []),
+    ...(podeVerMinhaLideranca
+      ? [
+          {
+            href: '/portal/minha-lideranca' as const,
+            label: 'Minha liderança',
+            short: 'Liderança',
             icon: 'desempenho' as const,
           },
         ]
@@ -164,6 +290,10 @@ export function Header() {
             short: 'Desempenho',
             icon: 'desempenho' as const,
           },
+        ]
+      : []),
+    ...(podeAvaliarLideranca
+      ? [
           {
             href: '/portal/avaliacao-lideranca' as const,
             label: 'Avaliar liderança',
@@ -179,6 +309,19 @@ export function Header() {
             label: 'Relatórios avaliações',
             short: 'Relatórios',
             icon: 'avaliacao' as const,
+          },
+        ]
+      : []),
+    ...(podeVisualizarAjuda
+      ? [
+          {
+            href: '/portal/ajuda-inbox' as const,
+            label:
+              pendenciasAjuda > 0
+                ? `Inbox ajuda (${pendenciasAjuda})`
+                : 'Inbox ajuda',
+            short: 'Ajuda',
+            icon: 'sugestoes' as const,
           },
         ]
       : []),
@@ -198,6 +341,31 @@ export function Header() {
 
   return (
     <>
+      {alertaAjuda && (
+        <div className="fixed top-3 right-3 z-[80] w-[min(90vw,360px)] rounded-xl border border-dourado-200 bg-white shadow-xl p-3">
+          <p className="text-xs font-semibold text-dourado-700">Nova mensagem no canal de ajuda</p>
+          <p className="mt-1 text-sm text-coffee-base">
+            <span className="font-semibold">{alertaAjuda.nome}:</span>{' '}
+            {alertaAjuda.mensagem.length > 90 ? `${alertaAjuda.mensagem.slice(0, 90)}...` : alertaAjuda.mensagem}
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <Link
+              href="/portal/ajuda-inbox"
+              className="text-xs font-medium text-dourado-base hover:text-dourado-600"
+              onClick={() => setAlertaAjuda(null)}
+            >
+              Ver inbox
+            </Link>
+            <button
+              type="button"
+              className="text-xs text-coffee-100 hover:text-coffee-base"
+              onClick={() => setAlertaAjuda(null)}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
       <header className="bg-cream-100/80 backdrop-blur border-b border-cafeteria-200">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/portal" className="font-display text-xl text-cafeteria-800 font-semibold shrink-0">

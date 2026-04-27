@@ -47,4 +47,12 @@ Portal do colaborador Manuais/
 # Gerado em prebuild a partir de manuals/ (não versionar duplicado)
 public/manuais/
 
+# Supabase CLI cache local
+supabase/.temp/
+
+# Scripts operacionais locais com IDs/telefones (não versionar)
+scripts/set_gabi_password_123456.mjs
+scripts/set_alan_phone_login.mjs
+scripts/set_senha_padrao.mjs
+
 .vercel

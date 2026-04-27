@@ -51,13 +51,68 @@ export function normalizePortalRole(role: string | null | undefined): string {
   return raw;
 }
 
-export function canResponderAjuda(role: string | null | undefined): boolean {
+/**
+ * UUID do colaborador que responde o canal de ajuda (ex.: Daniel).
+ * Definir na Vercel: `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID`.
+ */
+export function getAjudaResponsavelColaboradorId(): string {
+  if (typeof window !== 'undefined') {
+    return (process.env.NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID || '').trim();
+  }
+  return (
+    process.env.AJUDA_RESPONSAVEL_COLABORADOR_ID ||
+    process.env.NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID ||
+    ''
+  ).trim();
+}
+
+export function temResponsavelAjudaDedicado(): boolean {
+  return !!getAjudaResponsavelColaboradorId();
+}
+
+export function canResponderAjudaPorId(colaboradorId: string | null | undefined): boolean {
+  const expected = getAjudaResponsavelColaboradorId();
+  if (!expected || !colaboradorId) return false;
+  return String(colaboradorId).trim() === expected;
+}
+
+/** Legado: admin/RH respondiam antes do UUID dedicado. */
+export function canResponderAjudaLegacy(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
   return r === 'admin' || r === 'rh';
 }
 
-export function canVisualizarAjuda(role: string | null | undefined): boolean {
-  const r = normalizePortalRole(role);
-  return r === 'admin' || r === 'rh' || r === 'socio';
+/**
+ * Quem pode responder no inbox ajuda.
+ * Com UUID dedicado: só esse colaborador.
+ * Sem UUID: fallback admin/RH.
+ */
+export function canResponderAjudaFinal(
+  colaboradorId: string | null | undefined,
+  role: string | null | undefined
+): boolean {
+  if (canResponderAjudaPorId(colaboradorId)) return true;
+  if (temResponsavelAjudaDedicado()) return false;
+  return canResponderAjudaLegacy(role);
 }
 
+/**
+ * Quem pode abrir /portal/ajuda-inbox.
+ * Com responsável dedicado: sócio + o próprio responsável.
+ * Sem dedicado: sócio + admin + RH (legado).
+ */
+export function canVisualizarAjuda(
+  role: string | null | undefined,
+  colaboradorId?: string | null
+): boolean {
+  const r = normalizePortalRole(role);
+  if (r === 'socio') return true;
+  if (canResponderAjudaPorId(colaboradorId ?? null)) return true;
+  if (!temResponsavelAjudaDedicado() && (r === 'admin' || r === 'rh')) return true;
+  return false;
+}
+
+/** @deprecated Preferir `canResponderAjudaFinal`. */
+export function canResponderAjuda(role: string | null | undefined): boolean {
+  return canResponderAjudaLegacy(role);
+}

@@ -11,13 +11,17 @@ import { EscolhaManualOnboarding } from './EscolhaManualOnboarding';
 import { setPortalSession } from '@/lib/utils/session';
 import { MANUAL_GERAL_COLABORADOR } from '@/lib/manual-por-setor';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { PERGUNTAS_QUIZ_VIDEO, PERGUNTAS_QUIZ_MANUAL_GERAL } from '@/content/onboarding-quizzes';
+import {
+  PERGUNTAS_QUIZ_VIDEO,
+  PERGUNTAS_QUIZ_MANUAL_GERAL,
+  PERGUNTAS_QUIZ_MANUAL_GERAL_B,
+} from '@/content/onboarding-quizzes';
 import { inferOnboardingEtapaIndex } from '@/lib/onboarding-step';
 
 const MSG_SEGUNDO_ERRO_VIDEO =
   'É necessário assistir ao vídeo novamente do início. Você será redirecionado para a primeira etapa.';
 const MSG_SEGUNDO_ERRO_MANUAL =
-  'É necessário ler o manual geral novamente. Você será redirecionado para a leitura do manual.';
+  'Você precisa reler o manual geral com calma. Depois, responderá um novo questionário para avançar.';
 
 type EtapaId =
   | 'video'
@@ -35,6 +39,8 @@ const ETAPAS: { id: EtapaId; titulo: string }[] = [
   { id: 'escolha_manual', titulo: 'O seu manual de setor' },
   { id: 'termo', titulo: 'Termo de compromisso' },
 ];
+/** Temporário: permite avançar sem assistir o vídeo enquanto o material institucional não estiver pronto. */
+const ALLOW_SKIP_VIDEO_TEMPORARIO = process.env.NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO !== 'false';
 
 type Flags = {
   onboarding_completo?: boolean;
@@ -76,6 +82,7 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
   const [manualGeralOk, setManualGeralOk] = useState(false);
   const [quizManualValido, setQuizManualValido] = useState(false);
   const [quizManualResetKey, setQuizManualResetKey] = useState(0);
+  const [quizManualVarianteB, setQuizManualVarianteB] = useState(false);
   const [escolhaResetKey, setEscolhaResetKey] = useState(0);
   const [aceite, setAceite] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -145,6 +152,23 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
     }
   }, []);
 
+  const handlePularVideoTemporario = useCallback(async () => {
+    setErro(null);
+    setVideoCompleto(true);
+    try {
+      await postProgresso({
+        onboarding_video_visto: true,
+        onboarding_quiz_video_ok: true,
+      });
+      setFlags((f) =>
+        f ? { ...f, onboarding_video_visto: true, onboarding_quiz_video_ok: true } : f
+      );
+    } catch {
+      /* segue para o manual mesmo se a gravação demorar/falhar neste instante */
+    }
+    setEtapa(2);
+  }, []);
+
   useEffect(() => {
     if (etapa === 2 && manualGeralOk) {
       void (async () => {
@@ -202,6 +226,7 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
     }
     setManualGeralOk(false);
     setQuizManualValido(false);
+    setQuizManualVarianteB((v) => !v);
     setManualGeralResetKey((k) => k + 1);
     setQuizManualResetKey((k) => k + 1);
     setEtapa(2);
@@ -311,14 +336,25 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
             </h2>
 
             {atual.id === 'video' && (
-              <div className="rounded-xl border-2 border-dourado-200 p-2 bg-cream-50 shadow-inner overflow-hidden">
-                <VideoBoasVindas
-                  key={videoKey}
-                  src={videoSrc}
-                  className="w-full"
-                  assistidoCompleto={videoCompleto}
-                  onFirstWatchComplete={onVideoCompleto}
-                />
+              <div className="space-y-3">
+                <div className="rounded-xl border-2 border-dourado-200 p-2 bg-cream-50 shadow-inner overflow-hidden">
+                  <VideoBoasVindas
+                    key={videoKey}
+                    src={videoSrc}
+                    className="w-full"
+                    assistidoCompleto={videoCompleto}
+                    onFirstWatchComplete={onVideoCompleto}
+                  />
+                </div>
+                {ALLOW_SKIP_VIDEO_TEMPORARIO && (
+                  <button
+                    type="button"
+                    onClick={() => void handlePularVideoTemporario()}
+                    className="w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                  >
+                    Pular vídeo (temporário)
+                  </button>
+                )}
               </div>
             )}
 
@@ -345,7 +381,7 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
             {atual.id === 'quiz_manual_geral' && (
               <QuizOnboardingBloco
                 key={`qm-${quizManualResetKey}`}
-                perguntas={PERGUNTAS_QUIZ_MANUAL_GERAL}
+                perguntas={quizManualVarianteB ? PERGUNTAS_QUIZ_MANUAL_GERAL_B : PERGUNTAS_QUIZ_MANUAL_GERAL}
                 mensagemSegundoErro={MSG_SEGUNDO_ERRO_MANUAL}
                 resetKey={quizManualResetKey}
                 onValidityChange={setQuizManualValido}

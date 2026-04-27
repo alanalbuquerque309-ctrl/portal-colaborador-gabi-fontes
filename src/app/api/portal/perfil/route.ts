@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizePortalRole } from '@/lib/roles';
+
+function isPerfilCompleto(row: {
+  nome?: string | null;
+  endereco?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+}): boolean {
+  return Boolean(
+    String(row.nome ?? '').trim() &&
+      String(row.endereco ?? '').trim() &&
+      String(row.telefone ?? '').trim() &&
+      String(row.email ?? '').trim()
+  );
+}
 
 /** Retorna dados do perfil do colaborador logado. */
 export async function GET() {
@@ -15,7 +30,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('colaboradores')
       .select(
-        'nome, email, telefone, cargo, setor, foto_url, role, onboarding_completo, onboarding_video_visto, onboarding_quiz_video_ok, onboarding_manual_geral_lido_ok, onboarding_quiz_manual_geral_ok, onboarding_manual_escolhido_file, onboarding_manual_escolhido_concluido, unidades(nome)'
+        'nome, email, telefone, endereco, cpf, cargo, setor, foto_url, role, onboarding_completo, onboarding_video_visto, onboarding_quiz_video_ok, onboarding_manual_geral_lido_ok, onboarding_quiz_manual_geral_ok, onboarding_manual_escolhido_file, onboarding_manual_escolhido_concluido, unidades(nome)'
       )
       .eq('id', colaboradorId)
       .single();
@@ -26,17 +41,28 @@ export async function GET() {
 
     const unidade = Array.isArray(data.unidades) ? data.unidades[0] : data.unidades;
     const unidadeNome = unidade && typeof unidade === 'object' && 'nome' in unidade ? unidade.nome : undefined;
+    const cpfRaw = (data as { cpf?: string | null }).cpf;
+    const cpfCadastrado = !!(cpfRaw && String(cpfRaw).trim());
+    const roleNormalizado = normalizePortalRole((data as { role?: string }).role ?? null);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       colaborador: {
         nome: data.nome ?? '',
         email: data.email ?? null,
         telefone: data.telefone ?? null,
+        endereco: (data as { endereco?: string | null }).endereco ?? null,
+        perfil_completo: isPerfilCompleto({
+          nome: data.nome as string | null | undefined,
+          endereco: (data as { endereco?: string | null }).endereco,
+          telefone: data.telefone as string | null | undefined,
+          email: data.email as string | null | undefined,
+        }),
+        cpf_cadastrado: cpfCadastrado,
         cargo: data.cargo ?? null,
         setor: (data as { setor?: string | null }).setor ?? null,
         foto_url: data.foto_url ?? null,
-        role: (data as { role?: string }).role ?? null,
+        role: roleNormalizado,
         unidades: unidadeNome != null ? { nome: unidadeNome } : undefined,
         onboarding_completo: !!(data as { onboarding_completo?: boolean }).onboarding_completo,
         onboarding_video_visto: !!(data as { onboarding_video_visto?: boolean }).onboarding_video_visto,
@@ -51,6 +77,66 @@ export async function GET() {
           .onboarding_manual_escolhido_concluido,
       },
     });
+    response.cookies.set('portal_role', roleNormalizado, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: false,
+    });
+    return response;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Erro';
+    return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+  }
+}
+
+/** Atualiza dados básicos do perfil (nome, endereço, telefone e e-mail). */
+export async function PATCH(req: Request) {
+  const cookieStore = await cookies();
+  const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
+  if (!colaboradorId || colaboradorId === 'pending') {
+    return NextResponse.json({ ok: false, erro: 'Faça login no portal' }, { status: 401 });
+  }
+
+  let body: { nome?: string; endereco?: string; telefone?: string; email?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, erro: 'Corpo inválido' }, { status: 400 });
+  }
+
+  const nome = String(body.nome ?? '').trim();
+  const endereco = String(body.endereco ?? '').trim();
+  const telefone = String(body.telefone ?? '').trim();
+  const email = String(body.email ?? '').trim().toLowerCase();
+
+  if (!nome || !endereco || !telefone || !email) {
+    return NextResponse.json(
+      { ok: false, erro: 'Nome, endereço, telefone e e-mail são obrigatórios.' },
+      { status: 400 }
+    );
+  }
+
+  if (!email.includes('@')) {
+    return NextResponse.json({ ok: false, erro: 'Informe um e-mail válido.' }, { status: 400 });
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from('colaboradores')
+      .update({
+        nome,
+        endereco,
+        telefone,
+        email,
+      })
+      .eq('id', colaboradorId);
+    if (error) {
+      return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

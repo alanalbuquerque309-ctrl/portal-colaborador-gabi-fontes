@@ -4,25 +4,82 @@ import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido, ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
+import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
+
+const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate, private' } as const;
+
+function isMissingTelefoneLoginColumnError(err: { message?: string } | null | undefined): boolean {
+  const msg = String(err?.message ?? '').toLowerCase();
+  return msg.includes('telefone_login') && (msg.includes('schema cache') || msg.includes('does not exist'));
+}
 
 /** Lista colaboradores. Apenas admins autenticados. */
 export async function GET() {
   if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
+    return NextResponse.json(
+      { ok: false, erro: 'Não autorizado' },
+      { status: 401, headers: NO_STORE }
+    );
   }
   try {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from('colaboradores')
-      .select('id, nome, cpf, email, telefone, cargo, setor, onboarding_completo, role, unidade_id, unidades(nome, slug)')
-      .order('nome');
-    if (error) {
-      return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+    let supabase;
+    try {
+      supabase = createAdminClient();
+    } catch (envErr) {
+      const msg = envErr instanceof Error ? envErr.message : 'Variáveis do Supabase ausentes';
+      return NextResponse.json(
+        { ok: false, erro: `${msg}. Configure SUPABASE_SERVICE_ROLE_KEY e NEXT_PUBLIC_SUPABASE_URL na Vercel.` },
+        { status: 503, headers: NO_STORE }
+      );
     }
-    return NextResponse.json({ ok: true, colaboradores: data ?? [] });
+
+    const { data: rows, error, count } = await supabase
+      .from('colaboradores')
+      .select('id, nome, cpf, email, telefone, cargo, setor, onboarding_completo, role, unidade_id', {
+        count: 'exact',
+      })
+      .order('nome');
+
+    if (error) {
+      return NextResponse.json({ ok: false, erro: error.message }, { status: 500, headers: NO_STORE });
+    }
+
+    const list = rows ?? [];
+    const unidadeIds = Array.from(
+      new Set(list.map((r) => r.unidade_id).filter((id): id is string => typeof id === 'string' && id.length > 0))
+    );
+    let unidadePorId: Record<string, { nome: string; slug: string | null }> = {};
+    if (unidadeIds.length > 0) {
+      const { data: unRows, error: uErr } = await supabase
+        .from('unidades')
+        .select('id, nome, slug')
+        .in('id', unidadeIds);
+      if (uErr) {
+        return NextResponse.json({ ok: false, erro: uErr.message }, { status: 500, headers: NO_STORE });
+      }
+      unidadePorId = Object.fromEntries(
+        (unRows ?? []).map((u) => [u.id as string, { nome: String(u.nome ?? ''), slug: u.slug != null ? String(u.slug) : null }])
+      );
+    }
+
+    const colaboradores = list.map((r) => {
+      const uid = r.unidade_id as string | null | undefined;
+      const u = uid && unidadePorId[uid] ? unidadePorId[uid] : { nome: '-', slug: null as string | null };
+      return {
+        ...r,
+        unidades: { nome: u.nome, slug: u.slug },
+      };
+    });
+
+    const totalSupabase = typeof count === 'number' ? count : list.length;
+
+    return NextResponse.json(
+      { ok: true, colaboradores, total_supabase: totalSupabase },
+      { headers: NO_STORE }
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro ao listar';
-    return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+    return NextResponse.json({ ok: false, erro: msg }, { status: 500, headers: NO_STORE });
   }
 }
 
@@ -49,16 +106,32 @@ export async function POST(req: Request) {
   if (setor !== undefined && setor !== null && String(setor).trim() && !isSetorValido(String(setor))) {
     return NextResponse.json({ ok: false, erro: 'Setor inválido' }, { status: 400 });
   }
-  if (!nome?.trim() || !cpf?.trim() || (!unidade_id && !unidade_slug)) {
+  if (!nome?.trim() || (!unidade_id && !unidade_slug)) {
     return NextResponse.json(
-      { ok: false, erro: 'Nome, CPF e unidade são obrigatórios' },
+      { ok: false, erro: 'Nome e unidade são obrigatórios' },
       { status: 400 }
     );
   }
 
-  const cpfLimpo = String(cpf).replace(/\D/g, '');
-  if (cpfLimpo.length !== 11) {
-    return NextResponse.json({ ok: false, erro: 'CPF inválido' }, { status: 400 });
+  const telefoneLogin = syncTelefoneLoginFromTelefone(telefone);
+  if (!telefoneLogin) {
+    return NextResponse.json(
+      {
+        ok: false,
+        erro:
+          'Celular com DDD é obrigatório para o login no portal (10 ou 11 dígitos). Verifique o número informado.',
+      },
+      { status: 400 }
+    );
+  }
+
+  const cpfRaw = String(cpf ?? '').replace(/\D/g, '');
+  let cpfValor: string | null = null;
+  if (cpfRaw.length > 0) {
+    if (cpfRaw.length !== 11) {
+      return NextResponse.json({ ok: false, erro: 'CPF deve ter 11 dígitos ou ficar em branco' }, { status: 400 });
+    }
+    cpfValor = cpfRaw;
   }
 
   try {
@@ -102,7 +175,7 @@ export async function POST(req: Request) {
 
     const payload: Record<string, unknown> = {
       nome: nome.trim(),
-      cpf: cpfLimpo,
+      cpf: cpfValor,
       email: email?.trim() || null,
       unidade_id: unidadeIdResolvido,
       role: roleFinal,
@@ -112,7 +185,10 @@ export async function POST(req: Request) {
       payload.senha_hash = senhaPadraoHash;
       payload.forca_troca_senha = true;
     }
-    if (telefone?.trim()) payload.telefone = telefone.trim();
+    if (telefone?.trim()) {
+      payload.telefone = telefone.trim();
+      payload.telefone_login = telefoneLogin;
+    }
     if (endereco?.trim()) payload.endereco = endereco.trim();
     if (data_admissao?.trim()) payload.data_admissao = data_admissao.trim();
     if (cargo?.trim()) payload.cargo = cargo.trim();
@@ -137,9 +213,23 @@ export async function POST(req: Request) {
         error = retry.error;
       }
     }
+    if (error && isMissingTelefoneLoginColumnError(error)) {
+      const fallback = { ...payload };
+      delete fallback.telefone_login;
+      const retry = await supabase.from('colaboradores').insert(fallback).select('id, nome').single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       if (error.code === '23505') {
+        const msg = String(error.message ?? '').toLowerCase();
+        if (msg.includes('telefone_login') || msg.includes('uq_colaboradores_telefone_login')) {
+          return NextResponse.json(
+            { ok: false, erro: 'Já existe colaborador com este celular (login).' },
+            { status: 400 }
+          );
+        }
         return NextResponse.json({ ok: false, erro: 'CPF já cadastrado' }, { status: 400 });
       }
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });

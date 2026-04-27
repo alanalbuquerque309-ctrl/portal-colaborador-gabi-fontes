@@ -41,6 +41,12 @@ export async function PATCH(req: Request) {
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     if (!row) return NextResponse.json({ ok: false, erro: 'Colaborador não encontrado' }, { status: 404 });
+    if (role === 'gerente' || role === 'master' || role === 'admin' || role === 'socio') {
+      await supabase
+        .from('colaboradores_lideres')
+        .update({ ativo: false, updated_at: new Date().toISOString() })
+        .eq('colaborador_id', id);
+    }
     return NextResponse.json({ ok: true, colaborador: row });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

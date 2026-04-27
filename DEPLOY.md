@@ -70,10 +70,14 @@ Quando terminar, aparecerá uma URL (ex.: `https://portal-colaborador-gabi-fonte
 | `NEXT_PUBLIC_VIDEO_BOAS_VINDAS` | (Opcional) URL do vídeo de boas-vindas | Production, Preview, Development |
 | `ADMIN_ALAN_LOGIN` | (Opcional) Login do admin Alan | Production, Preview, Development |
 | `ADMIN_ALAN_PASSWORD` | (Opcional) Senha do admin Alan | Production, Preview, Development |
+| `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` | UUID do colaborador que responde o chat de ajuda (ex.: Daniel) | Production, Preview, Development |
+| `NEXT_PUBLIC_AJUDA_RESPONSAVEL_NOME` | (Opcional) Nome no texto do botão flutuante | Production, Preview, Development |
 
 5. Clique em **Save**
 
 **Nota:** `ADMIN_ALAN_LOGIN` e `ADMIN_ALAN_PASSWORD` permitem acesso administrativo com usuário e senha. Defina apenas nas variáveis da Vercel — nunca no código.
+
+**Canal de ajuda:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` definido, só esse colaborador pode **responder** no Inbox ajuda; **sócios** continuam podendo **ver** todas as conversas. Sem essa variável, o comportamento legado permanece (admin/RH respondem).
 
 ---
 

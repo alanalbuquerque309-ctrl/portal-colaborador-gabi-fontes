@@ -19,28 +19,32 @@ type ManualHtmlLeituraProps = {
  */
 export function ManualHtmlLeitura({ titulo, arquivo, onReadyChange }: ManualHtmlLeituraProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const [chegouAoFim, setChegouAoFim] = useState(false);
   const [ciencia, setCiencia] = useState(false);
   const [srcIframe, setSrcIframe] = useState<string>('');
 
   useEffect(() => {
+    setChegouAoFim(false);
+    setCiencia(false);
     setSrcIframe(iframeSrcAbs(arquivo));
   }, [arquivo, MANUAL_ASSET_VERSION]);
 
   useEffect(() => {
     const root = scrollRef.current;
-    const sentinel = sentinelRef.current;
-    if (!root || !sentinel) return;
+    if (!root) return;
 
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) setChegouAoFim(true);
-      },
-      { root, rootMargin: '0px 0px -40px 0px', threshold: 0.01 }
-    );
-    obs.observe(sentinel);
-    return () => obs.disconnect();
+    const atualizarFim = () => {
+      const limite = root.scrollHeight - root.clientHeight;
+      const posicaoAtual = root.scrollTop;
+      // Tolerancia pequena para variações de arredondamento entre navegadores.
+      if (limite <= 2 || posicaoAtual >= limite - 8) {
+        setChegouAoFim(true);
+      }
+    };
+
+    atualizarFim();
+    root.addEventListener('scroll', atualizarFim, { passive: true });
+    return () => root.removeEventListener('scroll', atualizarFim);
   }, [arquivo]);
 
   const notify = useCallback(() => {
@@ -82,8 +86,17 @@ export function ManualHtmlLeitura({ titulo, arquivo, onReadyChange }: ManualHtml
             A carregar manual…
           </div>
         )}
-        <div ref={sentinelRef} className="h-px w-full" aria-hidden />
+        <div className="h-px w-full" aria-hidden />
       </div>
+      {!chegouAoFim && (
+        <button
+          type="button"
+          onClick={() => setChegouAoFim(true)}
+          className="rounded-lg border border-dourado-300 bg-white px-3 py-2 text-xs font-medium text-coffee-base hover:bg-cream-50"
+        >
+          Já percorri o manual, habilitar confirmação
+        </button>
+      )}
       <label
         className={`flex items-start gap-3 cursor-pointer rounded-xl border-2 p-4 transition-colors ${
           chegouAoFim ? 'border-dourado-300 bg-white' : 'border-cream-300 bg-cream-50'

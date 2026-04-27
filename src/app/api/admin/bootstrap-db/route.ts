@@ -9,7 +9,7 @@ const STATEMENTS = [
     created_at TIMESTAMPTZ DEFAULT now()
   )`,
   `INSERT INTO unidades (nome, slug) VALUES
-    ('Matriz (todas as lojas)', 'matriz'),
+    ('Mesquita (todas as lojas)', 'matriz'),
     ('Mesquita', 'mesquita'),
     ('Barra', 'barra'),
     ('Nova Iguaçu', 'nova-iguacu')

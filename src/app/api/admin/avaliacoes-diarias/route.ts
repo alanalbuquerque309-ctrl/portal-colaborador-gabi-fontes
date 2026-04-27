@@ -47,7 +47,7 @@ export async function GET(req: Request) {
 
     let q = supabase
       .from('avaliacoes_diarias')
-      .select('id, data_referencia, assiduidade, media_dia, colaborador_id, avaliador_id')
+      .select('id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id')
       .gte('data_referencia', inicio)
       .lte('data_referencia', fim)
       .order('data_referencia', { ascending: false })
@@ -87,6 +87,7 @@ export async function GET(req: Request) {
       data_referencia: r.data_referencia,
       assiduidade: r.assiduidade,
       media_dia: r.media_dia,
+      justificativa_nota_baixa: (r as { justificativa_nota_baixa?: string | null }).justificativa_nota_baixa ?? null,
       colaborador_id: r.colaborador_id,
       colaborador_nome: nomePorId[r.colaborador_id as string] ?? null,
       avaliador_id: r.avaliador_id,

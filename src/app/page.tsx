@@ -20,7 +20,7 @@ export default function HomePage() {
             Portal do Colaborador
           </p>
           <p className="mt-2 max-w-md text-center text-sm font-medium leading-relaxed text-portal-inkMuted sm:text-base">
-            Entre com seu CPF para acessar o vídeo de boas-vindas, manuais e demais conteúdos do portal.
+            Entre com seu celular (DDD) ou e-mail para acessar o vídeo de boas-vindas, manuais e demais conteúdos do portal.
           </p>
         </div>
       </header>
@@ -31,13 +31,7 @@ export default function HomePage() {
             href="/login"
             className="inline-flex min-h-[48px] min-w-[200px] items-center justify-center rounded-xl bg-portal-ink px-8 py-3 text-sm font-semibold text-portal-bg shadow-md transition hover:bg-portal-ink/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-portal-ink"
           >
-            Entrar com CPF
-          </Link>
-          <Link
-            href="/admin"
-            className="text-sm font-medium text-portal-inkMuted underline-offset-4 transition hover:text-portal-ink hover:underline"
-          >
-            Acesso administrativo
+            Entrar com celular ou e-mail
           </Link>
         </section>
       </main>

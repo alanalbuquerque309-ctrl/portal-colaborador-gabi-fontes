@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { normalizePortalRole } from '@/lib/roles';
 
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — portal' },
@@ -12,6 +13,43 @@ const OPCOES_ROLE = [
   { value: 'admin', label: 'Administrador', desc: 'Portal + painel admin' },
   { value: 'socio', label: 'Sócio', desc: 'Perfil legado — acesso total' },
 ];
+
+function normalizeText(value: string | null | undefined): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function podeSerLider(role: string | null | undefined, cargo: string | null | undefined): boolean {
+  const r = normalizePortalRole(role);
+  if (r === 'socio') return false;
+  if (r === 'admin' || r === 'gerente' || r === 'master') return true;
+  const roleRaw = normalizeText(role);
+  if (
+    roleRaw.includes('gerente') ||
+    roleRaw.includes('sub gerente') ||
+    roleRaw.includes('subgerente') ||
+    roleRaw.includes('chefe') ||
+    roleRaw.includes('confeiteiro') ||
+    roleRaw.includes('administrador') ||
+    roleRaw.includes('adminisrtador')
+  ) {
+    return true;
+  }
+  const c = normalizeText(cargo);
+  if (!c) return false;
+  return (
+    c.includes('gerente') ||
+    c.includes('sub gerente') ||
+    c.includes('subgerente') ||
+    c.includes('chefe') ||
+    c.includes('confeiteiro') ||
+    c.includes('administrador') ||
+    c.includes('adminisrtador')
+  );
+}
 
 function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
@@ -44,11 +82,13 @@ export default function EditarColaboradorPage() {
     unidade: '',
   });
   const [unidadeLegado, setUnidadeLegado] = useState<{ slug: string; label: string } | null>(null);
-  const [unidadeIdAtual, setUnidadeIdAtual] = useState<string | null>(null);
   const [todosColaboradores, setTodosColaboradores] = useState<
-    { id: string; nome: string; unidade_id: string | null; role: string | null }[]
+    { id: string; nome: string; unidade_id: string | null; role: string | null; cargo: string | null }[]
   >([]);
-  const [liderId, setLiderId] = useState<string>('');
+  const [lideresIds, setLideresIds] = useState<string[]>([]);
+  const [podeRedefinirSenhaPadrao, setPodeRedefinirSenhaPadrao] = useState(false);
+  const [redefinindoSenha, setRedefinindoSenha] = useState(false);
+  const [msgRedefinir, setMsgRedefinir] = useState('');
 
   const opcoesUnidade = useMemo(() => {
     const base = [...UNIDADES_CADASTRO];
@@ -59,17 +99,28 @@ export default function EditarColaboradorPage() {
   }, [unidadeLegado]);
 
   useEffect(() => {
+    fetch('/api/portal/perfil', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => {
+        const r0 = String(d?.colaborador?.role ?? '').toLowerCase();
+        setPodeRedefinirSenhaPadrao(r0 === 'master');
+      })
+      .catch(() => setPodeRedefinirSenhaPadrao(false));
+  }, []);
+
+  useEffect(() => {
     fetch('/api/admin/colaboradores', { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && Array.isArray(data.colaboradores)) {
           setTodosColaboradores(
             data.colaboradores.map(
-              (c: { id: string; nome: string; unidade_id?: string | null; role?: string | null }) => ({
+              (c: { id: string; nome: string; unidade_id?: string | null; role?: string | null; cargo?: string | null }) => ({
                 id: c.id,
                 nome: c.nome,
                 unidade_id: c.unidade_id ?? null,
                 role: c.role ?? null,
+                cargo: c.cargo ?? null,
               })
             )
           );
@@ -100,9 +151,12 @@ export default function EditarColaboradorPage() {
         } else {
           setUnidadeLegado(null);
         }
-        setUnidadeIdAtual((c.unidade_id as string) || null);
-        const lid = c.lider_id != null ? String(c.lider_id) : '';
-        setLiderId(lid);
+        const lideres = Array.isArray(c.lideres_ids)
+          ? c.lideres_ids.map((liderId) => String(liderId)).filter(Boolean)
+          : c.lider_id != null
+            ? [String(c.lider_id)]
+            : [];
+        setLideresIds(lideres);
         const rawRole = String(c.role || 'colaborador').toLowerCase();
         const roleNormalizado = rawRole === 'master' ? 'gerente' : rawRole;
         setForm({
@@ -123,13 +177,10 @@ export default function EditarColaboradorPage() {
   }, [id]);
 
   const opcoesLider = useMemo(() => {
-    if (!unidadeIdAtual) return [];
-    return todosColaboradores.filter((c) => {
-      if (c.unidade_id !== unidadeIdAtual || c.id === id) return false;
-      const r = (c.role || '').toLowerCase();
-      return r === 'gerente' || r === 'master';
-    });
-  }, [todosColaboradores, unidadeIdAtual, id]);
+    return todosColaboradores
+      .filter((c) => c.id !== id && podeSerLider(c.role, c.cargo))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [todosColaboradores, id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,7 +209,7 @@ export default function EditarColaboradorPage() {
     } else {
       body.unidade_slug = form.unidade;
     }
-    body.lider_id = liderId.trim() ? liderId.trim() : null;
+    body.lideres_ids = form.role === 'colaborador' ? lideresIds : [];
     try {
       const res = await fetch(`/api/admin/colaboradores/${id}`, {
         method: 'PATCH',
@@ -168,7 +219,7 @@ export default function EditarColaboradorPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        router.push('/admin/colaboradores');
+        router.replace('/admin/colaboradores');
       } else {
         setErro(data.erro || 'Erro ao salvar.');
       }
@@ -176,6 +227,28 @@ export default function EditarColaboradorPage() {
       setErro('Erro ao salvar. Tente novamente.');
     } finally {
       setEnviando(false);
+    }
+  };
+
+  const handleRedefinirSenhaPadrao = async () => {
+    if (!podeRedefinirSenhaPadrao || !id) return;
+    setMsgRedefinir('');
+    setRedefinindoSenha(true);
+    try {
+      const res = await fetch(`/api/admin/colaboradores/${id}/redefinir-senha-padrao`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMsgRedefinir(data.mensagem || 'Senha redefinida para 123456. O colaborador deve trocar no próximo acesso.');
+      } else {
+        setMsgRedefinir(data.erro || 'Não foi possível redefinir.');
+      }
+    } catch {
+      setMsgRedefinir('Erro de conexão.');
+    } finally {
+      setRedefinindoSenha(false);
     }
   };
 
@@ -196,13 +269,15 @@ export default function EditarColaboradorPage() {
       <div className="mb-6">
         <Link
           href="/admin/colaboradores"
+          replace
           className="text-sm text-dourado-base hover:underline font-medium"
         >
           Voltar para colaboradores
         </Link>
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Editar colaborador</h1>
         <p className="text-sm text-coffee-100 mt-1">
-          Ajuste dados, setor, cargo, unidade e <strong>acesso</strong>. CPF não pode ser alterado aqui.
+          Ajuste dados, setor, cargo, unidade e <strong>acesso</strong>. CPF não pode ser alterado aqui. O login no
+          portal é pelo <strong>celular</strong> cadastrado.
         </p>
       </div>
 
@@ -222,15 +297,19 @@ export default function EditarColaboradorPage() {
         </div>
         <div>
           <label htmlFor="cpf" className="block text-sm font-medium text-coffee-base mb-1">
-            CPF (login)
+            CPF (cadastro interno)
           </label>
           <input
             id="cpf"
             type="text"
             readOnly
             value={form.cpf}
-            className="w-full rounded-lg border border-cream-200 bg-cream-100 px-3 py-2 text-coffee-100 cursor-not-allowed"
+            placeholder="Pendente — colaborador informa no portal"
+            className="w-full rounded-lg border border-cream-200 bg-cream-100 px-3 py-2 text-coffee-100 cursor-not-allowed placeholder:text-coffee-100/70"
           />
+          {!form.cpf?.trim() && (
+            <p className="text-xs text-coffee-100 mt-1">Sem CPF: o colaborador completa no primeiro acesso ao portal.</p>
+          )}
         </div>
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-coffee-base mb-1">
@@ -246,7 +325,7 @@ export default function EditarColaboradorPage() {
         </div>
         <div>
           <label htmlFor="telefone" className="block text-sm font-medium text-coffee-base mb-1">
-            Telefone
+            Celular (login no portal)
           </label>
           <input
             id="telefone"
@@ -339,24 +418,42 @@ export default function EditarColaboradorPage() {
         </div>
 
         <div>
-          <label htmlFor="lider_id" className="block text-sm font-medium text-coffee-base mb-1">
-            Líder direto (gerente)
-          </label>
-          <select
-            id="lider_id"
-            value={liderId}
-            onChange={(e) => setLiderId(e.target.value)}
-            className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
-          >
-            <option value="">Nenhum</option>
-            {opcoesLider.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-              </option>
-            ))}
-          </select>
+          <span className="block text-sm font-medium text-coffee-base mb-1">
+            Líderes diretos
+          </span>
+          <div className="max-h-56 overflow-y-auto rounded-lg border border-cream-300 bg-white p-2 space-y-1">
+            {opcoesLider.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-coffee-100">Nenhuma liderança disponível.</p>
+            ) : (
+              opcoesLider.map((c) => {
+                const checked = lideresIds.includes(c.id);
+                return (
+                  <label
+                    key={c.id}
+                    className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm cursor-pointer ${
+                      checked ? 'bg-dourado-50 text-coffee-base' : 'hover:bg-cream-50 text-coffee-base'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) =>
+                        setLideresIds((atual) =>
+                          e.target.checked
+                            ? Array.from(new Set([...atual, c.id]))
+                            : atual.filter((liderId) => liderId !== c.id)
+                        )
+                      }
+                      className="h-4 w-4"
+                    />
+                    <span>{c.nome}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
           <p className="text-xs text-coffee-100 mt-1">
-            Gerente que avalia este colaborador na avaliação diária (mesma unidade).
+            Selecione uma ou mais lideranças. Isso define quem pode avaliar o colaborador e quem o colaborador pode avaliar como liderança.
           </p>
         </div>
 
@@ -388,6 +485,28 @@ export default function EditarColaboradorPage() {
 
         {erro && <p className="text-red-600 text-sm">{erro}</p>}
 
+        {podeRedefinirSenhaPadrao && (
+          <div className="rounded-lg border border-cream-300 bg-cream-50 p-4 space-y-2">
+            <p className="text-sm text-coffee-base font-medium">Redefinir senha (master)</p>
+            <p className="text-xs text-coffee-100">
+              Volta a senha para o padrão <strong>123456</strong> e exige troca no próximo acesso ao portal.
+            </p>
+            {msgRedefinir && (
+              <p className={`text-sm ${msgRedefinir.includes('Erro') || msgRedefinir.includes('Não foi') ? 'text-red-600' : 'text-green-700'}`}>
+                {msgRedefinir}
+              </p>
+            )}
+            <button
+              type="button"
+              disabled={redefinindoSenha}
+              onClick={handleRedefinirSenhaPadrao}
+              className="rounded-lg border border-amber-600 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+            >
+              {redefinindoSenha ? 'Redefinindo…' : 'Redefinir para senha padrão (123456)'}
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-3 pt-2">
           <button
             type="submit"
@@ -398,6 +517,7 @@ export default function EditarColaboradorPage() {
           </button>
           <Link
             href="/admin/colaboradores"
+            replace
             className="rounded-lg border border-cream-300 px-4 py-2 text-coffee-base font-medium hover:bg-cream-100 transition-colors inline-flex items-center"
           >
             Cancelar

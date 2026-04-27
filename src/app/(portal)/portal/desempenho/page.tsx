@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { estrelasParaFrase } from '@/lib/frases-motivacao-desempenho';
+import { normalizePortalRole } from '@/lib/roles';
 
 type TopItem = { id: string; nome: string; media: number };
 
@@ -15,6 +16,12 @@ type ApiOk = {
   top_unidade: TopItem[];
   media_media_top3: number | null;
   frase_motivacional: string;
+  motivacao_visual?: {
+    nivel: string;
+    cor: string;
+    efeito: 'normal' | 'neon';
+    texto: string;
+  };
   meu_desempenho: { nome: string; media_mes: number | null; dias_com_avaliacao: number } | null;
   nota_privacidade?: string;
 };
@@ -38,11 +45,19 @@ export default function DesempenhoPortalPage() {
       router.replace('/login');
       return;
     }
-    if ((s.role || '').toLowerCase() !== 'colaborador') {
-      router.replace('/portal');
-      return;
-    }
-    setSessionOk(true);
+    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
+        const role = normalizePortalRole(data?.colaborador?.role ?? s.role ?? '');
+        if (data.ok && role === 'colaborador') {
+          setSessionOk(true);
+          return;
+        }
+        router.replace('/portal');
+      })
+      .catch(() => {
+        router.replace('/portal');
+      });
   }, [router]);
 
   const carregar = useCallback(async () => {
@@ -194,9 +209,29 @@ export default function DesempenhoPortalPage() {
                   <>Ainda não há média neste mês (sem dias avaliados com nota).</>
                 )}
               </p>
-              <blockquote className="mt-4 border-l-4 border-dourado-base pl-4 text-cafeteria-800 italic leading-relaxed">
-                {dados.frase_motivacional ?? ''}
-              </blockquote>
+              {dados.meu_desempenho.media_mes != null ? (
+                <>
+                  <blockquote
+                    className={`mt-4 border-l-4 pl-4 italic leading-relaxed ${
+                      dados.motivacao_visual?.efeito === 'neon'
+                        ? 'text-[#FFD166] drop-shadow-[0_0_6px_rgba(255,209,102,0.85)]'
+                        : 'text-cafeteria-800'
+                    }`}
+                    style={{ borderLeftColor: dados.motivacao_visual?.cor || '#D4AF37' }}
+                  >
+                    {dados.motivacao_visual?.texto ?? dados.frase_motivacional ?? ''}
+                  </blockquote>
+                  {dados.motivacao_visual?.nivel && (
+                    <p className="text-xs mt-2" style={{ color: dados.motivacao_visual.cor }}>
+                      Nível atual: {dados.motivacao_visual.nivel}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-cafeteria-700">
+                  Assim que houver avaliações no mês, mostramos seu feedback motivacional personalizado.
+                </p>
+              )}
               <p className="text-xs text-cafeteria-600 mt-3">
                 Não exibimos a sua posição no ranking nem comparamos diretamente com colegas.
               </p>

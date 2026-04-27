@@ -1,15 +1,16 @@
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizePortalRole } from '@/lib/roles';
 
 export type PortalGerenteContext = {
   colaboradorId: string;
   unidadeId: string;
 };
 
-/** Aceita perfil de quem avalia a equipe (gerente no cadastro; `master` é tratado como gerente). */
+/** Aceita perfil de quem avalia a equipe (gerente/master/admin). */
 export function isRoleGerenteAvaliador(role: string | null | undefined): boolean {
-  const r = (role || '').trim().toLowerCase();
-  return r === 'gerente' || r === 'master';
+  const r = normalizePortalRole(role);
+  return r === 'gerente' || r === 'master' || r === 'admin';
 }
 
 export async function requirePortalGerenteSession(): Promise<
@@ -36,7 +37,7 @@ export async function requirePortalGerenteSession(): Promise<
       return {
         ok: false,
         response: Response.json(
-          { ok: false, erro: 'Acesso restrito a gerentes (avaliação da equipe)' },
+          { ok: false, erro: 'Acesso restrito a liderança/admin (avaliação da equipe)' },
           { status: 403 }
         ),
       };

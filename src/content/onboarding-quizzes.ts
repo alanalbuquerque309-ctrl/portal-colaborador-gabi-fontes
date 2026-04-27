@@ -161,3 +161,85 @@ export const PERGUNTAS_QUIZ_MANUAL_GERAL: PerguntaQuiz[] = [
     ],
   },
 ];
+
+/** Variante B: usada após 2 erros para validar nova leitura do manual geral. */
+export const PERGUNTAS_QUIZ_MANUAL_GERAL_B: PerguntaQuiz[] = [
+  {
+    id: 'mgb_higiene',
+    tituloBloco: 'Sobre Higiene e Segurança',
+    pergunta:
+      'Qual atitude está mais alinhada ao padrão do Manual Geral quando se trata de higiene no posto de trabalho?',
+    opcoes: [
+      {
+        id: 'a',
+        texto:
+          'Manter o posto limpo durante todo o turno, higienizando itens e superfícies conforme os procedimentos definidos.',
+        correta: true,
+      },
+      {
+        id: 'b',
+        texto:
+          'Fazer apenas uma limpeza completa no fim do expediente para ganhar agilidade durante o atendimento.',
+        correta: false,
+      },
+      {
+        id: 'c',
+        texto:
+          'Priorizar velocidade no serviço e deixar ajustes de higiene para quando o movimento diminuir.',
+        correta: false,
+      },
+    ],
+  },
+  {
+    id: 'mgb_cliente',
+    tituloBloco: 'Sobre Atendimento e Acolhimento',
+    pergunta:
+      'No Manual Geral, qual é a conduta esperada no contato com o cliente, mesmo em momento de alta demanda?',
+    opcoes: [
+      {
+        id: 'a',
+        texto:
+          'Manter cordialidade, clareza e postura acolhedora, preservando o padrão de experiência da marca.',
+        correta: true,
+      },
+      {
+        id: 'b',
+        texto:
+          'Reduzir interação para agilizar a fila, evitando explicações e personalizações durante picos.',
+        correta: false,
+      },
+      {
+        id: 'c',
+        texto:
+          'Focar apenas em clientes recorrentes, pois já conhecem o padrão e demandam menos orientação.',
+        correta: false,
+      },
+    ],
+  },
+  {
+    id: 'mgb_disciplina',
+    tituloBloco: 'Sobre Rotina Operacional e Disciplina',
+    pergunta:
+      'Quando o manual define processos e checklists, qual é a melhor prática operacional esperada do colaborador?',
+    opcoes: [
+      {
+        id: 'a',
+        texto:
+          'Seguir os processos e checklists de forma consistente, comunicando desvios ao líder imediatamente.',
+        correta: true,
+      },
+      {
+        id: 'b',
+        texto:
+          'Adaptar livremente as etapas para ganhar tempo, desde que o resultado final pareça satisfatório.',
+        correta: false,
+      },
+      {
+        id: 'c',
+        texto:
+          'Executar o checklist somente quando houver fiscalização direta da liderança para evitar retrabalho.',
+        correta: false,
+      },
+    ],
+  },
+];

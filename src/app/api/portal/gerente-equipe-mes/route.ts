@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { mediaMensalColaborador } from '@/lib/avaliacao-ranking';
 import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
+import { listarEquipeDoLider } from '@/lib/colaborador-lideres';
+import { normalizePortalRole } from '@/lib/roles';
 
 function mesBoundsUTC(ano: number, mes: number): { ini: string; fim: string } {
   const ini = `${ano}-${String(mes).padStart(2, '0')}-01`;
@@ -15,7 +17,7 @@ export async function GET(req: Request) {
   const auth = await requirePortalGerenteSession();
   if (!auth.ok) return auth.response;
 
-  const { colaboradorId: gerenteId } = auth.ctx;
+  const { colaboradorId: gerenteId, unidadeId } = auth.ctx;
 
   const { searchParams } = new URL(req.url);
   const mesParam = searchParams.get('mes')?.trim() ?? '';
@@ -39,17 +41,9 @@ export async function GET(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { data: equipe, error: errEq } = await supabase
-      .from('colaboradores')
-      .select('id, nome')
-      .eq('lider_id', gerenteId)
-      .eq('role', 'colaborador');
+    const equipe = await listarEquipeDoLider(supabase, gerenteId, unidadeId);
 
-    if (errEq) {
-      return NextResponse.json({ ok: false, erro: errEq.message }, { status: 500 });
-    }
-
-    const membros = equipe ?? [];
+    const membros = equipe.filter((membro) => normalizePortalRole(membro.role) === 'colaborador');
     if (membros.length === 0) {
       return NextResponse.json({
         ok: true,

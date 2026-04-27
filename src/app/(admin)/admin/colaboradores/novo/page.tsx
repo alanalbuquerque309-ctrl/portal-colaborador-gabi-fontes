@@ -102,12 +102,13 @@ export default function NovoColaboradorPage() {
           />
         </div>
         <div>
-          <label htmlFor="cpf" className="block text-sm font-medium text-coffee-base mb-1">CPF * (login)</label>
+          <label htmlFor="cpf" className="block text-sm font-medium text-coffee-base mb-1">
+            CPF (opcional — pode preencher no portal)
+          </label>
           <input
             id="cpf"
             name="cpf"
             type="text"
-            required
             placeholder="000.000.000-00"
             value={form.cpf}
             onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))}
@@ -126,11 +127,14 @@ export default function NovoColaboradorPage() {
           />
         </div>
         <div>
-          <label htmlFor="telefone" className="block text-sm font-medium text-coffee-base mb-1">Telefone</label>
+          <label htmlFor="telefone" className="block text-sm font-medium text-coffee-base mb-1">
+            Celular * (login no portal)
+          </label>
           <input
             id="telefone"
             name="telefone"
             type="tel"
+            required
             placeholder="(21) 99999-9999"
             value={form.telefone}
             onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}

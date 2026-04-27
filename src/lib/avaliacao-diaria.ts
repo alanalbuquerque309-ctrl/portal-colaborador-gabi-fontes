@@ -1,10 +1,15 @@
 /**
  * Regras: falta injustificada → média 0 e os 4 critérios em 0 (assiduidade = 0 no somatório);
- * falta justificada → isento (média null, não entra na média mensal);
+ * folga/outra escala/falta justificada → isento (média null, não entra na média mensal);
  * presente → assiduidade conta como 5 estrelas (compareceu) + 4 critérios 1–5 → média = soma/5.
  */
 
-export type AssiduidadeTipo = 'presente' | 'falta_justificada' | 'falta_injustificada';
+export type AssiduidadeTipo =
+  | 'presente'
+  | 'folga'
+  | 'outra_escala'
+  | 'falta_justificada'
+  | 'falta_injustificada';
 
 export type NotasCriterios = {
   vestimenta: number | null;
@@ -20,12 +25,12 @@ export function notaAssiduidadeNumerica(assiduidade: AssiduidadeTipo): number | 
   return null;
 }
 
-/** Média do dia conforme regras; null = isento (falta justificada). */
+/** Média do dia conforme regras; null = isento (folga/outra escala/falta justificada). */
 export function calcularMediaDia(
   assiduidade: AssiduidadeTipo,
   notas: NotasCriterios
 ): { media: number | null; notasPersistidas: NotasCriterios } {
-  if (assiduidade === 'falta_justificada') {
+  if (assiduidade === 'falta_justificada' || assiduidade === 'folga' || assiduidade === 'outra_escala') {
     return {
       media: null,
       notasPersistidas: {

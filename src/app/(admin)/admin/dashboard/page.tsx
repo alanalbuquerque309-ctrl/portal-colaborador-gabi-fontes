@@ -9,6 +9,8 @@ interface Colaborador {
   onboarding_completo: boolean;
 }
 
+const MAX_PREVIEW_COLABORADORES = 12;
+
 export default function AdminDashboardPage() {
   const [linkCopiado, setLinkCopiado] = useState(false);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
@@ -45,6 +47,7 @@ export default function AdminDashboardPage() {
 
   const ativos = colaboradores.filter((c) => c.onboarding_completo);
   const pendentes = colaboradores.filter((c) => !c.onboarding_completo);
+  const listaPreview = [...ativos, ...pendentes].slice(0, MAX_PREVIEW_COLABORADORES);
 
   return (
     <div>
@@ -95,23 +98,26 @@ export default function AdminDashboardPage() {
       )}
       {!loading && colaboradores.length > 0 && (
         <div className="mt-6 rounded-xl border border-dourado-200 bg-white p-6 shadow-sm">
-          <h2 className="font-display font-semibold text-coffee-base mb-3">Colaboradores cadastrados</h2>
+          <h2 className="font-display font-semibold text-coffee-base mb-3">Colaboradores cadastrados (prévia)</h2>
           <div className="space-y-2 text-sm">
-            {ativos.map((c) => (
+            {listaPreview.map((c) => (
               <div key={c.id} className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Ativo" />
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${c.onboarding_completo ? 'bg-green-500' : 'bg-amber-500'}`}
+                  title={c.onboarding_completo ? 'Ativo' : 'Pendente'}
+                />
                 <span className="text-coffee-base">{c.nome}</span>
-                <span className="text-green-600">• ativo</span>
-              </div>
-            ))}
-            {pendentes.map((c) => (
-              <div key={c.id} className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title="Pendente" />
-                <span className="text-coffee-base">{c.nome}</span>
-                <span className="text-amber-600">• pendente</span>
+                <span className={c.onboarding_completo ? 'text-green-600' : 'text-amber-600'}>
+                  • {c.onboarding_completo ? 'ativo' : 'pendente'}
+                </span>
               </div>
             ))}
           </div>
+          {colaboradores.length > MAX_PREVIEW_COLABORADORES && (
+            <p className="mt-2 text-xs text-coffee-100">
+              Mostrando {MAX_PREVIEW_COLABORADORES} de {colaboradores.length} colaboradores.
+            </p>
+          )}
           <p className="mt-3">
             <Link href="/admin/colaboradores" className="text-dourado-500 hover:underline text-sm">
               Ver todos →

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
+import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
+import { normalizePortalRole } from '@/lib/roles';
 
 /** Inclui `master` (tratado como gerente no app) para não quebrar cadastros antigos. */
 const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
@@ -15,6 +17,57 @@ const UNIDADES_PADRAO: { nome: string; slug: string }[] = [
   /** Legado — não oferecido no cadastro novo; mantém edição de quem já estava em Matriz. */
   { nome: 'Matriz (todas as lojas)', slug: 'matriz' },
 ];
+
+function normalizeText(value: string | null | undefined): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function podeSerLider(role: string | null | undefined, cargo: string | null | undefined): boolean {
+  const r = normalizePortalRole(role);
+  if (r === 'socio') return false;
+  if (r === 'admin' || r === 'gerente' || r === 'master') return true;
+  const roleRaw = normalizeText(role);
+  if (
+    roleRaw.includes('gerente') ||
+    roleRaw.includes('sub gerente') ||
+    roleRaw.includes('subgerente') ||
+    roleRaw.includes('chefe') ||
+    roleRaw.includes('confeiteiro') ||
+    roleRaw.includes('administrador') ||
+    roleRaw.includes('adminisrtador')
+  ) {
+    return true;
+  }
+  const c = normalizeText(cargo);
+  if (!c) return false;
+  return (
+    c.includes('gerente') ||
+    c.includes('sub gerente') ||
+    c.includes('subgerente') ||
+    c.includes('chefe') ||
+    c.includes('confeiteiro') ||
+    c.includes('administrador') ||
+    c.includes('adminisrtador')
+  );
+}
+
+function isMissingTelefoneLoginColumnError(err: { message?: string } | null | undefined): boolean {
+  const msg = String(err?.message ?? '').toLowerCase();
+  return msg.includes('telefone_login') && (msg.includes('schema cache') || msg.includes('does not exist'));
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function normalizarLideresIds(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  return Array.from(new Set(value.map((item) => String(item ?? '').trim()).filter(Boolean)));
+}
 
 async function resolverUnidadeId(
   supabase: ReturnType<typeof createAdminClient>,
@@ -53,7 +106,20 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     if (error || !data) {
       return NextResponse.json({ ok: false, erro: 'Colaborador não encontrado' }, { status: 404 });
     }
-    return NextResponse.json({ ok: true, colaborador: data });
+
+    const lideresIds = new Set<string>();
+    const liderLegado = (data as { lider_id?: string | null }).lider_id;
+    if (liderLegado) lideresIds.add(String(liderLegado));
+    const { data: vinculos } = await supabase
+      .from('colaboradores_lideres')
+      .select('lider_id')
+      .eq('colaborador_id', id)
+      .eq('ativo', true);
+    for (const v of vinculos ?? []) {
+      if (v.lider_id) lideresIds.add(String(v.lider_id));
+    }
+
+    return NextResponse.json({ ok: true, colaborador: { ...data, lideres_ids: Array.from(lideresIds) } });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
@@ -82,6 +148,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     unidade_slug?: string;
     role?: string;
     lider_id?: string | null;
+    lideres_ids?: string[];
   };
   try {
     body = await req.json();
@@ -115,7 +182,21 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       payload.nome = n;
     }
     if (body.email !== undefined) payload.email = body.email?.trim() || null;
-    if (body.telefone !== undefined) payload.telefone = body.telefone?.trim() || null;
+    if (body.telefone !== undefined) {
+      const telRaw = body.telefone?.trim() || null;
+      payload.telefone = telRaw;
+      const telLogin = syncTelefoneLoginFromTelefone(telRaw);
+      payload.telefone_login = telLogin;
+      if (telRaw && !telLogin) {
+        return NextResponse.json(
+          {
+            ok: false,
+            erro: 'Celular inválido para login (use DDD + número, 10 ou 11 dígitos).',
+          },
+          { status: 400 }
+        );
+      }
+    }
     if (body.endereco !== undefined) payload.endereco = body.endereco?.trim() || null;
     if (body.data_admissao !== undefined) payload.data_admissao = body.data_admissao?.trim() || null;
     if (body.cargo !== undefined) payload.cargo = body.cargo?.trim() || null;
@@ -144,38 +225,40 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     const perfilSemLiderDireto = ['gerente', 'master', 'admin', 'socio'];
-    if (body.lider_id !== undefined && !perfilSemLiderDireto.includes(roleProximo)) {
-      const raw = body.lider_id;
-      if (raw === null || raw === '') {
-        payload.lider_id = null;
-      } else {
-        const lid = String(raw).trim();
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lid)) {
+    const lideresRecebidos = body.lideres_ids !== undefined
+      ? normalizarLideresIds(body.lideres_ids)
+      : body.lider_id !== undefined
+        ? normalizarLideresIds(body.lider_id ? [body.lider_id] : [])
+        : null;
+
+    if (lideresRecebidos !== null && !perfilSemLiderDireto.includes(roleProximo)) {
+      for (const lid of lideresRecebidos) {
+        if (!isUuid(lid)) {
           return NextResponse.json({ ok: false, erro: 'Líder inválido' }, { status: 400 });
         }
         if (lid === id) {
           return NextResponse.json({ ok: false, erro: 'Colaborador não pode ser líder de si mesmo' }, { status: 400 });
         }
-        const { data: selfRow } = await supabase.from('colaboradores').select('unidade_id').eq('id', id).single();
         const { data: leadRow } = await supabase
           .from('colaboradores')
-          .select('id, unidade_id')
+          .select('id, unidade_id, role, cargo')
           .eq('id', lid)
           .maybeSingle();
         if (!leadRow) {
           return NextResponse.json({ ok: false, erro: 'Líder não encontrado' }, { status: 400 });
         }
-        if (selfRow?.unidade_id && leadRow.unidade_id !== selfRow.unidade_id) {
+        if (!podeSerLider((leadRow as { role?: string | null }).role ?? null, (leadRow as { cargo?: string | null }).cargo ?? null)) {
           return NextResponse.json(
-            { ok: false, erro: 'Líder precisa ser da mesma unidade do colaborador' },
+            { ok: false, erro: 'O líder selecionado não está na lista de lideranças permitidas.' },
             { status: 400 }
           );
         }
-        payload.lider_id = lid;
       }
-    } else if (body.lider_id !== undefined && perfilSemLiderDireto.includes(roleProximo)) {
+      payload.lider_id = lideresRecebidos[0] ?? null;
+    } else if (lideresRecebidos !== null && perfilSemLiderDireto.includes(roleProximo)) {
       payload.lider_id = null;
     }
+    const limparLideresPorPerfil = body.role !== undefined && perfilSemLiderDireto.includes(roleProximo);
 
     if (body.unidade_id !== undefined || body.unidade_slug !== undefined) {
       const uid = await resolverUnidadeId(supabase, body.unidade_id, body.unidade_slug);
@@ -189,14 +272,36 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ ok: false, erro: 'Nada para atualizar' }, { status: 400 });
     }
 
-    const { data: atualizado, error } = await supabase
+    let { data: atualizado, error } = await supabase
       .from('colaboradores')
       .update(payload)
       .eq('id', id)
       .select('id, role, lider_id')
       .single();
 
+    if (error && isMissingTelefoneLoginColumnError(error)) {
+      const retryPayload = { ...payload };
+      delete retryPayload.telefone_login;
+      const retry = await supabase
+        .from('colaboradores')
+        .update(retryPayload)
+        .eq('id', id)
+        .select('id, role, lider_id')
+        .single();
+      atualizado = retry.data;
+      error = retry.error;
+    }
+
     if (error) {
+      if (error.code === '23505') {
+        const msg = String(error.message ?? '').toLowerCase();
+        if (msg.includes('telefone_login') || msg.includes('uq_colaboradores_telefone_login')) {
+          return NextResponse.json(
+            { ok: false, erro: 'Já existe outro colaborador com este celular (login).' },
+            { status: 400 }
+          );
+        }
+      }
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
     if (!atualizado) {
@@ -205,6 +310,29 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         { status: 409 }
       );
     }
+
+    if (lideresRecebidos !== null || limparLideresPorPerfil) {
+      await supabase
+        .from('colaboradores_lideres')
+        .update({ ativo: false, updated_at: new Date().toISOString() })
+        .eq('colaborador_id', id);
+
+      if (lideresRecebidos !== null && !perfilSemLiderDireto.includes(roleProximo) && lideresRecebidos.length > 0) {
+        const { error: vincErr } = await supabase.from('colaboradores_lideres').upsert(
+          lideresRecebidos.map((liderId) => ({
+            colaborador_id: id,
+            lider_id: liderId,
+            ativo: true,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: 'colaborador_id,lider_id' }
+        );
+        if (vincErr) {
+          return NextResponse.json({ ok: false, erro: vincErr.message }, { status: 500 });
+        }
+      }
+    }
+
     return NextResponse.json({ ok: true, colaborador: atualizado });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

@@ -7,7 +7,7 @@ import {
   topTresComEmpateNoTerceiro,
   type ScoreMensal,
 } from '@/lib/avaliacao-ranking';
-import { fraseMotivacionalDesempenho } from '@/lib/frases-motivacao-desempenho';
+import { fraseMotivacionalDesempenho, motivacaoSemanalPorPontuacao } from '@/lib/frases-motivacao-desempenho';
 
 function mesBoundsUTC(ano: number, mes: number): { ini: string; fim: string } {
   const ini = `${ano}-${String(mes).padStart(2, '0')}-01`;
@@ -102,11 +102,8 @@ export async function GET(req: Request) {
         min_dias_ranking: AVALIACAO_RANKING_MIN_DIAS,
         top_unidade: [],
         media_media_top3: null,
-        frase_motivacional: fraseMotivacionalDesempenho(
-          meu_desempenho.media_mes,
-          colaboradorId,
-          mesRef
-        ),
+        frase_motivacional: fraseMotivacionalDesempenho(meu_desempenho.media_mes),
+        motivacao_visual: motivacaoSemanalPorPontuacao(meu_desempenho.media_mes),
         meu_desempenho,
         nota_privacidade:
           'Reconhecimento interno: destaque dos melhores desempenhos da unidade no mês. O seu resultado é exibido apenas para si, sem comparação direta nem posição no ranking.',
@@ -158,11 +155,8 @@ export async function GET(req: Request) {
       min_dias_ranking: AVALIACAO_RANKING_MIN_DIAS,
       top_unidade,
       media_media_top3,
-      frase_motivacional: fraseMotivacionalDesempenho(
-        meu_desempenho.media_mes,
-        colaboradorId,
-        mesRef
-      ),
+      frase_motivacional: fraseMotivacionalDesempenho(meu_desempenho.media_mes),
+      motivacao_visual: motivacaoSemanalPorPontuacao(meu_desempenho.media_mes),
       meu_desempenho,
       nota_privacidade:
         'Reconhecimento interno: destaque dos melhores desempenhos da unidade no mês. O seu resultado é exibido apenas para si, sem comparação direta nem posição no ranking.',

@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { getAdminViewerContext } from '@/lib/admin-auth';
+
+async function canEditDestaque(): Promise<boolean> {
+  const ctx = await getAdminViewerContext();
+  if (!ctx) return false;
+  if (ctx.kind === 'password_session') return true;
+  return ctx.role === 'socio' || ctx.role === 'admin';
+}
 
 /** Lista destaque atual (para formulário de edição). */
 export async function GET() {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
+  if (!(await canEditDestaque())) {
+    return NextResponse.json({ ok: false, erro: 'Apenas sócio e administrativo podem editar destaques.' }, { status: 403 });
   }
 
   try {
@@ -39,8 +46,8 @@ export async function GET() {
 
 /** Define novo destaque (substitui visualmente o anterior — mantém histórico). */
 export async function POST(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
+  if (!(await canEditDestaque())) {
+    return NextResponse.json({ ok: false, erro: 'Apenas sócio e administrativo podem editar destaques.' }, { status: 403 });
   }
 
   let body: { colaborador_id?: string; titulo?: string; descricao?: string };

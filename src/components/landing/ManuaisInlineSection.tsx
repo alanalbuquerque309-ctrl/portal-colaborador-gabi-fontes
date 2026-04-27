@@ -34,10 +34,9 @@ const manuals = [
   },
   {
     title: 'Estoque',
-    description: 'Controle de insumos e rotinas de armazenamento — documento em elaboração.',
-    file: null as string | null,
+    description: 'Recebimento, armazenagem, saídas e registro alinhados à operação.',
+    file: 'Manual do Estoquista.html',
     icon: Package,
-    soon: true,
   },
   {
     title: 'ADM / RH',
@@ -114,30 +113,17 @@ export function ManuaisInlineSection() {
               </>
             );
 
-            if (item.file) {
-              const ativo = aberto === key;
-              return (
-                <li key={item.title}>
-                  <button
-                    type="button"
-                    onClick={() => abrir(key)}
-                    aria-expanded={ativo}
-                    className="group flex min-h-[160px] w-full flex-col rounded-2xl border border-black/[0.06] bg-white/70 p-5 text-left shadow-sm outline-none transition-all duration-300 hover:scale-[1.02] hover:border-portal-rose/50 hover:bg-portal-roseHover/50 hover:shadow-md focus-visible:ring-2 focus-visible:ring-portal-ink/20 active:scale-[0.99] sm:min-h-[180px] sm:p-6"
-                  >
-                    {inner}
-                  </button>
-                </li>
-              );
-            }
-
+            const ativo = aberto === key;
             return (
               <li key={item.title}>
-                <div
-                  className="flex min-h-[160px] flex-col rounded-2xl border border-dashed border-portal-rose/60 bg-white/40 p-5 opacity-90 sm:min-h-[180px] sm:p-6"
-                  aria-disabled
+                <button
+                  type="button"
+                  onClick={() => abrir(key)}
+                  aria-expanded={ativo}
+                  className="group flex min-h-[160px] w-full flex-col rounded-2xl border border-black/[0.06] bg-white/70 p-5 text-left shadow-sm outline-none transition-all duration-300 hover:scale-[1.02] hover:border-portal-rose/50 hover:bg-portal-roseHover/50 hover:shadow-md focus-visible:ring-2 focus-visible:ring-portal-ink/20 active:scale-[0.99] sm:min-h-[180px] sm:p-6"
                 >
                   {inner}
-                </div>
+                </button>
               </li>
             );
           })}

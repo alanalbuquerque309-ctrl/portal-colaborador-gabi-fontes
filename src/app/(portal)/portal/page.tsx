@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { MuralPreview } from '@/components/mural/MuralPreview';
-import { AniversariantesPreview } from '@/components/aniversariantes/AniversariantesPreview';
 import { DestaqueSection } from '@/components/destaque/DestaqueSection';
 import { AvaliacoesPortalHome } from '@/components/portal/AvaliacoesPortalHome';
 import { TermometroEmocional } from '@/components/emocional/TermometroEmocional';
@@ -30,15 +29,9 @@ export default function PortalHomePage() {
       </section>
       <section>
         <h2 className="text-2xl font-display font-semibold text-cafeteria-800 mb-4">
-          Mural da Sua Unidade
+          Mural
         </h2>
         <MuralPreview />
-      </section>
-      <section>
-        <h2 className="text-2xl font-display font-semibold text-cafeteria-800 mb-4">
-          Mural da Família — Aniversariantes do Mês
-        </h2>
-        <AniversariantesPreview />
       </section>
     </main>
   );

@@ -1,23 +1,30 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 export default function PerfilPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const completarObrigatorio = searchParams.get('completar') === '1';
   const [session, setSession] = useState<ReturnType<typeof getPortalSession>>(null);
   const [colaborador, setColaborador] = useState<{
     nome: string;
     email: string | null;
     telefone: string | null;
+    endereco: string | null;
     cargo: string | null;
     foto_url: string | null;
+    perfil_completo?: boolean;
     unidades?: { nome: string };
   } | null>(null);
+  const [form, setForm] = useState({ nome: '', endereco: '', telefone: '', email: '' });
   const [enviando, setEnviando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
+  const [okMsg, setOkMsg] = useState('');
 
   useEffect(() => {
     const s = getPortalSession();
@@ -35,6 +42,12 @@ export default function PerfilPage() {
       .then((data) => {
         if (data.ok && data.colaborador) {
           setColaborador(data.colaborador);
+          setForm({
+            nome: String(data.colaborador.nome ?? ''),
+            endereco: String(data.colaborador.endereco ?? ''),
+            telefone: String(data.colaborador.telefone ?? ''),
+            email: String(data.colaborador.email ?? ''),
+          });
         }
       });
   }, [session?.colaboradorId]);
@@ -74,6 +87,44 @@ export default function PerfilPage() {
     }
   };
 
+  const handleSalvarPerfil = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErro('');
+    setOkMsg('');
+    setSalvando(true);
+    try {
+      const res = await fetch('/api/portal/perfil', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível salvar o perfil.');
+        return;
+      }
+      setColaborador((prev) =>
+        prev
+          ? {
+              ...prev,
+              nome: form.nome.trim(),
+              endereco: form.endereco.trim(),
+              telefone: form.telefone.trim(),
+              email: form.email.trim(),
+              perfil_completo: true,
+            }
+          : prev
+      );
+      setOkMsg('Perfil atualizado com sucesso.');
+      if (completarObrigatorio) router.replace('/portal');
+    } catch {
+      setErro('Erro de conexão.');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   if (!session) {
     return (
       <div className="flex justify-center py-12">
@@ -86,6 +137,11 @@ export default function PerfilPage() {
     <div className="max-w-md mx-auto">
       <h1 className="text-2xl font-display font-semibold text-coffee-base mb-6">Meu perfil</h1>
       <div className="rounded-2xl bg-white border border-dourado-200 shadow-xl p-6">
+        {completarObrigatorio && (
+          <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Complete e confirme seu perfil para continuar no portal.
+          </div>
+        )}
         <div className="flex flex-col items-center mb-6">
           <div className="relative">
             {colaborador?.foto_url ? (
@@ -120,29 +176,62 @@ export default function PerfilPage() {
             {enviando ? 'Enviando…' : 'Toque no ícone para trocar a foto'}
           </p>
           {erro && <p className="text-red-600 text-sm mt-1">{erro}</p>}
+          {okMsg && <p className="text-green-700 text-sm mt-1">{okMsg}</p>}
         </div>
-        <dl className="space-y-3 text-sm">
+        <form onSubmit={handleSalvarPerfil} className="space-y-3 text-sm">
           <div>
-            <dt className="text-coffee-100 font-medium">Nome</dt>
-            <dd className="text-coffee-base">{colaborador?.nome ?? '-'}</dd>
+            <label className="text-coffee-100 font-medium block mb-1">Nome *</label>
+            <input
+              required
+              value={form.nome}
+              onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base"
+            />
           </div>
           <div>
-            <dt className="text-coffee-100 font-medium">E-mail</dt>
-            <dd className="text-coffee-base">{colaborador?.email ?? '-'}</dd>
+            <label className="text-coffee-100 font-medium block mb-1">E-mail *</label>
+            <input
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base"
+            />
           </div>
           <div>
-            <dt className="text-coffee-100 font-medium">Telefone</dt>
-            <dd className="text-coffee-base">{colaborador?.telefone ?? '-'}</dd>
+            <label className="text-coffee-100 font-medium block mb-1">Telefone *</label>
+            <input
+              required
+              value={form.telefone}
+              onChange={(e) => setForm((f) => ({ ...f, telefone: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base"
+            />
           </div>
           <div>
-            <dt className="text-coffee-100 font-medium">Cargo</dt>
-            <dd className="text-coffee-base">{colaborador?.cargo ?? '-'}</dd>
+            <label className="text-coffee-100 font-medium block mb-1">Endereço *</label>
+            <input
+              required
+              value={form.endereco}
+              onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base"
+            />
           </div>
           <div>
-            <dt className="text-coffee-100 font-medium">Unidade</dt>
-            <dd className="text-coffee-base">{colaborador?.unidades?.nome ?? '-'}</dd>
+            <span className="text-coffee-100 font-medium">Cargo:</span>{' '}
+            <span className="text-coffee-base">{colaborador?.cargo ?? '-'}</span>
           </div>
-        </dl>
+          <div>
+            <span className="text-coffee-100 font-medium">Unidade:</span>{' '}
+            <span className="text-coffee-base">{colaborador?.unidades?.nome ?? '-'}</span>
+          </div>
+          <button
+            type="submit"
+            disabled={salvando}
+            className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 font-medium hover:bg-dourado-400 disabled:opacity-50"
+          >
+            {salvando ? 'Salvando…' : 'Salvar perfil'}
+          </button>
+        </form>
       </div>
     </div>
   );

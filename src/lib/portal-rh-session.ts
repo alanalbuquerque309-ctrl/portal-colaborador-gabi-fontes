@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizePortalRole } from '@/lib/roles';
 
 export type PortalRhContext = {
   colaboradorId: string;
@@ -27,7 +28,7 @@ export async function requirePortalAdminSocioSession(): Promise<
       .eq('id', colaboradorId)
       .maybeSingle();
 
-    const role = ((data as { role?: string } | null)?.role || '').trim().toLowerCase();
+    const role = normalizePortalRole((data as { role?: string } | null)?.role);
     if (error || !data || (role !== 'admin' && role !== 'socio')) {
       return {
         ok: false,

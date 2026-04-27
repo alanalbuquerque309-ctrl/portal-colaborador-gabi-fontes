@@ -9,6 +9,7 @@ type Linha = {
   data_referencia: string;
   assiduidade: string;
   media_dia: number | null;
+  justificativa_nota_baixa: string | null;
   colaborador_id: string;
   colaborador_nome: string | null;
   avaliador_id: string;
@@ -124,12 +125,13 @@ export default function AdminAvaliacoesDiariasPage() {
                 <th className="px-3 py-2 font-semibold">Avaliador</th>
                 <th className="px-3 py-2 font-semibold">Assiduidade</th>
                 <th className="px-3 py-2 font-semibold">Média</th>
+                <th className="px-3 py-2 font-semibold">Justificativa</th>
               </tr>
             </thead>
             <tbody>
               {linhas.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-8 text-center text-coffee-100">
+                  <td colSpan={6} className="px-3 py-8 text-center text-coffee-100">
                     {carregando ? '…' : 'Nenhum registro. Ajuste o período e busque.'}
                   </td>
                 </tr>
@@ -142,6 +144,9 @@ export default function AdminAvaliacoesDiariasPage() {
                     <td className="px-3 py-2 text-coffee-100">{l.assiduidade}</td>
                     <td className="px-3 py-2 text-coffee-base">
                       {l.media_dia != null ? Number(l.media_dia).toFixed(2) : '—'}
+                    </td>
+                    <td className="px-3 py-2 text-coffee-100 max-w-xs">
+                      {l.justificativa_nota_baixa || '—'}
                     </td>
                   </tr>
                 ))

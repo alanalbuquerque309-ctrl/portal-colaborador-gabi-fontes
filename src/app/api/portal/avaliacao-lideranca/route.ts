@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { domingoSemanaSaoPaulo, hojeEhDomingoSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { normalizePortalRole } from '@/lib/roles';
+import { listarEquipeDoLider, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
 
-const DIMENSOES = ['n_fala_escuta', 'n_apoio', 'n_ambiente', 'n_organizacao'] as const;
+const DIMENSOES = ['n_exemplo', 'n_comunicacao', 'n_suporte', 'n_justica', 'n_clima'] as const;
+const CARGOS_SUBORDINADOS_ADMIN = ['estoque', 'motorista', 'aux administrativo', 'auxiliar administrativo', 'aux adminstrativo'] as const;
+type PapelAvaliacao = 'lider_direto' | 'rh_global' | 'admin_global' | 'subordinado_admin';
+type AvaliadoRegra = { id: string; nome: string; role: string; papel: PapelAvaliacao };
 
 function parseNota(v: unknown): number | null {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? parseInt(v, 10) : NaN;
@@ -11,7 +16,115 @@ function parseNota(v: unknown): number | null {
   return n;
 }
 
-/** GET: líderes avaliáveis na unidade + estado da semana atual. */
+function sanitizeJustificativa(value: unknown): string {
+  return String(value ?? '').replace(/\s+/g, ' ').trim();
+}
+
+function roleLabel(role: string): string {
+  const r = normalizePortalRole(role);
+  if (r === 'colaborador') return 'Colaborador';
+  if (r === 'gerente') return 'Gerente';
+  if (r === 'master') return 'Chefia';
+  if (r === 'admin') return 'Administrador';
+  if (r === 'rh') return 'RH';
+  return role || 'Liderança';
+}
+
+function papelLabel(papel: PapelAvaliacao): string {
+  if (papel === 'lider_direto') return 'Chefe direto';
+  if (papel === 'rh_global') return 'RH da empresa';
+  if (papel === 'subordinado_admin') return 'Subordinado direto';
+  return 'Administrador da empresa';
+}
+
+function normalizeText(value: string | null | undefined): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function cargoElegivelParaAvaliacaoAdmin(cargo: string | null | undefined): boolean {
+  const c = normalizeText(cargo);
+  if (!c) return false;
+  return CARGOS_SUBORDINADOS_ADMIN.some((permitido) => c.includes(permitido));
+}
+
+async function carregarAvaliadosPorRegra(
+  supabase: ReturnType<typeof createAdminClient>,
+  colaboradorId: string,
+  liderDiretoId: string | null
+): Promise<AvaliadoRegra[]> {
+  const out = new Map<string, AvaliadoRegra>();
+
+  const lideres = await listarLideresDoColaborador(supabase, colaboradorId, liderDiretoId);
+  for (const lider of lideres) {
+    if (lider.id && lider.id !== colaboradorId) {
+      out.set(lider.id, {
+        id: lider.id,
+        nome: lider.nome,
+        role: lider.role,
+        papel: 'lider_direto',
+      });
+    }
+  }
+
+  const { data: rhs } = await supabase
+    .from('colaboradores')
+    .select('id, nome, role')
+    .eq('role', 'rh')
+    .neq('id', colaboradorId)
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const rh = rhs?.[0];
+  if (rh?.id && !out.has(String(rh.id))) {
+    out.set(String(rh.id), {
+      id: String(rh.id),
+      nome: String(rh.nome ?? ''),
+      role: String((rh as { role?: string }).role ?? ''),
+      papel: 'rh_global',
+    });
+  }
+
+  const { data: admins } = await supabase
+    .from('colaboradores')
+    .select('id, nome, role')
+    .eq('role', 'admin')
+    .neq('id', colaboradorId)
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const admin = admins?.[0];
+  if (admin?.id && !out.has(String(admin.id))) {
+    out.set(String(admin.id), {
+      id: String(admin.id),
+      nome: String(admin.nome ?? ''),
+      role: String((admin as { role?: string }).role ?? ''),
+      papel: 'admin_global',
+    });
+  }
+
+  return Array.from(out.values());
+}
+
+async function carregarSubordinadosDoAdmin(
+  supabase: ReturnType<typeof createAdminClient>,
+  adminId: string,
+  unidadeId: string | null
+): Promise<AvaliadoRegra[]> {
+  const equipe = await listarEquipeDoLider(supabase, adminId, unidadeId);
+  return equipe
+    .filter((c) => normalizePortalRole(c.role) === 'colaborador')
+    .filter((c) => cargoElegivelParaAvaliacaoAdmin((c as { cargo?: string | null }).cargo))
+    .map((c) => ({
+      id: String(c.id),
+      nome: String(c.nome ?? ''),
+      role: String(c.role ?? 'colaborador'),
+      papel: 'subordinado_admin' as const,
+    }));
+}
+
+/** GET: líderes avaliáveis na unidade + estado da semana atual + aviso no último dia. */
 export async function GET() {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
@@ -24,7 +137,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('id, nome, unidade_id, role')
+      .select('id, nome, unidade_id, role, lider_id')
       .eq('id', colaboradorId)
       .single();
 
@@ -32,10 +145,10 @@ export async function GET() {
       return NextResponse.json({ ok: false, erro: 'Perfil não encontrado' }, { status: 404 });
     }
 
-    const role = String((eu as { role?: string }).role || '').toLowerCase();
-    if (role !== 'colaborador') {
+    const role = normalizePortalRole((eu as { role?: string }).role);
+    if (role !== 'colaborador' && role !== 'admin') {
       return NextResponse.json(
-        { ok: false, erro: 'Avaliação da liderança é apenas para colaboradores' },
+        { ok: false, erro: 'Avaliação disponível apenas para colaborador e administrador.' },
         { status: 403 }
       );
     }
@@ -46,20 +159,12 @@ export async function GET() {
     }
 
     const semanaInicio = segundaSemanaSaoPaulo();
-
-    const { data: lideres, error: errLid } = await supabase
-      .from('colaboradores')
-      .select('id, nome, role')
-      .eq('unidade_id', uid)
-      .in('role', ['gerente', 'master', 'admin'])
-      .neq('id', colaboradorId)
-      .order('nome');
-
-    if (errLid) {
-      return NextResponse.json({ ok: false, erro: errLid.message }, { status: 500 });
-    }
-
-    const ids = (lideres ?? []).map((l) => l.id as string);
+    const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
+    const avaliadosPermitidos =
+      role === 'admin'
+        ? await carregarSubordinadosDoAdmin(supabase, colaboradorId, uid ?? null)
+        : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId);
+    const ids = avaliadosPermitidos.map((l) => l.id);
     let jaAvaliados = new Set<string>();
     if (ids.length > 0) {
       const { data: rows } = await supabase
@@ -71,24 +176,38 @@ export async function GET() {
       jaAvaliados = new Set((rows ?? []).map((r) => r.avaliado_id as string));
     }
 
-    const avaliados = (lideres ?? []).map((l) => ({
-      id: l.id as string,
-      nome: String(l.nome ?? ''),
-      role: String((l as { role?: string }).role ?? ''),
-      ja_avaliado_esta_semana: jaAvaliados.has(l.id as string),
+    const avaliados = avaliadosPermitidos.map((l) => ({
+      id: l.id,
+      nome: l.nome,
+      role: l.role,
+      role_label: roleLabel(l.role),
+      papel: l.papel,
+      papel_label: papelLabel(l.papel),
+      ja_avaliado_esta_semana: jaAvaliados.has(l.id),
     }));
+
+    const pendentes = avaliados.filter((a) => !a.ja_avaliado_esta_semana);
+    const ultimoDiaSemana = hojeEhDomingoSaoPaulo();
 
     return NextResponse.json({
       ok: true,
       semana_inicio: semanaInicio,
+      semana_fim: domingoSemanaSaoPaulo(),
       avaliados,
       labels: {
-        n_fala_escuta: 'Fala e escuta',
-        n_apoio: 'Apoio no dia a dia',
-        n_ambiente: 'Ambiente e respeito',
-        n_organizacao: 'Organização e materiais',
+        n_exemplo: 'Exemplo e postura',
+        n_comunicacao: 'Clareza na comunicação',
+        n_suporte: 'Apoio e suporte técnico',
+        n_justica: 'Justiça e feedback',
+        n_clima: 'Clima e inteligência emocional',
       },
-      help: 'De 1 (precisa melhorar) a 5 (excelente). Uma avaliação por pessoa por semana.',
+      help:
+        role === 'admin'
+          ? 'Administrador: avalie apenas seus subordinados diretos dos cargos operacionais permitidos (estoque, motorista e auxiliar administrativo). De 1 a 5. Identidade não exibida para o avaliado.'
+          : 'Avaliação opcional para colaboradores. Você avalia apenas: chefe direto + RH + administrador (empresa). De 1 a 5. Anônima para o avaliado.',
+      alerta_ultimo_dia: ultimoDiaSemana && pendentes.length > 0,
+      pendentes_no_ultimo_dia: pendentes.length,
+      avaliacao_opcional: true,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
@@ -113,7 +232,7 @@ export async function POST(req: Request) {
   }
 
   const avaliadoId = typeof body.avaliado_id === 'string' ? body.avaliado_id.trim() : '';
-  const anonimo = body.anonimo === true;
+  const anonimo = true;
   const notas: Record<string, number> = {};
   for (const k of DIMENSOES) {
     const p = parseNota(body[k]);
@@ -122,16 +241,30 @@ export async function POST(req: Request) {
     }
     notas[k] = p;
   }
+  const temNotaBaixa = Object.values(notas).some((nota) => nota <= 3);
+  const justificativaNotaBaixa = sanitizeJustificativa(body.justificativa_nota_baixa);
 
   if (!avaliadoId) {
     return NextResponse.json({ ok: false, erro: 'avaliado_id obrigatório' }, { status: 400 });
+  }
+  if (temNotaBaixa && justificativaNotaBaixa.length < 10) {
+    return NextResponse.json(
+      { ok: false, erro: 'Explique em poucas palavras o motivo da nota 3 ou menor.' },
+      { status: 400 }
+    );
+  }
+  if (justificativaNotaBaixa.length > 500) {
+    return NextResponse.json(
+      { ok: false, erro: 'Justificativa muito longa (máx. 500 caracteres).' },
+      { status: 400 }
+    );
   }
 
   try {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('id, unidade_id, role')
+      .select('id, unidade_id, role, lider_id')
       .eq('id', colaboradorId)
       .single();
 
@@ -139,49 +272,65 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Perfil não encontrado' }, { status: 404 });
     }
 
-    const role = String((eu as { role?: string }).role || '').toLowerCase();
-    if (role !== 'colaborador') {
-      return NextResponse.json({ ok: false, erro: 'Apenas colaboradores' }, { status: 403 });
+    const role = normalizePortalRole((eu as { role?: string }).role);
+    if (role !== 'colaborador' && role !== 'admin') {
+      return NextResponse.json({ ok: false, erro: 'Apenas colaborador e administrador.' }, { status: 403 });
     }
 
     const uid = unidadeId || (eu as { unidade_id?: string }).unidade_id;
     const semanaInicio = segundaSemanaSaoPaulo();
-
-    const { data: alvo, error: errAlvo } = await supabase
-      .from('colaboradores')
-      .select('id, unidade_id, role')
-      .eq('id', avaliadoId)
-      .single();
-
-    if (errAlvo || !alvo) {
-      return NextResponse.json({ ok: false, erro: 'Líder não encontrado' }, { status: 404 });
-    }
-
-    const roleAlvo = String((alvo as { role?: string }).role || '').toLowerCase();
-    if (!['gerente', 'master', 'admin'].includes(roleAlvo)) {
+    const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
+    const permitidos =
+      role === 'admin'
+        ? await carregarSubordinadosDoAdmin(supabase, colaboradorId, uid ?? null)
+        : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId);
+    const permitidosSet = new Set(permitidos.map((p) => p.id));
+    if (!permitidosSet.has(avaliadoId)) {
       return NextResponse.json(
-        { ok: false, erro: 'Avalie apenas gerentes ou equipe administrativa da unidade.' },
-        { status: 400 }
+        { ok: false, erro: 'Este perfil não está na sua lista semanal de avaliação.' },
+        { status: 403 }
       );
-    }
-    if ((alvo as { unidade_id?: string }).unidade_id !== uid) {
-      return NextResponse.json({ ok: false, erro: 'Avaliado deve ser da mesma unidade' }, { status: 400 });
     }
     if (avaliadoId === colaboradorId) {
       return NextResponse.json({ ok: false, erro: 'Não é possível avaliar a si mesmo' }, { status: 400 });
     }
 
-    const { error: insErr } = await supabase.from('avaliacoes_lideranca').insert({
+    const payloadNovo = {
       avaliador_id: colaboradorId,
       avaliado_id: avaliadoId,
       unidade_id: uid,
       semana_inicio: semanaInicio,
       anonimo,
-      n_fala_escuta: notas.n_fala_escuta,
-      n_apoio: notas.n_apoio,
-      n_ambiente: notas.n_ambiente,
-      n_organizacao: notas.n_organizacao,
-    });
+      n_exemplo: notas.n_exemplo,
+      n_comunicacao: notas.n_comunicacao,
+      n_suporte: notas.n_suporte,
+      n_justica: notas.n_justica,
+      n_clima: notas.n_clima,
+      justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa : null,
+      // Compatibilidade com schema antigo (até migração completa).
+      n_fala_escuta: notas.n_comunicacao,
+      n_apoio: notas.n_suporte,
+      n_ambiente: notas.n_clima,
+      n_organizacao: notas.n_exemplo,
+    };
+
+    let { error: insErr } = await supabase.from('avaliacoes_lideranca').insert(payloadNovo);
+    if (insErr && /column .*n_exemplo.*does not exist/i.test(insErr.message)) {
+      const payloadLegado = {
+        avaliador_id: colaboradorId,
+        avaliado_id: avaliadoId,
+        unidade_id: uid,
+        semana_inicio: semanaInicio,
+        anonimo,
+        n_fala_escuta: notas.n_comunicacao,
+        n_apoio: notas.n_suporte,
+        n_ambiente: notas.n_clima,
+        n_organizacao: notas.n_exemplo,
+        justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa : null,
+      };
+      const retry = await supabase.from('avaliacoes_lideranca').insert(payloadLegado);
+      insErr = retry.error;
+    }
 
     if (insErr) {
       if (insErr.code === '23505') {

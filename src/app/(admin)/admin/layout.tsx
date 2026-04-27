@@ -39,13 +39,38 @@ export default function AdminLayout({
 
   useEffect(() => {
     if (authorized === false && !isLoginPage) {
-      router.replace('/admin');
+      router.replace('/login');
     }
   }, [authorized, isLoginPage, router]);
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (pathname !== '/admin/dashboard') return;
+    if (authorized !== true) return;
+
+    const state = (window.history.state || {}) as Record<string, unknown>;
+    if (state.adminGuard !== true) {
+      window.history.pushState({ ...state, adminGuard: true }, '', window.location.href);
+    }
+
+    const onPopState = () => {
+      const confirmar = window.confirm('Deseja sair do admin?');
+      if (confirmar) {
+        fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
+          .catch(() => {})
+          .finally(() => router.replace('/login'));
+        return;
+      }
+      const st = (window.history.state || {}) as Record<string, unknown>;
+      window.history.pushState({ ...st, adminGuard: true }, '', window.location.href);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [authorized, pathname, router]);
 
   if (isLoginPage) {
     return <>{children}</>;
@@ -64,10 +89,10 @@ export default function AdminLayout({
       <div className="min-h-screen flex flex-col items-center justify-center bg-cream-100 px-4">
         <p className="text-coffee-base text-center mb-4">Sessão administrativa não encontrada ou expirada.</p>
         <Link
-          href="/admin"
+          href="/login"
           className="rounded-lg bg-dourado-base px-5 py-2.5 text-cream-100 text-sm font-medium hover:bg-dourado-400"
         >
-          Ir para o login
+          Ir para o portal
         </Link>
       </div>
     );
@@ -127,6 +152,8 @@ export default function AdminLayout({
           {navLink('/admin/escalas', 'Escalas')}
           {navLink('/admin/avaliacoes-diarias', 'Avaliações diárias')}
           {navLink('/admin/sugestoes', 'Sugestões')}
+          {navLink('/admin/manual-eventos', 'Eventos de manuais')}
+          {navLink('/portal/ajuda-inbox', 'Inbox ajuda')}
         </nav>
         <form action="/api/admin/logout" method="POST" className="mt-8">
           <button

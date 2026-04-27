@@ -5,8 +5,14 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   extendDefaultRuntimeCaching: true,
   workboxOptions: {
     // Evita o SW servir HTML antigo (ex.: 404 em cache) em admin/API após novo deploy
-    navigateFallbackDenylist: [/^\/admin/, /^\/api\//],
+    navigateFallbackDenylist: [/^\/admin/, /^\/api\//, /^\/portal/],
     runtimeCaching: [
+      /** Páginas do portal (lista de manuais, etc.): sempre rede — evita SW mostrar bundle antigo sem manuais novos */
+      {
+        urlPattern: ({ request, url }) =>
+          request.method === 'GET' && url.pathname.startsWith('/portal'),
+        handler: 'NetworkOnly',
+      },
       {
         urlPattern: ({ request, url }) =>
           request.method === 'GET' && url.pathname.startsWith('/api/admin'),

@@ -37,6 +37,9 @@ export default function ColaboradoresPage() {
   const [filtroUnidade, setFiltroUnidade] = useState('');
   const [excluindo, setExcluindo] = useState<string | null>(null);
   const [concluindo, setConcluindo] = useState<string | null>(null);
+  const [erroLista, setErroLista] = useState<string | null>(null);
+  /** Total de linhas no Supabase (mesma consulta da API), para conferir ambiente. */
+  const [totalSupabase, setTotalSupabase] = useState<number | null>(null);
 
   const handleConcluirOnboarding = async (id: string, nome: string) => {
     if (!confirm(`Marcar onboarding de "${nome}" como concluído? Ela poderá acessar o portal sem passar pelo fluxo.`)) return;
@@ -58,10 +61,31 @@ export default function ColaboradoresPage() {
 
   const recarregar = () => {
     setLoading(true);
-    fetch('/api/admin/colaboradores', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((res) => {
-        if (res.ok && Array.isArray(res.colaboradores)) {
+    setErroLista(null);
+    setTotalSupabase(null);
+    fetch('/api/admin/colaboradores', {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    })
+      .then(async (r) => {
+        let res: { ok?: boolean; erro?: string; colaboradores?: unknown; total_supabase?: number };
+        try {
+          res = (await r.json()) as typeof res;
+        } catch {
+          setErroLista(`Resposta inválida (${r.status}). O servidor pode estar sem SUPABASE_SERVICE_ROLE_KEY na Vercel.`);
+          setColaboradores([]);
+          return;
+        }
+        if (!r.ok || res.ok === false) {
+          setErroLista(res.erro || `Erro ${r.status}. Tente sair e entrar no admin novamente.`);
+          setColaboradores([]);
+          return;
+        }
+        if (typeof res.total_supabase === 'number') {
+          setTotalSupabase(res.total_supabase);
+        }
+        if (Array.isArray(res.colaboradores)) {
           setColaboradores(
             res.colaboradores.map((c: Record<string, unknown>) => ({
               id: String(c.id ?? ''),
@@ -71,12 +95,22 @@ export default function ColaboradoresPage() {
               telefone: c.telefone != null ? String(c.telefone) : null,
               cargo: c.cargo != null ? String(c.cargo) : null,
               setor: c.setor != null ? String(c.setor) : null,
-              unidade: (c.unidades as { nome?: string; slug?: string }) ?? { nome: '-' },
+              unidade: (() => {
+                const u = c.unidades as { nome?: string; slug?: string } | undefined;
+                return { nome: u?.nome != null ? String(u.nome) : '-', slug: u?.slug };
+              })(),
               onboarding_completo: c.onboarding_completo === true,
               role: c.role ? String(c.role) : undefined,
             }))
           );
+        } else {
+          setErroLista('Resposta inválida da API (lista de colaboradores).');
+          setColaboradores([]);
         }
+      })
+      .catch(() => {
+        setErroLista('Falha de rede ao carregar colaboradores.');
+        setColaboradores([]);
       })
       .finally(() => setLoading(false));
   };
@@ -137,6 +171,12 @@ export default function ColaboradoresPage() {
 
   return (
     <div>
+      {erroLista && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {erroLista}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-display font-semibold text-coffee-base">
           Colaboradores
@@ -149,11 +189,44 @@ export default function ColaboradoresPage() {
         </a>
       </div>
 
-      {colaboradores.length === 0 ? (
-        <p className="text-coffee-100 py-8">
-          Nenhum colaborador cadastrado. Clique em Cadastrar para adicionar.
-        </p>
-      ) : (
+      {colaboradores.length === 0 && !erroLista ? (
+        <div className="py-8 space-y-4 max-w-xl">
+          <p className="text-coffee-base font-medium">Nenhum colaborador na lista desta tela.</p>
+          {totalSupabase !== null && (
+            <p className="text-sm text-coffee-100">
+              Linhas na tabela <code className="text-xs bg-cream-200 px-1 rounded">colaboradores</code> neste banco:{' '}
+              <strong>{totalSupabase}</strong>
+            </p>
+          )}
+          {totalSupabase === 0 && (
+            <p className="text-sm text-coffee-100">
+              O banco ligado a este site está vazio: cadastre em <strong>Cadastrar</strong> ou importe no Supabase
+              (Table Editor / SQL). Se você cadastrou em outro projeto Supabase, confira as variáveis de ambiente na
+              Vercel: <code className="text-xs">NEXT_PUBLIC_SUPABASE_URL</code> e{' '}
+              <code className="text-xs">SUPABASE_SERVICE_ROLE_KEY</code> devem ser do mesmo projeto.
+            </p>
+          )}
+          <p className="text-sm text-coffee-100">
+            <a
+              href="/api/admin/diagnostico"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-dourado-base font-medium hover:underline"
+            >
+              Abrir diagnóstico do banco (nova aba)
+            </a>{' '}
+            — mostra totais e se a chave de serviço está configurada.
+          </p>
+          <p className="text-sm">
+            <a
+              href="/admin/colaboradores/novo"
+              className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 font-medium hover:bg-dourado-400 inline-block"
+            >
+              Cadastrar colaborador
+            </a>
+          </p>
+        </div>
+      ) : colaboradores.length === 0 ? null : (
         <>
           <div className="flex flex-wrap gap-4 mb-4 p-4 rounded-xl border border-cream-300 bg-cream-50">
             <div className="flex flex-col gap-1">
@@ -266,6 +339,7 @@ export default function ColaboradoresPage() {
                       <span className="text-coffee-base font-medium break-words">{c.nome}</span>
                       <Link
                         href={`/admin/colaboradores/${c.id}/editar`}
+                        replace
                         className="text-dourado-base hover:text-dourado-600 text-xs font-semibold underline underline-offset-2 w-fit"
                       >
                         Editar perfil

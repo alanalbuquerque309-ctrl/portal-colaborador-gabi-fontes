@@ -11,7 +11,12 @@ type LinhaDiaria = {
   id: string;
   data_referencia: string;
   assiduidade: string;
+  nota_vestimenta: number | null;
+  nota_pontualidade: number | null;
+  nota_trabalho_equipe: number | null;
+  nota_desempenho_tarefas: number | null;
   media_dia: number | null;
+  justificativa_nota_baixa: string | null;
   colaborador_nome: string | null;
   avaliador_nome: string | null;
 };
@@ -23,10 +28,12 @@ type LinhaLider = {
   created_at: string;
   avaliado_nome: string;
   avaliador_label: string;
-  n_fala_escuta: number;
-  n_apoio: number;
-  n_ambiente: number;
-  n_organizacao: number;
+  n_exemplo: number;
+  n_comunicacao: number;
+  n_suporte: number;
+  n_justica: number;
+  n_clima: number;
+  justificativa_nota_baixa: string | null;
   media: number;
 };
 
@@ -59,7 +66,7 @@ export default function RelatoriosAvaliacoesPage() {
 
   useEffect(() => {
     let cancel = false;
-    fetch('/api/portal/perfil', { credentials: 'include' })
+    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
         if (cancel) return;
@@ -99,8 +106,14 @@ export default function RelatoriosAvaliacoesPage() {
           const qL = new URLSearchParams({ unidade_slug: b.slug, inicio, fim });
 
           const [resD, resL] = await Promise.all([
-            fetch(`/api/admin/avaliacoes-diarias?${qD}`, { credentials: 'include' }),
-            fetch(`/api/portal/avaliacao-lideranca/relatorio?${qL}`, { credentials: 'include' }),
+            fetch(`/api/portal/relatorios-avaliacoes-diarias?${qD}`, {
+              credentials: 'include',
+              cache: 'no-store',
+            }),
+            fetch(`/api/portal/avaliacao-lideranca/relatorio?${qL}`, {
+              credentials: 'include',
+              cache: 'no-store',
+            }),
           ]);
 
           const dataD = await resD.json();
@@ -162,14 +175,18 @@ export default function RelatoriosAvaliacoesPage() {
           Relatórios de avaliações por filial
         </h1>
         <p className="text-cafeteria-600 mt-2 text-sm max-w-3xl">
-          Visão exclusiva para <strong>sócios</strong>: em cada filial, <strong>o que os gerentes registram
+          Visão para <strong>sócio e administrativo</strong>: em cada filial, <strong>o que os gerentes registram
           sobre a equipe</strong> (avaliações diárias dos comandados) e{' '}
           <strong>o que os colaboradores avaliam da liderança</strong> (gerência, administrativo e RH), na
           seção de liderança.
         </p>
+        <p className="text-xs text-cafeteria-500 mt-1 max-w-3xl">
+          No bloco de liderança, o campo &quot;Quem avaliou&quot; mostra o nome real apenas para o perfil de
+          sócio e administrador; para os demais perfis autorizados continua anônimo.
+        </p>
         <p className="text-xs text-cafeteria-500 mt-2">
-          Administradores continuam com o painel <Link href="/admin" className="underline hover:text-cafeteria-700">/admin</Link>{' '}
-          (avaliações diárias e demais ferramentas); este consolidado no portal é só para perfil de sócio.
+          O painel <Link href="/admin" className="underline hover:text-cafeteria-700">/admin</Link> continua
+          disponível para operação diária e ações administrativas.
         </p>
       </div>
 
@@ -238,13 +255,18 @@ export default function RelatoriosAvaliacoesPage() {
                         <th className="px-2 py-2">Colaborador</th>
                         <th className="px-2 py-2">Avaliador</th>
                         <th className="px-2 py-2">Assiduidade</th>
+                        <th className="px-2 py-2 text-center">Vestim.</th>
+                        <th className="px-2 py-2 text-center">Pontual.</th>
+                        <th className="px-2 py-2 text-center">Trabalho eq.</th>
+                        <th className="px-2 py-2 text-center">Desempenho</th>
                         <th className="px-2 py-2">Média</th>
+                        <th className="px-2 py-2">Justificativa</th>
                       </tr>
                     </thead>
                     <tbody>
                       {b.diarias.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-2 py-6 text-cafeteria-500 text-center">
+                          <td colSpan={10} className="px-2 py-6 text-cafeteria-500 text-center">
                             Nenhum registro no período.
                           </td>
                         </tr>
@@ -255,8 +277,15 @@ export default function RelatoriosAvaliacoesPage() {
                             <td className="px-2 py-2">{l.colaborador_nome ?? '—'}</td>
                             <td className="px-2 py-2">{l.avaliador_nome ?? '—'}</td>
                             <td className="px-2 py-2 text-cafeteria-600">{l.assiduidade}</td>
+                            <td className="px-2 py-2 text-center">{l.nota_vestimenta ?? '—'}</td>
+                            <td className="px-2 py-2 text-center">{l.nota_pontualidade ?? '—'}</td>
+                            <td className="px-2 py-2 text-center">{l.nota_trabalho_equipe ?? '—'}</td>
+                            <td className="px-2 py-2 text-center">{l.nota_desempenho_tarefas ?? '—'}</td>
                             <td className="px-2 py-2">
                               {l.media_dia != null ? Number(l.media_dia).toFixed(2) : '—'}
+                            </td>
+                            <td className="px-2 py-2 text-cafeteria-600 max-w-xs">
+                              {l.justificativa_nota_baixa || '—'}
                             </td>
                           </tr>
                         ))
@@ -278,16 +307,18 @@ export default function RelatoriosAvaliacoesPage() {
                         <th className="px-2 py-2">Avaliado</th>
                         <th className="px-2 py-2">Quem avaliou</th>
                         <th className="px-2 py-2 text-center">Média</th>
-                        <th className="px-2 py-2 text-center">Fala</th>
-                        <th className="px-2 py-2 text-center">Apoio</th>
-                        <th className="px-2 py-2 text-center">Ambiente</th>
-                        <th className="px-2 py-2 text-center">Organiz.</th>
+                        <th className="px-2 py-2 text-center">Exemplo</th>
+                        <th className="px-2 py-2 text-center">Comunic.</th>
+                        <th className="px-2 py-2 text-center">Suporte</th>
+                        <th className="px-2 py-2 text-center">Justiça</th>
+                        <th className="px-2 py-2 text-center">Clima</th>
+                        <th className="px-2 py-2">Justificativa</th>
                       </tr>
                     </thead>
                     <tbody>
                       {b.lideranca.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="px-2 py-6 text-cafeteria-500 text-center">
+                          <td colSpan={10} className="px-2 py-6 text-cafeteria-500 text-center">
                             Nenhum registro no período.
                           </td>
                         </tr>
@@ -298,10 +329,14 @@ export default function RelatoriosAvaliacoesPage() {
                             <td className="px-2 py-2">{row.avaliado_nome}</td>
                             <td className="px-2 py-2 text-cafeteria-600">{row.avaliador_label}</td>
                             <td className="px-2 py-2 text-center font-medium">{row.media.toFixed(2)}</td>
-                            <td className="px-2 py-2 text-center">{row.n_fala_escuta}</td>
-                            <td className="px-2 py-2 text-center">{row.n_apoio}</td>
-                            <td className="px-2 py-2 text-center">{row.n_ambiente}</td>
-                            <td className="px-2 py-2 text-center">{row.n_organizacao}</td>
+                            <td className="px-2 py-2 text-center">{row.n_exemplo}</td>
+                            <td className="px-2 py-2 text-center">{row.n_comunicacao}</td>
+                            <td className="px-2 py-2 text-center">{row.n_suporte}</td>
+                            <td className="px-2 py-2 text-center">{row.n_justica}</td>
+                            <td className="px-2 py-2 text-center">{row.n_clima}</td>
+                            <td className="px-2 py-2 text-cafeteria-600 max-w-xs">
+                              {row.justificativa_nota_baixa || '—'}
+                            </td>
                           </tr>
                         ))
                       )}

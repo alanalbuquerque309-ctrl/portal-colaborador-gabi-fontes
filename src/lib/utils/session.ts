@@ -3,6 +3,7 @@
  * Usado após login e ao finalizar onboarding.
  * role='socio' ou 'admin' → acesso às 3 lojas.
  */
+import { normalizePortalRole } from '@/lib/roles';
 
 const COOKIE_COLABORADOR = 'portal_colaborador_id';
 const COOKIE_UNIDADE = 'portal_unidade_id';
@@ -20,7 +21,7 @@ export function setPortalSession(
   document.cookie = `${COOKIE_COLABORADOR}=${colaboradorId}; ${opts}`;
   document.cookie = `${COOKIE_UNIDADE}=${unidadeId}; ${opts}`;
   if (role) {
-    document.cookie = `${COOKIE_ROLE}=${role}; ${opts}`;
+    document.cookie = `${COOKIE_ROLE}=${normalizePortalRole(role)}; ${opts}`;
   } else {
     document.cookie = `${COOKIE_ROLE}=; path=/; max-age=0`;
   }
@@ -67,7 +68,7 @@ export function getPortalSession(): {
   if (!c) return null;
   const u = getCookie(COOKIE_UNIDADE) ?? '';
   const role = getCookie(COOKIE_ROLE);
-  return { colaboradorId: c, unidadeId: u, role: role || undefined };
+  return { colaboradorId: c, unidadeId: u, role: role ? normalizePortalRole(role) : undefined };
 }
 
 /** true se o colaborador é sócio ou admin (acesso às 3 lojas) */

@@ -1,5 +1,7 @@
-/** Relatórios consolidados (equipe + liderança): apenas sócios no portal. Administradores usam o painel /admin. */
+/** Relatórios consolidados (equipe + liderança): sócio e administrativo. */
+import { normalizePortalRole } from '@/lib/roles';
+
 export function podeVerRelatoriosAvaliacoesCompletos(role: string | null | undefined): boolean {
-  const r = (role || '').trim().toLowerCase();
-  return r === 'socio';
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin';
 }

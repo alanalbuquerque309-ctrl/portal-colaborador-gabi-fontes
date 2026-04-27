@@ -12,6 +12,7 @@ export type AvaliacaoServidor = {
   nota_trabalho_equipe: number | null;
   nota_desempenho_tarefas: number | null;
   media_dia: number | null;
+  justificativa_nota_baixa?: string | null;
 } | null;
 
 type Props = {
@@ -84,6 +85,9 @@ export function ColaboradorAvaliacaoCard({
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [justificativaNotaBaixa, setJustificativaNotaBaixa] = useState(
+    avaliacaoInicial?.justificativa_nota_baixa ?? ''
+  );
 
   useEffect(() => {
     setAssiduidade(inicial.assiduidade);
@@ -91,13 +95,18 @@ export function ColaboradorAvaliacaoCard({
     setP(inicial.p);
     setE(inicial.e);
     setD(inicial.d);
+    setJustificativaNotaBaixa(avaliacaoInicial?.justificativa_nota_baixa ?? '');
     setMsg(null);
     setErro(null);
-  }, [inicial.assiduidade, inicial.v, inicial.p, inicial.e, inicial.d]);
+  }, [avaliacaoInicial?.justificativa_nota_baixa, inicial.assiduidade, inicial.v, inicial.p, inicial.e, inicial.d]);
 
   const injustificada = assiduidade === 'falta_injustificada';
-  const justificada = assiduidade === 'falta_justificada';
-  const estrelasDesabilitadas = somenteLeitura || injustificada || justificada;
+  const isento =
+    assiduidade === 'falta_justificada' || assiduidade === 'folga' || assiduidade === 'outra_escala';
+  const estrelasDesabilitadas = somenteLeitura || injustificada || isento;
+  const temNotaBaixa =
+    injustificada ||
+    [v, p, e, d].some((nota) => typeof nota === 'number' && nota <= 3);
 
   const previewMedia = useMemo(() => {
     return calcularMediaDia(assiduidade, {
@@ -124,6 +133,18 @@ export function ColaboradorAvaliacaoCard({
       setE(null);
       setD(null);
     }
+    if (next === 'folga') {
+      setV(null);
+      setP(null);
+      setE(null);
+      setD(null);
+    }
+    if (next === 'outra_escala') {
+      setV(null);
+      setP(null);
+      setE(null);
+      setD(null);
+    }
     if (next === 'presente') {
       setV(null);
       setP(null);
@@ -136,6 +157,10 @@ export function ColaboradorAvaliacaoCard({
     if (somenteLeitura) return;
     setErro(null);
     setMsg(null);
+    if (temNotaBaixa && justificativaNotaBaixa.trim().length < 10) {
+      setErro('Explique em poucas palavras o motivo da nota 3 ou menor.');
+      return;
+    }
     setSalvando(true);
     try {
       const res = await fetch('/api/portal/avaliacao-master', {
@@ -150,6 +175,7 @@ export function ColaboradorAvaliacaoCard({
           nota_pontualidade: estrelasDesabilitadas ? null : p,
           nota_trabalho_equipe: estrelasDesabilitadas ? null : e,
           nota_desempenho_tarefas: estrelasDesabilitadas ? null : d,
+          justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa.trim() : '',
         }),
       });
       const data = await res.json();
@@ -196,6 +222,8 @@ export function ColaboradorAvaliacaoCard({
             {(
               [
                 { value: 'presente' as const, label: 'Presente' },
+                { value: 'folga' as const, label: 'Folga (dia isento na média mensal)' },
+                { value: 'outra_escala' as const, label: 'Outra escala (12x36, dia isento na média mensal)' },
                 { value: 'falta_justificada' as const, label: 'Falta justificada (dia isento na média mensal)' },
                 { value: 'falta_injustificada' as const, label: 'Falta injustificada (zera o dia)' },
               ] as const
@@ -224,7 +252,7 @@ export function ColaboradorAvaliacaoCard({
           </div>
         </div>
 
-        {justificada && (
+        {isento && (
           <p className="text-sm text-cafeteria-600 bg-cafeteria-50 border border-cafeteria-100 rounded-lg px-3 py-2">
             Dia marcado como <strong>isento</strong> — não entra no cálculo da média mensal.
           </p>
@@ -241,32 +269,54 @@ export function ColaboradorAvaliacaoCard({
           <StarRating
             idPrefix={`${colaboradorId}-vest`}
             label="Vestimenta"
-            value={justificada || injustificada ? null : v}
+            value={isento || injustificada ? null : v}
             disabled={estrelasDesabilitadas}
             onChange={setV}
           />
           <StarRating
             idPrefix={`${colaboradorId}-pont`}
             label="Pontualidade"
-            value={justificada || injustificada ? null : p}
+            value={isento || injustificada ? null : p}
             disabled={estrelasDesabilitadas}
             onChange={setP}
           />
           <StarRating
             idPrefix={`${colaboradorId}-eq`}
             label="Trabalho em equipe"
-            value={justificada || injustificada ? null : e}
+            value={isento || injustificada ? null : e}
             disabled={estrelasDesabilitadas}
             onChange={setE}
           />
           <StarRating
             idPrefix={`${colaboradorId}-des`}
             label="Desempenho de tarefas"
-            value={justificada || injustificada ? null : d}
+            value={isento || injustificada ? null : d}
             disabled={estrelasDesabilitadas}
             onChange={setD}
           />
         </div>
+
+        {(temNotaBaixa || avaliacaoInicial?.justificativa_nota_baixa) && (
+          <div>
+            <label className="block text-sm font-medium text-cafeteria-800 mb-1">
+              Justificativa da nota baixa
+            </label>
+            <textarea
+              value={justificativaNotaBaixa}
+              onChange={(e) => setJustificativaNotaBaixa(e.target.value)}
+              disabled={somenteLeitura}
+              maxLength={500}
+              rows={3}
+              className="w-full rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900 disabled:bg-cafeteria-50"
+              placeholder="Explique o motivo para orientar o acompanhamento."
+            />
+            {!somenteLeitura && temNotaBaixa && (
+              <p className="mt-1 text-xs text-cafeteria-600">
+                Obrigatório quando houver nota 3 ou menor.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-cafeteria-100">
           <p className="text-sm text-cafeteria-700">
@@ -274,7 +324,7 @@ export function ColaboradorAvaliacaoCard({
             <strong>
               {somenteLeitura && avaliacaoInicial?.media_dia != null
                 ? Number(avaliacaoInicial.media_dia).toFixed(2)
-                : justificada
+                : isento
                   ? 'Isenta'
                   : previewMedia === null
                     ? assiduidade === 'presente'
