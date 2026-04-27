@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     let q = supabase
       .from('ajuda_chat')
       .select(
-        'id, colaborador_id, unidade_id, mensagem, resposta, created_at, respondido_em, lido_admin_em, colaboradores(nome, telefone), unidades(nome)'
+        'id, colaborador_id, unidade_id, mensagem, resposta, created_at, respondido_em, lido_admin_em, colaboradores!ajuda_chat_colaborador_id_fkey(nome, telefone), unidades(nome)'
       )
       .order('created_at', { ascending: false })
       .limit(300);
