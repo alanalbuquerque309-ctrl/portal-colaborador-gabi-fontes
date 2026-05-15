@@ -2,6 +2,13 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { fetchJson } from '@/lib/fetch-json';
+
+function fmtData(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('pt-BR');
+}
 
 type MsgSala = {
   id: string;
@@ -31,6 +38,10 @@ type ConversaResumo = {
 
 type Aba = 'sala' | 'direto';
 
+type ApiBase = { ok?: boolean; erro?: string; code?: string };
+type ApiSala = ApiBase & { itens?: MsgSala[] };
+type ApiDireto = ApiBase & { itens?: MsgDireto[] };
+
 function EquipeChatInner() {
   const searchParams = useSearchParams();
   const comInicial = searchParams.get('com');
@@ -57,8 +68,14 @@ function EquipeChatInner() {
     setLoadingSala(true);
     setErro(null);
     try {
-      const res = await fetch('/api/portal/equipe-chat/sala', { credentials: 'include', cache: 'no-store' });
-      const data = await res.json();
+      const { data } = await fetchJson<ApiSala>('/api/portal/equipe-chat/sala', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!data) {
+        setErro('Resposta inválida do servidor.');
+        return;
+      }
       if (data.code === 'equipe_chat_missing_table') {
         setIndisponivel(true);
         return;
@@ -77,9 +94,11 @@ function EquipeChatInner() {
 
   const carregarResumo = useCallback(async () => {
     try {
-      const res = await fetch('/api/portal/equipe-chat/direto/resumo', { credentials: 'include', cache: 'no-store' });
-      const data = await res.json();
-      if (data.ok && Array.isArray(data.conversas)) {
+      const { data } = await fetchJson<{ ok?: boolean; conversas?: ConversaResumo[] }>(
+        '/api/portal/equipe-chat/direto/resumo',
+        { credentials: 'include', cache: 'no-store' }
+      );
+      if (data?.ok && Array.isArray(data.conversas)) {
         setConversas(data.conversas);
       }
     } catch {
@@ -92,11 +111,14 @@ function EquipeChatInner() {
       setLoadingDireto(true);
       setErro(null);
       try {
-        const res = await fetch(`/api/portal/equipe-chat/direto?com=${encodeURIComponent(contatoId)}`, {
-          credentials: 'include',
-          cache: 'no-store',
-        });
-        const data = await res.json();
+        const { data } = await fetchJson<ApiDireto>(
+          `/api/portal/equipe-chat/direto?com=${encodeURIComponent(contatoId)}`,
+          { credentials: 'include', cache: 'no-store' }
+        );
+        if (!data) {
+          setErro('Resposta inválida do servidor.');
+          return;
+        }
         if (data.code === 'equipe_chat_missing_table') {
           setIndisponivel(true);
           return;
@@ -159,15 +181,14 @@ function EquipeChatInner() {
     setEnviando(true);
     setErro(null);
     try {
-      const res = await fetch('/api/portal/equipe-chat/sala', {
+      const { data } = await fetchJson<{ ok?: boolean; erro?: string }>('/api/portal/equipe-chat/sala', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mensagem }),
       });
-      const data = await res.json();
-      if (!data.ok) {
-        setErro(data.erro || 'Não foi possível enviar.');
+      if (!data?.ok) {
+        setErro(data?.erro || 'Não foi possível enviar.');
         return;
       }
       setTextoSala('');
@@ -186,15 +207,14 @@ function EquipeChatInner() {
     setEnviando(true);
     setErro(null);
     try {
-      const res = await fetch('/api/portal/equipe-chat/direto', {
+      const { data } = await fetchJson<{ ok?: boolean; erro?: string }>('/api/portal/equipe-chat/direto', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ destinatario_id: contatoAtivo, mensagem }),
       });
-      const data = await res.json();
-      if (!data.ok) {
-        setErro(data.erro || 'Não foi possível enviar.');
+      if (!data?.ok) {
+        setErro(data?.erro || 'Não foi possível enviar.');
         return;
       }
       setTextoDireto('');
@@ -260,7 +280,8 @@ function EquipeChatInner() {
             {msgsSala.map((m) => (
               <div key={m.id} className="rounded-lg bg-cream-50 border border-cream-200 px-3 py-2">
                 <p className="text-xs font-medium text-cafeteria-700">
-                  {m.autor_nome} · {new Date(m.created_at).toLocaleString('pt-BR')}
+                  {m.autor_nome}
+                  {m.created_at ? ` · ${fmtData(m.created_at)}` : ''}
                 </p>
                 <p className="text-sm text-cafeteria-900 mt-1">{m.mensagem}</p>
               </div>
@@ -337,7 +358,7 @@ function EquipeChatInner() {
                         {!m.minha && <p className="text-[10px] font-medium opacity-80 mb-0.5">{m.autor_nome}</p>}
                         <p>{m.mensagem}</p>
                         <p className={`text-[10px] mt-1 ${m.minha ? 'text-cream-100/70' : 'text-cafeteria-500'}`}>
-                          {new Date(m.created_at).toLocaleString('pt-BR')}
+                          {fmtData(m.created_at)}
                         </p>
                       </div>
                     ))}

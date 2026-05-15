@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { nomesPorIds } from '@/lib/equipe-chat-format';
 import { canResponderAjudaFinal, canVisualizarAjuda } from '@/lib/roles';
 
 async function getViewer() {
@@ -31,7 +32,7 @@ export async function GET(req: Request) {
     let q = supabase
       .from('ajuda_chat')
       .select(
-        'id, colaborador_id, unidade_id, mensagem, resposta, created_at, respondido_em, lido_admin_em, colaboradores!ajuda_chat_colaborador_id_fkey(nome, telefone), respondido_por:colaboradores!ajuda_chat_respondido_por_id_fkey(nome), unidades(nome)'
+        'id, colaborador_id, unidade_id, mensagem, resposta, created_at, respondido_em, lido_admin_em, respondido_por_id, colaboradores!ajuda_chat_colaborador_id_fkey(nome, telefone), unidades(nome)'
       )
       .order('created_at', { ascending: false })
       .limit(300);
@@ -40,19 +41,28 @@ export async function GET(req: Request) {
     const { data, error } = await q;
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
 
-    const itens = (data ?? []).map((r: Record<string, unknown>) => ({
-      id: r.id,
-      colaborador_id: r.colaborador_id,
-      colaborador_nome: (r.colaboradores as { nome?: string } | null)?.nome ?? 'Colaborador',
-      colaborador_telefone: (r.colaboradores as { telefone?: string } | null)?.telefone ?? null,
-      unidade_nome: (r.unidades as { nome?: string } | null)?.nome ?? '-',
-      mensagem: r.mensagem,
-      resposta: r.resposta,
-      created_at: r.created_at,
-      respondido_em: r.respondido_em,
-      lido_admin_em: r.lido_admin_em,
-      respondido_por_nome: (r.respondido_por as { nome?: string } | null)?.nome ?? null,
-    }));
+    const rows = data ?? [];
+    const respondenteIds = rows
+      .map((r) => (r as { respondido_por_id?: string | null }).respondido_por_id)
+      .filter((id): id is string => !!id);
+    const nomesRespondentes = await nomesPorIds(respondenteIds.map(String));
+
+    const itens = rows.map((r: Record<string, unknown>) => {
+      const respId = r.respondido_por_id ? String(r.respondido_por_id) : '';
+      return {
+        id: r.id,
+        colaborador_id: r.colaborador_id,
+        colaborador_nome: (r.colaboradores as { nome?: string } | null)?.nome ?? 'Colaborador',
+        colaborador_telefone: (r.colaboradores as { telefone?: string } | null)?.telefone ?? null,
+        unidade_nome: (r.unidades as { nome?: string } | null)?.nome ?? '-',
+        mensagem: r.mensagem,
+        resposta: r.resposta,
+        created_at: r.created_at,
+        respondido_em: r.respondido_em,
+        lido_admin_em: r.lido_admin_em,
+        respondido_por_nome: respId ? nomesRespondentes.get(respId) ?? null : null,
+      };
+    });
 
     const { count } = await supabase
       .from('ajuda_chat')

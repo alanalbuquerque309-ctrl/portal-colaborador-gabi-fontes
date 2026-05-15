@@ -12,6 +12,14 @@ import {
   normalizePortalRole,
 } from '@/lib/roles';
 
+function navAtivo(pathname: string | null | undefined, href: string): boolean {
+  const p = pathname ?? '';
+  if (!p || !href) return false;
+  if (p === href) return true;
+  const base = href.split('?')[0]?.split('#')[0] ?? href;
+  return p.startsWith(`${base}/`);
+}
+
 const navItensBase = [
   { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' as const },
   { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' as const },
@@ -379,7 +387,7 @@ export function Header() {
           </Link>
           <nav className="hidden md:flex gap-6 text-cafeteria-700 items-center">
             {navItens.map(({ href, label }) => {
-              const ativo = pathname === href || pathname.startsWith(href + '/');
+              const ativo = navAtivo(pathname, href);
               return (
                 <Link
                   key={href}
@@ -415,7 +423,7 @@ export function Header() {
       >
         <div className="flex overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
           {navItens.map(({ href, label, short }) => {
-            const ativo = pathname === href || pathname.startsWith(href + '/');
+            const ativo = navAtivo(pathname, href);
             const iconKey = iconePorHref[href] ?? 'mural';
             return (
               <Link
