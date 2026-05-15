@@ -33,6 +33,7 @@ alwaysApply: true
 - **Variáveis Vercel:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, e para o vídeo de onboarding **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`**. Sem vídeo em **produção**, o colaborador na 1.ª etapa não tem o botão `[Dev] Simular vídeo` (só em `NODE_ENV === development`).
 - **Ajuda (produção):** `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` (UUID em `colaboradores.id`), opcional `NEXT_PUBLIC_AJUDA_RESPONSAVEL_NOME`. Opcional: `ADMIN_ALAN_LOGIN`, `ADMIN_ALAN_PASSWORD`.
 - Branch **`main`**; push → Vercel CI. Só **commit + push** entra em produção; comparar `git rev-parse HEAD` com o deploy na Vercel antes de afirmar que produção está corrigida.
+- **Agente (Cursor):** em alterações que vão para produção neste repositório (`Portal do Colaborador - Gabi Fontes`), **sempre** `git add` + `git commit` + `git push origin main` ao finalizar (salvo o Alan ter pedido explícito para não commitar). Assim o **deploy automático** da Vercel dispara sem o Alan ter de pedir. **Migrações SQL** no Supabase continuam manuais (SQL Editor) quando houver ficheiro novo em `supabase/migrations/`.
 
 ---
 
