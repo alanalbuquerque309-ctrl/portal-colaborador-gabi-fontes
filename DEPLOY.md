@@ -77,7 +77,7 @@ Quando terminar, aparecerá uma URL (ex.: `https://portal-colaborador-gabi-fonte
 
 **Nota:** `ADMIN_ALAN_LOGIN` e `ADMIN_ALAN_PASSWORD` permitem acesso administrativo com usuário e senha. Defina apenas nas variáveis da Vercel — nunca no código.
 
-**Canal de ajuda:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` definido, só esse colaborador pode **responder** no Inbox ajuda; **sócios** continuam podendo **ver** todas as conversas. Sem essa variável, o comportamento legado permanece (admin/RH respondem).
+**Canal de ajuda:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` definido, esse colaborador é o atendimento principal; **sócios** e **admin** também podem **responder** no Inbox ajuda (fica registrado quem respondeu). Sem essa variável, o comportamento legado permanece (admin/RH respondem).
 
 ---
 

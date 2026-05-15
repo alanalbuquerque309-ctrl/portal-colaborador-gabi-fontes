@@ -154,6 +154,7 @@ export default function AdminLayout({
           {navLink('/admin/sugestoes', 'Sugestões')}
           {navLink('/admin/manual-eventos', 'Eventos de manuais')}
           {navLink('/portal/ajuda-inbox', 'Inbox ajuda')}
+          {navLink('/portal/equipe-chat', 'Chat equipe')}
         </nav>
         <form action="/api/admin/logout" method="POST" className="mt-8">
           <button

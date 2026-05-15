@@ -84,7 +84,7 @@ export function canResponderAjudaLegacy(role: string | null | undefined): boolea
 
 /**
  * Quem pode responder no inbox ajuda.
- * Com UUID dedicado: só esse colaborador.
+ * Com UUID dedicado: responsável + sócio + admin.
  * Sem UUID: fallback admin/RH.
  */
 export function canResponderAjudaFinal(
@@ -92,13 +92,15 @@ export function canResponderAjudaFinal(
   role: string | null | undefined
 ): boolean {
   if (canResponderAjudaPorId(colaboradorId)) return true;
+  const r = normalizePortalRole(role);
+  if (r === 'socio' || r === 'admin') return true;
   if (temResponsavelAjudaDedicado()) return false;
   return canResponderAjudaLegacy(role);
 }
 
 /**
  * Quem pode abrir /portal/ajuda-inbox.
- * Com responsável dedicado: sócio + o próprio responsável.
+ * Com responsável dedicado: sócio + admin + o próprio responsável.
  * Sem dedicado: sócio + admin + RH (legado).
  */
 export function canVisualizarAjuda(
@@ -106,10 +108,18 @@ export function canVisualizarAjuda(
   colaboradorId?: string | null
 ): boolean {
   const r = normalizePortalRole(role);
-  if (r === 'socio') return true;
+  if (r === 'socio' || r === 'admin') return true;
   if (canResponderAjudaPorId(colaboradorId ?? null)) return true;
-  if (!temResponsavelAjudaDedicado() && (r === 'admin' || r === 'rh')) return true;
+  if (!temResponsavelAjudaDedicado() && r === 'rh') return true;
   return false;
+}
+
+/** Quem acede à sala da equipe e às mensagens diretas (sócios, admin, responsável ajuda). */
+export function canAcessarChatEquipe(
+  role: string | null | undefined,
+  colaboradorId?: string | null
+): boolean {
+  return canVisualizarAjuda(role, colaboradorId);
 }
 
 /** @deprecated Preferir `canResponderAjudaFinal`. */

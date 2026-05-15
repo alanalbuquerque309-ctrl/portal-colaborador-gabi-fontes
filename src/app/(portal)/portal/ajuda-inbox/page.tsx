@@ -12,6 +12,7 @@ type ItemInbox = {
   created_at: string;
   respondido_em: string | null;
   lido_admin_em: string | null;
+  respondido_por_nome: string | null;
 };
 
 export default function AjudaInboxPage() {
@@ -64,10 +65,8 @@ export default function AjudaInboxPage() {
         setErro(data.erro || 'Não foi possível enviar a resposta.');
         return;
       }
-      setItens((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, resposta, respondido_em: new Date().toISOString() } : item))
-      );
       setTextoResposta((prev) => ({ ...prev, [id]: '' }));
+      await carregar(somentePendentes);
     } catch {
       setErro('Erro de conexão ao responder.');
     } finally {
@@ -81,8 +80,8 @@ export default function AjudaInboxPage() {
         <div>
           <h1 className="text-2xl font-display font-semibold text-cafeteria-900">Inbox de ajuda</h1>
           <p className="text-sm text-cafeteria-600 mt-1">
-            Mensagens enviadas pelo botão flutuante de ajuda. O responsável configurado no sistema responde; sócios
-            acompanham todas as conversas (somente leitura das respostas enviadas aqui).
+            Mensagens do botão de ajuda. O responsável do dia a dia atende primeiro; sócios e admin também podem
+            responder aqui quando precisar (o colaborador vê quem respondeu).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -140,7 +139,10 @@ export default function AjudaInboxPage() {
 
               {item.resposta ? (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                  <p className="text-xs font-medium text-emerald-800 mb-1">Resposta enviada</p>
+                  <p className="text-xs font-medium text-emerald-800 mb-1">
+                    Resposta enviada
+                    {item.respondido_por_nome ? ` · ${item.respondido_por_nome}` : ''}
+                  </p>
                   <p className="text-sm text-emerald-900">{item.resposta}</p>
                 </div>
               ) : podeResponder ? (

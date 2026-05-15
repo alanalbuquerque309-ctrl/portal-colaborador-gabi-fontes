@@ -98,8 +98,8 @@ export function BotaoAjuda() {
               Canal direto com {NOME_ATENDIMENTO}
             </h3>
             <p className="text-xs text-coffee-100 mb-3">
-              Envie por aqui. Quem responde é o {NOME_ATENDIMENTO}; os sócios podem acompanhar as conversas em Inbox
-              ajuda.
+              Envie por aqui. Quem atende no dia a dia é o {NOME_ATENDIMENTO}; sócios e admin também podem responder no
+              Inbox ajuda.
             </p>
             <div className="rounded-lg border border-cream-300 bg-cream-50 p-2 h-48 overflow-y-auto space-y-2">
               {loading && <p className="text-xs text-coffee-100">Carregando conversa…</p>}

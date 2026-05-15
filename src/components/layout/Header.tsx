@@ -323,6 +323,12 @@ export function Header() {
             short: 'Ajuda',
             icon: 'sugestoes' as const,
           },
+          {
+            href: '/portal/equipe-chat' as const,
+            label: 'Chat equipe',
+            short: 'Equipe',
+            icon: 'sugestoes' as const,
+          },
         ]
       : []),
   ];

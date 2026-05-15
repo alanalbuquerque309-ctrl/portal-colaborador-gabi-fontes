@@ -114,10 +114,18 @@ Ordem e ficheiros principais:
 ## Chat de ajuda
 
 - Colaborador: `POST /api/portal/ajuda-chat`; FAB `BotaoAjuda` em `PortalLayout`.
-- **Responder:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID`, só esse UUID pode `PATCH /api/admin/ajuda-chat/:id`. Sem env: legado **admin/RH** (`canResponderAjudaFinal` em `src/lib/roles.ts`).
-- **Inbox:** `/portal/ajuda-inbox`; lista via `GET /api/admin/ajuda-chat`. Sócios veem tudo; campo responder só para quem pode.
+- **Responder:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID`, esse UUID é o atendimento principal; **sócio** e **admin** também podem `PATCH /api/admin/ajuda-chat/:id`. Sem env: legado **admin/RH** (`canResponderAjudaFinal` em `src/lib/roles.ts`).
+- **Inbox:** `/portal/ajuda-inbox`; lista via `GET /api/admin/ajuda-chat`. Sócios e admin veem tudo e podem responder; `respondido_por_id` identifica quem respondeu.
 - **Pendências / badge:** `GET /api/portal/ajuda-chat/pendencias` para quem passa `canVisualizarAjuda`.
 - Ver secção **PostgREST** acima para embeds em `ajuda_chat`.
+
+## Chat interno da equipe (sócios, admin, responsável ajuda)
+
+- Página: `/portal/equipe-chat` — abas **Sala da equipe** (grupo) e **Mensagens diretas** (1:1).
+- Tabela: `equipe_chat_mensagens` (`030_equipe_chat.sql`); `destinatario_id` NULL = sala; preenchido = direto.
+- APIs: `GET/POST /api/portal/equipe-chat/sala`, `GET/POST /api/portal/equipe-chat/direto?com=UUID`, `GET /api/portal/equipe-chat/direto/resumo`, `GET /api/portal/equipe-chat/contatos`.
+- Acesso: `canAcessarChatEquipe` em `src/lib/roles.ts` (igual a `canVisualizarAjuda`).
+- Contatos 1:1: todos com `role` socio/admin + UUID `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` (ex.: Daniel), exceto o próprio utilizador.
 
 ---
 
@@ -166,6 +174,7 @@ Aplicar em ordem no SQL Editor quando necessário; `ADD COLUMN IF NOT EXISTS` se
 - `025_avaliacoes_lideranca_5_pilares.sql`
 - `026_manual_eventos.sql`
 - **`027_ajuda_chat.sql`** (tabela ajuda + duas FK para `colaboradores`)
+- **`030_equipe_chat.sql`** (chat interno: sala + mensagens diretas 1:1)
 - `028_justificativa_nota_baixa.sql`
 - `029_multiplos_lideres_colaborador.sql`
 
