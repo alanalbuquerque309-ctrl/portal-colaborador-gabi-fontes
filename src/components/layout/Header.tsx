@@ -143,6 +143,21 @@ export function Header() {
             .map((item) => (item?.id ? String(item.id) : ''))
             .filter((id) => !!id);
 
+          // Sem mensagens pendentes: fecha o balão e volta a detectar "nova" mensagem no próximo ciclo
+          if (atual === 0 || idsAtuais.length === 0) {
+            setAlertaAjuda(null);
+            ajudaConhecidosRef.current = new Set();
+            ajudaPollingIniciadoRef.current = false;
+            return;
+          }
+
+          // A mensagem em destaque no balão já foi respondida (saiu da lista de pendentes)
+          setAlertaAjuda((prev) => {
+            if (!prev) return null;
+            if (!idsAtuais.includes(prev.id)) return null;
+            return prev;
+          });
+
           if (!ajudaPollingIniciadoRef.current) {
             ajudaConhecidosRef.current = new Set(idsAtuais);
             ajudaPollingIniciadoRef.current = true;
@@ -185,6 +200,11 @@ export function Header() {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [pathname, podeVisualizarAjuda]);
+
+  /** No Inbox não mostramos o balão por cima (já está no contexto certo). */
+  useEffect(() => {
+    if (pathname === '/portal/ajuda-inbox') setAlertaAjuda(null);
+  }, [pathname]);
 
   useEffect(() => {
     let cancel = false;
