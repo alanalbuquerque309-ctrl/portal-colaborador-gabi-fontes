@@ -158,10 +158,13 @@ export function Header() {
             return prev;
           });
 
+          const podeMostrarBalaoAjuda =
+            pathname !== '/portal/ajuda-inbox' && pathname !== '/portal/equipe-chat';
+
           if (!ajudaPollingIniciadoRef.current) {
             ajudaConhecidosRef.current = new Set(idsAtuais);
             ajudaPollingIniciadoRef.current = true;
-            if (itens.length > 0 && pathname !== '/portal/ajuda-inbox') {
+            if (itens.length > 0 && podeMostrarBalaoAjuda) {
               const recente = itens[0];
               if (recente?.id) {
                 setAlertaAjuda({
@@ -174,7 +177,7 @@ export function Header() {
           } else {
             const conhecidos = ajudaConhecidosRef.current;
             const novo = itens.find((item) => item?.id && !conhecidos.has(String(item.id)));
-            if (novo?.id) {
+            if (novo?.id && podeMostrarBalaoAjuda) {
               setAlertaAjuda({
                 id: String(novo.id),
                 nome: String(novo.colaborador_nome ?? 'Colaborador'),
@@ -201,9 +204,11 @@ export function Header() {
     };
   }, [pathname, podeVisualizarAjuda]);
 
-  /** No Inbox não mostramos o balão por cima (já está no contexto certo). */
+  /** Inbox ou Chat equipe: não mostrar o balão de novo pedido de ajuda por cima. */
   useEffect(() => {
-    if (pathname === '/portal/ajuda-inbox') setAlertaAjuda(null);
+    if (pathname === '/portal/ajuda-inbox' || pathname === '/portal/equipe-chat') {
+      setAlertaAjuda(null);
+    }
   }, [pathname]);
 
   useEffect(() => {
