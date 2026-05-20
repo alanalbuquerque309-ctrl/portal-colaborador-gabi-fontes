@@ -12,7 +12,7 @@ type TopItem = { id: string; nome: string; media: number };
 type ApiOk = {
   ok: true;
   mes_referencia: string;
-  min_dias_ranking: number;
+  min_semanas_ranking: number;
   top_unidade: TopItem[];
   media_media_top3: number | null;
   frase_motivacional: string;
@@ -153,7 +153,7 @@ export default function DesempenhoPortalPage() {
             <h2 className="font-display text-lg text-cafeteria-900 mb-1">Destaques da unidade</h2>
             <p className="text-sm text-cafeteria-600 mb-4 capitalize">{labelMes}</p>
             <p className="text-xs text-cafeteria-500 mb-3">
-              Entram no ranking quem tiver pelo menos <strong>{dados.min_dias_ranking}</strong> dias com média no
+              Entram no ranking quem tiver pelo menos <strong>{dados.min_semanas_ranking}</strong> semana(s) com média no
               mês. Em empate no 3.º lugar, mostramos até 4 pessoas.
             </p>
             {dados.top_unidade.length === 0 ? (
@@ -201,12 +201,12 @@ export default function DesempenhoPortalPage() {
                     Média no mês: <strong>{dados.meu_desempenho.media_mes.toFixed(2)}</strong>
                     <span className="text-cafeteria-600">
                       {' '}
-                      ({dados.meu_desempenho.dias_com_avaliacao} dia
+                      ({dados.meu_desempenho.dias_com_avaliacao} semana
                       {dados.meu_desempenho.dias_com_avaliacao === 1 ? '' : 's'} com avaliação)
                     </span>
                   </>
                 ) : (
-                  <>Ainda não há média neste mês (sem dias avaliados com nota).</>
+                  <>Ainda não há média neste mês (sem semanas avaliadas com nota).</>
                 )}
               </p>
               {dados.meu_desempenho.media_mes != null ? (

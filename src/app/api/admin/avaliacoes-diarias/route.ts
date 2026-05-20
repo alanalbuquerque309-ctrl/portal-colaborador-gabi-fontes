@@ -3,8 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 
 /**
- * Relatório consolidado de avaliações diárias — apenas painel admin (administrativo / sócio).
- * Gerentes não utilizam esta rota.
+ * Relatório consolidado de avaliações semanais da equipe — apenas painel admin (administrativo / sócio).
+ * `data_referencia` na tabela é a segunda-feira da semana. Gerentes não utilizam esta rota.
  */
 export async function GET(req: Request) {
   if (!(await isAdminAuthorized())) {

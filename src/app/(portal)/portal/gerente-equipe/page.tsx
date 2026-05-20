@@ -149,7 +149,7 @@ export default function GerenteEquipeMesPage() {
                         média <strong>{row.media_mes.toFixed(2)}</strong>
                         <span className="text-cafeteria-500">
                           {' '}
-                          ({row.dias_com_avaliacao} dia{row.dias_com_avaliacao === 1 ? '' : 's'} avaliado
+                          ({row.dias_com_avaliacao} semana{row.dias_com_avaliacao === 1 ? '' : 's'} avaliada
                           {row.dias_com_avaliacao === 1 ? '' : 's'})
                         </span>
                       </>

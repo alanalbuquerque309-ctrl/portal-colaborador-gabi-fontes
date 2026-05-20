@@ -71,6 +71,13 @@ export default function NovoColaboradorPage() {
       });
       const data = await res.json();
       if (data.ok) {
+        const n = (data.lideres_vinculados as string[] | undefined)?.length ?? 0;
+        if (form.role === 'colaborador' && form.setor.trim() && n === 0) {
+          setErro(
+            'Colaborador salvo, mas nenhum líder foi vinculado. Aplique o mapa em Admin → Liderança por setor.'
+          );
+          return;
+        }
         router.push('/admin/colaboradores');
       } else {
         setErro(data.erro || 'Erro ao cadastrar.');

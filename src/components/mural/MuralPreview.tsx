@@ -1,8 +1,10 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { MuralReconhecimento } from '@/components/mural/MuralReconhecimento';
 
 interface Aviso {
   id: string;
@@ -29,7 +31,7 @@ export function MuralPreview() {
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && Array.isArray(data.avisos)) {
-          setAvisos(data.avisos.slice(0, 5));
+          setAvisos(data.avisos.slice(0, 3));
         }
       })
       .finally(() => setLoading(false));
@@ -38,7 +40,7 @@ export function MuralPreview() {
   if (semSessao) {
     return (
       <div className="rounded-xl border border-dourado-200 bg-cream-50 p-6">
-        <p className="text-coffee-base">Faça login para ver os avisos da sua unidade.</p>
+        <p className="text-coffee-base">Faça login para ver o mural.</p>
       </div>
     );
   }
@@ -46,38 +48,30 @@ export function MuralPreview() {
   if (loading) {
     return (
       <div className="rounded-xl border border-dourado-200 bg-cream-50 p-6 flex justify-center">
-        <XicaraCarregando size="sm" label="Carregando avisos…" />
-      </div>
-    );
-  }
-
-  if (avisos.length === 0) {
-    return (
-      <div className="rounded-xl border border-dourado-200 bg-cream-50 p-6">
-        <p className="text-coffee-base">
-          Nenhum aviso no momento. Avisos da sua unidade aparecerão aqui.
-        </p>
+        <XicaraCarregando size="sm" label="Carregando mural…" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {avisos.map((a) => (
-        <article
-          key={a.id}
-          className="rounded-xl border border-dourado-200 bg-cream-50 p-4 shadow-sm"
-        >
-          <h3 className="font-display font-semibold text-coffee-base mb-1">{a.titulo}</h3>
-          {a.conteudo && (
-            <p className="text-coffee-100 text-sm leading-relaxed">{a.conteudo}</p>
-          )}
-          <p className="text-coffee-100/70 text-xs mt-2">
-            {new Date(a.data_publicacao).toLocaleDateString('pt-BR')}
-            {a.unidade_nome && ` · ${a.unidade_nome}`}
-          </p>
-        </article>
-      ))}
+    <div className="space-y-6">
+      <MuralReconhecimento compacto />
+      {avisos.length > 0 ? (
+        <div className="space-y-3">
+          <h3 className="text-sm font-semibold text-cafeteria-800">Últimos avisos</h3>
+          {avisos.map((a) => (
+            <article key={a.id} className="rounded-xl border border-dourado-200 bg-cream-50 p-4 shadow-sm">
+              <h4 className="font-display font-semibold text-coffee-base mb-1">{a.titulo}</h4>
+              {a.conteudo && <p className="text-coffee-100 text-sm leading-relaxed">{a.conteudo}</p>}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-cafeteria-600">Nenhum aviso publicado pela administração no momento.</p>
+      )}
+      <Link href="/portal/mural" className="text-sm text-dourado-base font-medium hover:underline">
+        Ver mural completo →
+      </Link>
     </div>
   );
 }

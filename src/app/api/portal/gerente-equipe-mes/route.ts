@@ -12,7 +12,7 @@ function mesBoundsUTC(ano: number, mes: number): { ini: string; fim: string } {
   return { ini, fim };
 }
 
-/** Métricas do mês dos colaboradores com este gerente como líder direto. */
+/** Métricas do mês dos colaboradores com este gerente como líder direto. `dias_com_avaliacao` = semanas com registro no mês (uma linha por semana). */
 export async function GET(req: Request) {
   const auth = await requirePortalGerenteSession();
   if (!auth.ok) return auth.response;

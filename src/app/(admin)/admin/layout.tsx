@@ -37,10 +37,23 @@ export default function AdminLayout({
   const pathNorm = pathname?.replace(/\/$/, '') ?? '';
   const isLoginPage = pathNorm === '/admin';
 
+  /** Sem sessão admin: ir ao portal se ainda estiver logado no portal; senão /login. */
   useEffect(() => {
-    if (authorized === false && !isLoginPage) {
-      router.replace('/login');
-    }
+    if (authorized !== false || isLoginPage) return;
+    let cancelled = false;
+    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean }) => {
+        if (cancelled) return;
+        if (d?.ok) router.replace('/portal');
+        else router.replace('/login');
+      })
+      .catch(() => {
+        if (!cancelled) router.replace('/login');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [authorized, isLoginPage, router]);
 
   useEffect(() => {
@@ -57,15 +70,12 @@ export default function AdminLayout({
     }
 
     const onPopState = () => {
-      const confirmar = window.confirm('Deseja sair do admin?');
-      if (confirmar) {
-        fetch('/api/admin/logout', { method: 'POST', credentials: 'include' })
-          .catch(() => {})
-          .finally(() => router.replace('/login'));
-        return;
+      try {
+        sessionStorage.setItem('portal_skip_back_guard_once', '1');
+      } catch {
+        /* noop */
       }
-      const st = (window.history.state || {}) as Record<string, unknown>;
-      window.history.pushState({ ...st, adminGuard: true }, '', window.location.href);
+      router.replace('/portal');
     };
 
     window.addEventListener('popstate', onPopState);
@@ -86,14 +96,8 @@ export default function AdminLayout({
 
   if (!authorized) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-cream-100 px-4">
-        <p className="text-coffee-base text-center mb-4">Sessão administrativa não encontrada ou expirada.</p>
-        <Link
-          href="/login"
-          className="rounded-lg bg-dourado-base px-5 py-2.5 text-cream-100 text-sm font-medium hover:bg-dourado-400"
-        >
-          Ir para o portal
-        </Link>
+      <div className="min-h-screen flex items-center justify-center bg-cream-100">
+        <XicaraCarregando size="lg" label="Redirecionando…" />
       </div>
     );
   }
@@ -147,23 +151,36 @@ export default function AdminLayout({
         <nav className="space-y-1">
           {navLink('/admin/dashboard', 'Dashboard')}
           {navLink('/admin/colaboradores', 'Colaboradores')}
+          {navLink('/admin/lideres-por-setor', 'Liderança por setor')}
           {navLink('/admin/avisos', 'Avisos')}
           {navLink('/admin/destaque', 'Destaque')}
           {navLink('/admin/escalas', 'Escalas')}
-          {navLink('/admin/avaliacoes-diarias', 'Avaliações diárias')}
+          {navLink('/admin/avaliacoes-diarias', 'Avaliações equipe (semanal)')}
           {navLink('/admin/sugestoes', 'Sugestões')}
           {navLink('/admin/manual-eventos', 'Eventos de manuais')}
           {navLink('/portal/ajuda-inbox', 'Inbox ajuda')}
           {navLink('/portal/equipe-chat', 'Chat equipe')}
         </nav>
-        <form action="/api/admin/logout" method="POST" className="mt-8">
-          <button
-            type="submit"
-            className="text-sm text-cream-200 hover:text-white"
+        <div className="mt-8 space-y-2 border-t border-white/20 pt-6">
+          <Link
+            href="/portal"
+            className="block text-sm font-medium text-cream-100 hover:text-white"
+            onClick={() => {
+              try {
+                sessionStorage.setItem('portal_skip_back_guard_once', '1');
+              } catch {
+                /* noop */
+              }
+            }}
           >
-            Sair do admin
-          </button>
-        </form>
+            Voltar ao portal
+          </Link>
+          <form action="/api/admin/logout" method="POST">
+            <button type="submit" className="text-xs text-cream-200/90 hover:text-white underline-offset-2 hover:underline">
+              Encerrar sessão admin (senha)
+            </button>
+          </form>
+        </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
         <header className="md:hidden sticky top-0 z-30 bg-cream-100 border-b border-cream-300 px-4 py-3">

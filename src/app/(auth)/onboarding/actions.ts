@@ -1,6 +1,7 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sincronizarVinculosLiderancaColaborador } from '@/lib/sincronizar-vinculos-lideranca';
 
 export async function finalizarOnboarding(
   colaboradorId: string
@@ -29,6 +30,12 @@ export async function finalizarOnboarding(
       .eq('id', colaboradorId);
 
     if (error) return { ok: false, erro: error.message };
+
+    const role = String((col as { role?: string }).role ?? 'colaborador').toLowerCase();
+    if (role === 'colaborador') {
+      await sincronizarVinculosLiderancaColaborador(supabase, colaboradorId);
+    }
+
     return { ok: true, unidade_id: col.unidade_id, role: (col as { role?: string }).role };
   } catch (e) {
     return { ok: false, erro: 'Erro ao finalizar. Tente novamente.' };

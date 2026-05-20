@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { setorFromManualOnboardingFile } from '@/lib/setor-from-manual-onboarding';
+import { sincronizarVinculosLiderancaColaborador } from '@/lib/sincronizar-vinculos-lideranca';
 
 type Body = {
   onboarding_video_visto?: boolean;
@@ -66,11 +68,34 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
+
+    if (
+      body.onboarding_manual_escolhido_concluido === true &&
+      body.onboarding_manual_escolhido_file
+    ) {
+      const setorManual = setorFromManualOnboardingFile(body.onboarding_manual_escolhido_file);
+      if (setorManual) {
+        const { data: atual } = await supabase
+          .from('colaboradores')
+          .select('setor')
+          .eq('id', colaboradorId)
+          .maybeSingle();
+        if (!String((atual as { setor?: string | null })?.setor ?? '').trim()) {
+          payload.setor = setorManual;
+        }
+      }
+    }
+
     const { error } = await supabase.from('colaboradores').update(payload).eq('id', colaboradorId);
 
     if (error) {
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
+
+    if (payload.setor || body.onboarding_manual_escolhido_concluido === true) {
+      await sincronizarVinculosLiderancaColaborador(supabase, colaboradorId);
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

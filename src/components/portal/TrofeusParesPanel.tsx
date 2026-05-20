@@ -1,11 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { TrofeuParTipo } from '@/lib/trofeus-pares';
 
 type Colega = { id: string; nome: string; cargo: string | null; setor: string | null };
 type Tipo = { id: TrofeuParTipo; titulo: string; emoji: string; descricao: string };
 type Enviado = { id: string; destinatario_id: string; destinatario_nome: string; tipo: string; titulo: string; emoji: string };
+
+function normalizarBusca(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
 
 export function TrofeusParesPanel() {
   const [carregando, setCarregando] = useState(true);
@@ -15,7 +23,7 @@ export function TrofeusParesPanel() {
   const [enviados, setEnviados] = useState<Enviado[]>([]);
   const [mural, setMural] = useState<Enviado[]>([]);
   const [busca, setBusca] = useState('');
-  const [colegas, setColegas] = useState<Colega[]>([]);
+  const [colegasUnidade, setColegasUnidade] = useState<Colega[]>([]);
   const [destinatarioId, setDestinatarioId] = useState('');
   const [tipo, setTipo] = useState<TrofeuParTipo>('braco_direito');
   const [enviando, setEnviando] = useState(false);
@@ -34,6 +42,7 @@ export function TrofeusParesPanel() {
         setCreditosRestantes(Number(data.creditos_restantes ?? 0));
         setEnviados(Array.isArray(data.enviados) ? data.enviados : []);
         setMural(Array.isArray(data.mural_unidade) ? data.mural_unidade : []);
+        setColegasUnidade(Array.isArray(data.colegas_elegiveis) ? data.colegas_elegiveis : []);
       })
       .catch(() => setErro('Erro de conexão.'))
       .finally(() => setCarregando(false));
@@ -43,22 +52,11 @@ export function TrofeusParesPanel() {
     carregar();
   }, [carregar]);
 
-  useEffect(() => {
-    const q = busca.trim();
-    if (q.length < 2) {
-      setColegas([]);
-      return;
-    }
-    const t = setTimeout(() => {
-      fetch(`/api/portal/trofeus-pares/busca?q=${encodeURIComponent(q)}`, { credentials: 'include' })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.ok && Array.isArray(data.colegas)) setColegas(data.colegas);
-        })
-        .catch(() => setColegas([]));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [busca]);
+  const colegasVisiveis = useMemo(() => {
+    const q = normalizarBusca(busca);
+    if (!q) return colegasUnidade;
+    return colegasUnidade.filter((c) => normalizarBusca(c.nome).includes(q));
+  }, [busca, colegasUnidade]);
 
   const enviar = async () => {
     if (!destinatarioId) {
@@ -101,7 +99,7 @@ export function TrofeusParesPanel() {
       {creditosRestantes > 0 && (
         <div className="rounded-xl border border-cafeteria-200 bg-cream-50/80 p-4 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-cafeteria-800 mb-1">Buscar colega por nome</label>
+            <label className="block text-sm font-medium text-cafeteria-800 mb-1">Escolher colega</label>
             <input
               type="search"
               value={busca}
@@ -109,19 +107,22 @@ export function TrofeusParesPanel() {
                 setBusca(e.target.value);
                 setDestinatarioId('');
               }}
-              placeholder="Digite pelo menos 2 letras"
+              placeholder="Filtrar por nome (opcional)"
               className="w-full rounded-lg border border-cafeteria-200 px-3 py-2 text-sm"
             />
-            {colegas.length > 0 && (
-              <ul className="mt-2 border border-cafeteria-200 rounded-lg bg-white max-h-40 overflow-y-auto">
-                {colegas.map((c) => (
+            {colegasUnidade.length === 0 ? (
+              <p className="mt-2 text-sm text-cafeteria-600">Nenhum colega elegível na sua unidade.</p>
+            ) : colegasVisiveis.length === 0 ? (
+              <p className="mt-2 text-sm text-cafeteria-600">Nenhum nome corresponde ao filtro.</p>
+            ) : (
+              <ul className="mt-2 border border-cafeteria-200 rounded-lg bg-white max-h-56 overflow-y-auto">
+                {colegasVisiveis.map((c) => (
                   <li key={c.id}>
                     <button
                       type="button"
                       onClick={() => {
                         setDestinatarioId(c.id);
                         setBusca(c.nome);
-                        setColegas([]);
                       }}
                       className={`w-full text-left px-3 py-2 text-sm hover:bg-dourado-50 ${
                         destinatarioId === c.id ? 'bg-dourado-50 font-medium' : ''

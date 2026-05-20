@@ -453,7 +453,12 @@ export default function EditarColaboradorPage() {
             )}
           </div>
           <p className="text-xs text-coffee-100 mt-1">
-            Selecione uma ou mais lideranças. Isso define quem pode avaliar o colaborador e quem o colaborador pode avaliar como liderança.
+            Para a maioria dos casos, use{' '}
+            <Link href="/admin/lideres-por-setor" className="text-dourado-600 underline">
+              Liderança por setor
+            </Link>
+            : com unidade e setor corretos, os líderes do setor vinculam-se automaticamente. Use esta lista só
+            para exceções (líder extra fora do setor).
           </p>
         </div>
 

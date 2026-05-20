@@ -42,6 +42,27 @@ type ApiBase = { ok?: boolean; erro?: string; code?: string };
 type ApiSala = ApiBase & { itens?: MsgSala[] };
 type ApiDireto = ApiBase & { itens?: MsgDireto[] };
 
+/** Mensagens seguidas da mesma pessoa viram um único bloco (estilo WhatsApp). */
+function agruparDireto(msgs: MsgDireto[]): MsgDireto[][] {
+  const grupos: MsgDireto[][] = [];
+  for (const m of msgs) {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo?.length && ultimo[0].minha === m.minha) ultimo.push(m);
+    else grupos.push([m]);
+  }
+  return grupos;
+}
+
+function agruparSala(msgs: MsgSala[]): MsgSala[][] {
+  const grupos: MsgSala[][] = [];
+  for (const m of msgs) {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo?.length && ultimo[0].autor_id === m.autor_id) ultimo.push(m);
+    else grupos.push([m]);
+  }
+  return grupos;
+}
+
 function EquipeChatInner() {
   const searchParams = useSearchParams();
   const comInicial = searchParams.get('com');
@@ -277,13 +298,24 @@ function EquipeChatInner() {
             {!loadingSala && msgsSala.length === 0 && (
               <p className="text-sm text-cafeteria-500">Nenhuma mensagem na sala ainda.</p>
             )}
-            {msgsSala.map((m) => (
-              <div key={m.id} className="rounded-lg bg-cream-50 border border-cream-200 px-3 py-2">
-                <p className="text-xs font-medium text-cafeteria-700">
-                  {m.autor_nome}
-                  {m.created_at ? ` · ${fmtData(m.created_at)}` : ''}
+            {agruparSala(msgsSala).map((grupo) => (
+              <div
+                key={grupo[0].id}
+                className="rounded-xl bg-cream-50 border border-cream-200 px-3 py-2 space-y-2"
+              >
+                <p className="text-xs font-semibold text-cafeteria-700">
+                  {grupo[0].autor_nome}
+                  {grupo[grupo.length - 1].created_at
+                    ? ` · ${fmtData(grupo[grupo.length - 1].created_at)}`
+                    : ''}
                 </p>
-                <p className="text-sm text-cafeteria-900 mt-1">{m.mensagem}</p>
+                <div className="flex flex-col gap-2 border-t border-cream-200/80 pt-2">
+                  {grupo.map((m) => (
+                    <p key={m.id} className="text-sm text-cafeteria-900 leading-snug whitespace-pre-wrap">
+                      {m.mensagem}
+                    </p>
+                  ))}
+                </div>
               </div>
             ))}
             <div ref={fimSalaRef} />
@@ -346,22 +378,47 @@ function EquipeChatInner() {
                 <div className="flex-1 overflow-y-auto p-4 space-y-2 max-h-[45vh]">
                   {loadingDireto && <p className="text-sm text-cafeteria-500">Carregando…</p>}
                   {!loadingDireto &&
-                    msgsDireto.map((m) => (
-                      <div
-                        key={m.id}
-                        className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                          m.minha
-                            ? 'ml-auto bg-coffee-base text-cream-100'
-                            : 'mr-auto bg-cream-50 border border-cream-200 text-cafeteria-900'
-                        }`}
-                      >
-                        {!m.minha && <p className="text-[10px] font-medium opacity-80 mb-0.5">{m.autor_nome}</p>}
-                        <p>{m.mensagem}</p>
-                        <p className={`text-[10px] mt-1 ${m.minha ? 'text-cream-100/70' : 'text-cafeteria-500'}`}>
-                          {fmtData(m.created_at)}
-                        </p>
-                      </div>
-                    ))}
+                    agruparDireto(msgsDireto).map((grupo) => {
+                      const minha = grupo[0].minha;
+                      const ultima = grupo[grupo.length - 1];
+                      return (
+                        <div
+                          key={grupo[0].id}
+                          className={`flex flex-col gap-1 max-w-[88%] ${minha ? 'ml-auto items-end' : 'mr-auto items-start'}`}
+                        >
+                          <div
+                            className={`rounded-2xl px-3 py-2 text-sm shadow-sm ${
+                              minha
+                                ? 'bg-coffee-base text-cream-100 rounded-br-md'
+                                : 'bg-cream-50 border border-cream-200 text-cafeteria-900 rounded-bl-md'
+                            }`}
+                          >
+                            {!minha && (
+                              <p className="text-[10px] font-semibold text-cafeteria-700 mb-1.5">{grupo[0].autor_nome}</p>
+                            )}
+                            <div className="flex flex-col gap-2">
+                              {grupo.map((m, idx) => (
+                                <p
+                                  key={m.id}
+                                  className={`leading-snug whitespace-pre-wrap ${
+                                    idx > 0
+                                      ? `pt-2 border-t ${minha ? 'border-white/20' : 'border-cafeteria-200/90'}`
+                                      : ''
+                                  }`}
+                                >
+                                  {m.mensagem}
+                                </p>
+                              ))}
+                            </div>
+                            <p
+                              className={`text-[10px] mt-2 ${minha ? 'text-cream-100/75' : 'text-cafeteria-500'}`}
+                            >
+                              {fmtData(ultima.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   <div ref={fimDiretoRef} />
                 </div>
                 <div className="border-t border-cafeteria-200 p-3 flex gap-2">

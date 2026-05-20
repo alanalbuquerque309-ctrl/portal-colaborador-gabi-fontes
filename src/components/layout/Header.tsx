@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getPortalSession, clearPortalSession } from '@/lib/utils/session';
@@ -98,10 +98,7 @@ export function Header() {
   const [podeResponderAjuda, setPodeResponderAjuda] = useState(false);
   const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
-  const [alertaAjuda, setAlertaAjuda] = useState<{ id: string; nome: string; mensagem: string } | null>(null);
   const [meuManualHref, setMeuManualHref] = useState<string | null>(null);
-  const ajudaConhecidosRef = useRef<Set<string>>(new Set());
-  const ajudaPollingIniciadoRef = useRef(false);
 
   useEffect(() => {
     const s = getPortalSession();
@@ -118,12 +115,10 @@ export function Header() {
     setPodeVisualizarAjuda(canVisualizarAjuda(r, cid));
   }, []);
 
+  /** Contador no link Inbox ajuda: some sozinho quando a API já não tem pendentes (respondidos saem da lista). */
   useEffect(() => {
     if (!podeVisualizarAjuda) {
       setPendenciasAjuda(0);
-      setAlertaAjuda(null);
-      ajudaConhecidosRef.current = new Set();
-      ajudaPollingIniciadoRef.current = false;
       return;
     }
     let cancel = false;
@@ -131,61 +126,13 @@ export function Header() {
       fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
         credentials: 'include',
         cache: 'no-store',
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
       })
         .then((r) => r.json())
-        .then((data: { ok?: boolean; pendentes?: number; itens?: Array<{ id?: string; colaborador_nome?: string; mensagem?: string }> }) => {
+        .then((data: { ok?: boolean; itens?: unknown[] }) => {
           if (cancel || !data.ok) return;
-          const atual = typeof data.pendentes === 'number' ? data.pendentes : 0;
-          setPendenciasAjuda(atual);
-
           const itens = Array.isArray(data.itens) ? data.itens : [];
-          const idsAtuais = itens
-            .map((item) => (item?.id ? String(item.id) : ''))
-            .filter((id) => !!id);
-
-          // Sem mensagens pendentes: fecha o balão e volta a detectar "nova" mensagem no próximo ciclo
-          if (atual === 0 || idsAtuais.length === 0) {
-            setAlertaAjuda(null);
-            ajudaConhecidosRef.current = new Set();
-            ajudaPollingIniciadoRef.current = false;
-            return;
-          }
-
-          // A mensagem em destaque no balão já foi respondida (saiu da lista de pendentes)
-          setAlertaAjuda((prev) => {
-            if (!prev) return null;
-            if (!idsAtuais.includes(prev.id)) return null;
-            return prev;
-          });
-
-          const podeMostrarBalaoAjuda =
-            pathname !== '/portal/ajuda-inbox' && pathname !== '/portal/equipe-chat';
-
-          if (!ajudaPollingIniciadoRef.current) {
-            ajudaConhecidosRef.current = new Set(idsAtuais);
-            ajudaPollingIniciadoRef.current = true;
-            if (itens.length > 0 && podeMostrarBalaoAjuda) {
-              const recente = itens[0];
-              if (recente?.id) {
-                setAlertaAjuda({
-                  id: String(recente.id),
-                  nome: String(recente.colaborador_nome ?? 'Colaborador'),
-                  mensagem: String(recente.mensagem ?? ''),
-                });
-              }
-            }
-          } else {
-            const conhecidos = ajudaConhecidosRef.current;
-            const novo = itens.find((item) => item?.id && !conhecidos.has(String(item.id)));
-            if (novo?.id && podeMostrarBalaoAjuda) {
-              setAlertaAjuda({
-                id: String(novo.id),
-                nome: String(novo.colaborador_nome ?? 'Colaborador'),
-                mensagem: String(novo.mensagem ?? ''),
-              });
-            }
-            ajudaConhecidosRef.current = new Set(idsAtuais);
-          }
+          setPendenciasAjuda(itens.length);
         })
         .catch(() => {});
     };
@@ -202,14 +149,7 @@ export function Header() {
       window.removeEventListener('focus', carregar);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [pathname, podeVisualizarAjuda]);
-
-  /** Inbox ou Chat equipe: não mostrar o balão de novo pedido de ajuda por cima. */
-  useEffect(() => {
-    if (pathname === '/portal/ajuda-inbox' || pathname === '/portal/equipe-chat') {
-      setAlertaAjuda(null);
-    }
-  }, [pathname]);
+  }, [podeVisualizarAjuda]);
 
   useEffect(() => {
     let cancel = false;
@@ -343,6 +283,12 @@ export function Header() {
             short: 'Relatórios',
             icon: 'avaliacao' as const,
           },
+          {
+            href: '/portal/relatorios-presenca' as const,
+            label: 'Uso do portal',
+            short: 'Presença',
+            icon: 'desempenho' as const,
+          },
         ]
       : []),
     ...(podeVisualizarAjuda
@@ -380,31 +326,6 @@ export function Header() {
 
   return (
     <>
-      {alertaAjuda && (
-        <div className="fixed top-3 right-3 z-[80] w-[min(90vw,360px)] rounded-xl border border-dourado-200 bg-white shadow-xl p-3">
-          <p className="text-xs font-semibold text-dourado-700">Nova mensagem no canal de ajuda</p>
-          <p className="mt-1 text-sm text-coffee-base">
-            <span className="font-semibold">{alertaAjuda.nome}:</span>{' '}
-            {alertaAjuda.mensagem.length > 90 ? `${alertaAjuda.mensagem.slice(0, 90)}...` : alertaAjuda.mensagem}
-          </p>
-          <div className="mt-3 flex items-center gap-3">
-            <Link
-              href="/portal/ajuda-inbox"
-              className="text-xs font-medium text-dourado-base hover:text-dourado-600"
-              onClick={() => setAlertaAjuda(null)}
-            >
-              Ver inbox
-            </Link>
-            <button
-              type="button"
-              className="text-xs text-coffee-100 hover:text-coffee-base"
-              onClick={() => setAlertaAjuda(null)}
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
       <header className="bg-cream-100/80 backdrop-blur border-b border-cafeteria-200">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/portal" className="font-display text-xl text-cafeteria-800 font-semibold shrink-0">

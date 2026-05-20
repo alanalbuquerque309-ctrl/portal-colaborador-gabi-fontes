@@ -97,6 +97,29 @@ export async function GET() {
       created_at: String((r as { created_at?: string }).created_at ?? ''),
     }));
 
+    const { data: colegasRaw, error: errColegas } = await supabase
+      .from('colaboradores')
+      .select('id, nome, cargo, setor')
+      .eq('unidade_id', unidadeId)
+      .eq('role', 'colaborador')
+      .eq('onboarding_completo', true)
+      .neq('id', colaboradorId)
+      .order('nome', { ascending: true })
+      .limit(200);
+
+    if (errColegas) {
+      return NextResponse.json({ ok: false, erro: errColegas.message }, { status: 500, headers: NO_STORE });
+    }
+
+    const colegas_elegiveis = (colegasRaw ?? [])
+      .filter((c) => normalizePortalRole((c as { role?: string }).role) === 'colaborador')
+      .map((c) => ({
+        id: String(c.id),
+        nome: String(c.nome ?? ''),
+        cargo: (c as { cargo?: string | null }).cargo ?? null,
+        setor: (c as { setor?: string | null }).setor ?? null,
+      }));
+
     return NextResponse.json({
       ok: true,
       semana_inicio: semanaInicio,
@@ -107,6 +130,7 @@ export async function GET() {
         mapTrofeu(r as { id: string; destinatario_id: string; tipo: string })
       ),
       mural_unidade: mural,
+      colegas_elegiveis,
       tipos: TROFEUS_PARES_TIPOS.map((t) => ({ id: t, ...TROFEU_PAR_LABELS[t] })),
     });
   } catch (e) {

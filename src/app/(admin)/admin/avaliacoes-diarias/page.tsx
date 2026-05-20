@@ -62,9 +62,10 @@ export default function AdminAvaliacoesDiariasPage() {
         <Link href="/admin/dashboard" className="text-sm text-dourado-500 hover:underline">
           ← Dashboard
         </Link>
-        <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Avaliações diárias</h1>
+        <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Avaliações semanais (equipe)</h1>
         <p className="text-sm text-coffee-100 mt-1">
-          Relatório consolidado (administrativo / sócio). Gerentes não veem esta visão.
+          Relatório consolidado (administrativo / sócio). Cada registro é uma semana; a data é a segunda-feira da
+          semana. Gerentes não veem esta visão.
         </p>
       </div>
 
@@ -120,7 +121,7 @@ export default function AdminAvaliacoesDiariasPage() {
           <table className="w-full text-sm text-left">
             <thead className="bg-cream-100 text-coffee-base border-b border-cream-300">
               <tr>
-                <th className="px-3 py-2 font-semibold">Data</th>
+                <th className="px-3 py-2 font-semibold">Semana (segunda)</th>
                 <th className="px-3 py-2 font-semibold">Colaborador</th>
                 <th className="px-3 py-2 font-semibold">Avaliador</th>
                 <th className="px-3 py-2 font-semibold">Assiduidade</th>

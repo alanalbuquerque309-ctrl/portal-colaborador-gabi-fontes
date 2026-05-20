@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { nomesPorIds } from '@/lib/equipe-chat-format';
-import { canResponderAjudaFinal, canVisualizarAjuda } from '@/lib/roles';
+import { colaboradoresResumoPorIds } from '@/lib/equipe-chat-format';
+import { canResponderAjudaFinal, canVisualizarAjuda, canExcluirMensagensAjuda } from '@/lib/roles';
+
+const NO_STORE = {
+  'Cache-Control': 'no-store, max-age=0, must-revalidate',
+  Pragma: 'no-cache',
+} as const;
+
+/** Garante que “pendente” no balão/inbox não inclua linhas já respondidas (inconsistência DB). */
+function filtrarSomentePendentes(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.filter((r) => {
+    const em = r.respondido_em;
+    if (em != null && String(em).trim() !== '') return false;
+    const resp = r.resposta;
+    if (resp != null && String(resp).trim() !== '') return false;
+    return true;
+  });
+}
 
 async function getViewer() {
   const cookieStore = await cookies();
@@ -17,12 +33,13 @@ async function getViewer() {
     id: String(data.id),
     role,
     podeResponder: canResponderAjudaFinal(colaboradorId, role),
+    podeExcluir: canExcluirMensagensAjuda(role),
   };
 }
 
 export async function GET(req: Request) {
   const viewer = await getViewer();
-  if (!viewer) return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
+  if (!viewer) return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401, headers: NO_STORE });
 
   const { searchParams } = new URL(req.url);
   const somentePendentes = searchParams.get('somente_pendentes') === '1';
@@ -32,51 +49,90 @@ export async function GET(req: Request) {
     let q = supabase
       .from('ajuda_chat')
       .select(
-        'id, colaborador_id, unidade_id, mensagem, resposta, created_at, respondido_em, lido_admin_em, respondido_por_id, colaboradores!ajuda_chat_colaborador_id_fkey(nome, telefone), unidades(nome)'
+        'id, colaborador_id, unidade_id, mensagem, resposta, created_at, respondido_em, lido_admin_em, respondido_por_id'
       )
       .order('created_at', { ascending: false })
       .limit(300);
     if (somentePendentes) q = q.is('respondido_em', null);
 
     const { data, error } = await q;
-    if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+    if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500, headers: NO_STORE });
 
-    const rows = data ?? [];
-    const respondenteIds = rows
-      .map((r) => (r as { respondido_por_id?: string | null }).respondido_por_id)
-      .filter((id): id is string => !!id);
-    const nomesRespondentes = await nomesPorIds(respondenteIds.map(String));
+    const rowsRaw = (data ?? []) as Record<string, unknown>[];
+    const rows = somentePendentes ? filtrarSomentePendentes(rowsRaw) : rowsRaw;
+
+    const colabIds = rows
+      .map((r) => (r.colaborador_id != null ? String(r.colaborador_id) : ''))
+      .filter(Boolean);
+    const respIds = rows
+      .map((r) => (r.respondido_por_id != null ? String(r.respondido_por_id) : ''))
+      .filter(Boolean);
+    const unidadeIds = Array.from(
+      new Set(rows.map((r) => (r.unidade_id != null ? String(r.unidade_id) : '')).filter(Boolean))
+    );
+
+    const colabs = await colaboradoresResumoPorIds([...colabIds, ...respIds]);
+
+    let unidadePorId: Record<string, string> = {};
+    if (unidadeIds.length > 0) {
+      const { data: urows } = await supabase.from('unidades').select('id, nome').in('id', unidadeIds);
+      for (const u of urows ?? []) {
+        unidadePorId[String(u.id)] = String(u.nome ?? '-');
+      }
+    }
 
     const itens = rows.map((r: Record<string, unknown>) => {
-      const respId = r.respondido_por_id ? String(r.respondido_por_id) : '';
+      const autorId = r.colaborador_id != null ? String(r.colaborador_id) : '';
+      const respId = r.respondido_por_id != null ? String(r.respondido_por_id) : '';
+      const uid = r.unidade_id != null ? String(r.unidade_id) : '';
+      const infoAutor = autorId ? colabs.get(autorId) : undefined;
+      const infoResp = respId ? colabs.get(respId) : undefined;
       return {
         id: r.id,
         colaborador_id: r.colaborador_id,
-        colaborador_nome: (r.colaboradores as { nome?: string } | null)?.nome ?? 'Colaborador',
-        colaborador_telefone: (r.colaboradores as { telefone?: string } | null)?.telefone ?? null,
-        unidade_nome: (r.unidades as { nome?: string } | null)?.nome ?? '-',
+        colaborador_nome: infoAutor?.nome ?? 'Colaborador',
+        colaborador_telefone: infoAutor?.telefone ?? null,
+        unidade_nome: uid ? unidadePorId[uid] ?? '-' : '-',
         mensagem: r.mensagem,
         resposta: r.resposta,
         created_at: r.created_at,
         respondido_em: r.respondido_em,
         lido_admin_em: r.lido_admin_em,
-        respondido_por_nome: respId ? nomesRespondentes.get(respId) ?? null : null,
+        respondido_por_nome: respId ? infoResp?.nome ?? null : null,
       };
     });
+
+    /** Lista filtrada já é a fonte da verdade para “pendentes”; evita contagem divergir da lista (balão fantasma). */
+    if (somentePendentes) {
+      return NextResponse.json(
+        {
+          ok: true,
+          itens,
+          pendentes: rows.length,
+          pode_responder: viewer.podeResponder,
+          pode_excluir: viewer.podeExcluir,
+        },
+        { headers: NO_STORE }
+      );
+    }
 
     const { count } = await supabase
       .from('ajuda_chat')
       .select('id', { count: 'exact', head: true })
       .is('respondido_em', null);
 
-    return NextResponse.json({
-      ok: true,
-      itens,
-      pendentes: typeof count === 'number' ? count : 0,
-      pode_responder: viewer.podeResponder,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        itens,
+        pendentes: typeof count === 'number' ? count : 0,
+        pode_responder: viewer.podeResponder,
+        pode_excluir: viewer.podeExcluir,
+      },
+      { headers: NO_STORE }
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
-    return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+    return NextResponse.json({ ok: false, erro: msg }, { status: 500, headers: NO_STORE });
   }
 }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
-  AVALIACAO_RANKING_MIN_DIAS,
+  AVALIACAO_RANKING_MIN_SEMANAS,
   mediaMensalColaborador,
   topTresComEmpateNoTerceiro,
   type ScoreMensal,
@@ -99,7 +99,7 @@ export async function GET(req: Request) {
       return NextResponse.json({
         ok: true,
         mes_referencia: mesRef,
-        min_dias_ranking: AVALIACAO_RANKING_MIN_DIAS,
+        min_semanas_ranking: AVALIACAO_RANKING_MIN_SEMANAS,
         top_unidade: [],
         media_media_top3: null,
         frase_motivacional: fraseMotivacionalDesempenho(meu_desempenho.media_mes),
@@ -152,7 +152,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       mes_referencia: mesRef,
-      min_dias_ranking: AVALIACAO_RANKING_MIN_DIAS,
+      min_semanas_ranking: AVALIACAO_RANKING_MIN_SEMANAS,
       top_unidade,
       media_media_top3,
       frase_motivacional: fraseMotivacionalDesempenho(meu_desempenho.media_mes),

@@ -5,6 +5,7 @@ import { isSetorValido, ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
 import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
+import { sincronizarVinculosLiderancaColaborador } from '@/lib/sincronizar-vinculos-lideranca';
 
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate, private' } as const;
 
@@ -234,7 +235,18 @@ export async function POST(req: Request) {
       }
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
-    return NextResponse.json({ ok: true, colaborador: data });
+
+    let lideres_vinculados: string[] = [];
+    const setorFinal =
+      setor !== undefined && setor !== null && String(setor).trim()
+        ? String(setor).trim()
+        : null;
+    if (data?.id && roleFinal === 'colaborador' && setorFinal) {
+      const sync = await sincronizarVinculosLiderancaColaborador(supabase, String(data.id));
+      lideres_vinculados = sync.lideres_ids;
+    }
+
+    return NextResponse.json({ ok: true, colaborador: data, lideres_vinculados });
   } catch (e) {
     return NextResponse.json(
       { ok: false, erro: 'Erro ao cadastrar' },

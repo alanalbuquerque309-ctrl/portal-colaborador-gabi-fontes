@@ -198,8 +198,13 @@ export function ColaboradorAvaliacaoCard({
         injustificada ? 'border-red-500 ring-1 ring-red-200' : 'border-cafeteria-200'
       }`}
     >
-      <div className="p-4 border-b border-cafeteria-100 bg-cream-50/80">
+      <div className="p-4 border-b border-cafeteria-100 bg-cream-50/80 flex flex-wrap items-start justify-between gap-2">
         <h3 className="font-display text-lg text-cafeteria-900">{nome}</h3>
+        {somenteLeitura ? (
+          <span className="text-xs font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">Avaliado</span>
+        ) : (
+          <span className="text-xs font-medium rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5">Pendente</span>
+        )}
         <p className="text-sm text-cafeteria-600">
           {[cargo, setor].filter(Boolean).join(' · ') || '—'}
         </p>
@@ -222,10 +227,10 @@ export function ColaboradorAvaliacaoCard({
             {(
               [
                 { value: 'presente' as const, label: 'Presente' },
-                { value: 'folga' as const, label: 'Folga (dia isento na média mensal)' },
-                { value: 'outra_escala' as const, label: 'Outra escala (12x36, dia isento na média mensal)' },
-                { value: 'falta_justificada' as const, label: 'Falta justificada (dia isento na média mensal)' },
-                { value: 'falta_injustificada' as const, label: 'Falta injustificada (zera o dia)' },
+                { value: 'folga' as const, label: 'Folga (semana isenta na média mensal)' },
+                { value: 'outra_escala' as const, label: 'Outra escala (12x36, semana isenta na média mensal)' },
+                { value: 'falta_justificada' as const, label: 'Falta justificada (semana isenta na média mensal)' },
+                { value: 'falta_injustificada' as const, label: 'Falta injustificada (zera a semana)' },
               ] as const
             ).map((opt) => (
               <label
@@ -254,13 +259,13 @@ export function ColaboradorAvaliacaoCard({
 
         {isento && (
           <p className="text-sm text-cafeteria-600 bg-cafeteria-50 border border-cafeteria-100 rounded-lg px-3 py-2">
-            Dia marcado como <strong>isento</strong> — não entra no cálculo da média mensal.
+            Semana marcada como <strong>isenta</strong> — não entra no cálculo da média mensal.
           </p>
         )}
 
         {injustificada && (
           <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            Os critérios Vestimenta, Pontualidade, Equipe e Desempenho foram zerados. A média do dia é{' '}
+            Os critérios Vestimenta, Pontualidade, Equipe e Desempenho foram zerados. A média da semana é{' '}
             <strong>0</strong>.
           </p>
         )}
@@ -320,7 +325,7 @@ export function ColaboradorAvaliacaoCard({
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-cafeteria-100">
           <p className="text-sm text-cafeteria-700">
-            Média do dia{somenteLeitura ? '' : ' (prévia)'}:{' '}
+            Média da semana{somenteLeitura ? '' : ' (prévia)'}:{' '}
             <strong>
               {somenteLeitura && avaliacaoInicial?.media_dia != null
                 ? Number(avaliacaoInicial.media_dia).toFixed(2)

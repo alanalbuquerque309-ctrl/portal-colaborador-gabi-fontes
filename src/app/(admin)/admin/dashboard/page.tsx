@@ -164,7 +164,7 @@ export default function AdminDashboardPage() {
           </li>
           <li>
             <a href="/admin/avaliacoes-diarias" className="text-dourado-500 hover:underline">
-              Relatório de avaliações diárias
+              Relatório de avaliações semanais da equipe
             </a>
           </li>
         </ul>

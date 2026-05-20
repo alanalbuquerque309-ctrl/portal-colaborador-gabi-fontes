@@ -8,6 +8,7 @@ import { clearPortalSession, isPendingRegistration } from '@/lib/utils/session';
 import { CompleteRegistrationForm } from '@/components/portal/CompleteRegistrationForm';
 import { normalizePortalRole } from '@/lib/roles';
 import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast';
+import { PortalOnlineStrip, PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
 
 const EMOCOES: { id: string; label: string; emoji: string; desc: string }[] = [
   { id: 'feliz', label: 'Feliz', emoji: '😊', desc: 'Ótimo dia!' },
@@ -78,6 +79,20 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     if (pathname !== '/portal') return;
     if (isPendingRegistration()) return;
 
+    let skipTrap = false;
+    try {
+      if (sessionStorage.getItem('portal_skip_back_guard_once') === '1') {
+        sessionStorage.removeItem('portal_skip_back_guard_once');
+        skipTrap = true;
+      }
+    } catch {
+      /* noop */
+    }
+
+    if (skipTrap) {
+      return () => {};
+    }
+
     const state = (window.history.state || {}) as Record<string, unknown>;
     if (state.portalGuard !== true) {
       window.history.pushState({ ...state, portalGuard: true }, '', window.location.href);
@@ -120,6 +135,8 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-cream-100">
       <Header />
+      <PortalPresenceHeartbeat />
+      <PortalOnlineStrip />
       <main className="max-w-6xl mx-auto px-4 py-8 pb-[max(6rem,calc(5rem+env(safe-area-inset-bottom,0px)))] md:pb-8">
         {children}
       </main>

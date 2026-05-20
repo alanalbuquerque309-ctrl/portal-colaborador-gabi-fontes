@@ -5,7 +5,7 @@ import { normalizePortalRole } from '@/lib/roles';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 
 /**
- * Avaliações diárias para a página /portal/relatorios-avaliacoes.
+ * Avaliações semanais da equipe para /portal/relatorios-avaliacoes (data_referencia = segunda da semana).
  * Mesma regra de acesso que /api/portal/avaliacao-lideranca/relatorio (sócio/admin via portal).
  * Não usa isAdminAuthorized (evita divergência: sessão /admin por senha no PC vs só portal no telemóvel).
  */
@@ -94,34 +94,41 @@ export async function GET(req: Request) {
       idsNomes.add(r.colaborador_id as string);
       idsNomes.add(r.avaliador_id as string);
     }
-    const nomePorId: Record<string, string> = {};
+    const metaPorId: Record<string, { nome: string; setor: string | null }> = {};
     if (idsNomes.size > 0) {
       const { data: pessoas, error: errP } = await supabase
         .from('colaboradores')
-        .select('id, nome')
+        .select('id, nome, setor')
         .in('id', Array.from(idsNomes));
       if (!errP && pessoas) {
         for (const p of pessoas) {
-          nomePorId[p.id as string] = String(p.nome ?? '');
+          metaPorId[p.id as string] = {
+            nome: String(p.nome ?? ''),
+            setor: (p as { setor?: string | null }).setor ?? null,
+          };
         }
       }
     }
 
-    const linhas = rows.map((r) => ({
-      id: r.id,
-      data_referencia: r.data_referencia,
-      assiduidade: r.assiduidade,
-      nota_vestimenta: r.nota_vestimenta,
-      nota_pontualidade: r.nota_pontualidade,
-      nota_trabalho_equipe: r.nota_trabalho_equipe,
-      nota_desempenho_tarefas: r.nota_desempenho_tarefas,
-      media_dia: r.media_dia,
-      justificativa_nota_baixa: (r as { justificativa_nota_baixa?: string | null }).justificativa_nota_baixa ?? null,
-      colaborador_id: r.colaborador_id,
-      colaborador_nome: nomePorId[r.colaborador_id as string] ?? null,
-      avaliador_id: r.avaliador_id,
-      avaliador_nome: nomePorId[r.avaliador_id as string] ?? null,
-    }));
+    const linhas = rows.map((r) => {
+      const colabMeta = metaPorId[r.colaborador_id as string];
+      return {
+        id: r.id,
+        data_referencia: r.data_referencia,
+        assiduidade: r.assiduidade,
+        nota_vestimenta: r.nota_vestimenta,
+        nota_pontualidade: r.nota_pontualidade,
+        nota_trabalho_equipe: r.nota_trabalho_equipe,
+        nota_desempenho_tarefas: r.nota_desempenho_tarefas,
+        media_dia: r.media_dia,
+        justificativa_nota_baixa: (r as { justificativa_nota_baixa?: string | null }).justificativa_nota_baixa ?? null,
+        colaborador_id: r.colaborador_id,
+        colaborador_nome: colabMeta?.nome ?? null,
+        colaborador_setor: colabMeta?.setor ?? null,
+        avaliador_id: r.avaliador_id,
+        avaliador_nome: metaPorId[r.avaliador_id as string]?.nome ?? null,
+      };
+    });
 
     return NextResponse.json({ ok: true, total: linhas.length, linhas });
   } catch (e) {

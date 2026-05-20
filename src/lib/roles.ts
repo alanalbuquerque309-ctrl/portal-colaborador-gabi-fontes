@@ -114,6 +114,12 @@ export function canVisualizarAjuda(
   return false;
 }
 
+/** Sócios e admin podem apagar registros do canal de ajuda (LGPD / limpeza). */
+export function canExcluirMensagensAjuda(role: string | null | undefined): boolean {
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin';
+}
+
 /** Quem acede à sala da equipe e às mensagens diretas (sócios, admin, responsável ajuda). */
 export function canAcessarChatEquipe(
   role: string | null | undefined,

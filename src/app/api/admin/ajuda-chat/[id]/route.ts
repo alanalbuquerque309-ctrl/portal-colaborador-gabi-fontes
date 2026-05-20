@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canResponderAjudaFinal } from '@/lib/roles';
+import { canResponderAjudaFinal, canExcluirMensagensAjuda } from '@/lib/roles';
 
 function sanitize(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -16,6 +16,18 @@ async function getViewer() {
   if (!data) return null;
   const role = (data as { role?: string }).role;
   if (!canResponderAjudaFinal(colaboradorId, role)) return null;
+  return { id: String(data.id) };
+}
+
+async function getViewerExcluir() {
+  const cookieStore = await cookies();
+  const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
+  if (!colaboradorId || colaboradorId === 'pending') return null;
+  const supabase = createAdminClient();
+  const { data } = await supabase.from('colaboradores').select('id, role').eq('id', colaboradorId).maybeSingle();
+  if (!data) return null;
+  const role = (data as { role?: string }).role;
+  if (!canExcluirMensagensAjuda(role)) return null;
   return { id: String(data.id) };
 }
 
@@ -61,6 +73,24 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       .single();
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, item: data });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Erro';
+    return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+  }
+}
+
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  const viewer = await getViewerExcluir();
+  if (!viewer) return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
+
+  const id = String(params.id ?? '').trim();
+  if (!id) return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });
+
+  try {
+    const supabase = createAdminClient();
+    const { error } = await supabase.from('ajuda_chat').delete().eq('id', id);
+    if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

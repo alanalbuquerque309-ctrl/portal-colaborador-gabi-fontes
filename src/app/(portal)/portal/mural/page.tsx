@@ -1,19 +1,20 @@
 import { MuralUnidade } from '@/components/mural/MuralUnidade';
-import { DestaqueSection } from '@/components/destaque/DestaqueSection';
+import { MuralReconhecimento } from '@/components/mural/MuralReconhecimento';
 
 export default function MuralPage() {
   return (
     <main className="space-y-8">
-      <h1 className="text-2xl font-display font-semibold text-cafeteria-800 mb-6">
-        Mural
-      </h1>
+      <h1 className="text-2xl font-display font-semibold text-cafeteria-800 mb-6">Mural</h1>
       <section>
-        <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-3">Avisos</h2>
-        <MuralUnidade />
+        <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-3">Reconhecimento automático</h2>
+        <p className="text-sm text-cafeteria-600 mb-4">
+          Destaques da avaliação semanal da equipe, ranking do mês e troféus entre pares.
+        </p>
+        <MuralReconhecimento />
       </section>
       <section>
-        <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-3">Destaques do mês</h2>
-        <DestaqueSection />
+        <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-3">Avisos da unidade</h2>
+        <MuralUnidade />
       </section>
     </main>
   );

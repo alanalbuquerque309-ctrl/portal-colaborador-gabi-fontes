@@ -4,6 +4,8 @@ import { isAdminAuthorized } from '@/lib/admin-auth';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
 import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
 import { normalizePortalRole } from '@/lib/roles';
+import { podeSerLider } from '@/lib/pode-ser-lider';
+import { sincronizarVinculosLiderancaColaborador } from '@/lib/sincronizar-vinculos-lideranca';
 
 /** Inclui `master` (tratado como gerente no app) para não quebrar cadastros antigos. */
 const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
@@ -24,35 +26,6 @@ function normalizeText(value: string | null | undefined): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
-}
-
-function podeSerLider(role: string | null | undefined, cargo: string | null | undefined): boolean {
-  const r = normalizePortalRole(role);
-  if (r === 'socio') return false;
-  if (r === 'admin' || r === 'gerente' || r === 'master') return true;
-  const roleRaw = normalizeText(role);
-  if (
-    roleRaw.includes('gerente') ||
-    roleRaw.includes('sub gerente') ||
-    roleRaw.includes('subgerente') ||
-    roleRaw.includes('chefe') ||
-    roleRaw.includes('confeiteiro') ||
-    roleRaw.includes('administrador') ||
-    roleRaw.includes('adminisrtador')
-  ) {
-    return true;
-  }
-  const c = normalizeText(cargo);
-  if (!c) return false;
-  return (
-    c.includes('gerente') ||
-    c.includes('sub gerente') ||
-    c.includes('subgerente') ||
-    c.includes('chefe') ||
-    c.includes('confeiteiro') ||
-    c.includes('administrador') ||
-    c.includes('adminisrtador')
-  );
 }
 
 function isMissingTelefoneLoginColumnError(err: { message?: string } | null | undefined): boolean {
@@ -333,7 +306,20 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
     }
 
-    return NextResponse.json({ ok: true, colaborador: atualizado });
+    let lideres_vinculados: string[] | undefined;
+    const roleFinal = String((atualizado as { role?: string }).role ?? roleProximo).toLowerCase();
+    const setorAlterado = body.setor !== undefined;
+    const unidadeAlterada = body.unidade_id !== undefined || body.unidade_slug !== undefined;
+    if (
+      lideresRecebidos === null &&
+      !perfilSemLiderDireto.includes(roleFinal) &&
+      (setorAlterado || unidadeAlterada || body.role !== undefined)
+    ) {
+      const sync = await sincronizarVinculosLiderancaColaborador(supabase, id);
+      lideres_vinculados = sync.lideres_ids;
+    }
+
+    return NextResponse.json({ ok: true, colaborador: atualizado, lideres_vinculados });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

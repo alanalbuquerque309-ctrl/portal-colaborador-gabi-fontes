@@ -6,36 +6,12 @@ import Link from 'next/link';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-
-type LinhaDiaria = {
-  id: string;
-  data_referencia: string;
-  assiduidade: string;
-  nota_vestimenta: number | null;
-  nota_pontualidade: number | null;
-  nota_trabalho_equipe: number | null;
-  nota_desempenho_tarefas: number | null;
-  media_dia: number | null;
-  justificativa_nota_baixa: string | null;
-  colaborador_nome: string | null;
-  avaliador_nome: string | null;
-};
-
-type LinhaLider = {
-  id: string;
-  filial_nome: string;
-  semana_inicio: string;
-  created_at: string;
-  avaliado_nome: string;
-  avaliador_label: string;
-  n_exemplo: number;
-  n_comunicacao: number;
-  n_suporte: number;
-  n_justica: number;
-  n_clima: number;
-  justificativa_nota_baixa: string | null;
-  media: number;
-};
+import {
+  RelatorioDiariasPorSetor,
+  RelatorioLiderancaPorSetor,
+  type LinhaDiariaRelatorio,
+  type LinhaLiderRelatorio,
+} from '@/components/portal/RelatorioAvaliacoesPorSetor';
 
 function hojeISO(): string {
   const d = new Date();
@@ -50,8 +26,8 @@ function inicioMesISO(): string {
 type BlocoFilial = {
   slug: string;
   label: string;
-  diarias: LinhaDiaria[];
-  lideranca: LinhaLider[];
+  diarias: LinhaDiariaRelatorio[];
+  lideranca: LinhaLiderRelatorio[];
   erro?: string;
 };
 
@@ -120,12 +96,12 @@ export default function RelatoriosAvaliacoesPage() {
           const dataL = await resL.json();
 
           if (dataD.ok && Array.isArray(dataD.linhas)) {
-            novos[i].diarias = dataD.linhas as LinhaDiaria[];
+            novos[i].diarias = dataD.linhas as LinhaDiariaRelatorio[];
           } else {
-            novos[i].erro = dataD.erro || 'Erro nas avaliações diárias.';
+            novos[i].erro = dataD.erro || 'Erro nas avaliações da equipe.';
           }
           if (dataL.ok && Array.isArray(dataL.itens)) {
-            novos[i].lideranca = dataL.itens as LinhaLider[];
+            novos[i].lideranca = dataL.itens as LinhaLiderRelatorio[];
             if (dataL.nota && i === 0) setNotaLider(String(dataL.nota));
           } else if (!dataL.ok) {
             novos[i].erro = (novos[i].erro ? novos[i].erro + ' ' : '') + (dataL.erro || 'Erro na liderança.');
@@ -175,10 +151,9 @@ export default function RelatoriosAvaliacoesPage() {
           Relatórios de avaliações por filial
         </h1>
         <p className="text-cafeteria-600 mt-2 text-sm max-w-3xl">
-          Visão para <strong>sócio e administrativo</strong>: em cada filial, <strong>o que os gerentes registram
-          sobre a equipe</strong> (avaliações diárias dos comandados) e{' '}
-          <strong>o que os colaboradores avaliam da liderança</strong> (gerência, administrativo e RH), na
-          seção de liderança.
+          Visão para <strong>sócio e administrativo</strong>: em cada filial, por <strong>setor</strong> e{' '}
+          <strong>nome do colaborador</strong>, as avaliações semanais da equipe e o feedback sobre a
+          liderança.
         </p>
         <p className="text-xs text-cafeteria-500 mt-1 max-w-3xl">
           No bloco de liderança, o campo &quot;Quem avaliou&quot; mostra o nome real apenas para o perfil de
@@ -237,112 +212,27 @@ export default function RelatoriosAvaliacoesPage() {
             <summary className="cursor-pointer list-none px-4 py-3 font-display text-lg font-semibold text-cafeteria-900 border-b border-cafeteria-100 flex items-center justify-between">
               <span>{b.label}</span>
               <span className="text-xs font-normal text-cafeteria-500">
-                {b.diarias.length} diárias · {b.lideranca.length} liderança
+                {b.diarias.length} semanais · {b.lideranca.length} liderança
               </span>
             </summary>
             <div className="p-4 space-y-8">
               {b.erro && <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{b.erro}</p>}
 
               <section>
-                <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-2">
-                  Avaliações da equipe (diárias)
+                <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
+                  Avaliações da equipe (semanais)
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-cafeteria-100">
-                  <table className="min-w-full text-sm text-left">
-                    <thead className="bg-cafeteria-50 text-cafeteria-800">
-                      <tr>
-                        <th className="px-2 py-2">Data</th>
-                        <th className="px-2 py-2">Colaborador</th>
-                        <th className="px-2 py-2">Avaliador</th>
-                        <th className="px-2 py-2">Assiduidade</th>
-                        <th className="px-2 py-2 text-center">Vestim.</th>
-                        <th className="px-2 py-2 text-center">Pontual.</th>
-                        <th className="px-2 py-2 text-center">Trabalho eq.</th>
-                        <th className="px-2 py-2 text-center">Desempenho</th>
-                        <th className="px-2 py-2">Média</th>
-                        <th className="px-2 py-2">Justificativa</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {b.diarias.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} className="px-2 py-6 text-cafeteria-500 text-center">
-                            Nenhum registro no período.
-                          </td>
-                        </tr>
-                      ) : (
-                        b.diarias.map((l) => (
-                          <tr key={l.id} className="border-t border-cafeteria-100">
-                            <td className="px-2 py-2 whitespace-nowrap">{l.data_referencia}</td>
-                            <td className="px-2 py-2">{l.colaborador_nome ?? '—'}</td>
-                            <td className="px-2 py-2">{l.avaliador_nome ?? '—'}</td>
-                            <td className="px-2 py-2 text-cafeteria-600">{l.assiduidade}</td>
-                            <td className="px-2 py-2 text-center">{l.nota_vestimenta ?? '—'}</td>
-                            <td className="px-2 py-2 text-center">{l.nota_pontualidade ?? '—'}</td>
-                            <td className="px-2 py-2 text-center">{l.nota_trabalho_equipe ?? '—'}</td>
-                            <td className="px-2 py-2 text-center">{l.nota_desempenho_tarefas ?? '—'}</td>
-                            <td className="px-2 py-2">
-                              {l.media_dia != null ? Number(l.media_dia).toFixed(2) : '—'}
-                            </td>
-                            <td className="px-2 py-2 text-cafeteria-600 max-w-xs">
-                              {l.justificativa_nota_baixa || '—'}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <RelatorioDiariasPorSetor linhas={b.diarias} />
               </section>
 
               <section>
-                <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-2">
+                <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
                   Avaliação da liderança
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-cafeteria-100">
-                  <table className="min-w-full text-sm text-left">
-                    <thead className="bg-cafeteria-50 text-cafeteria-800">
-                      <tr>
-                        <th className="px-2 py-2">Semana</th>
-                        <th className="px-2 py-2">Avaliado</th>
-                        <th className="px-2 py-2">Quem avaliou</th>
-                        <th className="px-2 py-2 text-center">Média</th>
-                        <th className="px-2 py-2 text-center">Exemplo</th>
-                        <th className="px-2 py-2 text-center">Comunic.</th>
-                        <th className="px-2 py-2 text-center">Suporte</th>
-                        <th className="px-2 py-2 text-center">Justiça</th>
-                        <th className="px-2 py-2 text-center">Clima</th>
-                        <th className="px-2 py-2">Justificativa</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {b.lideranca.length === 0 ? (
-                        <tr>
-                          <td colSpan={10} className="px-2 py-6 text-cafeteria-500 text-center">
-                            Nenhum registro no período.
-                          </td>
-                        </tr>
-                      ) : (
-                        b.lideranca.map((row) => (
-                          <tr key={row.id} className="border-t border-cafeteria-100">
-                            <td className="px-2 py-2 whitespace-nowrap">{row.semana_inicio}</td>
-                            <td className="px-2 py-2">{row.avaliado_nome}</td>
-                            <td className="px-2 py-2 text-cafeteria-600">{row.avaliador_label}</td>
-                            <td className="px-2 py-2 text-center font-medium">{row.media.toFixed(2)}</td>
-                            <td className="px-2 py-2 text-center">{row.n_exemplo}</td>
-                            <td className="px-2 py-2 text-center">{row.n_comunicacao}</td>
-                            <td className="px-2 py-2 text-center">{row.n_suporte}</td>
-                            <td className="px-2 py-2 text-center">{row.n_justica}</td>
-                            <td className="px-2 py-2 text-center">{row.n_clima}</td>
-                            <td className="px-2 py-2 text-cafeteria-600 max-w-xs">
-                              {row.justificativa_nota_baixa || '—'}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                <p className="text-xs text-cafeteria-500 mb-3">
+                  Agrupado pelo setor de quem foi avaliado (gerência, administrativo, RH).
+                </p>
+                <RelatorioLiderancaPorSetor linhas={b.lideranca} />
               </section>
             </div>
           </details>

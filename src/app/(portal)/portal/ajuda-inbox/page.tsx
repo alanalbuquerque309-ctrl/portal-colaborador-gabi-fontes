@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+const POLL_MS = 10000;
 
 type ItemInbox = {
   id: string;
@@ -21,33 +23,67 @@ export default function AjudaInboxPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [textoResposta, setTextoResposta] = useState<Record<string, string>>({});
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [podeResponder, setPodeResponder] = useState(false);
+  const [podeExcluir, setPodeExcluir] = useState(false);
   const [somentePendentes, setSomentePendentes] = useState(false);
+  const somentePendentesRef = useRef(false);
 
-  const carregar = async (somentePendentes = false) => {
-    setLoading(true);
-    setErro(null);
-    setSomentePendentes(somentePendentes);
+  useEffect(() => {
+    somentePendentesRef.current = somentePendentes;
+  }, [somentePendentes]);
+
+  const carregar = useCallback(async (opts?: { modo?: boolean; silent?: boolean }) => {
+    const modo = opts?.modo !== undefined ? opts.modo : somentePendentesRef.current;
+    if (opts?.modo !== undefined) {
+      somentePendentesRef.current = opts.modo;
+      setSomentePendentes(opts.modo);
+    }
+
+    const silent = opts?.silent === true;
+    if (!silent) {
+      setLoading(true);
+      setErro(null);
+    }
     try {
-      const qs = somentePendentes ? '?somente_pendentes=1' : '';
-      const res = await fetch(`/api/admin/ajuda-chat${qs}`, { credentials: 'include' });
+      const qs = modo ? '?somente_pendentes=1' : '';
+      const res = await fetch(`/api/admin/ajuda-chat${qs}`, {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      });
       const data = await res.json();
       if (!data.ok) {
-        setErro(data.erro || 'Não foi possível carregar as mensagens.');
+        if (!silent) {
+          setErro(data.erro || 'Não foi possível carregar as mensagens.');
+        }
         return;
       }
       setItens(Array.isArray(data.itens) ? data.itens : []);
       setPodeResponder(data.pode_responder === true);
+      setPodeExcluir(data.pode_excluir === true);
+      if (!silent) setErro(null);
     } catch {
-      setErro('Erro de conexão ao carregar mensagens.');
+      if (!silent) setErro('Erro de conexão ao carregar mensagens.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void carregar(false);
-  }, []);
+    void carregar({ modo: false });
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void carregar({ silent: true });
+    };
+    const t = window.setInterval(() => void carregar({ silent: true }), POLL_MS);
+    window.addEventListener('focus', onVis);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener('focus', onVis);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [carregar]);
 
   const responder = async (id: string) => {
     const resposta = String(textoResposta[id] ?? '').trim();
@@ -66,11 +102,36 @@ export default function AjudaInboxPage() {
         return;
       }
       setTextoResposta((prev) => ({ ...prev, [id]: '' }));
-      await carregar(somentePendentes);
+      await carregar({ silent: true });
     } catch {
       setErro('Erro de conexão ao responder.');
     } finally {
       setEnviandoId(null);
+    }
+  };
+
+  const apagar = async (id: string) => {
+    if (
+      !window.confirm(
+        'Apagar esta mensagem do canal de ajuda? O colaborador deixa de ver este registro no histórico do botão de ajuda. Não dá para desfazer.'
+      )
+    ) {
+      return;
+    }
+    setExcluindoId(id);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/admin/ajuda-chat/${id}`, { method: 'DELETE', credentials: 'include' });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível apagar.');
+        return;
+      }
+      await carregar({ silent: true });
+    } catch {
+      setErro('Erro de conexão ao apagar.');
+    } finally {
+      setExcluindoId(null);
     }
   };
 
@@ -81,13 +142,14 @@ export default function AjudaInboxPage() {
           <h1 className="text-2xl font-display font-semibold text-cafeteria-900">Inbox de ajuda</h1>
           <p className="text-sm text-cafeteria-600 mt-1">
             Mensagens do botão de ajuda. O responsável do dia a dia atende primeiro; sócios e admin também podem
-            responder aqui quando precisar (o colaborador vê quem respondeu).
+            responder aqui quando precisar (o colaborador vê quem respondeu). Sócios e admin podem apagar registros
+            (limpeza ou pedido do colaborador).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => void carregar(true)}
+            onClick={() => void carregar({ modo: true })}
             className={`rounded-lg px-3 py-2 text-sm font-medium ${
               somentePendentes
                 ? 'bg-dourado-base text-cream-100'
@@ -98,7 +160,7 @@ export default function AjudaInboxPage() {
           </button>
           <button
             type="button"
-            onClick={() => void carregar(false)}
+            onClick={() => void carregar({ modo: false })}
             className={`rounded-lg px-3 py-2 text-sm font-medium ${
               !somentePendentes
                 ? 'bg-dourado-base text-cream-100'
@@ -127,9 +189,21 @@ export default function AjudaInboxPage() {
                 <p className="text-sm font-semibold text-cafeteria-900">
                   {item.colaborador_nome} · {item.unidade_nome}
                 </p>
-                <span className="text-xs text-cafeteria-500">
-                  {new Date(item.created_at).toLocaleString('pt-BR')}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {podeExcluir && (
+                    <button
+                      type="button"
+                      onClick={() => void apagar(item.id)}
+                      disabled={excluindoId === item.id}
+                      className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      {excluindoId === item.id ? 'Apagando…' : 'Apagar'}
+                    </button>
+                  )}
+                  <span className="text-xs text-cafeteria-500">
+                    {new Date(item.created_at).toLocaleString('pt-BR')}
+                  </span>
+                </div>
               </div>
               <p className="text-xs text-cafeteria-500">Remetente: {item.colaborador_nome}</p>
               <p className="text-sm text-cafeteria-800">{item.mensagem}</p>
