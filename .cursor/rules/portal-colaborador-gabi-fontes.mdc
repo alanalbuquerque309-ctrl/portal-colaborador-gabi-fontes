@@ -34,6 +34,74 @@ alwaysApply: true
 - **Ajuda (produção):** `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` (UUID em `colaboradores.id`), opcional `NEXT_PUBLIC_AJUDA_RESPONSAVEL_NOME`. Opcional: `ADMIN_ALAN_LOGIN`, `ADMIN_ALAN_PASSWORD`.
 - Branch **`main`**; push → Vercel CI. Só **commit + push** entra em produção; comparar `git rev-parse HEAD` com o deploy na Vercel antes de afirmar que produção está corrigida.
 - **Agente (Cursor):** em alterações que vão para produção neste repositório (`Portal do Colaborador - Gabi Fontes`), **sempre** `git add` + `git commit` + `git push origin main` ao finalizar (salvo o Alan ter pedido explícito para não commitar). Assim o **deploy automático** da Vercel dispara sem o Alan ter de pedir. **Migrações SQL** no Supabase continuam manuais (SQL Editor) quando houver ficheiro novo em `supabase/migrations/`.
+- **Vercel — status:** em **Implantações**, sucesso = **Pronto** / **Ready** (não **Preparar** / **Building**). **Erro** = abrir **Registros de construção** daquela linha (não confundir com log de deploy antigo).
+
+---
+
+## Resumo sessão 2026-05-20 — avaliações, liderança, troféus e deploy
+
+### Contrato de produto (três fluxos)
+
+| Quem | Onde | O que deve ver |
+|------|------|----------------|
+| **Colaborador** | `/portal/avaliacao-lideranca` → aba **Líderes** | Chefes do mapa (`lideres_por_setor`): ex. Mesquita Atendimento → **Silvia + Joyce** como *Chefe direto*; **1 RH**; **Daniel** só como *Administrador da empresa* (não chefe de Atendimento). |
+| **Colaborador** | Mesma página → aba **Reconhecimento entre pares** | Troféus **Postura**, **Braço direito**, **Eficiência** (3 créditos/semana); escolhe colega da **mesma unidade** com onboarding completo. **Hoje:** busca por nome (mín. 2 letras), não lista completa ao abrir. |
+| **Gerente / master / admin** | `/portal/avaliacao-master` | **Todos** os `role = colaborador` da **unidade** com `onboarding_completo = true` (qualquer setor). Quem está com onboarding pendente **não** aparece. |
+
+### O que foi implementado (código)
+
+**Liderança**
+
+- Mapa em `src/lib/config-lideranca-operacional.ts` + `POST /api/admin/lideres-por-setor/aplicar-padrao` (`aplicar-config-lideranca.ts`, `desativarLideresForaDoMapaOperacional`).
+- `listarLideresDoColaborador(..., { apenasDaConfig: true })` em `avaliacao-lideranca/route.ts` (chefes só do mapa; ignora `lider_id` / vínculos legados na avaliação).
+- Filtro em `lideres-por-setor.ts`: Daniel como chefe só nos setores transversais (CD, Estoque, Motorista, Administração, RH).
+- Joyce: equipe Mesquita via `lideres_por_setor` mesmo se cadastro estiver noutra unidade (resolver por nome ao aplicar mapa).
+
+**Troféus entre pares**
+
+- Tipos: `postura`, `braco_direito`, `eficiencia` (`src/lib/trofeus-pares.ts`).
+- APIs: `GET/POST /api/portal/trofeus-pares`, `GET /api/portal/trofeus-pares/busca`.
+- UI: `TrofeusParesPanel.tsx` + abas em `avaliacao-lideranca/page.tsx`.
+
+**Avaliação semanal (gerente)**
+
+- `listarColaboradoresUnidadeParaAvaliacaoGerente` em `colaborador-lideres.ts` (substitui lista só por setor do líder em `avaliacao-master`).
+- Semana civil: `src/lib/semana-referencia.ts` (`data_referencia` = segunda-feira da semana).
+- Checklist: `AvaliacaoSemanalChecklist.tsx`; home: `AvaliacoesPortalHome.tsx`.
+
+### Commits relevantes no `main` (GitHub)
+
+| Commit | Conteúdo |
+|--------|----------|
+| `97a2c6b` | Joyce / resolver líderes ao aplicar mapa |
+| `7edfa8a` | Mapa liderança; Daniel admin global; chefes só setores dele |
+| `22758e6` | Troféus Postura / Braço direito / Eficiência |
+| `82b32c8` | API busca troféus |
+| `6ac958b` | Gerente vê toda a unidade (onboarding OK) |
+| `7c2ae96` | UI avaliações + checklist (**build Vercel falhou** — sem `semana-referencia`) |
+| `f63f6ab` | Adiciona `src/lib/semana-referencia.ts` |
+| `b0e00f1` | Redeploy vazio (forçar build com ficheiro acima) |
+
+**Produção só muda quando o deploy Vercel do commit mais recente ficar Pronto.** Deploys `7c2ae96` e `6ac958b` falharam com: *Módulo não encontrado: `@/lib/semana-referencia`*.
+
+### O que falta corrigir / operação
+
+1. **Vercel:** confirmar deploy **`b0e00f1`** (ou posterior) em **Pronto**. Se **Erro**, ler log **desse** commit; não usar log de `7c2ae96` (15:26).
+2. **Supabase — liderança:** tabela `lideres_por_setor` (`032`); no admin **Aplicar mapa operacional e vincular todos** (criar tabelas no SQL **não** basta).
+3. **Supabase — troféus:** `033` + **`034_trofeus_tipos_postura_eficiencia.sql`** (CHECK dos tipos novos).
+4. **Cadastro:** colaboradores com **setor** preenchido (muitos Mesquita estavam vazios); **Joyce** com `unidade_id` = Mesquita se for gerente da loja.
+5. **Produto (não feito):** lista **completa** de colegas na aba troféus ao abrir (hoje só busca).
+6. **Repo local:** ainda há alterações **não commitadas** (mural/destaque, presença, relatórios agrupados, ajuda, etc.) — não bloqueiam só avaliações/liderança se o deploy `b0e00f1` passar.
+
+### Validação rápida pós-deploy
+
+```powershell
+cd "c:\Users\EU\Desktop\ALAN\ISA AI\ALAN.IA\Portal do Colaborador - Gabi Fontes"
+git fetch origin
+git log origin/main -1 --oneline
+```
+
+Portal em aba anónima; gerente em Mesquita deve ver lista longa de colaboradores; colaborador Atendimento vê Silvia/Joyce + Daniel como administrador.
 
 ---
 
@@ -205,7 +273,7 @@ Ordem e ficheiros principais:
 - **Mapa canónico (código):** `src/lib/config-lideranca-operacional.ts` → `REGRAS_LIDERANCA_OPERACIONAL`; aplicação + limpeza de vínculos antigos em `src/lib/aplicar-config-lideranca.ts` (`desativarLideresForaDoMapaOperacional`).
 - **Gerentes responsáveis pela unidade** (`unidade_todos`, setor `*`): Mesquita → Joyce + Silvia; Barra → Lucas Diniz + Matheus Morais; Nova Iguaçu → Nathalia Pereira Luna + Cristina Batista.
 - **Atendimento explícito** (mesmos gerentes por loja): regras `unidade_setor` em Mesquita, Barra e Nova Iguaçu (Daniel **não** lidera Atendimento).
-- **Daniel Martins** (`LIDER_TRANSVERSAL_CD_NOME`): em **todas** as unidades cadastradas nos setores **CD**, **Motorista**, **Administração**, **RH**; na unidade **Administrativo** lidera tudo (`*`). **Não** usar Estoque para Daniel (legado desativado na aplicação do padrão).
+- **Daniel Martins** (`LIDER_TRANSVERSAL_CD_NOME`): **administrador da empresa** na avaliação de liderança (todos os colaboradores) + chefe direto nos setores **CD**, **Estoque**, **Motorista**, **Administração**, **RH** em todas as unidades; unidade **Administrativo** → `*`. **Não** é chefe de **Atendimento** (Mesquita/Barra/NI = gerentes da loja).
 - **Fábrica:** preparos → Joyce + Silvia; doces → Sabrina + Henrique.
 - **Derivação em runtime:** `listarEquipeDoLider` e `listarLideresDoColaborador` em `src/lib/colaborador-lideres.ts` + `src/lib/lideres-por-setor.ts` + merge com `colaboradores_lideres` / `lider_id` legado (**exceções** manuais).
 - Colaborador com **mesma unidade + setor** herda líderes do setor **e** da unidade (`*`); avaliação de liderança lista cada líder derivado (+ RH/admin conforme regras).
@@ -213,7 +281,8 @@ Ordem e ficheiros principais:
 
 ## Avaliação da liderança (5 pilares)
 
-- Alvos: líderes derivados de **`lideres_por_setor`** + `colaboradores_lideres` (+ fallback `lider_id`), um **RH**, um **admin**; APIs `avaliacao-lideranca`. **Uma avaliação por par** (liderado × líder avaliado × semana).
+- Alvos na API: **`listarLideresDoColaborador(..., { apenasDaConfig: true })`** (só `lideres_por_setor` para *Chefe direto*) + um **RH** + um **admin** (`admin_global`). **Não** misturar Daniel como chefe de Atendimento. **Uma avaliação por par** (liderado × líder avaliado × semana).
+- Dimensões (notas 1–5): exemplo/postura, comunicação, suporte, justiça, clima (`avaliacao-lideranca/route.ts`).
 - Colaborador: `/portal/avaliacao-lideranca` (abas **Líderes** + **Reconhecimento entre pares**); líder: `/portal/minha-lideranca` (`/api/portal/avaliacao-lideranca/minha`).
 - Consolidado sócios/admin em relatórios; anonimato conforme `lib/roles` e APIs.
 
@@ -310,6 +379,6 @@ notify pgrst, 'reload schema';
 - `src/app/api/portal/`, `src/app/api/admin/` — APIs (`destaque`, `trofeus-pares`, `relatorios-presenca`, …).
 - `src/components/mural/` — `MuralReconhecimento`, `MuralUnidade`, `MuralPreview`.
 - `src/components/portal/` — checklist, troféus, relatórios agrupados, cards de avaliação.
-- `src/lib/destaque-avaliacoes.ts`, `src/lib/trofeus-pares.ts`, `src/lib/avaliacao-ranking.ts`, `src/lib/relatorio-avaliacoes-agrupar.ts`.
+- `src/lib/destaque-avaliacoes.ts`, `src/lib/trofeus-pares.ts`, `src/lib/semana-referencia.ts`, `src/lib/avaliacao-ranking.ts`, `src/lib/relatorio-avaliacoes-agrupar.ts`.
 - `src/content/onboarding-quizzes.ts` — perguntas.
 - `supabase/migrations/` — schema (`031`, `032`, `033` entre as mais recentes).
