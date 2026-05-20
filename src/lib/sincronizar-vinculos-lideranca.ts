@@ -32,13 +32,13 @@ export async function sincronizarVinculosLiderancaColaborador(
 
   const unidadeId = colab.unidade_id as string | null;
   const setor = colab.setor as string | null;
-  if (!unidadeId || !setor?.trim()) {
-    return { lideres_ids: [], erro: 'Unidade e setor são necessários para vincular líderes' };
+  if (!unidadeId) {
+    return { lideres_ids: [], erro: 'Unidade é necessária para vincular líderes' };
   }
 
   let derivados: Array<{ id: string }> = [];
   try {
-    derivados = await listarLideresConfigPorUnidadeSetor(supabase, unidadeId, setor);
+    derivados = await listarLideresConfigPorUnidadeSetor(supabase, unidadeId, setor?.trim() || null);
   } catch (e) {
     return { lideres_ids: [], erro: e instanceof Error ? e.message : 'Erro ao resolver líderes' };
   }
@@ -108,7 +108,6 @@ export async function sincronizarVinculosTodosColaboradores(
     const id = String(row.id);
     if (!String(row.setor ?? '').trim()) {
       sem_setor += 1;
-      continue;
     }
     processados += 1;
     const r = await sincronizarVinculosLiderancaColaborador(supabase, id);

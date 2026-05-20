@@ -58,7 +58,9 @@ async function carregarAvaliadosPorRegra(
 ): Promise<AvaliadoRegra[]> {
   const out = new Map<string, AvaliadoRegra>();
 
-  const lideres = await listarLideresDoColaborador(supabase, colaboradorId, liderDiretoId);
+  const lideres = await listarLideresDoColaborador(supabase, colaboradorId, liderDiretoId, {
+    apenasDaConfig: true,
+  });
   for (const lider of lideres) {
     if (lider.id && lider.id !== colaboradorId) {
       out.set(lider.id, {
@@ -204,7 +206,7 @@ export async function GET() {
       help:
         role === 'admin'
           ? 'Administrador: avalie apenas seus subordinados diretos dos cargos operacionais permitidos (estoque, motorista e auxiliar administrativo). De 1 a 5. Identidade não exibida para o avaliado.'
-          : 'Avaliação opcional para colaboradores. Você avalia apenas: chefe direto + RH + administrador (empresa). De 1 a 5. Anônima para o avaliado.',
+          : 'Avaliação opcional para colaboradores. Você avalia cada chefe vinculado ao seu setor (pode ser mais de um) + RH + administrador da empresa. Uma avaliação por pessoa por semana. De 1 a 5. Anônima para o avaliado.',
       alerta_ultimo_dia: ultimoDiaSemana && pendentes.length > 0,
       pendentes_no_ultimo_dia: pendentes.length,
       avaliacao_opcional: true,
@@ -264,7 +266,7 @@ export async function POST(req: Request) {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('id, unidade_id, role, lider_id')
+      .select('id, unidade_id, role, lider_id, setor, unidade:unidades(slug)')
       .eq('id', colaboradorId)
       .single();
 

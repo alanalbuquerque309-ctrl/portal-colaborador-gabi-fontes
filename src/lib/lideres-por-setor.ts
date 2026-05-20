@@ -1,7 +1,35 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
+import {
+  LIDER_TRANSVERSAL_CD_NOME,
+  SETORES_LIDERANCA_DANIEL_TRANSVERSAL,
+} from '@/lib/config-lideranca-operacional';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { normalizePortalRole } from '@/lib/roles';
+
+function normalizarNomeLider(nome: string): string {
+  return String(nome ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isLiderTransversalCd(nome: string): boolean {
+  const alvo = normalizarNomeLider(LIDER_TRANSVERSAL_CD_NOME);
+  const n = normalizarNomeLider(nome);
+  if (!n || !alvo) return false;
+  return n === alvo || n.includes('daniel');
+}
+
+/** Daniel só pode aparecer como chefe quando o setor do colaborador é transversal (CD, Motorista, etc.). */
+function liderConfigPermitidoParaSetorColaborador(nomeLider: string, setorColaborador: string): boolean {
+  if (!isLiderTransversalCd(nomeLider)) return true;
+  const setor = String(setorColaborador ?? '').trim();
+  if (!setor) return false;
+  const norm = normalizarNomeLider(setor);
+  return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some((s) => normalizarNomeLider(s) === norm);
+}
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -46,15 +74,23 @@ export async function listarLideresConfigPorUnidadeSetor(
   unidadeId: string | null | undefined,
   setor: string | null | undefined
 ): Promise<Array<{ id: string; nome: string; role: string }>> {
-  if (!unidadeId || !setor || !isSetorValido(setor)) return [];
+  if (!unidadeId) return [];
 
-  const setorTrim = setor.trim();
-  const { data: porSetor, error: errSetor } = await supabase
-    .from('lideres_por_setor')
-    .select('lider_id')
-    .eq('unidade_id', unidadeId)
-    .eq('setor', setorTrim)
-    .eq('ativo', true);
+  const setorTrim = String(setor ?? '').trim();
+  const setorEspecifico = setorTrim && isSetorValido(setorTrim);
+
+  let porSetor: { lider_id: string }[] | null = [];
+  let errSetor: { message: string } | null = null;
+  if (setorEspecifico) {
+    const res = await supabase
+      .from('lideres_por_setor')
+      .select('lider_id')
+      .eq('unidade_id', unidadeId)
+      .eq('setor', setorTrim)
+      .eq('ativo', true);
+    porSetor = res.data;
+    errSetor = res.error;
+  }
 
   const { data: porUnidade, error: errUnidade } = await supabase
     .from('lideres_por_setor')
@@ -84,11 +120,14 @@ export async function listarLideresConfigPorUnidadeSetor(
     .in('id', ids);
   if (errCols) throw new Error(errCols.message);
 
-  return (cols ?? []).map((c) => ({
-    id: String(c.id),
-    nome: String(c.nome ?? ''),
-    role: String((c as { role?: string }).role ?? ''),
-  }));
+  const setorParaFiltro = setorEspecifico ? setorTrim : '';
+  return (cols ?? [])
+    .filter((c) => liderConfigPermitidoParaSetorColaborador(String(c.nome ?? ''), setorParaFiltro))
+    .map((c) => ({
+      id: String(c.id),
+      nome: String(c.nome ?? ''),
+      role: String((c as { role?: string }).role ?? ''),
+    }));
 }
 
 /** Colaboradores (role colaborador) no mesmo unidade+setor — liderados derivados. `setor` `*` = toda a unidade. */

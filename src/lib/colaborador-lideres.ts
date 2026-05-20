@@ -25,7 +25,7 @@ export async function listarLideresDoColaborador(
   supabase: SupabaseAdmin,
   colaboradorId: string,
   liderIdLegado?: string | null,
-  opts?: { unidadeId?: string | null; setor?: string | null }
+  opts?: { unidadeId?: string | null; setor?: string | null; /** Avaliação de liderança: só `lideres_por_setor`, ignora vínculo antigo. */ apenasDaConfig?: boolean }
 ): Promise<LiderVinculado[]> {
   const out = new Map<string, LiderVinculado>();
 
@@ -50,6 +50,10 @@ export async function listarLideresDoColaborador(
     }
   } catch {
     /* tabela ainda não migrada */
+  }
+
+  if (opts?.apenasDaConfig) {
+    return Array.from(out.values());
   }
 
   const { data: vinculos } = await supabase
