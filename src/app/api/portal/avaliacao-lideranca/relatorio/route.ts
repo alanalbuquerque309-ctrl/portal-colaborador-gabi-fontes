@@ -104,10 +104,15 @@ export async function GET(req: Request) {
     const ids = Array.from(
       new Set(list.flatMap((r) => [r.avaliado_id, r.avaliador_id].filter(Boolean) as string[]))
     );
-    let nomePorId: Record<string, string> = {};
+    const metaPorId: Record<string, { nome: string; setor: string | null }> = {};
     if (ids.length > 0) {
-      const { data: pessoas } = await supabase.from('colaboradores').select('id, nome').in('id', ids);
-      nomePorId = Object.fromEntries((pessoas ?? []).map((p) => [p.id as string, String(p.nome ?? '')]));
+      const { data: pessoas } = await supabase.from('colaboradores').select('id, nome, setor').in('id', ids);
+      for (const p of pessoas ?? []) {
+        metaPorId[p.id as string] = {
+          nome: String(p.nome ?? ''),
+          setor: (p as { setor?: string | null }).setor ?? null,
+        };
+      }
     }
 
     const itens = list.map((r) => {
@@ -119,7 +124,8 @@ export async function GET(req: Request) {
       const nJustica = Number((r as { n_justica?: number; n_organizacao?: number }).n_justica ?? (r as { n_organizacao?: number }).n_organizacao ?? 3);
       const nClima = Number((r as { n_clima?: number; n_ambiente?: number }).n_clima ?? (r as { n_ambiente?: number }).n_ambiente ?? 3);
       const media = (nExemplo + nComunicacao + nSuporte + nJustica + nClima) / 5;
-      const avaliadoNome = nomePorId[r.avaliado_id as string] ?? '—';
+      const avaliadoMeta = metaPorId[r.avaliado_id as string];
+      const avaliadoNome = avaliadoMeta?.nome ?? '—';
       return {
         id: r.id,
         unidade_id: uid,
@@ -128,8 +134,9 @@ export async function GET(req: Request) {
         semana_inicio: r.semana_inicio,
         created_at: r.created_at,
         avaliado_nome: avaliadoNome,
+        avaliado_setor: avaliadoMeta?.setor ?? null,
         avaliador_label: podeVerAutorDaAvaliacao
-          ? nomePorId[r.avaliador_id as string] ?? 'Colaborador'
+          ? metaPorId[r.avaliador_id as string]?.nome ?? 'Colaborador'
           : 'Colaborador (anônimo)',
         n_exemplo: nExemplo,
         n_comunicacao: nComunicacao,

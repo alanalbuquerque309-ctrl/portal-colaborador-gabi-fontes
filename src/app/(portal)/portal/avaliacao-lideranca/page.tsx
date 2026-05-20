@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { normalizePortalRole } from '@/lib/roles';
+import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
+import { TrofeusParesPanel } from '@/components/portal/TrofeusParesPanel';
 
 type Avaliado = {
   id: string;
@@ -44,6 +46,7 @@ export default function AvaliacaoLiderancaPage() {
   const [enviando, setEnviando] = useState(false);
   const [perfilRole, setPerfilRole] = useState<string>('colaborador');
   const [justificativaNotaBaixa, setJustificativaNotaBaixa] = useState('');
+  const [filtroPendentes, setFiltroPendentes] = useState(false);
 
   useEffect(() => {
     const s = getPortalSession();
@@ -201,6 +204,31 @@ export default function AvaliacaoLiderancaPage() {
           </div>
 
           {aba === 'lideranca' ? (
+            <>
+              {avaliados.length > 0 && (
+                <AvaliacaoSemanalChecklist
+                  titulo="Checklist da semana"
+                  itens={avaliados.map((a) => ({
+                    id: a.id,
+                    nome: a.nome,
+                    concluido: a.ja_avaliado_esta_semana,
+                    subtitulo: `${a.papel_label ?? 'Referência'} · ${a.role_label ?? a.role}`,
+                  }))}
+                  filtroPendentes={filtroPendentes}
+                  onToggleFiltro={() => setFiltroPendentes((v) => !v)}
+                  onIrPara={(id) => {
+                    setSelecionado(id);
+                    setNotas({
+                      n_exemplo: 3,
+                      n_comunicacao: 3,
+                      n_suporte: 3,
+                      n_justica: 3,
+                      n_clima: 3,
+                    });
+                    setJustificativaNotaBaixa('');
+                  }}
+                />
+              )}
             <section className="rounded-xl border border-cafeteria-200 bg-white p-4 shadow-sm">
               <h2 className="font-display text-lg text-cafeteria-900 mb-3">Quem avaliar</h2>
               {avaliados.length === 0 ? (
@@ -209,7 +237,7 @@ export default function AvaliacaoLiderancaPage() {
                 </p>
               ) : (
                 <ul className="space-y-2">
-                  {avaliados.map((a) => (
+                  {(filtroPendentes ? avaliados.filter((a) => !a.ja_avaliado_esta_semana) : avaliados).map((a) => (
                     <li key={a.id}>
                       <button
                         type="button"
@@ -233,52 +261,28 @@ export default function AvaliacaoLiderancaPage() {
                               : 'border-cafeteria-200 hover:border-dourado-base/50'
                         }`}
                       >
-                        <span className="font-medium">{a.nome}</span>
+                        <span className="font-medium flex items-center gap-2 flex-wrap">
+                          {a.nome}
+                          {a.ja_avaliado_esta_semana ? (
+                            <span className="text-xs rounded-full bg-green-100 text-green-800 px-2 py-0.5">Avaliado</span>
+                          ) : (
+                            <span className="text-xs rounded-full bg-amber-100 text-amber-900 px-2 py-0.5">Pendente</span>
+                          )}
+                        </span>
                         <span className="block text-xs text-cafeteria-600 mt-0.5">
                           {a.papel_label ?? 'Referência'} · {a.role_label ?? a.role}
                         </span>
-                        {a.ja_avaliado_esta_semana && (
-                          <span className="block text-xs text-green-700 mt-1">Já avaliado esta semana</span>
-                        )}
                       </button>
                     </li>
                   ))}
                 </ul>
               )}
             </section>
+            </>
           ) : (
             <section className="rounded-xl border border-cafeteria-200 bg-white p-4 shadow-sm">
-              <h2 className="font-display text-lg text-cafeteria-900 mb-2">Mural de Medalhas</h2>
-              <p className="text-sm text-cafeteria-700">
-                O reconhecimento entre pares já está visível com os 3 troféus oficiais da semana.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <article className="rounded-xl border border-dourado-200 bg-dourado-50 p-3">
-                  <p className="text-2xl">🏆</p>
-                  <p className="text-sm font-semibold text-cafeteria-900 mt-1">Braço Direito</p>
-                  <p className="text-xs text-cafeteria-700 mt-1">
-                    Para quem segurou a operação e apoiou o time sem deixar a peteca cair.
-                  </p>
-                </article>
-                <article className="rounded-xl border border-dourado-200 bg-dourado-50 p-3">
-                  <p className="text-2xl">✨</p>
-                  <p className="text-sm font-semibold text-cafeteria-900 mt-1">Energia Contagiante</p>
-                  <p className="text-xs text-cafeteria-700 mt-1">
-                    Para quem elevou o clima da equipe com atitude positiva e colaboração.
-                  </p>
-                </article>
-                <article className="rounded-xl border border-dourado-200 bg-dourado-50 p-3">
-                  <p className="text-2xl">👁️</p>
-                  <p className="text-sm font-semibold text-cafeteria-900 mt-1">Olhar de Dono</p>
-                  <p className="text-xs text-cafeteria-700 mt-1">
-                    Para quem cuidou dos detalhes da loja como se fosse dono do negócio.
-                  </p>
-                </article>
-              </div>
-              <p className="text-xs text-cafeteria-600 mt-3">
-                Créditos semanais por colaborador: <strong>3</strong>. O envio de troféus será ativado na próxima
-                etapa do fluxo.
-              </p>
+              <h2 className="font-display text-lg text-cafeteria-900 mb-2">Reconhecimento entre pares</h2>
+              <TrofeusParesPanel />
             </section>
           )}
 

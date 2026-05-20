@@ -4,16 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
+import { hojeInicioSemanaISO } from '@/lib/semana-referencia';
 
 function normalizarRole(raw: unknown): string {
   if (typeof raw !== 'string') return 'colaborador';
   const t = raw.trim().toLowerCase();
   return t || 'colaborador';
-}
-
-function hojeISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function aplicarFlagsRole(
@@ -43,7 +39,7 @@ export function AvaliacoesPortalHome() {
   const [mostrarMinhaLideranca, setMostrarMinhaLideranca] = useState(false);
   const [mostrarRelatoriosSocio, setMostrarRelatoriosSocio] = useState(false);
   const [alertaLiderancaSemanal, setAlertaLiderancaSemanal] = useState<string | null>(null);
-  const [alertaGerenteDiario, setAlertaGerenteDiario] = useState<string | null>(null);
+  const [alertaGerenteSemanal, setAlertaGerenteSemanal] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -66,7 +62,7 @@ export function AvaliacoesPortalHome() {
           setMostrarMinhaLideranca(nr === 'gerente' || nr === 'master' || nr === 'admin');
           setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
           if (nr === 'gerente' || nr === 'master' || nr === 'admin') {
-            fetch(`/api/portal/avaliacao-master?data=${hojeISO()}`, { credentials: 'include', cache: 'no-store' })
+            fetch(`/api/portal/avaliacao-master?data=${hojeInicioSemanaISO()}`, { credentials: 'include', cache: 'no-store' })
               .then((r2) => r2.json())
               .then((d2) => {
                 if (!d2?.ok || !Array.isArray(d2.equipe)) return;
@@ -75,10 +71,10 @@ export function AvaliacoesPortalHome() {
                   (m: { avaliacao?: unknown }) => m.avaliacao == null
                 ).length;
                 if (total > 0 && pendentes > 0) {
-                  setAlertaGerenteDiario(
-                    `Lembrete diário: faltam ${pendentes} avaliação${
+                  setAlertaGerenteSemanal(
+                    `Lembrete semanal: faltam ${pendentes} avaliação${
                       pendentes === 1 ? '' : 'ões'
-                    } da sua equipe para hoje.`
+                    } da sua equipe para a semana atual.`
                   );
                 }
               })
@@ -154,9 +150,9 @@ export function AvaliacoesPortalHome() {
             {alertaLiderancaSemanal}
           </div>
         )}
-        {alertaGerenteDiario && (
+        {alertaGerenteSemanal && (
           <div className="sm:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {alertaGerenteDiario}
+            {alertaGerenteSemanal}
           </div>
         )}
         {mostrarRelatoriosSocio && (
@@ -169,7 +165,7 @@ export function AvaliacoesPortalHome() {
               Relatórios por filial
             </h3>
             <p className="text-sm text-cafeteria-600 mt-2">
-              Avaliações da equipe (diárias) e feedback sobre liderança, unidade a unidade, no mesmo lugar.
+              Avaliações da equipe (semanais) e feedback sobre liderança, unidade a unidade, no mesmo lugar.
             </p>
             <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
               Abrir visão completa →
@@ -186,7 +182,7 @@ export function AvaliacoesPortalHome() {
               Avaliação da equipe
             </h3>
             <p className="text-sm text-cafeteria-600 mt-2">
-              Registrar o dia da sua equipe (após envio, só leitura).
+              Registrar a semana da sua equipe (após envio, só leitura).
             </p>
             <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
               Abrir →
@@ -236,7 +232,7 @@ export function AvaliacoesPortalHome() {
           >
             <p className="text-xs font-medium text-dourado-600 uppercase tracking-wider mb-2">Administrativo</p>
             <h3 className="font-display font-semibold text-cafeteria-900 text-lg group-hover:text-dourado-700">
-              Relatório de avaliações diárias
+              Relatório de avaliações semanais da equipe
             </h3>
             <p className="text-sm text-cafeteria-600 mt-2">
               Visão consolidada no painel admin (período e unidade).
