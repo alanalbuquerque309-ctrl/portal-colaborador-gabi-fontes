@@ -6,7 +6,8 @@ import {
   type AssiduidadeTipo,
   type NotasCriterios,
 } from '@/lib/avaliacao-diaria';
-import { listarEquipeDoLider } from '@/lib/colaborador-lideres';
+import { listarColaboradoresUnidadeParaAvaliacaoGerente } from '@/lib/colaborador-lideres';
+import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 
 function isDateIso(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -16,22 +17,27 @@ function sanitizeJustificativa(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }
 
-/** Equipe do gerente + avaliações já salvas na data (leitura após envio). */
+/** Equipe do gerente + avaliações já salvas na semana (segunda de `data`); leitura após envio. */
 export async function GET(req: Request) {
   const auth = await requirePortalGerenteSession();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
-  const dataRef = searchParams.get('data')?.trim() ?? '';
-  if (!isDateIso(dataRef)) {
+  const dataRefRaw = searchParams.get('data')?.trim() ?? '';
+  if (!isDateIso(dataRefRaw)) {
     return NextResponse.json({ ok: false, erro: 'Parâmetro data inválido (use YYYY-MM-DD)' }, { status: 400 });
   }
+  const dataRef = inicioSemanaSegundaFeiraLocal(dataRefRaw);
 
   try {
     const supabase = createAdminClient();
     const { colaboradorId, unidadeId } = auth.ctx;
 
-    const equipe = await listarEquipeDoLider(supabase, colaboradorId, unidadeId);
+    const equipe = await listarColaboradoresUnidadeParaAvaliacaoGerente(
+      supabase,
+      unidadeId,
+      colaboradorId
+    );
 
     const ids = equipe.map((c) => c.id);
     let avaliacoesPorColab: Record<string, Record<string, unknown>> = {};
@@ -103,14 +109,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, erro: 'JSON inválido' }, { status: 400 });
   }
 
-  const dataRef = String(body.data_referencia ?? '').trim();
+  const dataRefRaw = String(body.data_referencia ?? '').trim();
   const colaboradorAlvo = String(body.colaborador_id ?? '').trim();
   const assidRaw = String(body.assiduidade ?? '').trim();
   const justificativaNotaBaixa = sanitizeJustificativa(body.justificativa_nota_baixa);
 
-  if (!isDateIso(dataRef) || !colaboradorAlvo || !isAssiduidade(assidRaw)) {
+  if (!isDateIso(dataRefRaw) || !colaboradorAlvo || !isAssiduidade(assidRaw)) {
     return NextResponse.json({ ok: false, erro: 'Dados obrigatórios inválidos' }, { status: 400 });
   }
+  const dataRef = inicioSemanaSegundaFeiraLocal(dataRefRaw);
 
   const notasEntrada: NotasCriterios = {
     vestimenta: body.nota_vestimenta ?? null,
@@ -168,10 +175,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Não é possível autoavaliar' }, { status: 400 });
     }
 
-    const equipe = await listarEquipeDoLider(supabase, colaboradorId, unidadeId);
+    const equipe = await listarColaboradoresUnidadeParaAvaliacaoGerente(
+      supabase,
+      unidadeId,
+      colaboradorId
+    );
     const sub = equipe.find((membro) => membro.id === colaboradorAlvo);
     if (!sub) {
-      return NextResponse.json({ ok: false, erro: 'Colaborador não pertence à sua equipe' }, { status: 403 });
+      return NextResponse.json(
+        {
+          ok: false,
+          erro: 'Colaborador não encontrado na unidade ou ainda não concluiu o onboarding.',
+        },
+        { status: 403 }
+      );
     }
 
     const { data: existente } = await supabase
@@ -186,7 +203,7 @@ export async function POST(req: Request) {
         {
           ok: false,
           erro:
-            'Este colaborador já recebeu avaliação nesta data. Para correção, contacte o administrativo/RH.',
+            'Este colaborador já recebeu avaliação nesta semana. Para correção, contacte o administrativo/RH.',
         },
         { status: 409 }
       );

@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizePortalRole } from '@/lib/roles';
 import {
   listarColaboradoresPorUnidadeSetor,
   listarLideresConfigPorUnidadeSetor,
@@ -13,13 +14,44 @@ export type LiderVinculado = {
   role: string;
 };
 
-type MembroEquipe = {
+export type MembroEquipe = {
   id: string;
   nome: string;
   role: string | null;
   cargo: string | null;
   setor: string | null;
 };
+
+/** Avaliação semanal do gerente: todos os colaboradores da unidade com onboarding concluído. */
+export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
+  supabase: SupabaseAdmin,
+  unidadeId: string,
+  excluirAvaliadorId?: string
+): Promise<MembroEquipe[]> {
+  let query = supabase
+    .from('colaboradores')
+    .select('id, nome, role, cargo, setor')
+    .eq('unidade_id', unidadeId)
+    .eq('onboarding_completo', true)
+    .order('nome', { ascending: true });
+
+  if (excluirAvaliadorId) {
+    query = query.neq('id', excluirAvaliadorId);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+
+  return (data ?? [])
+    .filter((c) => normalizePortalRole((c as { role?: string }).role) === 'colaborador')
+    .map((c) => ({
+      id: String(c.id),
+      nome: String(c.nome ?? ''),
+      role: (c as { role?: string | null }).role ?? null,
+      cargo: (c as { cargo?: string | null }).cargo ?? null,
+      setor: (c as { setor?: string | null }).setor ?? null,
+    }));
+}
 
 export async function listarLideresDoColaborador(
   supabase: SupabaseAdmin,

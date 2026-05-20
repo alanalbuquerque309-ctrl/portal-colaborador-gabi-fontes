@@ -221,7 +221,7 @@ Ordem e ficheiros principais:
 
 ## Avaliação semanal da equipe (master / líder)
 
-**Contrato (produto):** os líderes avaliam cada colaborador da equipe **no máximo uma vez por semana civil** (segunda a domingo, fuso **local**).
+**Contrato (produto):** os líderes avaliam cada colaborador da **unidade** **no máximo uma vez por semana civil** (segunda a domingo, fuso **local**). Lista em `/api/portal/avaliacao-master`: todos com `role = colaborador`, mesma `unidade_id`, `onboarding_completo = true` (quem está com onboarding pendente **não** aparece). Não filtra por setor do mapa `lideres_por_setor`.
 
 - **UI:** `/portal/avaliacao-master`; `/api/portal/avaliacao-master` (GET lista equipe + avaliação já gravada; POST primeira gravação, sem edição depois).
 - **Chave de período:** mantém-se a tabela **`avaliacoes_diarias`** e o campo **`data_referencia`**, mas **sempre normalizado para a segunda-feira da semana** que contém a data escolhida ou enviada. Utilitários: `src/lib/semana-referencia.ts` (`inicioSemanaSegundaFeiraLocal`, `hojeInicioSemanaISO`, `formatarIntervaloSemanaPtBR`). O UNIQUE `(colaborador_id, avaliador_id, data_referencia)` passa a significar **uma avaliação por semana por par**.
