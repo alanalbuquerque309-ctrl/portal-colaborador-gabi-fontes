@@ -69,39 +69,53 @@ alwaysApply: true
 - Semana civil: `src/lib/semana-referencia.ts` (`data_referencia` = segunda-feira da semana).
 - Checklist: `AvaliacaoSemanalChecklist.tsx`; home: `AvaliacoesPortalHome.tsx`.
 
+### Produção (Vercel) — estado 2026-05-20
+
+| Item | Valor |
+|------|--------|
+| **URL canónica** | `https://portal-colaborador-gabi-fontes.vercel.app` |
+| **Commit em produção** | `474f5c2` — mural, presença, relatórios agrupados, troféus com lista completa |
+| **Deploy atual (painel)** | `34cz8ERVJ` — **Ready** / **Atual** |
+
+**Deploys com Erro que podem ser ignorados** (histórico, já substituídos): `9Y7vpBCAu` (`7c2ae96`), `6nGwPBEKW` (`6ac958b`) — falha *Módulo não encontrado: `@/lib/semana-referencia`*; corrigido em `f63f6ab` e absorvido em `474f5c2`. Não reabrir esses logs salvo auditoria.
+
+Confirmar produção: `vercel ls` (linha mais recente **Ready**) ou `vercel inspect portal-colaborador-gabi-fontes.vercel.app` → aliases incluem a URL canónica.
+
 ### Commits relevantes no `main` (GitHub)
 
 | Commit | Conteúdo |
 |--------|----------|
-| `97a2c6b` | Joyce / resolver líderes ao aplicar mapa |
-| `7edfa8a` | Mapa liderança; Daniel admin global; chefes só setores dele |
-| `22758e6` | Troféus Postura / Braço direito / Eficiência |
-| `82b32c8` | API busca troféus |
-| `6ac958b` | Gerente vê toda a unidade (onboarding OK) |
-| `7c2ae96` | UI avaliações + checklist (**build Vercel falhou** — sem `semana-referencia`) |
-| `f63f6ab` | Adiciona `src/lib/semana-referencia.ts` |
-| `b0e00f1` | Redeploy vazio (forçar build com ficheiro acima) |
+| `474f5c2` | **Produção atual:** mural/destaque, presença, relatórios por setor, `colegas_elegiveis` troféus |
+| `f63f6ab` | Fix build: `src/lib/semana-referencia.ts` |
+| `b0e00f1` | Redeploy forçado pós `f63f6ab` |
+| `7c2ae96` / `6ac958b` | UI avaliações / gerente unidade (**Vercel Erro** — ver acima) |
+| `82b32c8` … `97a2c6b` | Troféus, mapa liderança, Joyce |
 
-**Produção só muda quando o deploy Vercel do commit mais recente ficar Pronto.** Deploys `7c2ae96` e `6ac958b` falharam com: *Módulo não encontrado: `@/lib/semana-referencia`*.
+### Operação pós-deploy (shell no PC do Alan)
 
-### O que falta corrigir / operação
+**Pré-requisito local:** `.env.local` na raiz do Portal com `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_ALAN_PASSWORD` e **`DATABASE_URL`** (Supabase → Database → URI **Direct**, porta **5432**). Sem `DATABASE_URL`, `npm run db:apply-pendentes` falha.
 
-1. **Vercel:** confirmar deploy **`b0e00f1`** (ou posterior) em **Pronto**. Se **Erro**, ler log **desse** commit; não usar log de `7c2ae96` (15:26).
-2. **Supabase — liderança:** tabela `lideres_por_setor` (`032`); no admin **Aplicar mapa operacional e vincular todos** (criar tabelas no SQL **não** basta).
-3. **Supabase — troféus:** `033` + **`034_trofeus_tipos_postura_eficiencia.sql`** (CHECK dos tipos novos).
-4. **Cadastro:** colaboradores com **setor** preenchido (muitos Mesquita estavam vazios); **Joyce** com `unidade_id` = Mesquita se for gerente da loja.
-5. ~~**Produto:** lista completa de colegas na aba troféus~~ — `colegas_elegiveis` no `GET /api/portal/trofeus-pares` + `TrofeusParesPanel`.
-6. **Repo local:** commitar e fazer push das alterações pendentes (mural/destaque, presença, relatórios agrupados, ajuda, troféus).
+| Passo | Comando |
+|-------|---------|
+| Migrations 031–034 | `npm run db:apply-pendentes` → `scripts/aplicar-migrations-031-034.mjs` |
+| Mapa de liderança | `.\scripts\aplicar-mapa-lideranca.ps1 -PortalUrl "https://portal-colaborador-gabi-fontes.vercel.app"` (usa `-UseBasicParsing`; lê `ADMIN_ALAN_PASSWORD` do `.env.local`) |
+| Diagnóstico Mesquita | `node scripts/diagnostico-equipe-mesquita.mjs` |
+| Git alinhado | `git fetch origin` + `git log origin/main -1 --oneline` → esperar `474f5c2` ou posterior |
 
-### Validação rápida pós-deploy
+Criar tabelas no SQL Editor **não** substitui **Aplicar mapa** (API `POST /api/admin/lideres-por-setor/aplicar-padrao`).
 
-```powershell
-cd "c:\Users\EU\Desktop\ALAN\ISA AI\ALAN.IA\Portal do Colaborador - Gabi Fontes"
-git fetch origin
-git log origin/main -1 --oneline
-```
+### Pendências operacionais (dados / cadastro)
 
-Portal em aba anónima; gerente em Mesquita deve ver lista longa de colaboradores; colaborador Atendimento vê Silvia/Joyce + Daniel como administrador.
+1. **Supabase:** garantir `031`–`034` aplicadas (shell acima ou SQL Editor).
+2. **Mapa:** rodar `aplicar-mapa-lideranca.ps1` após migrations.
+3. **Cadastro:** **setor** preenchido (Mesquita); **Joyce** com `unidade_id` = Mesquita se gerente da loja.
+
+### Validação rápida em produção
+
+Aba anónima em `https://portal-colaborador-gabi-fontes.vercel.app`:
+
+- `/portal/avaliacao-lideranca` → troféus com lista de colegas; líderes Silvia/Joyce + Daniel administrador (Atendimento Mesquita).
+- `/portal/avaliacao-master` (gerente Mesquita) → lista longa de colaboradores com onboarding completo.
 
 ---
 
@@ -253,8 +267,8 @@ Ordem e ficheiros principais:
 - Tabela: **`trofeus_entre_pares`** (`033_trofeus_entre_pares.sql`).
 - Tipos: `postura`, `braco_direito`, `eficiencia` — labels em `src/lib/trofeus-pares.ts` (migração **`034`** converte legado `energia_contagiante`→`postura`, `olhar_dono`→`eficiencia`).
 - Regras: **3 créditos/semana** por avaliador; **1 troféu por destinatário por semana** (`UNIQUE(avaliador_id, destinatario_id, semana_inicio)`); mesma unidade; só `role = colaborador` envia; onboarding completo.
-- APIs: `GET/POST /api/portal/trofeus-pares`, `GET /api/portal/trofeus-pares/busca?q=` (mín. 2 letras, mesma unidade).
-- UI: `src/components/portal/TrofeusParesPanel.tsx` na aba **Reconhecimento entre pares** de `/portal/avaliacao-lideranca`.
+- APIs: `GET/POST /api/portal/trofeus-pares` (GET inclui `colegas_elegiveis`), `GET /api/portal/trofeus-pares/busca?q=` (legado; UI filtra localmente).
+- UI: `src/components/portal/TrofeusParesPanel.tsx` — lista completa ao abrir + filtro por nome.
 
 ---
 
@@ -381,4 +395,7 @@ notify pgrst, 'reload schema';
 - `src/components/portal/` — checklist, troféus, relatórios agrupados, cards de avaliação.
 - `src/lib/destaque-avaliacoes.ts`, `src/lib/trofeus-pares.ts`, `src/lib/semana-referencia.ts`, `src/lib/avaliacao-ranking.ts`, `src/lib/relatorio-avaliacoes-agrupar.ts`.
 - `src/content/onboarding-quizzes.ts` — perguntas.
-- `supabase/migrations/` — schema (`031`, `032`, `033` entre as mais recentes).
+- `supabase/migrations/` — schema (`031`, `032`, `033`, `034` entre as mais recentes).
+- `scripts/aplicar-migrations-031-034.mjs` + `npm run db:apply-pendentes` — migrations pendentes via `DATABASE_URL`.
+- `scripts/aplicar-mapa-lideranca.ps1` — aplica mapa em produção/local via API admin.
+- `scripts/diagnostico-equipe-mesquita.mjs` — diagnóstico equipe/avaliação Mesquita.
