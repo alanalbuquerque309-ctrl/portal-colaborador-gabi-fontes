@@ -4,12 +4,15 @@ export const SETORES_PREDEFINIDOS = [
   'Fábrica de doces',
   'Fábrica de preparos',
   'Escritório',
+  'CD',
   'Estoque',
   'Atendimento',
   'ASG',
   'Supervisão',
   'Motorista',
   'Marketing',
+  'RH',
+  'Administração',
 ] as const;
 
 /** Unidades (slug usado no cadastro e na API). Sem Matriz. */

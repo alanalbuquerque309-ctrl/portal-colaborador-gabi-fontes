@@ -138,29 +138,105 @@ Ordem e ficheiros principais:
 
 ## Relatórios de avaliações
 
-- **`lib/avaliacoes-relatorio-access.ts`:** relatórios completos — **socio** e **admin**.
-- Página: `/portal/relatorios-avaliacoes`.
+- **`lib/avaliacoes-relatorio-access.ts`:** relatórios completos — **socio** e **admin** (mesmo gate para presença).
+- Página: `/portal/relatorios-avaliacoes`; menu **Relatórios** no `Header.tsx`.
+- Bloco **equipe**: avaliações **semanais** (uma linha por semana); coluna de período = **segunda-feira** da semana (`data_referencia`).
+- **Layout (2026-05):** agrupamento **unidade → setor → nome do colaborador** (não tabela única). Lib `src/lib/relatorio-avaliacoes-agrupar.ts`; UI `src/components/portal/RelatorioAvaliacoesPorSetor.tsx` (`RelatorioDiariasPorSetor`, `RelatorioLiderancaPorSetor`).
+- APIs: `GET /api/portal/relatorios-avaliacoes-diarias`, `GET /api/portal/avaliacao-lideranca/relatorio` (incluem `colaborador_setor` / `avaliado_setor` quando existir no schema).
 - Notas baixas: `justificativa_nota_baixa` quando nota ≤ 3 (migração `028`).
 
 ---
 
+## Relatório de uso do portal (inatividade)
+
+- Página: `/portal/relatorios-presenca`; menu **Uso do portal** (sócio/admin).
+- API: `GET /api/portal/relatorios-presenca?dias=7&unidade=slug` (opcional).
+- Fonte: tabela **`portal_presenca`** (`ultimo_ping_at`) + heartbeat `PortalPresence` + `POST /api/portal/presenca/ping`. Critério: sem ping há N dias ou nunca registrou (onboarding completo).
+- Migração: **`031_portal_presenca.sql`**.
+
+---
+
+## Mural (avisos + reconhecimento automático)
+
+**Não confundir** três camadas:
+
+| Camada | Origem | Onde aparece |
+|--------|--------|----------------|
+| **Avisos** | Manual no admin (`/admin/avisos` → tabela `avisos`) | `/portal/mural` (secção Avisos), preview na home |
+| **Destaques automáticos** | Cálculo sobre `avaliacoes_diarias` (só `role = colaborador`, `media_dia` não nula) | Home (`DestaqueSection`), `/portal/mural` (`MuralReconhecimento`) |
+| **Troféus entre pares** | Colaboradores enviam na aba da avaliação | Mesmo bloco de reconhecimento + aba em `/portal/avaliacao-lideranca` |
+
+**Destaques automáticos (contrato):**
+
+- API: `GET /api/portal/destaque` — lógica em `src/lib/destaque-avaliacoes.ts` (`calcularDestaquesMural`).
+- **Semana:** melhor média na semana civil (segunda via `segundaSemanaSaoPaulo`); mínimo **`AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL = 1`** (`src/lib/avaliacao-ranking.ts`).
+- **Mês:** melhor média no mês; mínimo **`AVALIACAO_RANKING_MIN_SEMANAS = 2`** (semanas com registro no mês).
+- Resposta JSON: `destaque_semana_geral`, `destaques_semana_unidade`, `destaque_geral` / `destaque`, `destaques_unidade`, `total_avaliacoes_semana`, `min_semanas_ranking_*`.
+- UI: `src/components/mural/MuralReconhecimento.tsx`, `src/components/destaque/DestaqueSection.tsx`, `src/components/mural/MuralPreview.tsx`.
+- **Avaliação de liderança** (`avaliacoes_lideranca`) **não** alimenta destaque automático.
+- **Cliente:** fetches de destaque e troféus são **independentes** e com parse seguro (`fetchJsonSafe`); nunca aceder `trof?.ok` sem optional chaining (evita crash na home se uma API falhar).
+
+**Admin — destaque manual legado:** tabela `destaque` + `/admin/destaque` (separado do ranking automático).
+
+---
+
+## Troféus entre pares (reconhecimento)
+
+- Tabela: **`trofeus_entre_pares`** (`033_trofeus_entre_pares.sql`).
+- Tipos: `braco_direito`, `energia_contagiante`, `olhar_dono` — labels em `src/lib/trofeus-pares.ts`.
+- Regras: **3 créditos/semana** por avaliador; **1 troféu por destinatário por semana** (`UNIQUE(avaliador_id, destinatario_id, semana_inicio)`); mesma unidade; só `role = colaborador` envia; onboarding completo.
+- APIs: `GET/POST /api/portal/trofeus-pares`, `GET /api/portal/trofeus-pares/busca?q=` (mín. 2 letras, mesma unidade).
+- UI: `src/components/portal/TrofeusParesPanel.tsx` na aba **Reconhecimento entre pares** de `/portal/avaliacao-lideranca`.
+
+---
+
+## Checklist semanal (avaliações pendentes)
+
+- Componente partilhado: `src/components/portal/AvaliacaoSemanalChecklist.tsx` (contador, filtro **Só pendentes**, atalho por pessoa).
+- **Gerente:** `/portal/avaliacao-master` — checklist no topo; badges **Pendente** / **Avaliado** em `ColaboradorAvaliacaoCard`; filtro esconde cards já avaliados na lista.
+- **Colaborador (liderança):** `/portal/avaliacao-lideranca` — mesmo padrão na aba **Líderes que vou avaliar**.
+
+---
+
+## Liderança por setor (config automática)
+
+- Tabela **`lideres_por_setor`** (`032_lideres_por_setor.sql`): `(unidade_id, setor, lider_id, ativo)`; **N líderes** por par unidade+setor.
+- Admin: **`/admin/lideres-por-setor`**; APIs **`/api/admin/lideres-por-setor`** (GET/POST/DELETE), **`/api/admin/lideres-por-setor/candidatos`**, **`POST /api/admin/lideres-por-setor/aplicar-padrao`**.
+- **Mapa canónico (código):** `src/lib/config-lideranca-operacional.ts` → `REGRAS_LIDERANCA_OPERACIONAL`; aplicação + limpeza de vínculos antigos em `src/lib/aplicar-config-lideranca.ts` (`desativarLideresForaDoMapaOperacional`).
+- **Gerentes responsáveis pela unidade** (`unidade_todos`, setor `*`): Mesquita → Joyce + Silvia; Barra → Lucas Diniz + Matheus Morais; Nova Iguaçu → Nathalia Pereira Luna + Cristina Batista.
+- **Atendimento explícito** (mesmos gerentes por loja): regras `unidade_setor` em Mesquita, Barra e Nova Iguaçu (Daniel **não** lidera Atendimento).
+- **Daniel Martins** (`LIDER_TRANSVERSAL_CD_NOME`): em **todas** as unidades cadastradas nos setores **CD**, **Motorista**, **Administração**, **RH**; na unidade **Administrativo** lidera tudo (`*`). **Não** usar Estoque para Daniel (legado desativado na aplicação do padrão).
+- **Fábrica:** preparos → Joyce + Silvia; doces → Sabrina + Henrique.
+- **Derivação em runtime:** `listarEquipeDoLider` e `listarLideresDoColaborador` em `src/lib/colaborador-lideres.ts` + `src/lib/lideres-por-setor.ts` + merge com `colaboradores_lideres` / `lider_id` legado (**exceções** manuais).
+- Colaborador com **mesma unidade + setor** herda líderes do setor **e** da unidade (`*`); avaliação de liderança lista cada líder derivado (+ RH/admin conforme regras).
+- **Setores no cadastro:** `SETORES_PREDEFINIDOS` inclui CD, RH, Administração (além de Atendimento, Cozinha, etc.).
+
 ## Avaliação da liderança (5 pilares)
 
-- Alvos: `colaboradores_lideres` (+ fallback `lider_id`), um **RH**, um **admin**, regras em APIs `avaliacao-lideranca`.
-- Colaborador: `/portal/avaliacao-lideranca`; líder: `/portal/minha-lideranca` (`/api/portal/avaliacao-lideranca/minha`).
+- Alvos: líderes derivados de **`lideres_por_setor`** + `colaboradores_lideres` (+ fallback `lider_id`), um **RH**, um **admin**; APIs `avaliacao-lideranca`. **Uma avaliação por par** (liderado × líder avaliado × semana).
+- Colaborador: `/portal/avaliacao-lideranca` (abas **Líderes** + **Reconhecimento entre pares**); líder: `/portal/minha-lideranca` (`/api/portal/avaliacao-lideranca/minha`).
 - Consolidado sócios/admin em relatórios; anonimato conforme `lib/roles` e APIs.
 
 ---
 
-## Avaliação diária da equipe (master)
+## Avaliação semanal da equipe (master / líder)
 
-- `/portal/avaliacao-master`; write-once por dia; vínculos `colaboradores_lideres`; assiduidade (presente, folga, outra_escala, faltas, etc.) conforme página e APIs.
+**Contrato (produto):** os líderes avaliam cada colaborador da equipe **no máximo uma vez por semana civil** (segunda a domingo, fuso **local**).
+
+- **UI:** `/portal/avaliacao-master`; `/api/portal/avaliacao-master` (GET lista equipe + avaliação já gravada; POST primeira gravação, sem edição depois).
+- **Chave de período:** mantém-se a tabela **`avaliacoes_diarias`** e o campo **`data_referencia`**, mas **sempre normalizado para a segunda-feira da semana** que contém a data escolhida ou enviada. Utilitários: `src/lib/semana-referencia.ts` (`inicioSemanaSegundaFeiraLocal`, `hojeInicioSemanaISO`, `formatarIntervaloSemanaPtBR`). O UNIQUE `(colaborador_id, avaliador_id, data_referencia)` passa a significar **uma avaliação por semana por par**.
+- **Home / lembrete:** `AvaliacoesPortalHome` consulta pendências com **início da semana atual** (segunda).
+- **Médias e ranking no mês:** cada linha no intervalo do mês conta como **uma semana**; `mediaMensalColaborador` em `src/lib/avaliacao-ranking.ts` continua a média sobre essas linhas. **Mês (destaque mural / ranking):** mínimo **`AVALIACAO_RANKING_MIN_SEMANAS = 2`**. **Semana (destaque mural imediato):** mínimo **`AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL = 1`**. APIs expõem `min_semanas_ranking_mensal` e `min_semanas_ranking_semanal` em `/api/portal/destaque`. Campo JSON legado `dias_avaliados` = **número de semanas com registro** no mês.
+- **Relatórios / admin:** rotas e paths **`/admin/avaliacoes-diarias`** e **`/api/admin/avaliacoes-diarias`** mantêm-se por compatibilidade; copy e cabeçalhos refletem **semanal**. Mesmo para **`/api/portal/relatorios-avaliacoes-diarias`**.
+- **Assiduidade e critérios:** inalterados na lógica (`src/lib/avaliacao-diaria.ts`, `ColaboradorAvaliacaoCard`); labels na UI falam em **semana** onde faz sentido (isento / média da semana).
+- **Transição:** registos antigos com `data_referencia` **não** na segunda podem coexistir com novos até migração ou aceitação; na mesma semana civil podem existir duas chaves diferentes só no período de legado.
 
 ---
 
 ## Cadastro de líderes no admin
 
-- `/admin/colaboradores/[id]/editar`: múltiplos líderes em `colaboradores_lideres`; validar perfis permitidos e excluir `socio`, auto-vínculo, etc. (ver regra já documentada nas APIs).
+- **Padrão:** configurar em **`/admin/lideres-por-setor`** (unidade × setor × líder); vínculos colaborador↔líder derivam do **setor + unidade** do colaborador.
+- `/admin/colaboradores/[id]/editar`: multiselect **`lideres_ids`** só para **exceções** (override em `colaboradores_lideres`); validar perfis permitidos (`lib/pode-ser-lider.ts`), excluir `socio`, auto-vínculo, etc.
 
 ---
 
@@ -178,6 +254,37 @@ Aplicar em ordem no SQL Editor quando necessário; `ADD COLUMN IF NOT EXISTS` se
 - **`030_equipe_chat.sql`** (chat interno: sala + mensagens diretas 1:1)
 - `028_justificativa_nota_baixa.sql`
 - `029_multiplos_lideres_colaborador.sql`
+- **`032_lideres_por_setor.sql`**
+- **`031_portal_presenca.sql`** (presença / relatório inatividade)
+- **`033_trofeus_entre_pares.sql`** (troféus entre pares)
+
+### SQL Editor — pacote mínimo (presença + troféus)
+
+Se `031` ou `033` ainda não existirem em produção, executar **uma vez** no Supabase (bloco idempotente; ignorar erro “already exists”):
+
+```sql
+create table if not exists public.portal_presenca (
+  colaborador_id uuid primary key references public.colaboradores (id) on delete cascade,
+  ultimo_ping_at timestamptz not null default now()
+);
+create index if not exists idx_portal_presenca_ultimo_ping_at on public.portal_presenca (ultimo_ping_at desc);
+
+create table if not exists public.trofeus_entre_pares (
+  id uuid primary key default gen_random_uuid(),
+  avaliador_id uuid not null references public.colaboradores(id) on delete cascade,
+  destinatario_id uuid not null references public.colaboradores(id) on delete cascade,
+  unidade_id uuid not null references public.unidades(id) on delete cascade,
+  semana_inicio date not null,
+  tipo text not null check (tipo in ('braco_direito', 'energia_contagiante', 'olhar_dono')),
+  created_at timestamptz not null default now(),
+  constraint trofeus_entre_pares_uq unique (avaliador_id, destinatario_id, semana_inicio),
+  constraint trofeus_entre_pares_sem_auto check (avaliador_id <> destinatario_id)
+);
+create index if not exists idx_trofeus_entre_pares_unidade_semana on public.trofeus_entre_pares (unidade_id, semana_inicio desc);
+create index if not exists idx_trofeus_entre_pares_destinatario on public.trofeus_entre_pares (destinatario_id, semana_inicio desc);
+
+notify pgrst, 'reload schema';
+```
 
 ---
 
@@ -197,8 +304,11 @@ Aplicar em ordem no SQL Editor quando necessário; `ADD COLUMN IF NOT EXISTS` se
 
 ## Referências de pastas
 
-- `src/app/(portal)/portal/` — área logada.
+- `src/app/(portal)/portal/` — área logada (`mural`, `relatorios-avaliacoes`, `relatorios-presenca`, `avaliacao-master`, `avaliacao-lideranca`, …).
 - `src/app/(auth)/onboarding/` — onboarding + `actions.ts`.
-- `src/app/api/portal/`, `src/app/api/admin/` — APIs.
+- `src/app/api/portal/`, `src/app/api/admin/` — APIs (`destaque`, `trofeus-pares`, `relatorios-presenca`, …).
+- `src/components/mural/` — `MuralReconhecimento`, `MuralUnidade`, `MuralPreview`.
+- `src/components/portal/` — checklist, troféus, relatórios agrupados, cards de avaliação.
+- `src/lib/destaque-avaliacoes.ts`, `src/lib/trofeus-pares.ts`, `src/lib/avaliacao-ranking.ts`, `src/lib/relatorio-avaliacoes-agrupar.ts`.
 - `src/content/onboarding-quizzes.ts` — perguntas.
-- `supabase/migrations/` — schema.
+- `supabase/migrations/` — schema (`031`, `032`, `033` entre as mais recentes).
