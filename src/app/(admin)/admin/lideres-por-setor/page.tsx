@@ -30,6 +30,46 @@ export default function LideresPorSetorPage() {
   const [salvando, setSalvando] = useState(false);
   const [aplicandoPadrao, setAplicandoPadrao] = useState(false);
   const [resultadoPadrao, setResultadoPadrao] = useState<string | null>(null);
+  const [tabelaExiste, setTabelaExiste] = useState<boolean | null>(null);
+  const [sqlMigration, setSqlMigration] = useState<string | null>(null);
+  const [copiadoSql, setCopiadoSql] = useState(false);
+
+  const verificarTabela = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/lideres-por-setor/status', { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) setTabelaExiste(data.tabela_existe === true);
+      else setTabelaExiste(false);
+    } catch {
+      setTabelaExiste(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void verificarTabela();
+  }, [verificarTabela]);
+
+  const copiarSqlMigration = async () => {
+    setCopiadoSql(false);
+    try {
+      let sql = sqlMigration;
+      if (!sql) {
+        const res = await fetch('/api/admin/lideres-por-setor/migration-sql', { credentials: 'include' });
+        const data = await res.json();
+        if (!data.ok || !data.sql) {
+          setErro(data.erro || 'Não foi possível carregar o SQL da migration.');
+          return;
+        }
+        sql = String(data.sql);
+        setSqlMigration(sql);
+      }
+      await navigator.clipboard.writeText(sql);
+      setCopiadoSql(true);
+      setTimeout(() => setCopiadoSql(false), 4000);
+    } catch {
+      setErro('Não foi possível copiar. Abre o ficheiro supabase/migrations/032_lideres_por_setor.sql no projeto.');
+    }
+  };
 
   const carregar = useCallback(async () => {
     if (!unidadeSlug) return;
@@ -51,7 +91,10 @@ export default function LideresPorSetorPage() {
       }
       const ativas = (dataL.linhas ?? []).filter((l: Linha) => l.ativo);
       setLinhas(ativas);
-      if (dataL.aviso) setAviso(String(dataL.aviso));
+      if (dataL.aviso) {
+        setAviso(String(dataL.aviso));
+        if (String(dataL.aviso).includes('032_lideres_por_setor')) setTabelaExiste(false);
+      }
       if (dataL.unidade_id) setUnidadeId(String(dataL.unidade_id));
       else if (ativas[0]?.unidade_id) setUnidadeId(String(ativas[0].unidade_id));
 
@@ -145,7 +188,9 @@ export default function LideresPorSetorPage() {
         `Config: ${cfg.inseridos ?? 0} vínculos de setor; ${cfg.desativados_fora_mapa ?? 0} desativados fora do mapa. Colaboradores: ${vin.com_lider ?? 0} com líder(es) (${vin.processados ?? 0} processados).` +
           (nao.length ? ` Não encontrados: ${nao.join('; ')}` : '')
       );
+      setTabelaExiste(true);
       await carregar();
+      await verificarTabela();
     } catch {
       setErro('Erro de conexão ao aplicar padrão.');
     } finally {
@@ -169,14 +214,48 @@ export default function LideresPorSetorPage() {
           Liderança por setor
         </h1>
         <p className="text-sm text-coffee-100 mt-1 max-w-2xl">
-          Defina quem lidera cada setor na unidade. Colaboradores com a mesma unidade e setor passam a
-          integrar automaticamente a equipe desses líderes (avaliação semanal e feedback de liderança),
-          sem vínculo manual um a um. Use &quot;Toda a unidade&quot; para Barra, Nova Iguaçu e Mesquita.
+          Mapa acordado (Joyce/Silvia em Mesquita, Lucas/Matheus na Barra, Nathalia/Cristina em Nova Iguaçu;
+          Daniel em CD, Motorista, Administração e RH). Colaboradores herdam líderes pela unidade e setor.
+          Use o botão abaixo para gravar tudo de uma vez.
         </p>
+
+        {tabelaExiste === false && (
+          <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 max-w-2xl">
+            <p className="font-medium">Falta a tabela no Supabase (migration 032)</p>
+            <p className="mt-1">
+              Abre o Supabase → SQL Editor → cola o ficheiro{' '}
+              <code className="text-xs bg-white/80 px-1 rounded">032_lideres_por_setor.sql</code> → Run.
+              Depois volta aqui e clica em &quot;Verificar de novo&quot;.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void copiarSqlMigration()}
+                className="rounded-lg bg-amber-800 text-cream-100 px-3 py-1.5 text-xs font-medium hover:bg-amber-900"
+              >
+                {copiadoSql ? 'SQL copiado' : 'Copiar SQL da migration 032'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void verificarTabela()}
+                className="rounded-lg border border-amber-600 text-amber-950 px-3 py-1.5 text-xs font-medium hover:bg-amber-100"
+              >
+                Verificar de novo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tabelaExiste === true && (
+          <p className="mt-3 text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 inline-block">
+            Supabase: tabela lideres_por_setor OK — pode aplicar o mapa.
+          </p>
+        )}
+
         <button
           type="button"
           onClick={() => void aplicarPadraoOperacional()}
-          disabled={aplicandoPadrao}
+          disabled={aplicandoPadrao || tabelaExiste === false}
           className="mt-4 rounded-lg border border-dourado-400 bg-cream-50 text-coffee-base px-4 py-2 text-sm font-medium hover:bg-cream-100 disabled:opacity-50"
         >
           {aplicandoPadrao ? 'Aplicando mapa operacional…' : 'Aplicar mapa operacional e vincular todos'}

@@ -79,17 +79,25 @@ Quando terminar, aparecerá uma URL (ex.: `https://portal-colaborador-gabi-fonte
 
 **Canal de ajuda:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` definido, esse colaborador é o atendimento principal; **sócios** e **admin** também podem **responder** no Inbox ajuda (fica registrado quem respondeu). Sem essa variável, o comportamento legado permanece (admin/RH respondem).
 
+**Apagar mensagens:** só **sócios** e **admin** podem remover registros do canal de ajuda (botão **Apagar** na página **Inbox ajuda** e no **atalho** do botão dourado flutuante, modo “Canal de ajuda (atalho)”).
+
 ---
 
-### 6. Fazer redeploy após definir as variáveis
+### 6. Fazer redeploy após alterações no código ou nas variáveis
 
-Depois de salvar as variáveis:
+Sempre que mudar rotas/API, componentes ou variáveis de ambiente, gere um novo deploy de produção; senão o browser (ou PWA) pode continuar a mostrar uma versão antiga sem o botão **Apagar** ou sem o atalho atualizado.
+
+Depois de salvar as variáveis no dashboard ou após `git pull` com alterações:
 
 ```powershell
+cd "C:\Users\EU\Desktop\ALAN\ISA AI\ALAN.IA\Portal do Colaborador - Gabi Fontes"
+npm run build
 npx vercel --prod
 ```
 
-Isso faz o deploy para produção com as variáveis atualizadas.
+Se instalou o portal como **PWA** e a interface não reflete o deploy novo: nas definições do site no telemóvel, **limpar dados / cache** ou remover a app e voltar a abrir pelo URL.
+
+Isso faz o deploy para produção com o build e as variáveis atualizadas.
 
 ---
 
@@ -100,9 +108,17 @@ Isso faz o deploy para produção com as variáveis atualizadas.
    - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
    - **anon public** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - **service_role** → `SUPABASE_SERVICE_ROLE_KEY` (mantenha em segredo)
-3. Execute os scripts de migração em **SQL Editor**:
-   - `supabase/migrations/001_initial_schema.sql`
-   - `supabase/migrations/002_rls_policies.sql`
+3. Execute os scripts de migração em **SQL Editor** (em ordem; ver também `supabase/migrations/`):
+   - `001_initial_schema.sql`, `002_rls_policies.sql`, …
+   - **Liderança por setor (obrigatório para o mapa operacional):** `032_lideres_por_setor.sql`
+
+### Mapa de liderança no admin (sem SQL manual depois da 032)
+
+1. Entrar no admin do portal (sessão admin).
+2. Menu lateral → **Liderança por setor** (`/admin/lideres-por-setor`).
+3. A página mostra se a tabela existe no Supabase (verde = OK; amarelo = falta a 032).
+4. Se faltar: **Copiar SQL da migration 032** → colar no Supabase SQL Editor → Run → **Verificar de novo**.
+5. Clicar **Aplicar mapa operacional e vincular todos** (Joyce/Silvia Mesquita, gerentes Barra/Nova Iguaçu, Daniel em CD/Motorista/Administração/RH, etc.).
 
 ---
 
@@ -119,5 +135,6 @@ cd "C:\Users\EU\Desktop\ALAN\ISA AI\ALAN.IA\Portal do Colaborador - Gabi Fontes"
 npx vercel login
 npx vercel
 # Defina as variáveis no dashboard
+npm run build
 npx vercel --prod
 ```
