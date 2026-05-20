@@ -183,7 +183,7 @@ Ordem e ficheiros principais:
 ## Troféus entre pares (reconhecimento)
 
 - Tabela: **`trofeus_entre_pares`** (`033_trofeus_entre_pares.sql`).
-- Tipos: `braco_direito`, `energia_contagiante`, `olhar_dono` — labels em `src/lib/trofeus-pares.ts`.
+- Tipos: `postura`, `braco_direito`, `eficiencia` — labels em `src/lib/trofeus-pares.ts` (migração **`034`** converte legado `energia_contagiante`→`postura`, `olhar_dono`→`eficiencia`).
 - Regras: **3 créditos/semana** por avaliador; **1 troféu por destinatário por semana** (`UNIQUE(avaliador_id, destinatario_id, semana_inicio)`); mesma unidade; só `role = colaborador` envia; onboarding completo.
 - APIs: `GET/POST /api/portal/trofeus-pares`, `GET /api/portal/trofeus-pares/busca?q=` (mín. 2 letras, mesma unidade).
 - UI: `src/components/portal/TrofeusParesPanel.tsx` na aba **Reconhecimento entre pares** de `/portal/avaliacao-lideranca`.
@@ -257,6 +257,7 @@ Aplicar em ordem no SQL Editor quando necessário; `ADD COLUMN IF NOT EXISTS` se
 - **`032_lideres_por_setor.sql`**
 - **`031_portal_presenca.sql`** (presença / relatório inatividade)
 - **`033_trofeus_entre_pares.sql`** (troféus entre pares)
+- **`034_trofeus_tipos_postura_eficiencia.sql`** (tipos Postura / Braço direito / Eficiência)
 
 ### SQL Editor — pacote mínimo (presença + troféus)
 
@@ -275,7 +276,7 @@ create table if not exists public.trofeus_entre_pares (
   destinatario_id uuid not null references public.colaboradores(id) on delete cascade,
   unidade_id uuid not null references public.unidades(id) on delete cascade,
   semana_inicio date not null,
-  tipo text not null check (tipo in ('braco_direito', 'energia_contagiante', 'olhar_dono')),
+  tipo text not null check (tipo in ('postura', 'braco_direito', 'eficiencia')),
   created_at timestamptz not null default now(),
   constraint trofeus_entre_pares_uq unique (avaliador_id, destinatario_id, semana_inicio),
   constraint trofeus_entre_pares_sem_auto check (avaliador_id <> destinatario_id)
