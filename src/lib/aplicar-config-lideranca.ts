@@ -109,7 +109,8 @@ async function aplicarRegra(
       return;
     }
     for (const nome of regra.lideres_nomes) {
-      const lid = await resolverLiderId(supabase, nome, uid);
+      let lid = await resolverLiderId(supabase, nome, uid);
+      if (!lid) lid = await resolverLiderId(supabase, nome, null);
       if (!lid) {
         resultado.lideres_nao_encontrados.push(`${nome} (${regra.unidade_slug})`);
         continue;
@@ -127,7 +128,8 @@ async function aplicarRegra(
       return;
     }
     for (const nome of regra.lideres_nomes) {
-      const lid = await resolverLiderId(supabase, nome, uid);
+      let lid = await resolverLiderId(supabase, nome, uid);
+      if (!lid) lid = await resolverLiderId(supabase, nome, null);
       if (!lid) {
         resultado.lideres_nao_encontrados.push(`${nome} (${regra.unidade_slug} / ${regra.setor})`);
         continue;
