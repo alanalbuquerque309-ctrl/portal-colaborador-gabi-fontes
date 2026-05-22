@@ -6,7 +6,11 @@ import {
   type AssiduidadeTipo,
   type NotasCriterios,
 } from '@/lib/avaliacao-diaria';
-import { listarColaboradoresUnidadeParaAvaliacaoGerente } from '@/lib/colaborador-lideres';
+import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
+import {
+  insertAvaliacaoDiariaCompat,
+  selectAvaliacoesDiariasPorColaboradores,
+} from '@/lib/avaliacoes-justificativa-compat';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 
 function isDateIso(s: string): boolean {
@@ -33,28 +37,21 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const { colaboradorId, unidadeId } = auth.ctx;
 
-    const equipe = await listarColaboradoresUnidadeParaAvaliacaoGerente(
-      supabase,
-      unidadeId,
-      colaboradorId
-    );
+    const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
 
     const ids = equipe.map((c) => c.id);
     let avaliacoesPorColab: Record<string, Record<string, unknown>> = {};
 
     if (ids.length > 0) {
-      const { data: avalRows, error: errAval } = await supabase
-        .from('avaliacoes_diarias')
-        .select(
-          'colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa'
-        )
-        .eq('data_referencia', dataRef)
-        .in('colaborador_id', ids);
-
+      const { rows: avalRows, error: errAval } = await selectAvaliacoesDiariasPorColaboradores(
+        supabase,
+        dataRef,
+        ids
+      );
       if (errAval) {
-        return NextResponse.json({ ok: false, erro: errAval.message }, { status: 500 });
+        return NextResponse.json({ ok: false, erro: errAval }, { status: 500 });
       }
-      avaliacoesPorColab = Object.fromEntries((avalRows ?? []).map((r) => [r.colaborador_id as string, r]));
+      avaliacoesPorColab = Object.fromEntries(avalRows.map((r) => [r.colaborador_id, r]));
     }
 
     return NextResponse.json({
@@ -175,11 +172,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Não é possível autoavaliar' }, { status: 400 });
     }
 
-    const equipe = await listarColaboradoresUnidadeParaAvaliacaoGerente(
-      supabase,
-      unidadeId,
-      colaboradorId
-    );
+    const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
     const sub = equipe.find((membro) => membro.id === colaboradorAlvo);
     if (!sub) {
       return NextResponse.json(
@@ -222,10 +215,10 @@ export async function POST(req: Request) {
       justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa : null,
     };
 
-    const { error: insErr } = await supabase.from('avaliacoes_diarias').insert(row);
+    const { error: insErr } = await insertAvaliacaoDiariaCompat(supabase, row);
 
     if (insErr) {
-      return NextResponse.json({ ok: false, erro: insErr.message }, { status: 500 });
+      return NextResponse.json({ ok: false, erro: insErr }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true, media_dia: media });

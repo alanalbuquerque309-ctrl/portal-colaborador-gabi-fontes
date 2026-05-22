@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
+import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import {
   listarColaboradoresPorUnidadeSetor,
   listarLideresConfigPorUnidadeSetor,
@@ -21,6 +22,58 @@ export type MembroEquipe = {
   cargo: string | null;
   setor: string | null;
 };
+
+async function filtrarMembrosOnboardingCompleto(
+  supabase: SupabaseAdmin,
+  membros: MembroEquipe[]
+): Promise<MembroEquipe[]> {
+  if (membros.length === 0) return [];
+  const ids = membros.map((m) => m.id);
+  const { data, error } = await supabase
+    .from('colaboradores')
+    .select('id, nome, role, cargo, setor')
+    .in('id', ids)
+    .eq('onboarding_completo', true)
+    .order('nome', { ascending: true });
+  if (error) throw new Error(error.message);
+  const ok = new Set((data ?? []).map((c) => String(c.id)));
+  return membros.filter((m) => ok.has(m.id));
+}
+
+/**
+ * Equipe para `/portal/avaliacao-master`:
+ * gerente da loja (`*` na unidade) → todos os colaboradores da unidade;
+ * líder por setor (ex.: Daniel — Estoque, RH, CD…) → derivado de `lideres_por_setor` em todas as unidades.
+ */
+export async function listarEquipeParaAvaliacaoSemanal(
+  supabase: SupabaseAdmin,
+  liderId: string,
+  unidadeId: string
+): Promise<MembroEquipe[]> {
+  let setoresLiderados: Array<{ unidade_id: string; setor: string }> = [];
+  try {
+    setoresLiderados = await listarSetoresLideradosPor(supabase, liderId);
+  } catch {
+    setoresLiderados = [];
+  }
+
+  const gerenteDaUnidade = setoresLiderados.some(
+    (s) => s.unidade_id === unidadeId && s.setor === SETOR_TODOS_NA_UNIDADE
+  );
+  if (gerenteDaUnidade) {
+    return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
+  }
+
+  if (setoresLiderados.length > 0) {
+    const porLideranca = await listarEquipeDoLider(supabase, liderId, null);
+    const elegiveis = await filtrarMembrosOnboardingCompleto(supabase, porLideranca);
+    if (elegiveis.length > 0) {
+      return elegiveis.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    }
+  }
+
+  return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
+}
 
 /** Avaliação semanal do gerente: todos os colaboradores da unidade com onboarding concluído. */
 export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
