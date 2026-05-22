@@ -64,8 +64,17 @@ export default function AdminAvaliacoesDiariasPage() {
         </Link>
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Avaliações semanais (equipe)</h1>
         <p className="text-sm text-coffee-100 mt-1">
-          Relatório consolidado (administrativo / sócio). Cada registro é uma semana; a data é a segunda-feira da
-          semana. Gerentes não veem esta visão.
+          Avaliações semanais que os líderes fizeram da equipe (notas e justificativas). Cada data é a
+          segunda-feira da semana.
+        </p>
+        <p className="text-sm mt-2">
+          <Link href="/admin/avaliacoes-lideranca" className="text-dourado-500 hover:underline">
+            Ver feedback dos colaboradores sobre a liderança →
+          </Link>
+          {' · '}
+          <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
+            Relatório completo no portal →
+          </Link>
         </p>
       </div>
 

@@ -23,6 +23,7 @@ export type LinhaLiderRelatorio = {
   semana_inicio: string;
   avaliado_nome: string;
   avaliado_setor?: string | null;
+  filial_nome?: string;
   avaliador_label: string;
   n_exemplo: number;
   n_comunicacao: number;
@@ -178,5 +179,51 @@ export function RelatorioLiderancaPorSetor({ linhas }: { linhas: LinhaLiderRelat
         <TabelaLiderancaColaborador linhas={regs as LinhaLiderRelatorio[]} />
       )}
     />
+  );
+}
+
+/** Agrupa pelo líder avaliado (nome), com setor e filial no cabeçalho. */
+export function RelatorioLiderancaPorLider({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
+  if (linhas.length === 0) {
+    return <p className="text-sm text-cafeteria-500 py-4 text-center">Nenhum registro no período.</p>;
+  }
+
+  const porLider = new Map<string, LinhaLiderRelatorio[]>();
+  for (const l of linhas) {
+    const nome = String(l.avaliado_nome ?? '').trim() || '—';
+    if (!porLider.has(nome)) porLider.set(nome, []);
+    porLider.get(nome)!.push(l);
+  }
+
+  const lideres = Array.from(porLider.entries()).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
+
+  return (
+    <div className="space-y-6">
+      {lideres.map(([nome, regs]) => {
+        const setor = regs[0]?.avaliado_setor?.trim() || 'Sem setor definido';
+        const filiais = Array.from(
+          new Set(regs.map((r) => r.filial_nome?.trim()).filter(Boolean) as string[])
+        );
+        const mediaGeral =
+          regs.reduce((s, r) => s + r.media, 0) / Math.max(1, regs.length);
+        return (
+          <div
+            key={nome}
+            className="rounded-lg border border-cafeteria-200 bg-cream-50/30 p-4"
+          >
+            <div className="border-b border-dourado-200/60 pb-2 mb-4">
+              <h4 className="text-base font-semibold text-cafeteria-900">{nome}</h4>
+              <p className="text-xs text-cafeteria-500 mt-1">
+                Setor: {setor}
+                {filiais.length > 0 ? ` · Filial: ${filiais.join(', ')}` : ''}
+                {' · '}
+                {regs.length} avaliação(ões) · média {mediaGeral.toFixed(2)}
+              </p>
+            </div>
+            <TabelaLiderancaColaborador linhas={regs} />
+          </div>
+        );
+      })}
+    </div>
   );
 }

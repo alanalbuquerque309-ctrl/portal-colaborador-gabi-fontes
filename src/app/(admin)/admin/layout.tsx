@@ -156,6 +156,7 @@ export default function AdminLayout({
           {navLink('/admin/destaque', 'Destaque')}
           {navLink('/admin/escalas', 'Escalas')}
           {navLink('/admin/avaliacoes-diarias', 'Avaliações equipe (semanal)')}
+          {navLink('/admin/avaliacoes-lideranca', 'Feedback liderança')}
           {navLink('/admin/sugestoes', 'Sugestões')}
           {navLink('/admin/manual-eventos', 'Eventos de manuais')}
           {navLink('/portal/ajuda-inbox', 'Inbox ajuda')}

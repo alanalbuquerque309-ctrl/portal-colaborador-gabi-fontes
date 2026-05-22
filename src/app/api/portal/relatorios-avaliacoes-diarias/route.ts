@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
-import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
+import {
+  podeVerRelatoriosAvaliacoesCompletos,
+  relatorioRestringeUnidade,
+} from '@/lib/avaliacoes-relatorio-access';
 
 /**
  * Avaliações semanais da equipe para /portal/relatorios-avaliacoes (data_referencia = segunda da semana).
@@ -34,7 +37,7 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('role')
+      .select('role, unidade_id')
       .eq('id', colaboradorId)
       .single();
 
@@ -45,7 +48,10 @@ export async function GET(req: Request) {
     const role = normalizePortalRole((eu as { role?: string }).role);
     if (!podeVerRelatoriosAvaliacoesCompletos(role)) {
       return NextResponse.json(
-        { ok: false, erro: 'Apenas sócio e administrativo podem consultar este relatório.' },
+        {
+          ok: false,
+          erro: 'Sem permissão. Sócio, administrativo, master ou gerente podem consultar este relatório.',
+        },
         { status: 403 }
       );
     }
@@ -54,6 +60,10 @@ export async function GET(req: Request) {
     if (!unidadeId && unidadeSlug) {
       const { data: u } = await supabase.from('unidades').select('id').eq('slug', unidadeSlug).maybeSingle();
       if (u?.id) unidadeId = String(u.id);
+    }
+    if (!unidadeId && relatorioRestringeUnidade(role)) {
+      const uid = (eu as { unidade_id?: string | null }).unidade_id;
+      if (uid) unidadeId = String(uid);
     }
 
     let idsFiltro: string[] | null = null;

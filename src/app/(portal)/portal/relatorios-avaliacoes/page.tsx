@@ -9,6 +9,7 @@ import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import {
   RelatorioDiariasPorSetor,
   RelatorioLiderancaPorSetor,
+  RelatorioLiderancaPorLider,
   type LinhaDiariaRelatorio,
   type LinhaLiderRelatorio,
 } from '@/components/portal/RelatorioAvaliacoesPorSetor';
@@ -38,7 +39,10 @@ export default function RelatoriosAvaliacoesPage() {
   const [fim, setFim] = useState(hojeISO);
   const [carregando, setCarregando] = useState(false);
   const [blocos, setBlocos] = useState<BlocoFilial[]>([]);
+  const [liderancaGlobal, setLiderancaGlobal] = useState<LinhaLiderRelatorio[]>([]);
   const [notaLider, setNotaLider] = useState('');
+  const [erroGlobal, setErroGlobal] = useState('');
+  const [agruparLiderancaPor, setAgruparLiderancaPor] = useState<'lider' | 'setor'>('lider');
 
   useEffect(() => {
     let cancel = false;
@@ -68,6 +72,7 @@ export default function RelatoriosAvaliacoesPage() {
   const carregar = useCallback(async () => {
     setCarregando(true);
     setNotaLider('');
+    setErroGlobal('');
     const novos: BlocoFilial[] = UNIDADES_CADASTRO.map((u) => ({
       slug: u.slug,
       label: u.label,
@@ -76,6 +81,20 @@ export default function RelatoriosAvaliacoesPage() {
     }));
 
     try {
+      const qGlobal = new URLSearchParams({ inicio, fim, limite: '3000' });
+      const resGlobal = await fetch(`/api/portal/avaliacao-lideranca/relatorio?${qGlobal}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const dataGlobal = await resGlobal.json();
+      if (dataGlobal.ok && Array.isArray(dataGlobal.itens)) {
+        setLiderancaGlobal(dataGlobal.itens as LinhaLiderRelatorio[]);
+        if (dataGlobal.nota) setNotaLider(String(dataGlobal.nota));
+      } else {
+        setLiderancaGlobal([]);
+        setErroGlobal(dataGlobal.erro || 'Erro ao carregar feedback sobre liderança.');
+      }
+
       await Promise.all(
         novos.map(async (b, i) => {
           const qD = new URLSearchParams({ inicio, fim, limite: '2000', unidade_slug: b.slug });
@@ -102,14 +121,16 @@ export default function RelatoriosAvaliacoesPage() {
           }
           if (dataL.ok && Array.isArray(dataL.itens)) {
             novos[i].lideranca = dataL.itens as LinhaLiderRelatorio[];
-            if (dataL.nota && i === 0) setNotaLider(String(dataL.nota));
           } else if (!dataL.ok) {
-            novos[i].erro = (novos[i].erro ? novos[i].erro + ' ' : '') + (dataL.erro || 'Erro na liderança.');
+            novos[i].erro =
+              (novos[i].erro ? novos[i].erro + ' ' : '') + (dataL.erro || 'Erro na liderança.');
           }
         })
       );
       setBlocos([...novos]);
     } catch {
+      setLiderancaGlobal([]);
+      setErroGlobal('Erro de conexão.');
       setBlocos(
         UNIDADES_CADASTRO.map((u) => ({
           slug: u.slug,
@@ -141,6 +162,8 @@ export default function RelatoriosAvaliacoesPage() {
     return null;
   }
 
+  const totalDiarias = blocos.reduce((s, b) => s + b.diarias.length, 0);
+
   return (
     <main className="max-w-6xl space-y-8 pb-24">
       <div>
@@ -148,20 +171,26 @@ export default function RelatoriosAvaliacoesPage() {
           ← Voltar ao portal
         </Link>
         <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
-          Relatórios de avaliações por filial
+          Relatórios de avaliações
         </h1>
         <p className="text-cafeteria-600 mt-2 text-sm max-w-3xl">
-          Visão para <strong>sócio e administrativo</strong>: em cada filial, por <strong>setor</strong> e{' '}
-          <strong>nome do colaborador</strong>, as avaliações semanais da equipe e o feedback sobre a
-          liderança.
+          Visão completa para <strong>sócio, administrativo, master e gerente</strong>: avaliações
+          semanais da equipe (notas e justificativas) e feedback dos colaboradores sobre cada líder.
         </p>
         <p className="text-xs text-cafeteria-500 mt-1 max-w-3xl">
-          No bloco de liderança, o campo &quot;Quem avaliou&quot; mostra o nome real apenas para o perfil de
-          sócio e administrador; para os demais perfis autorizados continua anônimo.
+          O período filtra a <strong>semana de referência</strong> (segunda-feira). No feedback sobre
+          liderança, sócio/admin/master veem quem avaliou; gerente vê o conteúdo com avaliador
+          anônimo.
         </p>
         <p className="text-xs text-cafeteria-500 mt-2">
-          O painel <Link href="/admin" className="underline hover:text-cafeteria-700">/admin</Link> continua
-          disponível para operação diária e ações administrativas.
+          Painel admin:{' '}
+          <Link href="/admin/avaliacoes-lideranca" className="underline hover:text-cafeteria-700">
+            feedback liderança
+          </Link>
+          {' · '}
+          <Link href="/admin/avaliacoes-diarias" className="underline hover:text-cafeteria-700">
+            equipe semanal
+          </Link>
         </p>
       </div>
 
@@ -192,17 +221,73 @@ export default function RelatoriosAvaliacoesPage() {
         >
           {carregando ? 'Atualizando…' : 'Atualizar'}
         </button>
-        <Link
-          href="/admin/avaliacoes-diarias"
-          className="text-sm text-dourado-base hover:underline ml-auto"
-        >
-          Abrir também no painel admin →
-        </Link>
       </div>
 
-      {notaLider && <p className="text-sm text-cafeteria-600 max-w-3xl">{notaLider}</p>}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3">
+          <p className="text-xs text-cafeteria-500">Avaliações equipe</p>
+          <p className="text-xl font-semibold text-cafeteria-900">{totalDiarias}</p>
+        </div>
+        <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3">
+          <p className="text-xs text-cafeteria-500">Feedback liderança</p>
+          <p className="text-xl font-semibold text-cafeteria-900">{liderancaGlobal.length}</p>
+        </div>
+        <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3 col-span-2 sm:col-span-1">
+          <p className="text-xs text-cafeteria-500">Filiais</p>
+          <p className="text-xl font-semibold text-cafeteria-900">{blocos.length}</p>
+        </div>
+      </div>
+
+      <section className="rounded-xl border border-dourado-200/80 bg-white shadow-sm p-4 md:p-6 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-display font-semibold text-cafeteria-900">
+              Feedback sobre a liderança (todas as filiais)
+            </h2>
+            <p className="text-xs text-cafeteria-500 mt-1">
+              Cada bloco é um líder avaliado, com todas as notas e justificativas no período.
+            </p>
+          </div>
+          <div className="flex rounded-lg border border-cafeteria-200 text-xs overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAgruparLiderancaPor('lider')}
+              className={`px-3 py-1.5 ${
+                agruparLiderancaPor === 'lider'
+                  ? 'bg-dourado-base text-cream-100'
+                  : 'bg-white text-cafeteria-700'
+              }`}
+            >
+              Por líder
+            </button>
+            <button
+              type="button"
+              onClick={() => setAgruparLiderancaPor('setor')}
+              className={`px-3 py-1.5 ${
+                agruparLiderancaPor === 'setor'
+                  ? 'bg-dourado-base text-cream-100'
+                  : 'bg-white text-cafeteria-700'
+              }`}
+            >
+              Por setor
+            </button>
+          </div>
+        </div>
+        {notaLider && <p className="text-sm text-cafeteria-600">{notaLider}</p>}
+        {erroGlobal && (
+          <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{erroGlobal}</p>
+        )}
+        {carregando && liderancaGlobal.length === 0 ? (
+          <XicaraCarregando size="md" label="Carregando feedback…" />
+        ) : agruparLiderancaPor === 'lider' ? (
+          <RelatorioLiderancaPorLider linhas={liderancaGlobal} />
+        ) : (
+          <RelatorioLiderancaPorSetor linhas={liderancaGlobal} />
+        )}
+      </section>
 
       <div className="space-y-4">
+        <h2 className="text-lg font-display font-semibold text-cafeteria-900">Por filial</h2>
         {blocos.map((b) => (
           <details
             key={b.slug}
@@ -216,7 +301,9 @@ export default function RelatoriosAvaliacoesPage() {
               </span>
             </summary>
             <div className="p-4 space-y-8">
-              {b.erro && <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{b.erro}</p>}
+              {b.erro && (
+                <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{b.erro}</p>
+              )}
 
               <section>
                 <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
@@ -227,12 +314,9 @@ export default function RelatoriosAvaliacoesPage() {
 
               <section>
                 <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
-                  Avaliação da liderança
+                  Avaliação da liderança nesta filial
                 </h3>
-                <p className="text-xs text-cafeteria-500 mb-3">
-                  Agrupado pelo setor de quem foi avaliado (gerência, administrativo, RH).
-                </p>
-                <RelatorioLiderancaPorSetor linhas={b.lideranca} />
+                <RelatorioLiderancaPorLider linhas={b.lideranca} />
               </section>
             </div>
           </details>
