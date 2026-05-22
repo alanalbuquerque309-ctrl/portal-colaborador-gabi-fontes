@@ -35,3 +35,12 @@ export function isSetorValido(s: string | null | undefined): boolean {
 export function isUnidadeSlugValido(slug: string): boolean {
   return UNIDADES_CADASTRO.some((u) => u.slug === slug);
 }
+
+/** Setores backoffice: na avaliação semanal do líder transversal, gerente/admin do setor também entram na lista. */
+export const SETORES_AVALIACAO_EQUIPE_BACKOFFICE = [
+  'CD',
+  'Estoque',
+  'Motorista',
+  'Administração',
+  'RH',
+] as const;

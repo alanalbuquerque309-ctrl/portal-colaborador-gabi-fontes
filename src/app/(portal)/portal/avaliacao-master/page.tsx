@@ -19,6 +19,7 @@ type MembroEquipe = {
   nome: string;
   cargo: string | null;
   setor: string | null;
+  onboarding_completo?: boolean;
   avaliacao: AvaliacaoServidor;
 };
 
@@ -35,8 +36,9 @@ export default function AvaliacaoMasterPage() {
     !!session?.colaboradorId &&
     session.colaboradorId !== 'pending' &&
     isRoleGerenteAvaliadorPortal(session.role);
-  const avaliadosNaSemana = equipe.filter((m) => m.avaliacao != null).length;
-  const pendentesNaSemana = Math.max(0, equipe.length - avaliadosNaSemana);
+  const ativos = equipe.filter((m) => m.onboarding_completo !== false);
+  const avaliadosNaSemana = ativos.filter((m) => m.avaliacao != null).length;
+  const pendentesNaSemana = Math.max(0, ativos.length - avaliadosNaSemana);
   const intervaloSemana = formatarIntervaloSemanaPtBR(dataRef);
 
   useEffect(() => {
@@ -136,7 +138,14 @@ export default function AvaliacaoMasterPage() {
             id: m.id,
             nome: m.nome,
             concluido: m.avaliacao != null,
-            subtitulo: [m.cargo, m.setor].filter(Boolean).join(' · ') || undefined,
+            subtitulo:
+              [
+                m.cargo,
+                m.setor,
+                m.onboarding_completo === false ? 'não ativo no portal' : null,
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined,
           }))}
           filtroPendentes={filtroPendentes}
           onToggleFiltro={() => setFiltroPendentes((v) => !v)}
@@ -169,6 +178,7 @@ export default function AvaliacaoMasterPage() {
                 setor={m.setor}
                 dataReferencia={dataRef}
                 avaliacaoInicial={m.avaliacao}
+                onboardingCompleto={m.onboarding_completo !== false}
                 onSalvo={carregar}
               />
             </li>

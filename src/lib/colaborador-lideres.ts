@@ -21,9 +21,10 @@ export type MembroEquipe = {
   role: string | null;
   cargo: string | null;
   setor: string | null;
+  onboarding_completo: boolean;
 };
 
-async function filtrarMembrosOnboardingCompleto(
+async function enriquecerMembrosEquipe(
   supabase: SupabaseAdmin,
   membros: MembroEquipe[]
 ): Promise<MembroEquipe[]> {
@@ -31,13 +32,25 @@ async function filtrarMembrosOnboardingCompleto(
   const ids = membros.map((m) => m.id);
   const { data, error } = await supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor')
+    .select('id, nome, role, cargo, setor, onboarding_completo')
     .in('id', ids)
-    .eq('onboarding_completo', true)
     .order('nome', { ascending: true });
   if (error) throw new Error(error.message);
-  const ok = new Set((data ?? []).map((c) => String(c.id)));
-  return membros.filter((m) => ok.has(m.id));
+  const byId = new Map((data ?? []).map((c) => [String(c.id), c]));
+  return membros
+    .map((m) => {
+      const row = byId.get(m.id);
+      if (!row) return null;
+      return {
+        id: m.id,
+        nome: String(row.nome ?? m.nome),
+        role: (row.role as string | null) ?? m.role,
+        cargo: (row.cargo as string | null) ?? m.cargo,
+        setor: (row.setor as string | null) ?? m.setor,
+        onboarding_completo: Boolean(row.onboarding_completo),
+      };
+    })
+    .filter((m): m is MembroEquipe => m != null);
 }
 
 /**
@@ -68,9 +81,10 @@ export async function listarEquipeParaAvaliacaoSemanal(
 
   if (lideraSetoresEspecificos || setoresLiderados.length > 0) {
     const porLideranca = await listarEquipeDoLider(supabase, liderId, null);
-    const elegiveis = await filtrarMembrosOnboardingCompleto(supabase, porLideranca);
-    if (elegiveis.length > 0) {
-      return elegiveis.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    const base = porLideranca.map((m) => ({ ...m, onboarding_completo: true }));
+    const equipe = await enriquecerMembrosEquipe(supabase, base);
+    if (equipe.length > 0) {
+      return equipe.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     }
   }
 
@@ -81,7 +95,7 @@ export async function listarEquipeParaAvaliacaoSemanal(
   return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
 }
 
-/** Avaliação semanal do gerente: todos os colaboradores da unidade com onboarding concluído. */
+/** Avaliação semanal do gerente: todos os colaboradores da unidade (independente do onboarding). */
 export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
   supabase: SupabaseAdmin,
   unidadeId: string,
@@ -89,9 +103,8 @@ export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
 ): Promise<MembroEquipe[]> {
   let query = supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor')
+    .select('id, nome, role, cargo, setor, onboarding_completo')
     .eq('unidade_id', unidadeId)
-    .eq('onboarding_completo', true)
     .order('nome', { ascending: true });
 
   if (excluirAvaliadorId) {
@@ -109,6 +122,7 @@ export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
       role: (c as { role?: string | null }).role ?? null,
       cargo: (c as { cargo?: string | null }).cargo ?? null,
       setor: (c as { setor?: string | null }).setor ?? null,
+      onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
     }));
 }
 
@@ -222,7 +236,7 @@ export async function listarEquipeDoLider(
   if (ids.size > 0) {
     let query = supabase
       .from('colaboradores')
-      .select('id, nome, role, cargo, setor, unidade_id')
+      .select('id, nome, role, cargo, setor, unidade_id, onboarding_completo')
       .in('id', Array.from(ids))
       .neq('id', liderId)
       .order('nome');
@@ -239,6 +253,7 @@ export async function listarEquipeDoLider(
         role: (c as { role?: string | null }).role ?? null,
         cargo: (c as { cargo?: string | null }).cargo ?? null,
         setor: (c as { setor?: string | null }).setor ?? null,
+        onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
       });
     }
   }

@@ -306,8 +306,9 @@ Ordem e ficheiros principais:
 
 **Contrato (produto):** os líderes avaliam cada colaborador **no máximo uma vez por semana civil** (segunda a domingo, fuso **local**). Lista em `/api/portal/avaliacao-master` via `listarEquipeParaAvaliacaoSemanal` (`colaborador-lideres.ts`):
 
-- **Gerente da loja** (`lideres_por_setor` com setor `*` na unidade): todos os `colaborador` da unidade com `onboarding_completo = true`.
-- **Líder por setor** (ex.: Daniel — CD, Estoque, Motorista, Administração, RH em todas as unidades): equipe derivada de `lideres_por_setor` + `listarEquipeDoLider` (várias unidades), só onboarding completo.
+- **Gerente da loja** (`lideres_por_setor` com setor `*` na unidade): todos os `colaborador` da unidade.
+- **Líder por setor** (ex.: Daniel — CD, Estoque, Motorista, Administração, RH em todas as unidades): equipe derivada de `lideres_por_setor` + `listarEquipeDoLider` (várias unidades); perfis `admin`/`gerente` nos setores backoffice entram na lista.
+- **Onboarding:** todos aparecem na lista; quem não concluiu cadastro vem com `onboarding_completo: false` → UI **“Não ativo no portal”** (avaliação bloqueada até ativar). Contador de pendentes da semana considera só ativos.
 - **Coluna `justificativa_nota_baixa`:** migration `028`; código usa `avaliacoes-justificativa-compat.ts` se a coluna ainda não existir no Supabase.
 
 - **UI:** `/portal/avaliacao-master`; `/api/portal/avaliacao-master` (GET lista equipe + avaliação já gravada; POST primeira gravação, sem edição depois).

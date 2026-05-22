@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { isSetorValido } from '@/lib/constants/colaborador-org';
+import { isSetorValido, SETORES_AVALIACAO_EQUIPE_BACKOFFICE } from '@/lib/constants/colaborador-org';
 import {
   LIDER_TRANSVERSAL_CD_NOME,
   SETORES_LIDERANCA_DANIEL_TRANSVERSAL,
@@ -136,13 +136,22 @@ export async function listarColaboradoresPorUnidadeSetor(
   unidadeId: string,
   setor: string,
   excluirId?: string
-): Promise<Array<{ id: string; nome: string; role: string | null; cargo: string | null; setor: string | null }>> {
+): Promise<
+  Array<{
+    id: string;
+    nome: string;
+    role: string | null;
+    cargo: string | null;
+    setor: string | null;
+    onboarding_completo: boolean;
+  }>
+> {
   const setorCfg = setor.trim();
   if (setorCfg !== SETOR_TODOS_NA_UNIDADE && !isSetorValido(setorCfg)) return [];
 
   let query = supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor')
+    .select('id, nome, role, cargo, setor, onboarding_completo')
     .eq('unidade_id', unidadeId)
     .order('nome');
 
@@ -157,7 +166,15 @@ export async function listarColaboradoresPorUnidadeSetor(
     .filter((c) => {
       const id = String(c.id);
       if (excluirId && id === excluirId) return false;
-      return normalizePortalRole((c as { role?: string }).role) === 'colaborador';
+      const role = (c as { role?: string }).role;
+      const setor = (c as { setor?: string | null }).setor;
+      const r = normalizePortalRole(role);
+      if (r === 'colaborador') return true;
+      const setorTrim = String(setor ?? '').trim();
+      return (
+        (r === 'gerente' || r === 'admin') &&
+        (SETORES_AVALIACAO_EQUIPE_BACKOFFICE as readonly string[]).includes(setorTrim)
+      );
     })
     .map((c) => ({
       id: String(c.id),
@@ -165,5 +182,6 @@ export async function listarColaboradoresPorUnidadeSetor(
       role: (c as { role?: string | null }).role ?? null,
       cargo: (c as { cargo?: string | null }).cargo ?? null,
       setor: (c as { setor?: string | null }).setor ?? null,
+      onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
     }));
 }

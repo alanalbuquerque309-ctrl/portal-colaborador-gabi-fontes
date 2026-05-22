@@ -178,12 +178,20 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           ok: false,
-          erro: 'Colaborador não encontrado na unidade ou ainda não concluiu o onboarding.',
+          erro: 'Colaborador não encontrado na sua equipe para esta semana.',
         },
         { status: 403 }
       );
     }
-
+    if (!sub.onboarding_completo) {
+      return NextResponse.json(
+        {
+          ok: false,
+          erro: 'Este colaborador ainda não está ativo no portal. A avaliação libera quando ele concluir o cadastro inicial.',
+        },
+        { status: 403 }
+      );
+    }
     const { data: existente } = await supabase
       .from('avaliacoes_diarias')
       .select('id')
