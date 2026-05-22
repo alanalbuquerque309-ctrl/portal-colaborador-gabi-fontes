@@ -69,13 +69,13 @@ alwaysApply: true
 - Semana civil: `src/lib/semana-referencia.ts` (`data_referencia` = segunda-feira da semana).
 - Checklist: `AvaliacaoSemanalChecklist.tsx`; home: `AvaliacoesPortalHome.tsx`.
 
-### Produção (Vercel) — estado 2026-05-20
+### Produção (Vercel) — estado 2026-05-22
 
 | Item | Valor |
 |------|--------|
 | **URL canónica** | `https://portal-colaborador-gabi-fontes.vercel.app` |
-| **Commit em produção** | `474f5c2` — mural, presença, relatórios agrupados, troféus com lista completa |
-| **Deploy atual (painel)** | `34cz8ERVJ` — **Ready** / **Atual** |
+| **Commit em produção** | `d824a1d` — visão completa relatórios (equipe + feedback liderança), admin `/avaliacoes-lideranca` |
+| **Deploy** | Vercel **Ready** após push em `main` (confirmar bundle: textos *"todas as filiais"*, *"master e gerente"* em `/portal/relatorios-avaliacoes`) |
 
 **Deploys com Erro que podem ser ignorados** (histórico, já substituídos): `9Y7vpBCAu` (`7c2ae96`), `6nGwPBEKW` (`6ac958b`) — falha *Módulo não encontrado: `@/lib/semana-referencia`*; corrigido em `f63f6ab` e absorvido em `474f5c2`. Não reabrir esses logs salvo auditoria.
 
@@ -85,7 +85,10 @@ Confirmar produção: `vercel ls` (linha mais recente **Ready**) ou `vercel insp
 
 | Commit | Conteúdo |
 |--------|----------|
-| `474f5c2` | **Produção atual:** mural/destaque, presença, relatórios por setor, `colegas_elegiveis` troféus |
+| `d824a1d` | **Produção atual:** relatórios completos equipe + liderança; `avaliacoes-lideranca-relatorio.ts`; admin feedback liderança |
+| `7769442` | Lista avaliação semanal: todos na equipe; selo **Não ativo no portal**; POST bloqueado se inativo |
+| `c574192` | Equipe Daniel (Estoque/CD); mapa sem desativar Daniel em Estoque |
+| `474f5c2` | Mural/destaque, presença, relatórios por setor, `colegas_elegiveis` troféus |
 | `f63f6ab` | Fix build: `src/lib/semana-referencia.ts` |
 | `b0e00f1` | Redeploy forçado pós `f63f6ab` |
 | `7c2ae96` / `6ac958b` | UI avaliações / gerente unidade (**Vercel Erro** — ver acima) |
@@ -100,7 +103,10 @@ Confirmar produção: `vercel ls` (linha mais recente **Ready**) ou `vercel insp
 | Migrations 031–034 | `npm run db:apply-pendentes` → `scripts/aplicar-migrations-031-034.mjs` |
 | Mapa de liderança | `.\scripts\aplicar-mapa-lideranca.ps1 -PortalUrl "https://portal-colaborador-gabi-fontes.vercel.app"` (usa `-UseBasicParsing`; lê `ADMIN_ALAN_PASSWORD` do `.env.local`) |
 | Diagnóstico Mesquita | `node scripts/diagnostico-equipe-mesquita.mjs` |
-| Git alinhado | `git fetch origin` + `git log origin/main -1 --oneline` → esperar `474f5c2` ou posterior |
+| Git alinhado | `git fetch origin` + `git log origin/main -1 --oneline` → esperar `d824a1d` ou posterior |
+| Diagnóstico Daniel | `node scripts/diagnostico-equipe-daniel.mjs`, `node scripts/diagnostico-setores-daniel.mjs` |
+| Reativar Daniel Estoque | `node scripts/reativar-daniel-estoque.mjs` (se mapa legado desativou vínculos) |
+| Corrigir RH Keila | `node scripts/corrigir-cadastro-rh-keila.mjs` (`setor = RH`) |
 
 Criar tabelas no SQL Editor **não** substitui **Aplicar mapa** (API `POST /api/admin/lideres-por-setor/aplicar-padrao`).
 
@@ -218,20 +224,93 @@ Ordem e ficheiros principais:
 
 ---
 
-## Relatórios de avaliações
+## Relatórios de avaliações — visão completa (equipe + liderança)
 
-- **`lib/avaliacoes-relatorio-access.ts`:** relatórios completos — **socio** e **admin** (mesmo gate para presença).
-- Página: `/portal/relatorios-avaliacoes`; menu **Relatórios** no `Header.tsx`.
-- Bloco **equipe**: avaliações **semanais** (uma linha por semana); coluna de período = **segunda-feira** da semana (`data_referencia`).
-- **Layout (2026-05):** agrupamento **unidade → setor → nome do colaborador** (não tabela única). Lib `src/lib/relatorio-avaliacoes-agrupar.ts`; UI `src/components/portal/RelatorioAvaliacoesPorSetor.tsx` (`RelatorioDiariasPorSetor`, `RelatorioLiderancaPorSetor`).
-- APIs: `GET /api/portal/relatorios-avaliacoes-diarias`, `GET /api/portal/avaliacao-lideranca/relatorio` (incluem `colaborador_setor` / `avaliado_setor` quando existir no schema).
-- Notas baixas: `justificativa_nota_baixa` quando nota ≤ 3 (migração `028`).
+**Objetivo de produto:** sócio, administrativo, master e gerente conseguem ver **todas** as notas e **todos** os feedbacks: avaliações semanais da equipe **e** feedback dos colaboradores sobre cada líder (gerentes, admin, RH). Não depender só de `/portal/minha-lideranca` (média agregada do líder logado).
+
+### Quem acede
+
+| Função | Relatórios portal | Autor do avaliador (liderança) | Escopo |
+|--------|-------------------|--------------------------------|--------|
+| **socio** | Sim | Nome visível | Todas as unidades |
+| **admin** | Sim | Nome visível | Todas as unidades |
+| **master** | Sim | Nome visível | Todas as unidades |
+| **gerente** | Sim | Anónimo na UI | Só **própria unidade** (`relatorioRestringeUnidade`) |
+| **colaborador** / **rh** | Não | — | — |
+
+- Gate: `src/lib/avaliacoes-relatorio-access.ts` — `podeVerRelatoriosAvaliacoesCompletos`, `podeVerAutorAvaliacaoLideranca`, `relatorioRestringeUnidade`.
+- Menu **Relatórios** no `Header.tsx` e card na home (`AvaliacoesPortalHome.tsx`) usam o mesmo gate.
+- **Presença** (`/portal/relatorios-presenca`) usa o **mesmo** gate de relatórios completos.
+
+### Onde ver (URLs)
+
+| O quê | Portal (sessão colaborador) | Admin (sessão senha admin) |
+|-------|------------------------------|----------------------------|
+| **Equipe + liderança por filial** | `/portal/relatorios-avaliacoes` | Link no portal; equipe também em `/admin/avaliacoes-diarias` |
+| **Feedback liderança (todas unidades)** | Bloco no topo de `relatorios-avaliacoes` | `/admin/avaliacoes-lideranca` |
+| **Média só do líder logado** | `/portal/minha-lideranca` | — |
+
+### UI portal — `/portal/relatorios-avaliacoes`
+
+1. **Resumo:** contadores (avaliações equipe, feedback liderança, filiais).
+2. **Bloco global:** *Feedback sobre a liderança (todas as filiais)* — uma chamada API **sem** `unidade_slug`, limite 3000.
+3. **Agrupamento liderança:** toggle **Por líder** (padrão, `RelatorioLiderancaPorLider`) ou **Por setor** (`RelatorioLiderancaPorSetor`).
+4. **Por filial** (`UNIDADES_CADASTRO`): em cada `<details>` — equipe semanal + liderança da filial (por líder).
+
+### UI admin
+
+- **`/admin/avaliacoes-diarias`:** tabela consolidada avaliações **semanais da equipe** (`GET /api/admin/avaliacoes-diarias`).
+- **`/admin/avaliacoes-lideranca`:** todas as notas/justificativas sobre líderes, agrupadas por líder; autor sempre visível; link no menu admin e em `avaliacoes-diarias`.
+
+### APIs
+
+| Rota | Auth | Dados |
+|------|------|-------|
+| `GET /api/portal/relatorios-avaliacoes-diarias?inicio&fim&unidade_slug&limite` | Cookie portal + gate | Tabela `avaliacoes_diarias`; período em **`data_referencia`** (segunda da semana); nomes/setor avaliado e avaliador |
+| `GET /api/portal/avaliacao-lideranca/relatorio?inicio&fim&unidade_slug&limite` | Cookie portal + gate | Tabela `avaliacoes_lideranca`; ver lib partilhada abaixo |
+| `GET /api/admin/avaliacoes-lideranca?inicio&fim&unidade_slug&limite` | `isAdminAuthorized()` | Mesma listagem; `viewerRole` tratado como **admin** (autor visível) |
+
+**Não** usar `isAdminAuthorized` nas rotas `/api/portal/relatorios-*` — evita divergência (admin logado só no portal no telemóvel vs senha admin no PC).
+
+### Lib partilhada — `src/lib/avaliacoes-lideranca-relatorio.ts`
+
+- **`listarAvaliacoesLiderancaRelatorio(supabase, opts)`** — única fonte para portal e admin.
+- **Filtro de período:** `gte`/`lte` em **`semana_inicio`** (YYYY-MM-DD). **Não** filtrar por `created_at` (bug antigo esvaziava relatório).
+- **Inclusão total:** **não** excluir linhas em que o viewer é `avaliado_id` (feedback sobre o próprio Daniel/admin deve aparecer na visão consolidada).
+- **Colunas:** preferir `n_exemplo`, `n_comunicacao`, `n_suporte`, `n_justica`, `n_clima`; fallback legado `n_fala_escuta`, `n_apoio`, `n_ambiente`, `n_organizacao` se migration 025 incompleta.
+- **Limite:** até 5000 (portal pede 3000 global + 2000 por filial).
+- **Resposta:** `itens[]` com `avaliado_nome`, `avaliado_setor`, `filial_nome`, `avaliador_label`, 5 notas, `justificativa_nota_baixa`, `media`, `semana_inicio`.
+
+### Agrupamento UI
+
+- `src/lib/relatorio-avaliacoes-agrupar.ts` — setor → colaborador.
+- `src/components/portal/RelatorioAvaliacoesPorSetor.tsx`:
+  - `RelatorioDiariasPorSetor` — equipe;
+  - `RelatorioLiderancaPorSetor` — liderança por setor do **avaliado**;
+  - `RelatorioLiderancaPorLider` — liderança por **nome do líder avaliado** (cabeçalho com setor, filial, média).
+
+### Equipe semanal (bloco “avaliações da equipe”)
+
+- Uma linha = uma semana; `data_referencia` = segunda-feira.
+- Colunas na tabela: assiduidade, vestimenta, pontualidade, trabalho em equipe, desempenho, média, justificativa (`028` + `avaliacoes-justificativa-compat.ts` se coluna ausente).
+
+### Feedback liderança (bloco “avaliação da liderança”)
+
+- Origem: colaboradores em `/portal/avaliacao-lideranca` (aba Líderes).
+- **Não** alimenta destaque automático do mural (`avaliacoes_lideranca` ≠ ranking).
+- Se contador = **0:** alargar datas no filtro ou confirmar registos em `avaliacoes_lideranca` no Supabase (pode ser ausência de dados, não só bug de UI).
+
+### Commits relacionados (main)
+
+- `d824a1d` — visão completa relatórios + admin liderança + filtro `semana_inicio`.
+- `7769442` — lista master: todos na equipe, selo não ativo.
+- `245f43f` / compat — `avaliacoes-justificativa-compat.ts` se `028` não aplicada.
 
 ---
 
 ## Relatório de uso do portal (inatividade)
 
-- Página: `/portal/relatorios-presenca`; menu **Uso do portal** (sócio/admin).
+- Página: `/portal/relatorios-presenca`; menu **Uso do portal** (socio, admin, master, gerente — mesmo gate que relatórios de avaliações).
 - API: `GET /api/portal/relatorios-presenca?dias=7&unidade=slug` (opcional).
 - Fonte: tabela **`portal_presenca`** (`ultimo_ping_at`) + heartbeat `PortalPresence` + `POST /api/portal/presenca/ping`. Critério: sem ping há N dias ou nunca registrou (onboarding completo).
 - Migração: **`031_portal_presenca.sql`**.
@@ -298,7 +377,7 @@ Ordem e ficheiros principais:
 - Alvos na API: **`listarLideresDoColaborador(..., { apenasDaConfig: true })`** (só `lideres_por_setor` para *Chefe direto*) + um **RH** + um **admin** (`admin_global`). **Não** misturar Daniel como chefe de Atendimento. **Uma avaliação por par** (liderado × líder avaliado × semana).
 - Dimensões (notas 1–5): exemplo/postura, comunicação, suporte, justiça, clima (`avaliacao-lideranca/route.ts`).
 - Colaborador: `/portal/avaliacao-lideranca` (abas **Líderes** + **Reconhecimento entre pares**); líder: `/portal/minha-lideranca` (`/api/portal/avaliacao-lideranca/minha`).
-- Consolidado sócios/admin em relatórios; anonimato conforme `lib/roles` e APIs.
+- Consolidado em `/portal/relatorios-avaliacoes` e `/admin/avaliacoes-lideranca` (ver secção **Relatórios de avaliações**); anonimato do avaliador só para **gerente** na visão portal; socio/admin/master veem autor.
 
 ---
 
@@ -398,7 +477,8 @@ notify pgrst, 'reload schema';
 - `src/app/api/portal/`, `src/app/api/admin/` — APIs (`destaque`, `trofeus-pares`, `relatorios-presenca`, …).
 - `src/components/mural/` — `MuralReconhecimento`, `MuralUnidade`, `MuralPreview`.
 - `src/components/portal/` — checklist, troféus, relatórios agrupados, cards de avaliação.
-- `src/lib/destaque-avaliacoes.ts`, `src/lib/trofeus-pares.ts`, `src/lib/semana-referencia.ts`, `src/lib/avaliacao-ranking.ts`, `src/lib/relatorio-avaliacoes-agrupar.ts`.
+- `src/lib/destaque-avaliacoes.ts`, `src/lib/trofeus-pares.ts`, `src/lib/semana-referencia.ts`, `src/lib/avaliacao-ranking.ts`, `src/lib/relatorio-avaliacoes-agrupar.ts`, `src/lib/avaliacoes-relatorio-access.ts`, `src/lib/avaliacoes-lideranca-relatorio.ts`, `src/lib/avaliacoes-justificativa-compat.ts`.
+- `src/app/(admin)/admin/avaliacoes-lideranca/`, `src/app/api/admin/avaliacoes-lideranca/`.
 - `src/content/onboarding-quizzes.ts` — perguntas.
 - `supabase/migrations/` — schema (`031`, `032`, `033`, `034` entre as mais recentes).
 - `scripts/aplicar-migrations-031-034.mjs` + `npm run db:apply-pendentes` — migrations pendentes via `DATABASE_URL`.
