@@ -229,27 +229,6 @@ export async function desativarLideresForaDoMapaOperacional(
     }
   }
 
-  // Legado: Estoque com Daniel quando o mapa passou a CD
-  const danielId = await resolverLiderId(supabase, LIDER_TRANSVERSAL_CD_NOME, null);
-  if (danielId) {
-    for (const uid of unidadeIdsTodas) {
-      const { data: legado } = await supabase
-        .from('lideres_por_setor')
-        .select('id')
-        .eq('lider_id', danielId)
-        .eq('unidade_id', uid)
-        .eq('setor', 'Estoque')
-        .eq('ativo', true);
-      for (const row of legado ?? []) {
-        const { error: upErr } = await supabase
-          .from('lideres_por_setor')
-          .update({ ativo: false, updated_at: new Date().toISOString() })
-          .eq('id', String(row.id));
-        if (!upErr) desativados += 1;
-      }
-    }
-  }
-
   return desativados;
 }
 

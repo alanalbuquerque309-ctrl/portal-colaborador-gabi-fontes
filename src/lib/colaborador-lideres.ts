@@ -57,19 +57,25 @@ export async function listarEquipeParaAvaliacaoSemanal(
     setoresLiderados = [];
   }
 
-  const gerenteDaUnidade = setoresLiderados.some(
-    (s) => s.unidade_id === unidadeId && s.setor === SETOR_TODOS_NA_UNIDADE
+  const lideraSetoresEspecificos = setoresLiderados.some(
+    (s) => s.setor !== SETOR_TODOS_NA_UNIDADE
   );
-  if (gerenteDaUnidade) {
-    return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
-  }
+  const gerenteDaUnidade =
+    !lideraSetoresEspecificos &&
+    setoresLiderados.some(
+      (s) => s.unidade_id === unidadeId && s.setor === SETOR_TODOS_NA_UNIDADE
+    );
 
-  if (setoresLiderados.length > 0) {
+  if (lideraSetoresEspecificos || setoresLiderados.length > 0) {
     const porLideranca = await listarEquipeDoLider(supabase, liderId, null);
     const elegiveis = await filtrarMembrosOnboardingCompleto(supabase, porLideranca);
     if (elegiveis.length > 0) {
       return elegiveis.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     }
+  }
+
+  if (gerenteDaUnidade) {
+    return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
   }
 
   return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
