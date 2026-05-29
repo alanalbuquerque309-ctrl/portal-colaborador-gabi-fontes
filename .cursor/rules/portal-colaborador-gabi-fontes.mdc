@@ -260,17 +260,25 @@ Ordem e ficheiros principais:
 
 | O quê | Portal (sessão colaborador) | Admin (sessão senha admin) |
 |-------|------------------------------|----------------------------|
-| **Equipe + liderança por filial** | `/portal/relatorios-avaliacoes` | Link no portal; equipe também em `/admin/avaliacoes-diarias` |
-| **Feedback liderança (todas unidades)** | Bloco no topo de `relatorios-avaliacoes` | `/admin/avaliacoes-lideranca` |
+| **Equipe + liderança** | `/portal/relatorios-avaliacoes` | Link no portal; equipe também em `/admin/avaliacoes-diarias` |
+| **Feedback liderança** | Aba **Liderança** em `relatorios-avaliacoes` | `/admin/avaliacoes-lideranca` |
 | **Média só do líder logado** | `/portal/minha-lideranca` | — |
 
-### UI portal — `/portal/relatorios-avaliacoes`
+### UI portal — `/portal/relatorios-avaliacoes` (2026-05-29)
 
-1. **Resumo:** contadores (avaliações equipe, feedback liderança, filiais).
-2. **Bloco global:** *Feedback sobre a liderança (todas as filiais)* — uma chamada API **sem** `unidade_slug`, limite 3000.
-3. **Agrupamento liderança:** toggle **Por líder** (padrão, `RelatorioLiderancaPorLider`) ou **Por setor** (`RelatorioLiderancaPorSetor`).
-4. **Por filial (lojas):** `UNIDADES_RELATORIO_FILIAIS` (Mesquita, Barra, Nova Iguaçu, Fábrica) — equipe semanal + liderança da filial (liderança por filial só para sócio/master/gerente; **admin** usa só o bloco consolidado).
-5. **Administrativo** (bloco único, fora de «por filial»): equipe semanal do backoffice (`unidade_slug=administrativo`). Liderança **não** repete aqui — entra no bloco consolidado global.
+**Abas:** **Equipe semanal** (padrão) · **Liderança**.
+
+**Equipe semanal (lista simples, rede inteira numa chamada):**
+
+1. **Alerta amarelo:** `AlertaPendenciasVisitaRh` — gerente já avaliou na semana, Visita RH (Keila) ainda não (`calcularPendenciasVisitaRh` em `relatorio-equipe-utils.ts`).
+2. **Visão:** toggle **Por semana** (padrão, `RelatorioEquipePorSemana`) ou **Por pessoa** (`RelatorioEquipePorPessoa`). Por semana: cada pessoa mostra cartões **Gerente** + **Visita RH** lado a lado; pendente RH em destaque.
+3. **Filtros:** período, filial, origem (gerente / RH / ambos), busca por nome.
+4. **Resumo:** contadores pessoas, registros, gerente, Visita RH.
+5. API: `GET /api/portal/relatorios-avaliacoes-diarias` sem `unidade_slug` (toda a rede); campos `origem_visita_rh`, `avaliador_rotulo`, `colaborador_unidade_nome`.
+
+**Liderança:** `RelatorioLiderancaPorLider` — feedback consolidado no período.
+
+(Legado removido da UI: blocos aninhados filial → setor → tabela larga.)
 
 ### UI admin
 
