@@ -1,24 +1,22 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import {
-  SLUG_UNIDADE_ADMINISTRATIVO,
-  UNIDADES_RELATORIO_FILIAIS,
-} from '@/lib/constants/colaborador-org';
+import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import {
   podeVerRelatoriosAvaliacoesCompletos,
-  podeVerLiderancaPorFilialRelatorio,
 } from '@/lib/avaliacoes-relatorio-access';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import {
-  RelatorioDiariasPorSetor,
-  RelatorioLiderancaPorSetor,
   RelatorioLiderancaPorLider,
   type LinhaDiariaRelatorio,
   type LinhaLiderRelatorio,
 } from '@/components/portal/RelatorioAvaliacoesPorSetor';
+import {
+  RelatorioEquipePorPessoa,
+  type FiltroOrigemEquipe,
+} from '@/components/portal/RelatorioEquipePorPessoa';
 
 function hojeISO(): string {
   const d = new Date();
@@ -30,28 +28,23 @@ function inicioMesISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
-type BlocoFilial = {
-  slug: string;
-  label: string;
-  diarias: LinhaDiariaRelatorio[];
-  lideranca: LinhaLiderRelatorio[];
-  erro?: string;
-};
+type AbaRelatorio = 'equipe' | 'lideranca';
 
 export default function RelatoriosAvaliacoesPage() {
   const router = useRouter();
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
-  const [viewerRole, setViewerRole] = useState('');
+  const [aba, setAba] = useState<AbaRelatorio>('equipe');
   const [inicio, setInicio] = useState(inicioMesISO);
   const [fim, setFim] = useState(hojeISO);
   const [carregando, setCarregando] = useState(false);
-  const [blocos, setBlocos] = useState<BlocoFilial[]>([]);
-  const [adminDiarias, setAdminDiarias] = useState<LinhaDiariaRelatorio[]>([]);
-  const [adminErro, setAdminErro] = useState('');
+  const [equipeLinhas, setEquipeLinhas] = useState<LinhaDiariaRelatorio[]>([]);
+  const [equipeErro, setEquipeErro] = useState('');
   const [liderancaGlobal, setLiderancaGlobal] = useState<LinhaLiderRelatorio[]>([]);
   const [notaLider, setNotaLider] = useState('');
-  const [erroGlobal, setErroGlobal] = useState('');
-  const [agruparLiderancaPor, setAgruparLiderancaPor] = useState<'lider' | 'setor'>('lider');
+  const [erroLideranca, setErroLideranca] = useState('');
+  const [filtroFilial, setFiltroFilial] = useState('');
+  const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigemEquipe>('todos');
+  const [busca, setBusca] = useState('');
 
   useEffect(() => {
     let cancel = false;
@@ -60,7 +53,6 @@ export default function RelatoriosAvaliacoesPage() {
       .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
         if (cancel) return;
         const role = data.colaborador?.role ?? '';
-        setViewerRole(role);
         if (data.ok && podeVerRelatoriosAvaliacoesCompletos(role)) {
           setAutorizado(true);
         } else {
@@ -81,111 +73,68 @@ export default function RelatoriosAvaliacoesPage() {
 
   const carregar = useCallback(async () => {
     setCarregando(true);
+    setEquipeErro('');
+    setErroLideranca('');
     setNotaLider('');
-    setErroGlobal('');
-    setAdminErro('');
-    const mostrarLiderPorFilial = podeVerLiderancaPorFilialRelatorio(viewerRole);
-    const novos: BlocoFilial[] = UNIDADES_RELATORIO_FILIAIS.map((u) => ({
-      slug: u.slug,
-      label: u.label,
-      diarias: [],
-      lideranca: [],
-    }));
 
     try {
-      const qGlobal = new URLSearchParams({ inicio, fim, limite: '3000' });
-      const qAdminDiarias = new URLSearchParams({
-        inicio,
-        fim,
-        limite: '2000',
-        unidade_slug: SLUG_UNIDADE_ADMINISTRATIVO,
-      });
+      const qEquipe = new URLSearchParams({ inicio, fim, limite: '3000' });
+      const qLider = new URLSearchParams({ inicio, fim, limite: '3000' });
 
-      const [resGlobal, resAdminDiarias] = await Promise.all([
-        fetch(`/api/portal/avaliacao-lideranca/relatorio?${qGlobal}`, {
+      const [resEquipe, resLider] = await Promise.all([
+        fetch(`/api/portal/relatorios-avaliacoes-diarias?${qEquipe}`, {
           credentials: 'include',
           cache: 'no-store',
         }),
-        fetch(`/api/portal/relatorios-avaliacoes-diarias?${qAdminDiarias}`, {
+        fetch(`/api/portal/avaliacao-lideranca/relatorio?${qLider}`, {
           credentials: 'include',
           cache: 'no-store',
         }),
       ]);
 
-      const dataGlobal = await resGlobal.json();
-      const dataAdminDiarias = await resAdminDiarias.json();
-      if (dataGlobal.ok && Array.isArray(dataGlobal.itens)) {
-        setLiderancaGlobal(dataGlobal.itens as LinhaLiderRelatorio[]);
-        if (dataGlobal.nota) setNotaLider(String(dataGlobal.nota));
+      const dataEquipe = await resEquipe.json();
+      const dataLider = await resLider.json();
+
+      if (dataEquipe.ok && Array.isArray(dataEquipe.linhas)) {
+        setEquipeLinhas(dataEquipe.linhas as LinhaDiariaRelatorio[]);
+      } else {
+        setEquipeLinhas([]);
+        setEquipeErro(dataEquipe.erro || 'Erro ao carregar avaliações da equipe.');
+      }
+
+      if (dataLider.ok && Array.isArray(dataLider.itens)) {
+        setLiderancaGlobal(dataLider.itens as LinhaLiderRelatorio[]);
+        if (dataLider.nota) setNotaLider(String(dataLider.nota));
       } else {
         setLiderancaGlobal([]);
-        setErroGlobal(dataGlobal.erro || 'Erro ao carregar feedback sobre liderança.');
+        setErroLideranca(dataLider.erro || 'Erro ao carregar feedback sobre liderança.');
       }
-
-      if (dataAdminDiarias.ok && Array.isArray(dataAdminDiarias.linhas)) {
-        setAdminDiarias(dataAdminDiarias.linhas as LinhaDiariaRelatorio[]);
-      } else {
-        setAdminDiarias([]);
-        setAdminErro(dataAdminDiarias.erro || 'Erro nas avaliações da equipe administrativa.');
-      }
-
-      await Promise.all(
-        novos.map(async (b, i) => {
-          const qD = new URLSearchParams({ inicio, fim, limite: '2000', unidade_slug: b.slug });
-
-          const resD = await fetch(`/api/portal/relatorios-avaliacoes-diarias?${qD}`, {
-            credentials: 'include',
-            cache: 'no-store',
-          });
-
-          const dataD = await resD.json();
-
-          if (dataD.ok && Array.isArray(dataD.linhas)) {
-            novos[i].diarias = dataD.linhas as LinhaDiariaRelatorio[];
-          } else {
-            novos[i].erro = dataD.erro || 'Erro nas avaliações da equipe.';
-          }
-
-          if (mostrarLiderPorFilial) {
-            const qL = new URLSearchParams({ unidade_slug: b.slug, inicio, fim });
-            const resL = await fetch(`/api/portal/avaliacao-lideranca/relatorio?${qL}`, {
-              credentials: 'include',
-              cache: 'no-store',
-            });
-            const dataL = await resL.json();
-            if (dataL.ok && Array.isArray(dataL.itens)) {
-              novos[i].lideranca = dataL.itens as LinhaLiderRelatorio[];
-            } else if (!dataL.ok) {
-              novos[i].erro =
-                (novos[i].erro ? novos[i].erro + ' ' : '') + (dataL.erro || 'Erro na liderança.');
-            }
-          }
-        })
-      );
-      setBlocos([...novos]);
     } catch {
+      setEquipeLinhas([]);
+      setEquipeErro('Erro de conexão.');
       setLiderancaGlobal([]);
-      setErroGlobal('Erro de conexão.');
-      setAdminDiarias([]);
-      setAdminErro('Erro de conexão.');
-      setBlocos(
-        UNIDADES_RELATORIO_FILIAIS.map((u) => ({
-          slug: u.slug,
-          label: u.label,
-          diarias: [],
-          lideranca: [],
-          erro: 'Erro de conexão.',
-        }))
-      );
+      setErroLideranca('Erro de conexão.');
     } finally {
       setCarregando(false);
     }
-  }, [inicio, fim, viewerRole]);
+  }, [inicio, fim]);
 
   useEffect(() => {
     if (autorizado !== true) return;
     void carregar();
   }, [autorizado, inicio, fim, carregar]);
+
+  const linhasEquipeFiltradas = useMemo(() => {
+    if (!filtroFilial) return equipeLinhas;
+    return equipeLinhas.filter((l) => l.colaborador_unidade_slug === filtroFilial);
+  }, [equipeLinhas, filtroFilial]);
+
+  const resumoEquipe = useMemo(() => {
+    const rh = linhasEquipeFiltradas.filter((l) => l.origem_visita_rh).length;
+    const gerente = linhasEquipeFiltradas.length - rh;
+    const pessoas = new Set(linhasEquipeFiltradas.map((l) => l.colaborador_nome)).size;
+    return { total: linhasEquipeFiltradas.length, gerente, rh, pessoas };
+  }, [linhasEquipeFiltradas]);
 
   if (autorizado === null) {
     return (
@@ -199,12 +148,8 @@ export default function RelatoriosAvaliacoesPage() {
     return null;
   }
 
-  const totalDiarias =
-    blocos.reduce((s, b) => s + b.diarias.length, 0) + adminDiarias.length;
-  const mostrarLiderPorFilial = podeVerLiderancaPorFilialRelatorio(viewerRole);
-
   return (
-    <main className="max-w-6xl space-y-8 pb-24">
+    <main className="max-w-3xl space-y-6 pb-24">
       <div>
         <Link href="/portal" className="text-sm text-dourado-base hover:underline font-medium">
           ← Voltar ao portal
@@ -212,186 +157,153 @@ export default function RelatoriosAvaliacoesPage() {
         <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
           Relatórios de avaliações
         </h1>
-        <p className="text-cafeteria-600 mt-2 text-sm max-w-3xl">
-          Visão completa para <strong>sócio, administrativo, master e gerente</strong>: avaliações
-          semanais da equipe (notas e justificativas) e feedback dos colaboradores sobre cada líder.
-        </p>
-        <p className="text-xs text-cafeteria-500 mt-1 max-w-3xl">
-          O período filtra a <strong>semana de referência</strong> (segunda-feira). No feedback sobre
-          liderança, sócio/admin/master veem quem avaliou; gerente vê o conteúdo com avaliador
-          anônimo.
-        </p>
-        <p className="text-xs text-cafeteria-500 mt-2">
-          Painel admin:{' '}
-          <Link href="/admin/avaliacoes-lideranca" className="underline hover:text-cafeteria-700">
-            feedback liderança
-          </Link>
-          {' · '}
-          <Link href="/admin/avaliacoes-diarias" className="underline hover:text-cafeteria-700">
-            equipe semanal
-          </Link>
+        <p className="text-cafeteria-600 mt-2 text-sm">
+          Lista por pessoa: semana, quem avaliou (gerente ou Visita RH) e média. Toque no nome para
+          expandir.
         </p>
       </div>
 
-      <div className="rounded-xl border border-cafeteria-200 bg-white p-4 shadow-sm flex flex-wrap gap-4 items-end">
-        <div>
-          <label className="block text-xs font-medium text-cafeteria-800 mb-1">Início</label>
-          <input
-            type="date"
-            value={inicio}
-            onChange={(e) => setInicio(e.target.value)}
-            className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900"
-          />
+      <div className="rounded-xl border border-cafeteria-200 bg-white p-4 shadow-sm space-y-4">
+        <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="block text-xs font-medium text-cafeteria-800 mb-1">Início</label>
+            <input
+              type="date"
+              value={inicio}
+              onChange={(e) => setInicio(e.target.value)}
+              className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-cafeteria-800 mb-1">Fim</label>
+            <input
+              type="date"
+              value={fim}
+              onChange={(e) => setFim(e.target.value)}
+              className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => void carregar()}
+            disabled={carregando}
+            className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
+          >
+            {carregando ? 'Atualizando…' : 'Atualizar'}
+          </button>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-cafeteria-800 mb-1">Fim</label>
-          <input
-            type="date"
-            value={fim}
-            onChange={(e) => setFim(e.target.value)}
-            className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900"
-          />
+
+        <div className="flex rounded-lg border border-cafeteria-200 text-sm overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setAba('equipe')}
+            className={`flex-1 px-4 py-2 font-medium ${
+              aba === 'equipe' ? 'bg-dourado-base text-cream-100' : 'bg-white text-cafeteria-700'
+            }`}
+          >
+            Equipe semanal
+          </button>
+          <button
+            type="button"
+            onClick={() => setAba('lideranca')}
+            className={`flex-1 px-4 py-2 font-medium ${
+              aba === 'lideranca' ? 'bg-dourado-base text-cream-100' : 'bg-white text-cafeteria-700'
+            }`}
+          >
+            Liderança
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void carregar()}
-          disabled={carregando}
-          className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
-        >
-          {carregando ? 'Atualizando…' : 'Atualizar'}
-        </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3">
-          <p className="text-xs text-cafeteria-500">Avaliações equipe</p>
-          <p className="text-xl font-semibold text-cafeteria-900">{totalDiarias}</p>
-        </div>
-        <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3">
-          <p className="text-xs text-cafeteria-500">Feedback liderança</p>
-          <p className="text-xl font-semibold text-cafeteria-900">{liderancaGlobal.length}</p>
-        </div>
-        <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3 col-span-2 sm:col-span-1">
-          <p className="text-xs text-cafeteria-500">Filiais (lojas)</p>
-          <p className="text-xl font-semibold text-cafeteria-900">{blocos.length}</p>
-        </div>
-      </div>
+      {aba === 'equipe' && (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+            <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-3 py-2">
+              <p className="text-[10px] uppercase text-cafeteria-500">Pessoas</p>
+              <p className="text-lg font-semibold text-cafeteria-900">{resumoEquipe.pessoas}</p>
+            </div>
+            <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-3 py-2">
+              <p className="text-[10px] uppercase text-cafeteria-500">Registros</p>
+              <p className="text-lg font-semibold text-cafeteria-900">{resumoEquipe.total}</p>
+            </div>
+            <div className="rounded-lg border border-dourado-200/60 bg-cream-50/80 px-3 py-2">
+              <p className="text-[10px] uppercase text-dourado-700">Gerente</p>
+              <p className="text-lg font-semibold text-cafeteria-900">{resumoEquipe.gerente}</p>
+            </div>
+            <div className="rounded-lg border border-sky-200 bg-sky-50/50 px-3 py-2">
+              <p className="text-[10px] uppercase text-sky-800">Visita RH</p>
+              <p className="text-lg font-semibold text-cafeteria-900">{resumoEquipe.rh}</p>
+            </div>
+          </div>
 
-      <section className="rounded-xl border border-dourado-200/80 bg-white shadow-sm p-4 md:p-6 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-3">
+            <select
+              value={filtroFilial}
+              onChange={(e) => setFiltroFilial(e.target.value)}
+              className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[140px]"
+            >
+              <option value="">Todas filiais</option>
+              {UNIDADES_CADASTRO.map((u) => (
+                <option key={u.slug} value={u.slug}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={filtroOrigem}
+              onChange={(e) => setFiltroOrigem(e.target.value as FiltroOrigemEquipe)}
+              className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[140px]"
+            >
+              <option value="todos">Gerente + RH</option>
+              <option value="gerente">Só gerente</option>
+              <option value="rh">Só Visita RH</option>
+            </select>
+            <input
+              type="search"
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar nome…"
+              className="flex-1 min-w-[140px] rounded-lg border border-cafeteria-200 px-3 py-2 text-sm"
+            />
+          </div>
+
+          {equipeErro && (
+            <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{equipeErro}</p>
+          )}
+
+          {carregando && equipeLinhas.length === 0 ? (
+            <XicaraCarregando size="md" label="Carregando equipe…" />
+          ) : (
+            <RelatorioEquipePorPessoa
+              linhas={linhasEquipeFiltradas}
+              filtroOrigem={filtroOrigem}
+              busca={busca}
+            />
+          )}
+        </>
+      )}
+
+      {aba === 'lideranca' && (
+        <section className="rounded-xl border border-cafeteria-200 bg-white shadow-sm p-4 space-y-4">
           <div>
             <h2 className="text-lg font-display font-semibold text-cafeteria-900">
-              Feedback sobre a liderança (consolidado)
+              Feedback sobre liderança
             </h2>
             <p className="text-xs text-cafeteria-500 mt-1">
-              Cada bloco é um líder avaliado, com todas as notas e justificativas no período (inclui
-              backoffice administrativo).
+              O que os colaboradores responderam sobre cada líder no período.
             </p>
           </div>
-          <div className="flex rounded-lg border border-cafeteria-200 text-xs overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setAgruparLiderancaPor('lider')}
-              className={`px-3 py-1.5 ${
-                agruparLiderancaPor === 'lider'
-                  ? 'bg-dourado-base text-cream-100'
-                  : 'bg-white text-cafeteria-700'
-              }`}
-            >
-              Por líder
-            </button>
-            <button
-              type="button"
-              onClick={() => setAgruparLiderancaPor('setor')}
-              className={`px-3 py-1.5 ${
-                agruparLiderancaPor === 'setor'
-                  ? 'bg-dourado-base text-cream-100'
-                  : 'bg-white text-cafeteria-700'
-              }`}
-            >
-              Por setor
-            </button>
-          </div>
-        </div>
-        {notaLider && <p className="text-sm text-cafeteria-600">{notaLider}</p>}
-        {erroGlobal && (
-          <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{erroGlobal}</p>
-        )}
-        {carregando && liderancaGlobal.length === 0 ? (
-          <XicaraCarregando size="md" label="Carregando feedback…" />
-        ) : agruparLiderancaPor === 'lider' ? (
-          <RelatorioLiderancaPorLider linhas={liderancaGlobal} />
-        ) : (
-          <RelatorioLiderancaPorSetor linhas={liderancaGlobal} />
-        )}
-      </section>
-
-      <details
-        className="group rounded-xl border border-cafeteria-200 bg-white shadow-sm open:shadow-md"
-        open
-      >
-        <summary className="cursor-pointer list-none px-4 py-3 font-display text-lg font-semibold text-cafeteria-900 border-b border-cafeteria-100 flex items-center justify-between">
-          <span>Administrativo</span>
-          <span className="text-xs font-normal text-cafeteria-500">
-            {adminDiarias.length} semanais · liderança no bloco global acima
-          </span>
-        </summary>
-        <div className="p-4 space-y-4">
-          {adminErro && (
-            <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{adminErro}</p>
+          {notaLider && <p className="text-sm text-cafeteria-600">{notaLider}</p>}
+          {erroLideranca && (
+            <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{erroLideranca}</p>
           )}
-          <p className="text-xs text-cafeteria-500">
-            Backoffice central (CD, estoque, RH, etc.). Não é filial de loja; avaliações de liderança
-            aparecem uma vez no bloco global.
-          </p>
-          <section>
-            <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
-              Avaliações da equipe (semanais)
-            </h3>
-            <RelatorioDiariasPorSetor linhas={adminDiarias} />
-          </section>
-        </div>
-      </details>
-
-      <div className="space-y-4">
-        <h2 className="text-lg font-display font-semibold text-cafeteria-900">Por filial (lojas)</h2>
-        {blocos.map((b) => (
-          <details
-            key={b.slug}
-            className="group rounded-xl border border-cafeteria-200 bg-white shadow-sm open:shadow-md"
-            open
-          >
-            <summary className="cursor-pointer list-none px-4 py-3 font-display text-lg font-semibold text-cafeteria-900 border-b border-cafeteria-100 flex items-center justify-between">
-              <span>{b.label}</span>
-              <span className="text-xs font-normal text-cafeteria-500">
-                {b.diarias.length} semanais
-                {mostrarLiderPorFilial ? ` · ${b.lideranca.length} liderança` : ''}
-              </span>
-            </summary>
-            <div className="p-4 space-y-8">
-              {b.erro && (
-                <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{b.erro}</p>
-              )}
-
-              <section>
-                <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
-                  Avaliações da equipe (semanais)
-                </h3>
-                <RelatorioDiariasPorSetor linhas={b.diarias} />
-              </section>
-
-              {mostrarLiderPorFilial && (
-                <section>
-                  <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
-                    Avaliação da liderança nesta filial
-                  </h3>
-                  <RelatorioLiderancaPorLider linhas={b.lideranca} />
-                </section>
-              )}
-            </div>
-          </details>
-        ))}
-      </div>
+          {carregando && liderancaGlobal.length === 0 ? (
+            <XicaraCarregando size="md" label="Carregando…" />
+          ) : (
+            <RelatorioLiderancaPorLider linhas={liderancaGlobal} />
+          )}
+        </section>
+      )}
     </main>
   );
 }

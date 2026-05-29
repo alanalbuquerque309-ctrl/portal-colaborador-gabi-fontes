@@ -15,6 +15,8 @@ export type LinhaDiariaRelatorio = {
   justificativa_nota_baixa: string | null;
   colaborador_nome: string | null;
   colaborador_setor?: string | null;
+  colaborador_unidade_nome?: string | null;
+  colaborador_unidade_slug?: string | null;
   avaliador_nome: string | null;
   avaliador_rotulo?: string | null;
   origem_visita_rh?: boolean;

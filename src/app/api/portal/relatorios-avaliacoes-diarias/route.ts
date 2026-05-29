@@ -109,18 +109,33 @@ export async function GET(req: Request) {
       idsNomes.add(r.colaborador_id as string);
       idsNomes.add(r.avaliador_id as string);
     }
-    const metaPorId: Record<string, { nome: string; setor: string | null; role: string | null }> = {};
+    const colaboradorIds = new Set(rows.map((r) => String(r.colaborador_id)));
+    const metaPorId: Record<
+      string,
+      { nome: string; setor: string | null; role: string | null; unidade_nome: string | null; unidade_slug: string | null }
+    > = {};
     if (idsNomes.size > 0) {
       const { data: pessoas, error: errP } = await supabase
         .from('colaboradores')
-        .select('id, nome, setor, role')
+        .select('id, nome, setor, role, unidade_id, unidades(nome, slug)')
         .in('id', Array.from(idsNomes));
       if (!errP && pessoas) {
         for (const p of pessoas) {
+          const unidade = Array.isArray(p.unidades) ? p.unidades[0] : p.unidades;
+          const unidadeNome =
+            unidade && typeof unidade === 'object' && 'nome' in unidade
+              ? String((unidade as { nome?: string }).nome ?? '')
+              : null;
+          const unidadeSlug =
+            unidade && typeof unidade === 'object' && 'slug' in unidade
+              ? String((unidade as { slug?: string }).slug ?? '')
+              : null;
           metaPorId[p.id as string] = {
             nome: String(p.nome ?? ''),
             setor: (p as { setor?: string | null }).setor ?? null,
             role: normalizePortalRole((p as { role?: string | null }).role),
+            unidade_nome: unidadeNome,
+            unidade_slug: unidadeSlug,
           };
         }
       }
@@ -155,6 +170,12 @@ export async function GET(req: Request) {
         colaborador_id: r.colaborador_id,
         colaborador_nome: colabMeta?.nome ?? null,
         colaborador_setor: colabMeta?.setor ?? null,
+        colaborador_unidade_nome: colaboradorIds.has(String(r.colaborador_id))
+          ? colabMeta?.unidade_nome ?? null
+          : null,
+        colaborador_unidade_slug: colaboradorIds.has(String(r.colaborador_id))
+          ? colabMeta?.unidade_slug ?? null
+          : null,
         avaliador_id: r.avaliador_id,
         avaliador_nome: avaliadorNome,
         avaliador_rotulo: rotuloAvaliadorRelatorio(avaliadorId, avaliadorRole, avaliadorNome, rhIds),
