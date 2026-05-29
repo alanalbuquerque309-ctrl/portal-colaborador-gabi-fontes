@@ -22,6 +22,7 @@ export type MembroEquipe = {
   cargo: string | null;
   setor: string | null;
   onboarding_completo: boolean;
+  operacao_apto: boolean;
 };
 
 async function enriquecerMembrosEquipe(
@@ -32,7 +33,7 @@ async function enriquecerMembrosEquipe(
   const ids = membros.map((m) => m.id);
   const { data, error } = await supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor, onboarding_completo')
+    .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
     .in('id', ids)
     .order('nome', { ascending: true });
   if (error) throw new Error(error.message);
@@ -48,6 +49,7 @@ async function enriquecerMembrosEquipe(
         cargo: (row.cargo as string | null) ?? m.cargo,
         setor: (row.setor as string | null) ?? m.setor,
         onboarding_completo: Boolean(row.onboarding_completo),
+        operacao_apto: (row as { operacao_apto?: boolean }).operacao_apto === true,
       };
     })
     .filter((m): m is MembroEquipe => m != null);
@@ -81,8 +83,7 @@ export async function listarEquipeParaAvaliacaoSemanal(
 
   if (lideraSetoresEspecificos || setoresLiderados.length > 0) {
     const porLideranca = await listarEquipeDoLider(supabase, liderId, null);
-    const base = porLideranca.map((m) => ({ ...m, onboarding_completo: true }));
-    const equipe = await enriquecerMembrosEquipe(supabase, base);
+    const equipe = await enriquecerMembrosEquipe(supabase, porLideranca);
     if (equipe.length > 0) {
       return equipe.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
     }
@@ -103,7 +104,7 @@ export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
 ): Promise<MembroEquipe[]> {
   let query = supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor, onboarding_completo')
+    .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
     .eq('unidade_id', unidadeId)
     .order('nome', { ascending: true });
 
@@ -123,6 +124,7 @@ export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
       cargo: (c as { cargo?: string | null }).cargo ?? null,
       setor: (c as { setor?: string | null }).setor ?? null,
       onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
+      operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
     }));
 }
 
@@ -236,7 +238,7 @@ export async function listarEquipeDoLider(
   if (ids.size > 0) {
     let query = supabase
       .from('colaboradores')
-      .select('id, nome, role, cargo, setor, unidade_id, onboarding_completo')
+      .select('id, nome, role, cargo, setor, unidade_id, onboarding_completo, operacao_apto')
       .in('id', Array.from(ids))
       .neq('id', liderId)
       .order('nome');
@@ -254,6 +256,7 @@ export async function listarEquipeDoLider(
         cargo: (c as { cargo?: string | null }).cargo ?? null,
         setor: (c as { setor?: string | null }).setor ?? null,
         onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
+        operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
       });
     }
   }

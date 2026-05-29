@@ -4,6 +4,12 @@ import { hashPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
 import { selectColaboradorLoginRowByLogin, updateSenhaColaboradorByIdCompat } from '@/lib/colaborador-forca-troca-compat';
+import {
+  applyAdminSessionCookie,
+  applyPortalSessionCookies,
+  rolesComAcessoAdmin,
+} from '@/lib/portal-session-cookies';
+import { normalizePortalRole } from '@/lib/roles';
 
 /**
  * Primeiro acesso: define senha quando ainda não existe hash no banco.
@@ -60,18 +66,28 @@ export async function POST(req: Request) {
 
     const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
 
+    const colRow = {
+      id: col.id,
+      unidade_id: col.unidade_id,
+      role: (col as { role?: string }).role,
+      onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
+    };
+
     const payload = buildPortalLoginJson(
-      {
-        id: col.id,
-        unidade_id: col.unidade_id,
-        role: (col as { role?: string }).role,
-        onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
-      },
+      colRow,
       loginCanonical || loginInput,
       cpfPendente ? { cpfPendente: true } : undefined
     );
 
-    return NextResponse.json(payload);
+    const res = NextResponse.json(payload);
+    const roleNorm = normalizePortalRole(colRow.role);
+    if (payload.ok && !('needsPassword' in payload) && !('mustCompleteCpf' in payload)) {
+      applyPortalSessionCookies(res, { id: col.id, unidade_id: col.unidade_id, role: roleNorm });
+      if (rolesComAcessoAdmin(roleNorm) || ('action' in payload && payload.action === 'socio_admin')) {
+        applyAdminSessionCookie(res);
+      }
+    }
+    return res;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

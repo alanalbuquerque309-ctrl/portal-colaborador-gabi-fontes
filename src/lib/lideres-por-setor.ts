@@ -144,6 +144,7 @@ export async function listarColaboradoresPorUnidadeSetor(
     cargo: string | null;
     setor: string | null;
     onboarding_completo: boolean;
+    operacao_apto: boolean;
   }>
 > {
   const setorCfg = setor.trim();
@@ -151,7 +152,7 @@ export async function listarColaboradoresPorUnidadeSetor(
 
   let query = supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor, onboarding_completo')
+    .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
     .eq('unidade_id', unidadeId)
     .order('nome');
 
@@ -183,5 +184,6 @@ export async function listarColaboradoresPorUnidadeSetor(
       cargo: (c as { cargo?: string | null }).cargo ?? null,
       setor: (c as { setor?: string | null }).setor ?? null,
       onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
+      operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
     }));
 }

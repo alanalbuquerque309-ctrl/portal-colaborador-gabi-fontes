@@ -22,8 +22,9 @@ type Props = {
   setor: string | null;
   dataReferencia: string;
   avaliacaoInicial: AvaliacaoServidor;
-  /** false = exibe selo "Não ativo no portal" e bloqueia envio da avaliação */
+  /** Cadastro do portal ainda pendente (informativo; não bloqueia avaliação). */
   onboardingCompleto?: boolean;
+  operacaoApto?: boolean;
   onSalvo: () => void;
 };
 
@@ -63,10 +64,11 @@ export function ColaboradorAvaliacaoCard({
   dataReferencia,
   avaliacaoInicial,
   onboardingCompleto = true,
+  operacaoApto = false,
   onSalvo,
 }: Props) {
   const somenteLeitura = avaliacaoInicial != null;
-  const inativoNoPortal = !onboardingCompleto;
+  const cadastroPortalPendente = !onboardingCompleto;
 
   const inicial = useMemo(() => {
     if (!avaliacaoInicial) {
@@ -92,6 +94,8 @@ export function ColaboradorAvaliacaoCard({
   const [justificativaNotaBaixa, setJustificativaNotaBaixa] = useState(
     avaliacaoInicial?.justificativa_nota_baixa ?? ''
   );
+  const [apto, setApto] = useState(operacaoApto);
+  const [marcandoApto, setMarcandoApto] = useState(false);
 
   useEffect(() => {
     setAssiduidade(inicial.assiduidade);
@@ -103,6 +107,10 @@ export function ColaboradorAvaliacaoCard({
     setMsg(null);
     setErro(null);
   }, [avaliacaoInicial?.justificativa_nota_baixa, inicial.assiduidade, inicial.v, inicial.p, inicial.e, inicial.d]);
+
+  useEffect(() => {
+    setApto(operacaoApto);
+  }, [operacaoApto]);
 
   const injustificada = assiduidade === 'falta_injustificada';
   const isento =
@@ -157,8 +165,34 @@ export function ColaboradorAvaliacaoCard({
     }
   }, []);
 
+  const marcarApto = async () => {
+    if (somenteLeitura || apto) return;
+    setMarcandoApto(true);
+    setErro(null);
+    try {
+      const res = await fetch('/api/portal/operacao-apto', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colaborador_id: colaboradorId, apto: true }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível registrar aptidão.');
+        return;
+      }
+      setApto(true);
+      setMsg('Registrado: apto na função.');
+      onSalvo();
+    } catch {
+      setErro('Erro de conexão.');
+    } finally {
+      setMarcandoApto(false);
+    }
+  };
+
   const salvar = async () => {
-    if (somenteLeitura || inativoNoPortal) return;
+    if (somenteLeitura) return;
     setErro(null);
     setMsg(null);
     if (temNotaBaixa && justificativaNotaBaixa.trim().length < 10) {
@@ -204,11 +238,21 @@ export function ColaboradorAvaliacaoCard({
     >
       <div className="p-4 border-b border-cafeteria-100 bg-cream-50/80 flex flex-wrap items-start justify-between gap-2">
         <h3 className="font-display text-lg text-cafeteria-900">{nome}</h3>
-        {inativoNoPortal ? (
+        {cadastroPortalPendente ? (
           <span className="text-xs font-medium rounded-full bg-cafeteria-200 text-cafeteria-900 px-2.5 py-0.5">
-            Não ativo no portal
+            Cadastro portal pendente
           </span>
-        ) : somenteLeitura ? (
+        ) : null}
+        {!apto && !somenteLeitura ? (
+          <span className="text-xs font-medium rounded-full bg-sky-100 text-sky-900 px-2.5 py-0.5">
+            Em adaptação
+          </span>
+        ) : apto ? (
+          <span className="text-xs font-medium rounded-full bg-emerald-100 text-emerald-900 px-2.5 py-0.5">
+            Apto na função
+          </span>
+        ) : null}
+        {somenteLeitura ? (
           <span className="text-xs font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">Avaliado</span>
         ) : (
           <span className="text-xs font-medium rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5">Pendente</span>
@@ -218,12 +262,26 @@ export function ColaboradorAvaliacaoCard({
         </p>
       </div>
 
-      <div className={`p-4 space-y-5 ${inativoNoPortal ? 'opacity-70 pointer-events-none' : ''}`}>
-        {inativoNoPortal && (
-          <p className="text-sm text-cafeteria-900 bg-cafeteria-50 border border-cafeteria-200 rounded-lg px-3 py-2 pointer-events-auto">
-            <strong>Não ativo no portal.</strong> Este colaborador ainda não concluiu o cadastro inicial. Ele aparece
-            na sua equipe para você acompanhar; a avaliação semanal libera quando estiver ativo.
+      <div className="p-4 space-y-5">
+        {cadastroPortalPendente && (
+          <p className="text-sm text-cafeteria-800 bg-cafeteria-50 border border-cafeteria-200 rounded-lg px-3 py-2">
+            Cadastro no portal ainda não concluído. Você pode avaliar a operação da semana normalmente.
           </p>
+        )}
+        {!apto && !somenteLeitura && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
+            <p className="text-sm text-sky-950 flex-1 min-w-[200px]">
+              Quando estiver 100% apto para trabalhar sem acompanhamento constante, registre abaixo.
+            </p>
+            <button
+              type="button"
+              disabled={marcandoApto}
+              onClick={marcarApto}
+              className="rounded-lg bg-sky-800 text-white text-sm font-medium px-3 py-2 hover:bg-sky-900 disabled:opacity-60"
+            >
+              {marcandoApto ? 'Salvando…' : 'Marcar como apto na função'}
+            </button>
+          </div>
         )}
         {somenteLeitura && (
           <p className="text-sm text-cafeteria-800 bg-dourado-50 border border-dourado-200 rounded-lg px-3 py-2">

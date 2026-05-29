@@ -4,6 +4,11 @@ import { verifyPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { selectColaboradorLoginRowByLogin } from '@/lib/colaborador-forca-troca-compat';
 import { normalizePortalRole } from '@/lib/roles';
+import {
+  applyAdminSessionCookie,
+  applyPortalSessionCookies,
+  rolesComAcessoAdmin,
+} from '@/lib/portal-session-cookies';
 
 /**
  * Login do portal por celular OU e-mail + senha — consulta no servidor (contorna RLS do Supabase).
@@ -75,18 +80,44 @@ export async function POST(req: Request) {
 
     const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
 
+    const colRow = {
+      id: col.id,
+      unidade_id: col.unidade_id,
+      role: (col as { role?: string }).role,
+      onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
+    };
+
     const payload = buildPortalLoginJson(
-      {
-        id: col.id,
-        unidade_id: col.unidade_id,
-        role: (col as { role?: string }).role,
-        onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
-      },
+      colRow,
       loginCanonical || loginInput,
       cpfPendente ? { cpfPendente: true } : undefined
     );
 
-    return NextResponse.json(payload);
+    const res = NextResponse.json(payload);
+    const roleNorm = normalizePortalRole(colRow.role);
+    if (payload.ok && 'action' in payload && payload.action === 'socio_admin') {
+      applyPortalSessionCookies(res, {
+        id: col.id,
+        unidade_id: col.unidade_id,
+        role: roleNorm,
+      });
+      applyAdminSessionCookie(res);
+    } else if (
+      payload.ok &&
+      !('needsPassword' in payload) &&
+      !('mustChangePassword' in payload) &&
+      !('mustCompleteCpf' in payload)
+    ) {
+      applyPortalSessionCookies(res, {
+        id: col.id,
+        unidade_id: col.unidade_id,
+        role: roleNorm,
+      });
+      if (rolesComAcessoAdmin(roleNorm)) {
+        applyAdminSessionCookie(res);
+      }
+    }
+    return res;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

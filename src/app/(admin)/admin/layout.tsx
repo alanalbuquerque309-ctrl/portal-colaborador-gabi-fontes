@@ -13,6 +13,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [podeVerBonificacao, setPodeVerBonificacao] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -27,8 +28,12 @@ export default function AdminLayout({
       headers: { Accept: 'application/json' },
     })
       .then(async (r) => {
-        const d = (await r.json().catch(() => ({ ok: false }))) as { ok?: boolean };
+        const d = (await r.json().catch(() => ({ ok: false }))) as {
+          ok?: boolean;
+          podeVerBonificacao?: boolean;
+        };
         setAuthorized(d.ok === true);
+        setPodeVerBonificacao(d.podeVerBonificacao === true);
       })
       .catch(() => setAuthorized(false))
       .finally(() => window.clearTimeout(timer));
@@ -157,6 +162,7 @@ export default function AdminLayout({
           {navLink('/admin/escalas', 'Escalas')}
           {navLink('/admin/avaliacoes-diarias', 'Avaliações equipe (semanal)')}
           {navLink('/admin/avaliacoes-lideranca', 'Feedback liderança')}
+          {podeVerBonificacao && navLink('/admin/bonificacao', 'Índice bonificação')}
           {navLink('/admin/sugestoes', 'Sugestões')}
           {navLink('/admin/manual-eventos', 'Eventos de manuais')}
           {navLink('/portal/ajuda-inbox', 'Inbox ajuda')}
@@ -166,12 +172,23 @@ export default function AdminLayout({
           <Link
             href="/portal"
             className="block text-sm font-medium text-cream-100 hover:text-white"
-            onClick={() => {
+            onClick={(e) => {
+              e.preventDefault();
               try {
                 sessionStorage.setItem('portal_skip_back_guard_once', '1');
               } catch {
                 /* noop */
               }
+              fetch('/api/admin/restaurar-portal', {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: '{}',
+              })
+                .catch(() => null)
+                .finally(() => {
+                  router.push('/portal');
+                });
             }}
           >
             Voltar ao portal

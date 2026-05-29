@@ -16,6 +16,7 @@ const FILES = [
   '032_lideres_por_setor.sql',
   '033_trofeus_entre_pares.sql',
   '034_trofeus_tipos_postura_eficiencia.sql',
+  '035_operacao_apto.sql',
 ];
 
 function stripBom(s) {
@@ -75,7 +76,7 @@ try {
     await client.unsafe(ddl);
     console.log(`OK: ${file}`);
   }
-  console.log('Todas as migrations 028 e 031–034 aplicadas.');
+  console.log('Todas as migrations 028, 031–035 aplicadas.');
 } catch (e) {
   const msg = e instanceof Error ? e.message : String(e);
   console.error(msg);

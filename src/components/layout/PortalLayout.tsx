@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Header } from './Header';
 import { BotaoAjuda } from '@/components/ajuda/BotaoAjuda';
-import { clearPortalSession, isPendingRegistration } from '@/lib/utils/session';
+import { clearPortalSession, isPendingRegistration, setPortalSession } from '@/lib/utils/session';
 import { CompleteRegistrationForm } from '@/components/portal/CompleteRegistrationForm';
 import { normalizePortalRole } from '@/lib/roles';
 import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast';
@@ -33,39 +33,89 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       return;
     }
     let cancelled = false;
-    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d) => {
+    const aplicarPerfil = (d: {
+      ok?: boolean;
+      colaborador?: {
+        role?: string | null;
+        cpf_cadastrado?: boolean;
+        perfil_completo?: boolean;
+        id?: string;
+        unidade_id?: string;
+      };
+    }) => {
+      if (cancelled) return;
+      if (d.ok && d.colaborador && d.colaborador.cpf_cadastrado === false) {
+        router.replace('/completar-cpf');
+        return;
+      }
+      if (
+        d.ok &&
+        d.colaborador &&
+        d.colaborador.perfil_completo === false &&
+        pathname !== '/portal/perfil'
+      ) {
+        router.replace('/portal/perfil?completar=1');
+        return;
+      }
+      const role = normalizePortalRole(d?.colaborador?.role ?? 'colaborador');
+      setPerfilRole(role);
+      if (d.ok && role === 'colaborador') {
+        fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' })
+          .then((r) => r.json())
+          .then((emo) => {
+            if (cancelled) return;
+            setAbrirEmocionalObrigatorio(!(emo?.ok && emo?.emocao));
+          })
+          .catch(() => {
+            if (!cancelled) setAbrirEmocionalObrigatorio(false);
+          });
+      } else {
+        setAbrirEmocionalObrigatorio(false);
+      }
+      setGateOk(true);
+    };
+
+    const carregarPerfil = () =>
+      fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' }).then((r) => r.json());
+
+    carregarPerfil()
+      .then(async (d) => {
         if (cancelled) return;
-        if (d.ok && d.colaborador && d.colaborador.cpf_cadastrado === false) {
-          router.replace('/completar-cpf');
+        if (d?.ok) {
+          aplicarPerfil(d);
           return;
         }
-        if (
-          d.ok &&
-          d.colaborador &&
-          d.colaborador.perfil_completo === false &&
-          pathname !== '/portal/perfil'
-        ) {
-          router.replace('/portal/perfil?completar=1');
+        const adminAuth = await fetch('/api/admin/auth', {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+          .then((r) => r.json())
+          .catch(() => ({ ok: false }));
+        if (!adminAuth?.ok) {
+          router.replace('/login');
           return;
         }
-        const role = normalizePortalRole(d?.colaborador?.role ?? 'colaborador');
-        setPerfilRole(role);
-        if (d.ok && role === 'colaborador') {
-          fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' })
-            .then((r) => r.json())
-            .then((emo) => {
-              if (cancelled) return;
-              setAbrirEmocionalObrigatorio(!(emo?.ok && emo?.emocao));
-            })
-            .catch(() => {
-              if (!cancelled) setAbrirEmocionalObrigatorio(false);
-            });
-        } else {
-          setAbrirEmocionalObrigatorio(false);
+        const restaurado = await fetch('/api/admin/restaurar-portal', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        })
+          .then((r) => r.json())
+          .catch(() => ({ ok: false }));
+        if (restaurado?.ok && restaurado.colaborador?.id) {
+          setPortalSession(
+            String(restaurado.colaborador.id),
+            String(restaurado.colaborador.unidade_id ?? ''),
+            restaurado.colaborador.role
+          );
+          const d2 = await carregarPerfil();
+          if (!cancelled && d2?.ok) {
+            aplicarPerfil(d2);
+            return;
+          }
         }
-        setGateOk(true);
+        if (!cancelled) router.replace('/login');
       })
       .catch(() => {
         if (!cancelled) setGateOk(true);

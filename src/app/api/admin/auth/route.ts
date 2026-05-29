@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-
-const ADMIN_COOKIE = 'admin_session';
-const COOKIE_MAX_AGE = 60 * 60 * 8; // 8 horas
+import { createAdminClient } from '@/lib/supabase/admin';
+import { resolveColaboradorForAdminBridge } from '@/lib/admin-portal-bridge';
+import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 
 /** Credenciais via env + fallbacks para admin/gabifontes. */
 function getAdminCredentials(): { login: string; senha: string }[] {
@@ -28,15 +27,21 @@ export async function POST(req: Request) {
   const legacyMatch = !login && senha === adminPassword; // senha única antiga ainda funciona
 
   if (credMatch || legacyMatch) {
-    const cookieStore = await cookies();
-    cookieStore.set(ADMIN_COOKIE, '1', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: COOKIE_MAX_AGE,
-      path: '/',
-    });
-    return NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true });
+    applyAdminSessionCookie(res);
+
+    const loginBridge = credMatch?.login ?? login ?? process.env.ADMIN_ALAN_LOGIN?.trim() ?? '';
+    try {
+      const supabase = createAdminClient();
+      const col = await resolveColaboradorForAdminBridge(supabase, loginBridge || null);
+      if (col) {
+        applyPortalSessionCookies(res, col);
+      }
+    } catch {
+      /* bridge opcional; admin segue só com admin_session */
+    }
+
+    return res;
   }
   return NextResponse.json({ ok: false }, { status: 401 });
 }
@@ -45,11 +50,16 @@ export async function GET() {
   const { isAdminAuthorized, getAdminViewerContext, canViewReclamacoesAdmin } = await import(
     '@/lib/admin-auth'
   );
+  const { podeVerBonificacaoInterna } = await import('@/lib/bonificacao-access');
   const ok = await isAdminAuthorized();
   if (!ok) return NextResponse.json({ ok: false });
   const ctx = await getAdminViewerContext();
+  const role = ctx?.kind === 'portal' ? ctx.role : null;
+  const podeBonificacao =
+    ctx?.kind === 'password_session' || (role != null && podeVerBonificacaoInterna(role));
   return NextResponse.json({
     ok: true,
     podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
+    podeVerBonificacao: podeBonificacao,
   });
 }

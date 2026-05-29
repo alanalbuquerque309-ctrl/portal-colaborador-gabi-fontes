@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyPassword } from '@/lib/password';
 import { selectColaboradorLoginRowByLogin } from '@/lib/colaborador-forca-troca-compat';
 import { normalizePortalRole } from '@/lib/roles';
+import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 
 /**
  * Sócios e admins entram direto (sem onboarding), após senha já validada no login.
@@ -64,10 +65,8 @@ export async function POST(req: Request) {
       colaborador: { id: col.id, unidade_id: col.unidade_id, role },
     });
 
-    const opts = { path: '/', maxAge: 60 * 60 * 24 * 30, httpOnly: false, SameSite: 'lax' as const };
-    res.cookies.set('portal_colaborador_id', col.id, opts);
-    res.cookies.set('portal_unidade_id', col.unidade_id, opts);
-    res.cookies.set('portal_role', role, opts);
+    applyPortalSessionCookies(res, { id: col.id, unidade_id: col.unidade_id, role });
+    applyAdminSessionCookie(res);
 
     return res;
   } catch (e) {

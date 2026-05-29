@@ -20,6 +20,7 @@ type MembroEquipe = {
   cargo: string | null;
   setor: string | null;
   onboarding_completo?: boolean;
+  operacao_apto?: boolean;
   avaliacao: AvaliacaoServidor;
 };
 
@@ -36,9 +37,8 @@ export default function AvaliacaoMasterPage() {
     !!session?.colaboradorId &&
     session.colaboradorId !== 'pending' &&
     isRoleGerenteAvaliadorPortal(session.role);
-  const ativos = equipe.filter((m) => m.onboarding_completo !== false);
-  const avaliadosNaSemana = ativos.filter((m) => m.avaliacao != null).length;
-  const pendentesNaSemana = Math.max(0, ativos.length - avaliadosNaSemana);
+  const avaliadosNaSemana = equipe.filter((m) => m.avaliacao != null).length;
+  const pendentesNaSemana = Math.max(0, equipe.length - avaliadosNaSemana);
   const intervaloSemana = formatarIntervaloSemanaPtBR(dataRef);
 
   useEffect(() => {
@@ -142,7 +142,8 @@ export default function AvaliacaoMasterPage() {
               [
                 m.cargo,
                 m.setor,
-                m.onboarding_completo === false ? 'não ativo no portal' : null,
+                m.onboarding_completo === false ? 'cadastro portal pendente' : null,
+                !m.operacao_apto ? 'em adaptação' : null,
               ]
                 .filter(Boolean)
                 .join(' · ') || undefined,
@@ -179,6 +180,7 @@ export default function AvaliacaoMasterPage() {
                 dataReferencia={dataRef}
                 avaliacaoInicial={m.avaliacao}
                 onboardingCompleto={m.onboarding_completo !== false}
+                operacaoApto={m.operacao_apto === true}
                 onSalvo={carregar}
               />
             </li>
