@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { isSetorValido, SETORES_AVALIACAO_EQUIPE_BACKOFFICE, SLUG_UNIDADE_ADMINISTRATIVO } from '@/lib/constants/colaborador-org';
+import { isSetorValido, SETORES_AVALIACAO_EQUIPE_BACKOFFICE } from '@/lib/constants/colaborador-org';
 import {
   LIDER_TRANSVERSAL_CD_NOME,
   SETORES_LIDERANCA_DANIEL_TRANSVERSAL,
@@ -19,13 +19,11 @@ function normalizarNomeLider(nome: string): string {
   return normalizarTextoOrg(nome);
 }
 
-/** Colaborador da loja/operação avalia Daniel (admin) só se for backoffice ou unidade Administrativo. */
+/** Daniel (administrador da empresa) na avaliação de liderança: só estes setores. */
 export function colaboradorDeveAvaliarAdministradorEmpresa(
   setor: string | null | undefined,
-  unidadeSlug: string | null | undefined
+  _unidadeSlug?: string | null | undefined
 ): boolean {
-  const slug = String(unidadeSlug ?? '').trim().toLowerCase();
-  if (slug === SLUG_UNIDADE_ADMINISTRATIVO) return true;
   const setorNorm = normalizarTextoOrg(setor);
   if (!setorNorm) return false;
   return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some(
@@ -40,13 +38,12 @@ function isLiderTransversalCd(nome: string): boolean {
   return n === alvo || n.includes('daniel');
 }
 
-/** Daniel só pode aparecer como chefe quando o setor do colaborador é transversal (CD, Motorista, etc.). */
+/** Daniel só pode aparecer como chefe quando o setor do colaborador é CD, Estoque, Motorista, Administração ou RH. */
 function liderConfigPermitidoParaSetorColaborador(nomeLider: string, setorColaborador: string): boolean {
   if (!isLiderTransversalCd(nomeLider)) return true;
-  const setor = String(setorColaborador ?? '').trim();
-  if (!setor) return false;
-  const norm = normalizarNomeLider(setor);
-  return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some((s) => normalizarNomeLider(s) === norm);
+  const setorNorm = normalizarTextoOrg(setorColaborador);
+  if (!setorNorm) return false;
+  return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some((s) => normalizarTextoOrg(s) === setorNorm);
 }
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;

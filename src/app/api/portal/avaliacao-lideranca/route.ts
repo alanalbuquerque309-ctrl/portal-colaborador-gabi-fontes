@@ -250,7 +250,7 @@ export async function GET() {
       help:
         role === 'admin'
           ? 'Administrador: avalie apenas seus subordinados diretos dos cargos operacionais permitidos (estoque, motorista e auxiliar administrativo). De 1 a 5. Identidade não exibida para o avaliado.'
-          : 'Avaliação opcional para colaboradores. Você avalia cada chefe vinculado ao seu setor (pode ser mais de um) e, quando aplicável, RH e o administrador da empresa (backoffice). Uma avaliação por pessoa por semana. De 1 a 5. Anônima para o avaliado.',
+          : 'Avaliação opcional para colaboradores. Você avalia cada chefe vinculado ao seu setor. Colaboradores de CD, Estoque, Motorista, Administração e RH também avaliam o administrador da empresa (Daniel). Uma avaliação por pessoa por semana. De 1 a 5. Anônima para o avaliado.',
       alerta_ultimo_dia: ultimoDiaSemana && pendentes.length > 0,
       pendentes_no_ultimo_dia: pendentes.length,
       avaliacao_opcional: true,
