@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { isSetorValido, SETORES_AVALIACAO_EQUIPE_BACKOFFICE } from '@/lib/constants/colaborador-org';
+import { isSetorValido, SETORES_AVALIACAO_EQUIPE_BACKOFFICE, SLUG_UNIDADE_ADMINISTRATIVO } from '@/lib/constants/colaborador-org';
 import {
   LIDER_TRANSVERSAL_CD_NOME,
   SETORES_LIDERANCA_DANIEL_TRANSVERSAL,
@@ -7,12 +7,30 @@ import {
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { normalizePortalRole } from '@/lib/roles';
 
-function normalizarNomeLider(nome: string): string {
-  return String(nome ?? '')
+function normalizarTextoOrg(value: string | null | undefined): string {
+  return String(value ?? '')
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
+}
+
+function normalizarNomeLider(nome: string): string {
+  return normalizarTextoOrg(nome);
+}
+
+/** Colaborador da loja/operação avalia Daniel (admin) só se for backoffice ou unidade Administrativo. */
+export function colaboradorDeveAvaliarAdministradorEmpresa(
+  setor: string | null | undefined,
+  unidadeSlug: string | null | undefined
+): boolean {
+  const slug = String(unidadeSlug ?? '').trim().toLowerCase();
+  if (slug === SLUG_UNIDADE_ADMINISTRATIVO) return true;
+  const setorNorm = normalizarTextoOrg(setor);
+  if (!setorNorm) return false;
+  return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some(
+    (s) => normalizarTextoOrg(s) === setorNorm
+  );
 }
 
 function isLiderTransversalCd(nome: string): boolean {

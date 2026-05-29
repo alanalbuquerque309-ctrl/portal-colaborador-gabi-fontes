@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { domingoSemanaSaoPaulo, hojeEhDomingoSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { normalizePortalRole } from '@/lib/roles';
 import { listarEquipeDoLider, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
+import { colaboradorDeveAvaliarAdministradorEmpresa } from '@/lib/lideres-por-setor';
 
 const DIMENSOES = ['n_exemplo', 'n_comunicacao', 'n_suporte', 'n_justica', 'n_clima'] as const;
 const CARGOS_SUBORDINADOS_ADMIN = ['estoque', 'motorista', 'aux administrativo', 'auxiliar administrativo', 'aux adminstrativo'] as const;
@@ -51,12 +52,46 @@ function cargoElegivelParaAvaliacaoAdmin(cargo: string | null | undefined): bool
   return CARGOS_SUBORDINADOS_ADMIN.some((permitido) => c.includes(permitido));
 }
 
+function extrairUnidadeSlug(eu: unknown): string | null {
+  if (!eu || typeof eu !== 'object') return null;
+  const row = eu as { unidades?: unknown; unidade?: unknown };
+  const raw = row.unidades ?? row.unidade;
+  const unidade = Array.isArray(raw) ? raw[0] : raw;
+  if (unidade && typeof unidade === 'object' && 'slug' in unidade) {
+    return String((unidade as { slug?: string }).slug ?? '') || null;
+  }
+  return null;
+}
+
 async function carregarAvaliadosPorRegra(
   supabase: ReturnType<typeof createAdminClient>,
   colaboradorId: string,
-  liderDiretoId: string | null
+  liderDiretoId: string | null,
+  meta?: { setor?: string | null; unidadeSlug?: string | null }
 ): Promise<AvaliadoRegra[]> {
   const out = new Map<string, AvaliadoRegra>();
+
+  let setorCol = meta?.setor;
+  let unidadeSlug = meta?.unidadeSlug;
+  if (setorCol === undefined || unidadeSlug === undefined) {
+    const { data: eu } = await supabase
+      .from('colaboradores')
+      .select('setor, unidades(slug)')
+      .eq('id', colaboradorId)
+      .maybeSingle();
+    if (setorCol === undefined) {
+      setorCol = (eu as { setor?: string | null } | null)?.setor ?? null;
+    }
+    if (unidadeSlug === undefined) {
+      const unidade = Array.isArray((eu as { unidades?: unknown })?.unidades)
+        ? (eu as { unidades: { slug?: string }[] }).unidades[0]
+        : (eu as { unidades?: { slug?: string } | null })?.unidades;
+      unidadeSlug =
+        unidade && typeof unidade === 'object' && 'slug' in unidade
+          ? String((unidade as { slug?: string }).slug ?? '')
+          : null;
+    }
+  }
 
   const lideres = await listarLideresDoColaborador(supabase, colaboradorId, liderDiretoId, {
     apenasDaConfig: true,
@@ -97,7 +132,11 @@ async function carregarAvaliadosPorRegra(
     .order('created_at', { ascending: true })
     .limit(1);
   const admin = admins?.[0];
-  if (admin?.id && !out.has(String(admin.id))) {
+  if (
+    admin?.id &&
+    !out.has(String(admin.id)) &&
+    colaboradorDeveAvaliarAdministradorEmpresa(setorCol, unidadeSlug)
+  ) {
     out.set(String(admin.id), {
       id: String(admin.id),
       nome: String(admin.nome ?? ''),
@@ -139,7 +178,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('id, nome, unidade_id, role, lider_id')
+      .select('id, nome, unidade_id, role, lider_id, setor, unidades(slug)')
       .eq('id', colaboradorId)
       .single();
 
@@ -162,10 +201,15 @@ export async function GET() {
 
     const semanaInicio = segundaSemanaSaoPaulo();
     const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
+    const unidadeSlug = extrairUnidadeSlug(eu);
+    const setorCol = (eu as { setor?: string | null }).setor ?? null;
     const avaliadosPermitidos =
       role === 'admin'
         ? await carregarSubordinadosDoAdmin(supabase, colaboradorId, uid ?? null)
-        : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId);
+        : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId, {
+            setor: setorCol,
+            unidadeSlug,
+          });
     const ids = avaliadosPermitidos.map((l) => l.id);
     let jaAvaliados = new Set<string>();
     if (ids.length > 0) {
@@ -206,7 +250,7 @@ export async function GET() {
       help:
         role === 'admin'
           ? 'Administrador: avalie apenas seus subordinados diretos dos cargos operacionais permitidos (estoque, motorista e auxiliar administrativo). De 1 a 5. Identidade não exibida para o avaliado.'
-          : 'Avaliação opcional para colaboradores. Você avalia cada chefe vinculado ao seu setor (pode ser mais de um) + RH + administrador da empresa. Uma avaliação por pessoa por semana. De 1 a 5. Anônima para o avaliado.',
+          : 'Avaliação opcional para colaboradores. Você avalia cada chefe vinculado ao seu setor (pode ser mais de um) e, quando aplicável, RH e o administrador da empresa (backoffice). Uma avaliação por pessoa por semana. De 1 a 5. Anônima para o avaliado.',
       alerta_ultimo_dia: ultimoDiaSemana && pendentes.length > 0,
       pendentes_no_ultimo_dia: pendentes.length,
       avaliacao_opcional: true,
@@ -266,7 +310,7 @@ export async function POST(req: Request) {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('id, unidade_id, role, lider_id, setor, unidade:unidades(slug)')
+      .select('id, unidade_id, role, lider_id, setor, unidades(slug)')
       .eq('id', colaboradorId)
       .single();
 
@@ -282,10 +326,15 @@ export async function POST(req: Request) {
     const uid = unidadeId || (eu as { unidade_id?: string }).unidade_id;
     const semanaInicio = segundaSemanaSaoPaulo();
     const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
+    const unidadeSlug = extrairUnidadeSlug(eu);
+    const setorCol = (eu as { setor?: string | null }).setor ?? null;
     const permitidos =
       role === 'admin'
         ? await carregarSubordinadosDoAdmin(supabase, colaboradorId, uid ?? null)
-        : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId);
+        : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId, {
+            setor: setorCol,
+            unidadeSlug,
+          });
     const permitidosSet = new Set(permitidos.map((p) => p.id));
     if (!permitidosSet.has(avaliadoId)) {
       return NextResponse.json(
