@@ -127,7 +127,7 @@ export function RelatorioEquipePorPessoa({
                   return (
                     <div
                       key={l.id}
-                      className="flex flex-wrap items-start justify-between gap-2 text-sm border-b border-cafeteria-100/80 pb-2 last:border-0 last:pb-0"
+                      className="flex flex-wrap items-start justify-between gap-3 sm:gap-4 text-sm border-b border-cafeteria-100/80 pb-3 last:border-0 last:pb-0"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-cafeteria-800">

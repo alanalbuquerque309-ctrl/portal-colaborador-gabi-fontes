@@ -29,7 +29,7 @@ export function DetalheAvaliacaoLinha({ l }: { l: LinhaDiariaRelatorio }) {
 
 export function MediaBadge({ media }: { media: number | null | undefined }) {
   return (
-    <span className="text-lg font-semibold text-cafeteria-900 tabular-nums shrink-0">
+    <span className="inline-flex min-w-[3.25rem] justify-center rounded-md bg-white/80 px-2.5 py-1 text-lg font-semibold text-cafeteria-900 tabular-nums shrink-0 leading-none">
       {media != null ? Number(media).toFixed(2) : '—'}
     </span>
   );

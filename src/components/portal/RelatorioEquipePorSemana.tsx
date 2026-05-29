@@ -181,8 +181,8 @@ function LinhaTipoAvaliacao({
         isRh ? 'border-sky-200 bg-sky-50/50' : 'border-dourado-200/60 bg-cream-50/80'
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
           <p className={`font-medium ${isRh ? 'text-sky-900' : 'text-dourado-900'}`}>
             {titulo}
             {!isRh && linha.avaliador_nome && (
