@@ -2,17 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import type { LinhaDiariaRelatorio } from '@/components/portal/RelatorioAvaliacoesPorSetor';
+import {
+  filtrarLinhasEquipe,
+  formatarSemanaCurta,
+  rotuloAvaliador,
+  type FiltroOrigemEquipe,
+} from '@/lib/relatorio-equipe-utils';
+import { DetalheAvaliacaoLinha, MediaBadge } from '@/components/portal/RelatorioEquipeDetalheLinha';
 
-function formatarSemanaCurta(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
-  if (!m) return iso;
-  return `${m[3]}/${m[2]}`;
-}
-
-function rotuloAvaliador(l: LinhaDiariaRelatorio): string {
-  if (l.origem_visita_rh) return 'Visita RH';
-  return l.avaliador_nome?.trim() || 'Gerente';
-}
+export type { FiltroOrigemEquipe };
 
 type GrupoPessoa = {
   nome: string;
@@ -25,16 +23,15 @@ function agruparPorPessoa(linhas: LinhaDiariaRelatorio[]): GrupoPessoa[] {
   const map = new Map<string, GrupoPessoa>();
   for (const l of linhas) {
     const nome = String(l.colaborador_nome ?? '').trim() || '—';
-    const key = nome;
-    if (!map.has(key)) {
-      map.set(key, {
+    if (!map.has(nome)) {
+      map.set(nome, {
         nome,
         setor: l.colaborador_setor?.trim() || '—',
         filial: l.colaborador_unidade_nome?.trim() || '—',
         linhas: [],
       });
     }
-    map.get(key)!.linhas.push(l);
+    map.get(nome)!.linhas.push(l);
   }
 
   return Array.from(map.values())
@@ -50,35 +47,6 @@ function agruparPorPessoa(linhas: LinhaDiariaRelatorio[]): GrupoPessoa[] {
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
-function DetalheAvaliacao({ l }: { l: LinhaDiariaRelatorio }) {
-  const temDetalhe =
-    l.justificativa_nota_baixa ||
-    l.nota_vestimenta != null ||
-    l.nota_pontualidade != null ||
-    l.nota_trabalho_equipe != null ||
-    l.nota_desempenho_tarefas != null;
-
-  if (!temDetalhe) return null;
-
-  return (
-    <details className="mt-1 text-xs text-cafeteria-600">
-      <summary className="cursor-pointer text-dourado-base hover:underline">Ver notas</summary>
-      <div className="mt-2 pl-2 border-l-2 border-cafeteria-100 space-y-1">
-        <p>Assiduidade: {l.assiduidade}</p>
-        <p>
-          Vestimenta {l.nota_vestimenta ?? '—'} · Pontualidade {l.nota_pontualidade ?? '—'} · Equipe{' '}
-          {l.nota_trabalho_equipe ?? '—'} · Desempenho {l.nota_desempenho_tarefas ?? '—'}
-        </p>
-        {l.justificativa_nota_baixa && (
-          <p className="text-cafeteria-700 italic">{l.justificativa_nota_baixa}</p>
-        )}
-      </div>
-    </details>
-  );
-}
-
-export type FiltroOrigemEquipe = 'todos' | 'gerente' | 'rh';
-
 export function RelatorioEquipePorPessoa({
   linhas,
   filtroOrigem = 'todos',
@@ -90,23 +58,10 @@ export function RelatorioEquipePorPessoa({
 }) {
   const [abertos, setAbertos] = useState<Set<string>>(new Set());
 
-  const grupos = useMemo(() => {
-    const q = busca.trim().toLowerCase();
-    let filtradas = linhas;
-    if (filtroOrigem === 'gerente') {
-      filtradas = filtradas.filter((l) => !l.origem_visita_rh);
-    } else if (filtroOrigem === 'rh') {
-      filtradas = filtradas.filter((l) => l.origem_visita_rh);
-    }
-    if (q) {
-      filtradas = filtradas.filter((l) => {
-        const nome = String(l.colaborador_nome ?? '').toLowerCase();
-        const aval = rotuloAvaliador(l).toLowerCase();
-        return nome.includes(q) || aval.includes(q);
-      });
-    }
-    return agruparPorPessoa(filtradas);
-  }, [linhas, filtroOrigem, busca]);
+  const grupos = useMemo(
+    () => agruparPorPessoa(filtrarLinhasEquipe(linhas, filtroOrigem, busca)),
+    [linhas, filtroOrigem, busca]
+  );
 
   const toggle = (nome: string) => {
     setAbertos((prev) => {
@@ -131,6 +86,14 @@ export function RelatorioEquipePorPessoa({
         const aberto = abertos.has(g.nome);
         const mediaGeral =
           g.linhas.reduce((s, l) => s + (l.media_dia ?? 0), 0) / Math.max(1, g.linhas.length);
+        const pendenciasRh = new Set(
+          g.linhas.filter((l) => !l.origem_visita_rh).map((l) => l.data_referencia)
+        );
+        for (const l of g.linhas) {
+          if (l.origem_visita_rh) pendenciasRh.delete(l.data_referencia);
+        }
+        const qtdPendenteRh = pendenciasRh.size;
+
         return (
           <li
             key={g.nome}
@@ -145,6 +108,11 @@ export function RelatorioEquipePorPessoa({
                 <p className="font-semibold text-cafeteria-900">{g.nome}</p>
                 <p className="text-xs text-cafeteria-500 mt-0.5">
                   {g.setor} · {g.filial}
+                  {qtdPendenteRh > 0 && (
+                    <span className="text-amber-700 ml-1">
+                      · {qtdPendenteRh} sem Visita RH
+                    </span>
+                  )}
                 </p>
               </div>
               <div className="text-right text-xs text-cafeteria-600">
@@ -177,11 +145,9 @@ export function RelatorioEquipePorPessoa({
                             {rotuloAvaliador(l)}
                           </span>
                         </p>
-                        <DetalheAvaliacao l={l} />
+                        <DetalheAvaliacaoLinha l={l} />
                       </div>
-                      <p className="text-lg font-semibold text-cafeteria-900 tabular-nums shrink-0">
-                        {l.media_dia != null ? Number(l.media_dia).toFixed(2) : '—'}
-                      </p>
+                      <MediaBadge media={l.media_dia} />
                     </div>
                   );
                 })}

@@ -17,6 +17,9 @@ import {
   RelatorioEquipePorPessoa,
   type FiltroOrigemEquipe,
 } from '@/components/portal/RelatorioEquipePorPessoa';
+import { RelatorioEquipePorSemana } from '@/components/portal/RelatorioEquipePorSemana';
+import { AlertaPendenciasVisitaRh } from '@/components/portal/AlertaPendenciasVisitaRh';
+import { calcularPendenciasVisitaRh } from '@/lib/relatorio-equipe-utils';
 
 function hojeISO(): string {
   const d = new Date();
@@ -29,6 +32,7 @@ function inicioMesISO(): string {
 }
 
 type AbaRelatorio = 'equipe' | 'lideranca';
+type ModoEquipe = 'pessoa' | 'semana';
 
 export default function RelatoriosAvaliacoesPage() {
   const router = useRouter();
@@ -45,6 +49,7 @@ export default function RelatoriosAvaliacoesPage() {
   const [filtroFilial, setFiltroFilial] = useState('');
   const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigemEquipe>('todos');
   const [busca, setBusca] = useState('');
+  const [modoEquipe, setModoEquipe] = useState<ModoEquipe>('semana');
 
   useEffect(() => {
     let cancel = false;
@@ -136,6 +141,11 @@ export default function RelatoriosAvaliacoesPage() {
     return { total: linhasEquipeFiltradas.length, gerente, rh, pessoas };
   }, [linhasEquipeFiltradas]);
 
+  const pendenciasRh = useMemo(
+    () => calcularPendenciasVisitaRh(linhasEquipeFiltradas),
+    [linhasEquipeFiltradas]
+  );
+
   if (autorizado === null) {
     return (
       <div className="flex justify-center py-16">
@@ -158,8 +168,8 @@ export default function RelatoriosAvaliacoesPage() {
           Relatórios de avaliações
         </h1>
         <p className="text-cafeteria-600 mt-2 text-sm">
-          Lista por pessoa: semana, quem avaliou (gerente ou Visita RH) e média. Toque no nome para
-          expandir.
+          Por semana ou por pessoa: gerente e Visita RH lado a lado. Alerta quando falta visita
+          complementar.
         </p>
       </div>
 
@@ -265,7 +275,33 @@ export default function RelatoriosAvaliacoesPage() {
               placeholder="Buscar nome…"
               className="flex-1 min-w-[140px] rounded-lg border border-cafeteria-200 px-3 py-2 text-sm"
             />
+            <div className="flex rounded-lg border border-cafeteria-200 text-xs overflow-hidden shrink-0">
+              <button
+                type="button"
+                onClick={() => setModoEquipe('semana')}
+                className={`px-3 py-2 font-medium ${
+                  modoEquipe === 'semana'
+                    ? 'bg-cafeteria-800 text-cream-100'
+                    : 'bg-white text-cafeteria-700'
+                }`}
+              >
+                Por semana
+              </button>
+              <button
+                type="button"
+                onClick={() => setModoEquipe('pessoa')}
+                className={`px-3 py-2 font-medium ${
+                  modoEquipe === 'pessoa'
+                    ? 'bg-cafeteria-800 text-cream-100'
+                    : 'bg-white text-cafeteria-700'
+                }`}
+              >
+                Por pessoa
+              </button>
+            </div>
           </div>
+
+          <AlertaPendenciasVisitaRh pendencias={pendenciasRh} />
 
           {equipeErro && (
             <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{equipeErro}</p>
@@ -273,6 +309,12 @@ export default function RelatoriosAvaliacoesPage() {
 
           {carregando && equipeLinhas.length === 0 ? (
             <XicaraCarregando size="md" label="Carregando equipe…" />
+          ) : modoEquipe === 'semana' ? (
+            <RelatorioEquipePorSemana
+              linhas={linhasEquipeFiltradas}
+              filtroOrigem={filtroOrigem}
+              busca={busca}
+            />
           ) : (
             <RelatorioEquipePorPessoa
               linhas={linhasEquipeFiltradas}
