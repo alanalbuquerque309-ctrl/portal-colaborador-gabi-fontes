@@ -100,8 +100,7 @@ export default function AvaliacaoMasterPage() {
         </h1>
         <p className="text-cafeteria-600 mt-1 text-sm md:text-base max-w-2xl">
           Avaliação <strong>semanal</strong> dos colaboradores vinculados ao seu usuário como liderança. Cada
-          colaborador recebe no máximo uma avaliação por semana civil (semana que começa na segunda-feira da data
-          escolhida).
+          colaborador pode receber também uma <strong>visita RH</strong> independente na mesma semana.
         </p>
         <p className="mt-2 text-xs rounded-md bg-amber-50 border border-amber-300 px-3 py-2 text-amber-800 max-w-2xl">
           Aviso interno da liderança: esta avaliação da equipe é obrigatória.

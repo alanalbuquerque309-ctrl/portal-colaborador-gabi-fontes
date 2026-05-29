@@ -24,6 +24,14 @@ export const UNIDADES_CADASTRO: { slug: string; label: string }[] = [
   { slug: 'administrativo', label: 'Administrativo' },
 ];
 
+/** Backoffice central — não entra no agrupamento «por filial» dos relatórios. */
+export const SLUG_UNIDADE_ADMINISTRATIVO = 'administrativo' as const;
+
+/** Lojas e pontos operacionais — blocos «por filial» (sem Administrativo). */
+export const UNIDADES_RELATORIO_FILIAIS = UNIDADES_CADASTRO.filter(
+  (u) => u.slug !== SLUG_UNIDADE_ADMINISTRATIVO
+);
+
 /** Perfis cadastráveis via fluxo principal: colaborador, gerente (líder / avaliação da equipe), admin. */
 export const ROLES_CADASTRO = ['colaborador', 'gerente', 'admin'] as const;
 

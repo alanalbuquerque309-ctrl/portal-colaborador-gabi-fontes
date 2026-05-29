@@ -21,7 +21,7 @@ function aplicarFlagsRole(
   const isG = role === 'gerente' || role === 'master' || role === 'admin';
   const isA = role === 'admin' || role === 'socio';
   /** Colaborador explícito ou outro valor no banco: mostra atalho; a API restringe o conteúdo. */
-  const isC = role === 'colaborador' || (!isG && !isA);
+  const isC = role === 'colaborador' || (!isG && !isA && role !== 'rh');
   setG(isG);
   setA(isA);
   setC(isC);
@@ -38,6 +38,7 @@ export function AvaliacoesPortalHome() {
   const [mostrarAdmin, setMostrarAdmin] = useState(false);
   const [mostrarMinhaLideranca, setMostrarMinhaLideranca] = useState(false);
   const [mostrarRelatoriosSocio, setMostrarRelatoriosSocio] = useState(false);
+  const [mostrarVisitaRh, setMostrarVisitaRh] = useState(false);
   const [alertaLiderancaSemanal, setAlertaLiderancaSemanal] = useState<string | null>(null);
   const [alertaGerenteSemanal, setAlertaGerenteSemanal] = useState<string | null>(null);
 
@@ -53,6 +54,7 @@ export function AvaliacoesPortalHome() {
         const res = await fetch('/api/portal/perfil', { credentials: 'include' });
         const data = (await res.json()) as {
           ok?: boolean;
+          pode_visita_rh?: boolean;
           colaborador?: { role?: string | null };
         };
         if (cancelado) return;
@@ -61,6 +63,7 @@ export function AvaliacoesPortalHome() {
           aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador, setMostrarAdmin);
           setMostrarMinhaLideranca(nr === 'gerente' || nr === 'master' || nr === 'admin');
           setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
+          setMostrarVisitaRh(data.pode_visita_rh === true);
           if (nr === 'gerente' || nr === 'master' || nr === 'admin') {
             fetch(`/api/portal/avaliacao-master?data=${hojeInicioSemanaISO()}`, { credentials: 'include', cache: 'no-store' })
               .then((r2) => r2.json())
@@ -134,6 +137,7 @@ export function AvaliacoesPortalHome() {
     !mostrarColaborador &&
     !mostrarAdmin &&
     !mostrarRelatoriosSocio &&
+    !mostrarVisitaRh &&
     !mostrarMinhaLideranca
   ) {
     return null;
@@ -186,6 +190,40 @@ export function AvaliacoesPortalHome() {
             </p>
             <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
               Abrir →
+            </span>
+          </Link>
+        )}
+        {mostrarVisitaRh && (
+          <Link
+            href="/portal/avaliacao-lideranca"
+            className="group rounded-2xl border-2 border-cafeteria-200 bg-white p-5 shadow-sm hover:border-dourado-base hover:shadow-md transition-all"
+          >
+            <p className="text-xs font-medium text-dourado-600 uppercase tracking-wider mb-2">Colaborador</p>
+            <h3 className="font-display font-semibold text-cafeteria-900 text-lg group-hover:text-dourado-700">
+              Avaliar liderança
+            </h3>
+            <p className="text-sm text-cafeteria-600 mt-2">
+              Feedback sobre seus líderes (Daniel e demais chefes do mapa).
+            </p>
+            <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
+              Abrir →
+            </span>
+          </Link>
+        )}
+        {mostrarVisitaRh && (
+          <Link
+            href="/portal/avaliacao-rh-visita"
+            className="group rounded-2xl border-2 border-sky-200 bg-sky-50/40 p-5 shadow-sm hover:border-sky-400 hover:shadow-md transition-all sm:col-span-2"
+          >
+            <p className="text-xs font-medium text-sky-800 uppercase tracking-wider mb-2">RH — rede inteira</p>
+            <h3 className="font-display font-semibold text-cafeteria-900 text-lg group-hover:text-sky-900">
+              Visita RH
+            </h3>
+            <p className="text-sm text-cafeteria-600 mt-2">
+              Avaliação complementar em todas as filiais e setores, inclusive gerentes. Independente da nota do gerente local.
+            </p>
+            <span className="inline-block mt-3 text-sm font-medium text-sky-800 group-hover:underline">
+              Abrir visitas →
             </span>
           </Link>
         )}

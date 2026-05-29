@@ -3,6 +3,10 @@ export const BONIFICACAO_PESO_AVALIACAO_LIDER = 0.5;
 export const BONIFICACAO_PESO_TROFEUS = 0.25;
 export const BONIFICACAO_PESO_PRESENCA = 0.25;
 
+/** Fusão semanal gerente + Visita RH (soma = 1). */
+export const BONIFICACAO_PESO_AVAL_GERENTE = 0.7;
+export const BONIFICACAO_PESO_AVAL_RH = 0.3;
+
 /** Novato (não apto na função) recebe esta fração do índice calculado. */
 export const BONIFICACAO_FATOR_NOVATO = 0.5;
 

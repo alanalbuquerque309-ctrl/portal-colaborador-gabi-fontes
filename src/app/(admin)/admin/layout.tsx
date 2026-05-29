@@ -13,7 +13,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
-  const [podeVerBonificacao, setPodeVerBonificacao] = useState(false);
+  const [podeVerGorjeta, setPodeVerGorjeta] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -30,10 +30,12 @@ export default function AdminLayout({
       .then(async (r) => {
         const d = (await r.json().catch(() => ({ ok: false }))) as {
           ok?: boolean;
+          podeVerGorjeta?: boolean;
+          /** @deprecated use podeVerGorjeta */
           podeVerBonificacao?: boolean;
         };
         setAuthorized(d.ok === true);
-        setPodeVerBonificacao(d.podeVerBonificacao === true);
+        setPodeVerGorjeta(d.podeVerGorjeta === true || d.podeVerBonificacao === true);
       })
       .catch(() => setAuthorized(false))
       .finally(() => window.clearTimeout(timer));
@@ -162,7 +164,7 @@ export default function AdminLayout({
           {navLink('/admin/escalas', 'Escalas')}
           {navLink('/admin/avaliacoes-diarias', 'Avaliações equipe (semanal)')}
           {navLink('/admin/avaliacoes-lideranca', 'Feedback liderança')}
-          {podeVerBonificacao && navLink('/admin/bonificacao', 'Índice bonificação')}
+          {podeVerGorjeta && navLink('/admin/gorjeta', 'Gorjeta')}
           {navLink('/admin/sugestoes', 'Sugestões')}
           {navLink('/admin/manual-eventos', 'Eventos de manuais')}
           {navLink('/portal/ajuda-inbox', 'Inbox ajuda')}

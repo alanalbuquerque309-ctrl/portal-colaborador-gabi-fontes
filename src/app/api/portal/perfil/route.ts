@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
+import { podeAvaliarRhVisitaGeral } from '@/lib/avaliacao-rh-visita-access';
 
 function isPerfilCompleto(row: {
   nome?: string | null;
@@ -44,9 +45,17 @@ export async function GET() {
     const cpfRaw = (data as { cpf?: string | null }).cpf;
     const cpfCadastrado = !!(cpfRaw && String(cpfRaw).trim());
     const roleNormalizado = normalizePortalRole((data as { role?: string }).role ?? null);
+    const setorCol = (data as { setor?: string | null }).setor ?? null;
+    const podeVisitaRh = podeAvaliarRhVisitaGeral({
+      colaboradorId,
+      role: roleNormalizado,
+      setor: setorCol,
+      nome: data.nome as string,
+    });
 
     const response = NextResponse.json({
       ok: true,
+      pode_visita_rh: podeVisitaRh,
       colaborador: {
         nome: data.nome ?? '',
         email: data.email ?? null,

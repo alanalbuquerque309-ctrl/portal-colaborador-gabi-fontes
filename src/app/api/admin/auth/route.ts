@@ -55,11 +55,13 @@ export async function GET() {
   if (!ok) return NextResponse.json({ ok: false });
   const ctx = await getAdminViewerContext();
   const role = ctx?.kind === 'portal' ? ctx.role : null;
-  const podeBonificacao =
+  const podeGorjeta =
     ctx?.kind === 'password_session' || (role != null && podeVerBonificacaoInterna(role));
   return NextResponse.json({
     ok: true,
     podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
-    podeVerBonificacao: podeBonificacao,
+    podeVerGorjeta: podeGorjeta,
+    /** @deprecated use podeVerGorjeta */
+    podeVerBonificacao: podeGorjeta,
   });
 }

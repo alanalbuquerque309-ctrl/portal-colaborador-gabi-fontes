@@ -47,6 +47,15 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: '/admin/bonificacao',
+        destination: '/admin/gorjeta',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = withPWA(nextConfig);

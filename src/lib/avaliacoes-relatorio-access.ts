@@ -16,3 +16,9 @@ export function podeVerAutorAvaliacaoLideranca(role: string | null | undefined):
 export function relatorioRestringeUnidade(role: string | null | undefined): boolean {
   return normalizePortalRole(role) === 'gerente';
 }
+
+/** Feedback de liderança repetido por filial: sócio, master e gerente. Admin usa o bloco global ou /admin/avaliacoes-lideranca. */
+export function podeVerLiderancaPorFilialRelatorio(role: string | null | undefined): boolean {
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'master' || r === 'gerente';
+}

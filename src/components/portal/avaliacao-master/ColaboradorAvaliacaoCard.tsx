@@ -26,6 +26,9 @@ type Props = {
   onboardingCompleto?: boolean;
   operacaoApto?: boolean;
   onSalvo: () => void;
+  /** Endpoint POST (default: avaliação do gerente). */
+  postUrl?: string;
+  rotuloSalvar?: string;
 };
 
 function mapRowToState(row: NonNullable<AvaliacaoServidor>): {
@@ -66,6 +69,8 @@ export function ColaboradorAvaliacaoCard({
   onboardingCompleto = true,
   operacaoApto = false,
   onSalvo,
+  postUrl = '/api/portal/avaliacao-master',
+  rotuloSalvar = 'Salvar avaliação',
 }: Props) {
   const somenteLeitura = avaliacaoInicial != null;
   const cadastroPortalPendente = !onboardingCompleto;
@@ -201,7 +206,7 @@ export function ColaboradorAvaliacaoCard({
     }
     setSalvando(true);
     try {
-      const res = await fetch('/api/portal/avaliacao-master', {
+      const res = await fetch(postUrl, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -420,7 +425,7 @@ export function ColaboradorAvaliacaoCard({
               disabled={salvando}
               className="rounded-lg bg-cafeteria-700 text-cream-50 px-4 py-2 text-sm font-medium hover:bg-cafeteria-800 disabled:opacity-50"
             >
-              {salvando ? 'Salvando…' : 'Salvar avaliação'}
+              {salvando ? 'Salvando…' : rotuloSalvar}
             </button>
           )}
         </div>

@@ -3,8 +3,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
-import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
+import {
+  SLUG_UNIDADE_ADMINISTRATIVO,
+  UNIDADES_RELATORIO_FILIAIS,
+} from '@/lib/constants/colaborador-org';
+import {
+  podeVerRelatoriosAvaliacoesCompletos,
+  podeVerLiderancaPorFilialRelatorio,
+} from '@/lib/avaliacoes-relatorio-access';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import {
   RelatorioDiariasPorSetor,
@@ -35,10 +41,13 @@ type BlocoFilial = {
 export default function RelatoriosAvaliacoesPage() {
   const router = useRouter();
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
+  const [viewerRole, setViewerRole] = useState('');
   const [inicio, setInicio] = useState(inicioMesISO);
   const [fim, setFim] = useState(hojeISO);
   const [carregando, setCarregando] = useState(false);
   const [blocos, setBlocos] = useState<BlocoFilial[]>([]);
+  const [adminDiarias, setAdminDiarias] = useState<LinhaDiariaRelatorio[]>([]);
+  const [adminErro, setAdminErro] = useState('');
   const [liderancaGlobal, setLiderancaGlobal] = useState<LinhaLiderRelatorio[]>([]);
   const [notaLider, setNotaLider] = useState('');
   const [erroGlobal, setErroGlobal] = useState('');
@@ -51,6 +60,7 @@ export default function RelatoriosAvaliacoesPage() {
       .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
         if (cancel) return;
         const role = data.colaborador?.role ?? '';
+        setViewerRole(role);
         if (data.ok && podeVerRelatoriosAvaliacoesCompletos(role)) {
           setAutorizado(true);
         } else {
@@ -73,7 +83,9 @@ export default function RelatoriosAvaliacoesPage() {
     setCarregando(true);
     setNotaLider('');
     setErroGlobal('');
-    const novos: BlocoFilial[] = UNIDADES_CADASTRO.map((u) => ({
+    setAdminErro('');
+    const mostrarLiderPorFilial = podeVerLiderancaPorFilialRelatorio(viewerRole);
+    const novos: BlocoFilial[] = UNIDADES_RELATORIO_FILIAIS.map((u) => ({
       slug: u.slug,
       label: u.label,
       diarias: [],
@@ -82,11 +94,26 @@ export default function RelatoriosAvaliacoesPage() {
 
     try {
       const qGlobal = new URLSearchParams({ inicio, fim, limite: '3000' });
-      const resGlobal = await fetch(`/api/portal/avaliacao-lideranca/relatorio?${qGlobal}`, {
-        credentials: 'include',
-        cache: 'no-store',
+      const qAdminDiarias = new URLSearchParams({
+        inicio,
+        fim,
+        limite: '2000',
+        unidade_slug: SLUG_UNIDADE_ADMINISTRATIVO,
       });
+
+      const [resGlobal, resAdminDiarias] = await Promise.all([
+        fetch(`/api/portal/avaliacao-lideranca/relatorio?${qGlobal}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        }),
+        fetch(`/api/portal/relatorios-avaliacoes-diarias?${qAdminDiarias}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        }),
+      ]);
+
       const dataGlobal = await resGlobal.json();
+      const dataAdminDiarias = await resAdminDiarias.json();
       if (dataGlobal.ok && Array.isArray(dataGlobal.itens)) {
         setLiderancaGlobal(dataGlobal.itens as LinhaLiderRelatorio[]);
         if (dataGlobal.nota) setNotaLider(String(dataGlobal.nota));
@@ -95,35 +122,43 @@ export default function RelatoriosAvaliacoesPage() {
         setErroGlobal(dataGlobal.erro || 'Erro ao carregar feedback sobre liderança.');
       }
 
+      if (dataAdminDiarias.ok && Array.isArray(dataAdminDiarias.linhas)) {
+        setAdminDiarias(dataAdminDiarias.linhas as LinhaDiariaRelatorio[]);
+      } else {
+        setAdminDiarias([]);
+        setAdminErro(dataAdminDiarias.erro || 'Erro nas avaliações da equipe administrativa.');
+      }
+
       await Promise.all(
         novos.map(async (b, i) => {
           const qD = new URLSearchParams({ inicio, fim, limite: '2000', unidade_slug: b.slug });
-          const qL = new URLSearchParams({ unidade_slug: b.slug, inicio, fim });
 
-          const [resD, resL] = await Promise.all([
-            fetch(`/api/portal/relatorios-avaliacoes-diarias?${qD}`, {
-              credentials: 'include',
-              cache: 'no-store',
-            }),
-            fetch(`/api/portal/avaliacao-lideranca/relatorio?${qL}`, {
-              credentials: 'include',
-              cache: 'no-store',
-            }),
-          ]);
+          const resD = await fetch(`/api/portal/relatorios-avaliacoes-diarias?${qD}`, {
+            credentials: 'include',
+            cache: 'no-store',
+          });
 
           const dataD = await resD.json();
-          const dataL = await resL.json();
 
           if (dataD.ok && Array.isArray(dataD.linhas)) {
             novos[i].diarias = dataD.linhas as LinhaDiariaRelatorio[];
           } else {
             novos[i].erro = dataD.erro || 'Erro nas avaliações da equipe.';
           }
-          if (dataL.ok && Array.isArray(dataL.itens)) {
-            novos[i].lideranca = dataL.itens as LinhaLiderRelatorio[];
-          } else if (!dataL.ok) {
-            novos[i].erro =
-              (novos[i].erro ? novos[i].erro + ' ' : '') + (dataL.erro || 'Erro na liderança.');
+
+          if (mostrarLiderPorFilial) {
+            const qL = new URLSearchParams({ unidade_slug: b.slug, inicio, fim });
+            const resL = await fetch(`/api/portal/avaliacao-lideranca/relatorio?${qL}`, {
+              credentials: 'include',
+              cache: 'no-store',
+            });
+            const dataL = await resL.json();
+            if (dataL.ok && Array.isArray(dataL.itens)) {
+              novos[i].lideranca = dataL.itens as LinhaLiderRelatorio[];
+            } else if (!dataL.ok) {
+              novos[i].erro =
+                (novos[i].erro ? novos[i].erro + ' ' : '') + (dataL.erro || 'Erro na liderança.');
+            }
           }
         })
       );
@@ -131,8 +166,10 @@ export default function RelatoriosAvaliacoesPage() {
     } catch {
       setLiderancaGlobal([]);
       setErroGlobal('Erro de conexão.');
+      setAdminDiarias([]);
+      setAdminErro('Erro de conexão.');
       setBlocos(
-        UNIDADES_CADASTRO.map((u) => ({
+        UNIDADES_RELATORIO_FILIAIS.map((u) => ({
           slug: u.slug,
           label: u.label,
           diarias: [],
@@ -143,7 +180,7 @@ export default function RelatoriosAvaliacoesPage() {
     } finally {
       setCarregando(false);
     }
-  }, [inicio, fim]);
+  }, [inicio, fim, viewerRole]);
 
   useEffect(() => {
     if (autorizado !== true) return;
@@ -162,7 +199,9 @@ export default function RelatoriosAvaliacoesPage() {
     return null;
   }
 
-  const totalDiarias = blocos.reduce((s, b) => s + b.diarias.length, 0);
+  const totalDiarias =
+    blocos.reduce((s, b) => s + b.diarias.length, 0) + adminDiarias.length;
+  const mostrarLiderPorFilial = podeVerLiderancaPorFilialRelatorio(viewerRole);
 
   return (
     <main className="max-w-6xl space-y-8 pb-24">
@@ -233,7 +272,7 @@ export default function RelatoriosAvaliacoesPage() {
           <p className="text-xl font-semibold text-cafeteria-900">{liderancaGlobal.length}</p>
         </div>
         <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3 col-span-2 sm:col-span-1">
-          <p className="text-xs text-cafeteria-500">Filiais</p>
+          <p className="text-xs text-cafeteria-500">Filiais (lojas)</p>
           <p className="text-xl font-semibold text-cafeteria-900">{blocos.length}</p>
         </div>
       </div>
@@ -242,10 +281,11 @@ export default function RelatoriosAvaliacoesPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-display font-semibold text-cafeteria-900">
-              Feedback sobre a liderança (todas as filiais)
+              Feedback sobre a liderança (consolidado)
             </h2>
             <p className="text-xs text-cafeteria-500 mt-1">
-              Cada bloco é um líder avaliado, com todas as notas e justificativas no período.
+              Cada bloco é um líder avaliado, com todas as notas e justificativas no período (inclui
+              backoffice administrativo).
             </p>
           </div>
           <div className="flex rounded-lg border border-cafeteria-200 text-xs overflow-hidden">
@@ -286,8 +326,35 @@ export default function RelatoriosAvaliacoesPage() {
         )}
       </section>
 
+      <details
+        className="group rounded-xl border border-cafeteria-200 bg-white shadow-sm open:shadow-md"
+        open
+      >
+        <summary className="cursor-pointer list-none px-4 py-3 font-display text-lg font-semibold text-cafeteria-900 border-b border-cafeteria-100 flex items-center justify-between">
+          <span>Administrativo</span>
+          <span className="text-xs font-normal text-cafeteria-500">
+            {adminDiarias.length} semanais · liderança no bloco global acima
+          </span>
+        </summary>
+        <div className="p-4 space-y-4">
+          {adminErro && (
+            <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{adminErro}</p>
+          )}
+          <p className="text-xs text-cafeteria-500">
+            Backoffice central (CD, estoque, RH, etc.). Não é filial de loja; avaliações de liderança
+            aparecem uma vez no bloco global.
+          </p>
+          <section>
+            <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
+              Avaliações da equipe (semanais)
+            </h3>
+            <RelatorioDiariasPorSetor linhas={adminDiarias} />
+          </section>
+        </div>
+      </details>
+
       <div className="space-y-4">
-        <h2 className="text-lg font-display font-semibold text-cafeteria-900">Por filial</h2>
+        <h2 className="text-lg font-display font-semibold text-cafeteria-900">Por filial (lojas)</h2>
         {blocos.map((b) => (
           <details
             key={b.slug}
@@ -297,7 +364,8 @@ export default function RelatoriosAvaliacoesPage() {
             <summary className="cursor-pointer list-none px-4 py-3 font-display text-lg font-semibold text-cafeteria-900 border-b border-cafeteria-100 flex items-center justify-between">
               <span>{b.label}</span>
               <span className="text-xs font-normal text-cafeteria-500">
-                {b.diarias.length} semanais · {b.lideranca.length} liderança
+                {b.diarias.length} semanais
+                {mostrarLiderPorFilial ? ` · ${b.lideranca.length} liderança` : ''}
               </span>
             </summary>
             <div className="p-4 space-y-8">
@@ -312,12 +380,14 @@ export default function RelatoriosAvaliacoesPage() {
                 <RelatorioDiariasPorSetor linhas={b.diarias} />
               </section>
 
-              <section>
-                <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
-                  Avaliação da liderança nesta filial
-                </h3>
-                <RelatorioLiderancaPorLider linhas={b.lideranca} />
-              </section>
+              {mostrarLiderPorFilial && (
+                <section>
+                  <h3 className="text-sm font-semibold text-dourado-700 uppercase tracking-wide mb-4">
+                    Avaliação da liderança nesta filial
+                  </h3>
+                  <RelatorioLiderancaPorLider linhas={b.lideranca} />
+                </section>
+              )}
             </div>
           </details>
         ))}

@@ -16,6 +16,8 @@ export type LinhaDiariaRelatorio = {
   colaborador_nome: string | null;
   colaborador_setor?: string | null;
   avaliador_nome: string | null;
+  avaliador_rotulo?: string | null;
+  origem_visita_rh?: boolean;
 };
 
 export type LinhaLiderRelatorio = {
@@ -55,7 +57,14 @@ function TabelaDiariasColaborador({ linhas }: { linhas: LinhaDiariaRelatorio[] }
           {linhas.map((l) => (
             <tr key={l.id} className="border-t border-cafeteria-100">
               <td className="px-2 py-2 whitespace-nowrap">{l.data_referencia}</td>
-              <td className="px-2 py-2">{l.avaliador_nome ?? '—'}</td>
+              <td className="px-2 py-2">
+                {l.avaliador_rotulo ?? l.avaliador_nome ?? '—'}
+                {l.origem_visita_rh && (
+                  <span className="ml-1 inline-block rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800">
+                    RH
+                  </span>
+                )}
+              </td>
               <td className="px-2 py-2 text-cafeteria-600">{l.assiduidade}</td>
               <td className="px-2 py-2 text-center">{l.nota_vestimenta ?? '—'}</td>
               <td className="px-2 py-2 text-center">{l.nota_pontualidade ?? '—'}</td>

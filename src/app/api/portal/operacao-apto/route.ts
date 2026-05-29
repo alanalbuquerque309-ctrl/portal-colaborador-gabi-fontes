@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
+import { requirePortalRhVisitaSession } from '@/lib/portal-rh-visita-session';
 import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
+import { listarRedeParaVisitaRh } from '@/lib/avaliacao-rh-visita';
+import { normalizePortalRole } from '@/lib/roles';
 
-/** Líder marca colaborador como apto na função (sem menção a bonificação na UI). */
+/** Líder ou visita RH marca colaborador como apto na função (sem menção a gorjeta na UI). */
 export async function POST(req: Request) {
-  const auth = await requirePortalGerenteSession();
-  if (!auth.ok) return auth.response;
-
   let body: { colaborador_id?: string; apto?: boolean };
   try {
     body = await req.json();
@@ -22,16 +22,47 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, erro: 'colaborador_id obrigatório' }, { status: 400 });
   }
 
+  const authGerente = await requirePortalGerenteSession();
+  if (authGerente.ok) {
+    return await marcarApto(authGerente.ctx.colaboradorId, authGerente.ctx.unidadeId, alvoId, apto, 'gerente');
+  }
+
+  const authRh = await requirePortalRhVisitaSession();
+  if (!authRh.ok) return authRh.response;
+
+  return await marcarApto(authRh.ctx.colaboradorId, null, alvoId, apto, 'rh');
+}
+
+async function marcarApto(
+  colaboradorId: string,
+  unidadeId: string | null,
+  alvoId: string,
+  apto: boolean,
+  modo: 'gerente' | 'rh'
+) {
   try {
     const supabase = createAdminClient();
-    const { colaboradorId, unidadeId } = auth.ctx;
 
-    const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
-    if (!equipe.some((m) => m.id === alvoId)) {
-      return NextResponse.json(
-        { ok: false, erro: 'Colaborador fora da sua equipe para avaliação.' },
-        { status: 403 }
-      );
+    if (modo === 'gerente') {
+      if (!unidadeId) {
+        return NextResponse.json({ ok: false, erro: 'Unidade do gerente não encontrada.' }, { status: 403 });
+      }
+      const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
+      if (!equipe.some((m) => m.id === alvoId)) {
+        return NextResponse.json(
+          { ok: false, erro: 'Colaborador fora da sua equipe para avaliação.' },
+          { status: 403 }
+        );
+      }
+    } else {
+      const rede = await listarRedeParaVisitaRh(supabase, colaboradorId);
+      const alvo = rede.find((m) => m.id === alvoId);
+      if (!alvo || normalizePortalRole(alvo.role) !== 'colaborador') {
+        return NextResponse.json(
+          { ok: false, erro: 'Aptidão na função só para colaboradores da rede (visita RH).' },
+          { status: 403 }
+        );
+      }
     }
 
     const payload = apto

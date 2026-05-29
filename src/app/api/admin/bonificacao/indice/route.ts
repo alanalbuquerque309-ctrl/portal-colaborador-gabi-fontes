@@ -10,7 +10,7 @@ function podeAcessarBonificacaoAdmin(ctx: Awaited<ReturnType<typeof getAdminView
   return podeVerBonificacaoInterna(ctx.role);
 }
 
-/** Índice interno de bonificação (só sócio/admin ou sessão admin por senha). Não expor ao colaborador. */
+/** Índice interno de gorjeta (só sócio/admin ou sessão admin por senha). Não expor ao colaborador. */
 export async function GET(req: Request) {
   const ctx = await getAdminViewerContext();
   if (!podeAcessarBonificacaoAdmin(ctx)) {

@@ -17,7 +17,7 @@ const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABA
 
 const { data, error } = await sb
   .from('colaboradores')
-  .update({ setor: 'RH' })
+  .update({ setor: 'RH', role: 'rh' })
   .ilike('nome', '%Keila Campos%')
   .select('id, nome, setor, role');
 

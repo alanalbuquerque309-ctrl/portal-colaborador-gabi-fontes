@@ -28,29 +28,35 @@ export type AvaliacaoDiariaLeitura = {
 export async function selectAvaliacoesDiariasPorColaboradores(
   supabase: SupabaseAdmin,
   dataReferencia: string,
-  colaboradorIds: string[]
+  colaboradorIds: string[],
+  avaliadorId?: string | null
 ): Promise<{ rows: AvaliacaoDiariaLeitura[]; error: string | null }> {
   if (colaboradorIds.length === 0) return { rows: [], error: null };
 
-  const com = await supabase
+  let com = supabase
     .from('avaliacoes_diarias')
     .select(SELECT_COM_JUST)
     .eq('data_referencia', dataReferencia)
     .in('colaborador_id', colaboradorIds);
-  if (!com.error) {
-    return { rows: (com.data ?? []) as AvaliacaoDiariaLeitura[], error: null };
+  if (avaliadorId) com = com.eq('avaliador_id', avaliadorId);
+
+  const comRes = await com;
+  if (!comRes.error) {
+    return { rows: (comRes.data ?? []) as AvaliacaoDiariaLeitura[], error: null };
   }
-  if (!faltaColunaJustificativa(com.error.message)) {
-    return { rows: [], error: com.error.message };
+  if (!faltaColunaJustificativa(comRes.error.message)) {
+    return { rows: [], error: comRes.error.message };
   }
 
-  const sem = await supabase
+  let sem = supabase
     .from('avaliacoes_diarias')
     .select(SELECT_SEM_JUST)
     .eq('data_referencia', dataReferencia)
     .in('colaborador_id', colaboradorIds);
-  if (sem.error) return { rows: [], error: sem.error.message };
-  const rows = (sem.data ?? []).map((r) => ({
+  if (avaliadorId) sem = sem.eq('avaliador_id', avaliadorId);
+  const semRes = await sem;
+  if (semRes.error) return { rows: [], error: semRes.error.message };
+  const rows = (semRes.data ?? []).map((r) => ({
     ...(r as AvaliacaoDiariaLeitura),
     justificativa_nota_baixa: null,
   }));

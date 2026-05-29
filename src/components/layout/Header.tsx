@@ -94,6 +94,7 @@ export function Header() {
   const [podeVerMinhaLideranca, setPodeVerMinhaLideranca] = useState(false);
   const [podeVerDesempenho, setPodeVerDesempenho] = useState(false);
   const [podeAvaliarLideranca, setPodeAvaliarLideranca] = useState(false);
+  const [podeVisitaRh, setPodeVisitaRh] = useState(false);
   const [podeRelatoriosAvaliacoes, setPodeRelatoriosAvaliacoes] = useState(false);
   const [podeResponderAjuda, setPodeResponderAjuda] = useState(false);
   const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
@@ -109,7 +110,7 @@ export function Header() {
     setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
     setPodeVerMinhaLideranca(r === 'gerente' || r === 'master' || r === 'admin');
     setPodeVerDesempenho(r === 'colaborador');
-    setPodeAvaliarLideranca(r === 'colaborador' || r === 'admin');
+    setPodeAvaliarLideranca(r === 'colaborador' || r === 'admin' || r === 'rh');
     setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(r));
     setPodeResponderAjuda(canResponderAjudaFinal(cid, r));
     setPodeVisualizarAjuda(canVisualizarAjuda(r, cid));
@@ -158,7 +159,9 @@ export function Header() {
       .then(
         (data: {
           ok?: boolean;
+          pode_visita_rh?: boolean;
           colaborador?: {
+            id?: string;
             role?: string | null;
             setor?: string | null;
             cargo?: string | null;
@@ -179,8 +182,9 @@ export function Header() {
               roleApi === 'gerente' || roleApi === 'master' || roleApi === 'admin'
             );
             setPodeVerDesempenho(roleApi === 'colaborador');
-            setPodeAvaliarLideranca(roleApi === 'colaborador' || roleApi === 'admin');
+            setPodeAvaliarLideranca(roleApi === 'colaborador' || roleApi === 'admin' || roleApi === 'rh');
             setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(roleApi));
+            setPodeVisitaRh(data.pode_visita_rh === true);
             setPodeResponderAjuda(canResponderAjudaFinal(cidApi || undefined, roleApi));
             setPodeVisualizarAjuda(canVisualizarAjuda(roleApi, cidApi || undefined));
           }
@@ -231,6 +235,16 @@ export function Header() {
             href: '/portal/avaliacao-master' as const,
             label: 'Avaliação da equipe',
             short: 'Avaliação',
+            icon: 'avaliacao' as const,
+          },
+        ]
+      : []),
+    ...(podeVisitaRh
+      ? [
+          {
+            href: '/portal/avaliacao-rh-visita' as const,
+            label: 'Visita RH',
+            short: 'Visita RH',
             icon: 'avaliacao' as const,
           },
         ]

@@ -1,4 +1,4 @@
--- Aptidão operacional (novato → apto na função), decidida pelo líder — uso interno (bonificação).
+-- Aptidão operacional (novato → apto na função), decidida pelo líder — uso interno (gorjeta).
 alter table public.colaboradores
   add column if not exists operacao_apto boolean not null default false;
 

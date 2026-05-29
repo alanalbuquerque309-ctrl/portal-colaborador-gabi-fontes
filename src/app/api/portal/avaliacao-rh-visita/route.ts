@@ -1,18 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
-import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
-import {
-  insertAvaliacaoDiariaCompat,
-  selectAvaliacoesDiariasPorColaboradores,
-} from '@/lib/avaliacoes-justificativa-compat';
+import { requirePortalRhVisitaSession } from '@/lib/portal-rh-visita-session';
+import { listarRedeParaVisitaRh } from '@/lib/avaliacao-rh-visita';
+import { colaboradorElegivelVisitaRh } from '@/lib/avaliacao-rh-visita-access';
+import { insertAvaliacaoDiariaCompat } from '@/lib/avaliacoes-justificativa-compat';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
 
-/** Equipe do gerente + avaliações já salvas na semana (segunda de `data`); leitura após envio. */
+/** Visita RH: lista da rede + avaliação complementar (independente do gerente). */
 export async function GET(req: Request) {
-  const auth = await requirePortalGerenteSession();
+  const auth = await requirePortalRhVisitaSession();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
@@ -21,35 +19,55 @@ export async function GET(req: Request) {
     return NextResponse.json({ ok: false, erro: 'Parâmetro data inválido (use YYYY-MM-DD)' }, { status: 400 });
   }
   const dataRef = inicioSemanaSegundaFeiraLocal(dataRefRaw);
+  const unidadeSlug = searchParams.get('unidade_slug')?.trim() ?? '';
+  const setor = searchParams.get('setor')?.trim() ?? '';
+  const q = searchParams.get('q')?.trim() ?? '';
 
   try {
     const supabase = createAdminClient();
-    const { colaboradorId, unidadeId } = auth.ctx;
+    const { colaboradorId } = auth.ctx;
+    const rede = await listarRedeParaVisitaRh(supabase, colaboradorId, {
+      unidade_slug: unidadeSlug || undefined,
+      setor: setor || undefined,
+      q: q || undefined,
+    });
 
-    const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
-
-    const ids = equipe.map((c) => c.id);
-    let avaliacoesPorColab: Record<string, Record<string, unknown>> = {};
+    const ids = rede.map((c) => c.id);
+    const avalRh: Record<string, Record<string, unknown>> = {};
+    const outrasCount: Record<string, number> = {};
 
     if (ids.length > 0) {
-      const { rows: avalRows, error: errAval } = await selectAvaliacoesDiariasPorColaboradores(
-        supabase,
-        dataRef,
-        ids,
-        colaboradorId
-      );
-      if (errAval) {
-        return NextResponse.json({ ok: false, erro: errAval }, { status: 500 });
+      const { data: rows, error } = await supabase
+        .from('avaliacoes_diarias')
+        .select(
+          'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa'
+        )
+        .eq('data_referencia', dataRef)
+        .in('colaborador_id', ids);
+
+      if (error) {
+        return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
       }
-      avaliacoesPorColab = Object.fromEntries(avalRows.map((r) => [r.colaborador_id, r]));
+
+      for (const id of ids) outrasCount[id] = 0;
+      for (const row of rows ?? []) {
+        const cid = String(row.colaborador_id);
+        const aid = String(row.avaliador_id);
+        if (aid === colaboradorId) {
+          avalRh[cid] = row as Record<string, unknown>;
+        } else {
+          outrasCount[cid] = (outrasCount[cid] ?? 0) + 1;
+        }
+      }
     }
 
     return NextResponse.json({
       ok: true,
       data_referencia: dataRef,
-      equipe: equipe.map((c) => ({
+      equipe: rede.map((c) => ({
         ...c,
-        avaliacao: avaliacoesPorColab[c.id] ?? null,
+        avaliacao: avalRh[c.id] ?? null,
+        outras_avaliacoes_semana: outrasCount[c.id] ?? 0,
       })),
     });
   } catch (e) {
@@ -58,9 +76,9 @@ export async function GET(req: Request) {
   }
 }
 
-/** Primeiro envio da avaliação deste avaliador na semana; visita RH pode coexistir. */
+/** Primeiro envio da visita RH na semana; não bloqueia avaliação do gerente. */
 export async function POST(req: Request) {
-  const auth = await requirePortalGerenteSession();
+  const auth = await requirePortalRhVisitaSession();
   if (!auth.ok) return auth.response;
 
   let body: Record<string, unknown>;
@@ -83,20 +101,21 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { colaboradorId, unidadeId } = auth.ctx;
+    const { colaboradorId } = auth.ctx;
 
     if (validado.colaboradorAlvo === colaboradorId) {
       return NextResponse.json({ ok: false, erro: 'Não é possível autoavaliar' }, { status: 400 });
     }
 
-    const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
-    const sub = equipe.find((membro) => membro.id === validado.colaboradorAlvo);
-    if (!sub) {
+    const { data: alvo } = await supabase
+      .from('colaboradores')
+      .select('id, nome, role')
+      .eq('id', validado.colaboradorAlvo)
+      .maybeSingle();
+
+    if (!alvo?.id || !colaboradorElegivelVisitaRh(alvo, colaboradorId)) {
       return NextResponse.json(
-        {
-          ok: false,
-          erro: 'Colaborador não encontrado na sua equipe para esta semana.',
-        },
+        { ok: false, erro: 'Pessoa fora do escopo da visita RH.' },
         { status: 403 }
       );
     }
@@ -113,8 +132,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           ok: false,
-          erro:
-            'Você já enviou a avaliação desta pessoa nesta semana. Para correção, contacte o administrativo/RH.',
+          erro: 'Você já registrou a visita RH desta pessoa nesta semana. Para correção, contacte o administrativo.',
         },
         { status: 409 }
       );
@@ -122,7 +140,6 @@ export async function POST(req: Request) {
 
     const row = { ...validado.row, avaliador_id: colaboradorId };
     const { error: insErr } = await insertAvaliacaoDiariaCompat(supabase, row);
-
     if (insErr) {
       return NextResponse.json({ ok: false, erro: insErr }, { status: 500 });
     }

@@ -6,6 +6,11 @@ import {
   podeVerRelatoriosAvaliacoesCompletos,
   relatorioRestringeUnidade,
 } from '@/lib/avaliacoes-relatorio-access';
+import {
+  construirConjuntoIdsRh,
+  rotuloAvaliadorRelatorio,
+} from '@/lib/avaliacao-semanal-agregacao';
+import { isAvaliacaoDeVisitaRh } from '@/lib/avaliacao-rh-visita-access';
 
 /**
  * Avaliações semanais da equipe para /portal/relatorios-avaliacoes (data_referencia = segunda da semana).
@@ -104,24 +109,39 @@ export async function GET(req: Request) {
       idsNomes.add(r.colaborador_id as string);
       idsNomes.add(r.avaliador_id as string);
     }
-    const metaPorId: Record<string, { nome: string; setor: string | null }> = {};
+    const metaPorId: Record<string, { nome: string; setor: string | null; role: string | null }> = {};
     if (idsNomes.size > 0) {
       const { data: pessoas, error: errP } = await supabase
         .from('colaboradores')
-        .select('id, nome, setor')
+        .select('id, nome, setor, role')
         .in('id', Array.from(idsNomes));
       if (!errP && pessoas) {
         for (const p of pessoas) {
           metaPorId[p.id as string] = {
             nome: String(p.nome ?? ''),
             setor: (p as { setor?: string | null }).setor ?? null,
+            role: normalizePortalRole((p as { role?: string | null }).role),
           };
         }
       }
     }
 
+    const rhIds = construirConjuntoIdsRh(
+      Object.entries(metaPorId).map(([id, m]) => ({
+        id,
+        role: m.role,
+        setor: m.setor,
+        nome: m.nome,
+      }))
+    );
+
     const linhas = rows.map((r) => {
       const colabMeta = metaPorId[r.colaborador_id as string];
+      const avalMeta = metaPorId[r.avaliador_id as string];
+      const avaliadorId = String(r.avaliador_id);
+      const avaliadorRole = avalMeta?.role ?? null;
+      const avaliadorNome = avalMeta?.nome ?? null;
+      const origemVisitaRh = isAvaliacaoDeVisitaRh(avaliadorId, avaliadorRole, rhIds);
       return {
         id: r.id,
         data_referencia: r.data_referencia,
@@ -136,7 +156,9 @@ export async function GET(req: Request) {
         colaborador_nome: colabMeta?.nome ?? null,
         colaborador_setor: colabMeta?.setor ?? null,
         avaliador_id: r.avaliador_id,
-        avaliador_nome: metaPorId[r.avaliador_id as string]?.nome ?? null,
+        avaliador_nome: avaliadorNome,
+        avaliador_rotulo: rotuloAvaliadorRelatorio(avaliadorId, avaliadorRole, avaliadorNome, rhIds),
+        origem_visita_rh: origemVisitaRh,
       };
     });
 
