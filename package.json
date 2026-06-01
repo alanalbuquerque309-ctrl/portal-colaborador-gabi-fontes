@@ -13,7 +13,8 @@
     "db:apply-pendentes": "node scripts/aplicar-migrations-031-034.mjs",
     "db:apply-035": "node scripts/aplicar-migration-035.mjs",
     "db:zerar-avaliacoes-trofeus": "node scripts/zerar-avaliacoes-trofeus.mjs --confirmar",
-    "db:reabrir-onboarding": "node scripts/reabrir-onboarding-todos.mjs --confirmar"
+    "db:reabrir-onboarding": "node scripts/reabrir-onboarding-todos.mjs --confirmar",
+    "upload:video-boas-vindas": "node scripts/upload-video-boas-vindas.mjs"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

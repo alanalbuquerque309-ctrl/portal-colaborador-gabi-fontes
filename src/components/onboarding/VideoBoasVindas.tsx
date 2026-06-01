@@ -1,19 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { VIDEO_FRAME_CLASS } from '@/lib/video-boas-vindas-layout';
+import { isVideoArquivoLocal } from '@/lib/video-boas-vindas';
 
 interface VideoBoasVindasProps {
-  /** URL do vídeo (YouTube, Vimeo ou arquivo direto). */
+  /** URL do vídeo (YouTube, Vimeo, Supabase Storage ou arquivo local). */
   src?: string;
   poster?: string;
   className?: string;
-  /** Disparado uma vez quando o vídeo é assistido até o fim (primeira vez). */
   onFirstWatchComplete?: () => void;
-  /** Se já concluiu uma vez — mostra opção de assistir novamente sem bloquear o próximo passo. */
   assistidoCompleto?: boolean;
-  /**
-   * Biblioteca pós-onboarding: só reprodução, sem bloquear fluxo nem exigir “até o fim”.
-   */
   modoBiblioteca?: boolean;
 }
 
@@ -64,9 +61,9 @@ export function VideoBoasVindas({
   const containerId = `yt-${reactId}`;
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeVimeoRef = useRef<HTMLIFrameElement>(null);
-  /** Garante que o callback de “primeira conclusão” dispare só uma vez (rewatch não reenvia). */
   const callbackFiredRef = useRef(false);
   const [rewatchTick, setRewatchTick] = useState(0);
+  const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
 
   const markComplete = useCallback(() => {
     if (modoBiblioteca) return;
@@ -76,12 +73,20 @@ export function VideoBoasVindas({
   }, [onFirstWatchComplete, modoBiblioteca]);
 
   const handleRewatch = () => {
+    setErroCarregamento(null);
     setRewatchTick((t) => t + 1);
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
-      void videoRef.current.play();
+      void videoRef.current.play().catch(() => {
+        setErroCarregamento('Toque em play para iniciar o vídeo.');
+      });
     }
   };
+
+  useEffect(() => {
+    setErroCarregamento(null);
+    callbackFiredRef.current = false;
+  }, [src, rewatchTick]);
 
   useEffect(() => {
     if (!src) return;
@@ -115,20 +120,13 @@ export function VideoBoasVindas({
       });
     };
 
-    const chain = () => {
-      const prev = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        prev?.();
-        init();
-      };
-      if (window.YT?.Player) {
-        init();
-      } else {
-        void loadScript('https://www.youtube.com/iframe_api').catch(() => {});
-      }
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      prev?.();
+      init();
     };
-
-    chain();
+    if (window.YT?.Player) init();
+    else void loadScript('https://www.youtube.com/iframe_api').catch(() => {});
 
     return () => {
       destroyed = true;
@@ -150,13 +148,11 @@ export function VideoBoasVindas({
     void (async () => {
       try {
         await loadScript('https://player.vimeo.com/api/player.js');
-        if (cancelled || !iframeVimeoRef.current || !(window as unknown as { Vimeo?: { Player: unknown } }).Vimeo)
-          return;
-        const VimeoPlayer = (window as unknown as { Vimeo: { Player: new (el: HTMLIFrameElement) => { on: (e: string, fn: () => void) => void } } }).Vimeo.Player;
-        const p = new VimeoPlayer(iframeVimeoRef.current);
+        if (cancelled || !iframeVimeoRef.current || !window.Vimeo) return;
+        const p = new window.Vimeo.Player(iframeVimeoRef.current);
         p.on('ended', () => markComplete());
       } catch {
-        /* fallback: sem SDK */
+        /* fallback */
       }
     })();
 
@@ -165,22 +161,23 @@ export function VideoBoasVindas({
     };
   }, [src, markComplete, rewatchTick]);
 
+  const frameClass = `${VIDEO_FRAME_CLASS} ${className}`.trim();
+  const legendaRodape = modoBiblioteca
+    ? 'Revise o vídeo quando quiser. No primeiro acesso ele é obrigatório até o fim, com questionário em seguida.'
+    : 'Assista ao vídeo até o final para liberar o próximo passo. Você poderá assistir de novo depois que concluir uma vez.';
+
   if (!src) {
     const isDev = process.env.NODE_ENV === 'development';
     return (
-      <div className={`space-y-3 ${className}`}>
-        <div
-          className="relative w-full aspect-video bg-cafeteria-900 flex items-center justify-center overflow-hidden rounded-xl"
-          aria-label="Vídeo institucional"
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-cafeteria-800/90 to-cafeteria-950/90" />
-          <div className="relative z-10 text-center px-4">
-            <p className="text-cream-100 font-display text-lg">Vídeo institucional</p>
-            <p className="text-cream-200/80 text-sm mt-2">
-              Configure{' '}
-              <code className="text-xs bg-black/30 px-1 rounded">NEXT_PUBLIC_VIDEO_BOAS_VINDAS</code> com a URL do
-              YouTube, Vimeo ou um arquivo local em <code className="text-xs bg-black/30 px-1 rounded">/onboarding/boas-vindas.mp4</code>.
-            </p>
+      <div className="space-y-3">
+        <div className={frameClass} aria-label="Vídeo institucional">
+          <div className="absolute inset-0 bg-gradient-to-b from-cafeteria-800/90 to-cafeteria-950/90 flex items-center justify-center p-4">
+            <div className="text-center">
+              <p className="text-cream-100 font-display text-lg">Vídeo institucional</p>
+              <p className="text-cream-200/80 text-sm mt-2">
+                Configure a URL do vídeo ou rode <code className="text-xs bg-black/30 px-1 rounded">npm run upload:video-boas-vindas</code>.
+              </p>
+            </div>
           </div>
         </div>
         {isDev && (
@@ -199,26 +196,23 @@ export function VideoBoasVindas({
   const isYouTube = src.includes('youtube.com') || src.includes('youtu.be');
   const isVimeo = src.includes('vimeo.com');
 
+  const blocoErro = erroCarregamento ? (
+    <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{erroCarregamento}</p>
+  ) : null;
+
   if (isYouTube) {
     return (
-      <div className={`space-y-3 ${className}`}>
-        <div className="relative w-full aspect-video overflow-hidden rounded-xl bg-black">
+      <div className="space-y-3">
+        <div className={frameClass}>
           <div id={containerId} className="absolute inset-0 w-full h-full" key={rewatchTick} />
         </div>
+        {blocoErro}
         {(modoBiblioteca || assistidoCompleto) && (
-          <button
-            type="button"
-            onClick={handleRewatch}
-            className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50"
-          >
+          <button type="button" onClick={handleRewatch} className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50">
             Assistir novamente
           </button>
         )}
-        <p className="text-coffee-100 text-xs">
-          {modoBiblioteca
-            ? 'Revise o vídeo quando quiser. No primeiro acesso ele é obrigatório até o fim, com questionário em seguida.'
-            : 'Assista ao vídeo até o final para liberar o próximo passo. Você poderá assistir de novo depois que concluir uma vez.'}
-        </p>
+        <p className="text-coffee-100 text-xs">{legendaRodape}</p>
       </div>
     );
   }
@@ -227,8 +221,8 @@ export function VideoBoasVindas({
     const videoId = src.match(/vimeo\.com\/(\d+)/)?.[1];
     if (!videoId) return null;
     return (
-      <div className={`space-y-3 ${className}`}>
-        <div className="relative w-full aspect-video overflow-hidden rounded-xl">
+      <div className="space-y-3">
+        <div className={frameClass}>
           <iframe
             key={rewatchTick}
             ref={iframeVimeoRef}
@@ -239,27 +233,20 @@ export function VideoBoasVindas({
             allowFullScreen
           />
         </div>
+        {blocoErro}
         {(modoBiblioteca || assistidoCompleto) && (
-          <button
-            type="button"
-            onClick={handleRewatch}
-            className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50"
-          >
+          <button type="button" onClick={handleRewatch} className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50">
             Assistir novamente
           </button>
         )}
-        <p className="text-coffee-100 text-xs">
-          {modoBiblioteca
-            ? 'Revise o vídeo quando quiser.'
-            : 'Assista ao vídeo até o final. Se o botão não liberar, atualize a página e assista novamente até o encerramento.'}
-        </p>
+        <p className="text-coffee-100 text-xs">{legendaRodape}</p>
       </div>
     );
   }
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      <div className={`relative w-full aspect-video overflow-hidden rounded-xl ${className}`}>
+    <div className="space-y-3">
+      <div className={frameClass}>
         <video
           key={rewatchTick}
           ref={videoRef}
@@ -267,25 +254,32 @@ export function VideoBoasVindas({
           poster={poster}
           controls
           playsInline
-          className="w-full h-full object-cover"
+          preload="metadata"
+          className="absolute inset-0 w-full h-full object-contain"
           onEnded={() => markComplete()}
+          onError={() => {
+            if (isVideoArquivoLocal(src)) {
+              setErroCarregamento(
+                'Vídeo local não encontrado neste servidor. Em produção, rode npm run upload:video-boas-vindas ou configure NEXT_PUBLIC_VIDEO_BOAS_VINDAS na Vercel.'
+              );
+            } else {
+              setErroCarregamento(
+                'Não foi possível carregar o vídeo. Verifique a conexão ou peça ao administrador para republicar o arquivo.'
+              );
+            }
+          }}
         >
           Seu navegador não suporta vídeo.
         </video>
       </div>
+      {blocoErro}
       {(modoBiblioteca || assistidoCompleto) && (
-        <button
-          type="button"
-          onClick={handleRewatch}
-          className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50"
-        >
+        <button type="button" onClick={handleRewatch} className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50">
           Assistir novamente
         </button>
       )}
-      <p className="text-coffee-100 text-xs">
-        {modoBiblioteca
-          ? 'Revise o vídeo quando quiser.'
-          : 'Assista até o final do vídeo para continuar.'}
+      <p className="text-coffee-100 text-xs text-center max-w-sm mx-auto">
+        {modoBiblioteca ? 'Vídeo em formato vertical (9:16). Toque em play se não iniciar sozinho.' : 'Vídeo vertical (9:16). Assista até o final para continuar.'}
       </p>
     </div>
   );

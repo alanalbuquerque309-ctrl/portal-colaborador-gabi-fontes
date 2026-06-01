@@ -21,7 +21,7 @@ const withPWA = require('@ducanh2912/next-pwa').default({
       /** HTML dos manuais no iframe: evita SW servir resposta errada/vazia em produção */
       {
         urlPattern: ({ request, url }) =>
-          request.method === 'GET' && url.pathname.startsWith('/manuais/'),
+          request.method === 'GET' && url.pathname.startsWith('/onboarding/'),
         handler: 'NetworkOnly',
       },
     ],
