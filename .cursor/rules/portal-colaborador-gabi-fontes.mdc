@@ -113,10 +113,14 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 
 ### Escalas (admin + portal)
 
-- **Admin:** `/admin/escalas` — mês inteiro, filtros unidade / setor / colaborador, opção **Todos**, botão **Pesquisar**; tabela com coluna **Situação** (folga / trabalho). API: `GET/POST /api/admin/escalas` (`incluir_geradas`, filtros); `GET /api/admin/colaboradores-para-escala` (setor + `unidade_slug`).
-- **Portal colaborador:** `/portal/escala` — geração a partir de `tipo_escala` no cadastro + calendário BR (`src/lib/escala-portal.ts`, `escala-calendario.ts`); `GET /api/portal/escala`.
-- **Migration:** `036_tipo_escala_colaborador.sql` — campo `tipo_escala` em colaboradores.
-- **Script:** `npm run db:escalas-junho-2026 -- --confirmar` (`scripts/aplicar-escalas-junho-2026.mjs`) — requer `DATABASE_URL` no `.env.local`.
+- **Admin:** `/admin/escalas` — mês inteiro, filtros unidade / setor / colaborador, **Pesquisar**; tabela **Situação** (folga / trabalho).
+- **API:** `GET/POST /api/admin/escalas` (`incluir_geradas`, `aplicar_auto=1` em jun/2026); `POST /api/admin/escalas/aplicar-junho-2026`; `GET /api/admin/colaboradores-para-escala`.
+- **Portal:** `/portal/escala` — `src/lib/escala-portal.ts`, `escala-calendario.ts`, `GET /api/portal/escala`.
+- **Migration 036:** `tipo_escala`, `escala_folga_dias`, horários no cadastro (SQL no Supabase; **não** preenche dias sozinha).
+- **Junho/2026 (documento Folgas de domingo):** `src/lib/aplicar-escalas-junho-2026.ts` + `ESCALAS_DOCUMENTO_JUNHO_2026` em `escala-calendario.ts`. Match de nomes via `nomeCoincide` (ex.: «Miguel» → «Miguel Silva»). Sabrina / Luís Henrique: unidade **`fabrica`**, setor **Fábrica de doces**.
+- **Gerar dados:** botão **Gerar escalas junho/2026** no admin **ou** `Pesquisar` em `2026-06` com `aplicar_auto=1` (grava no Supabase se vazio). Script local: `npm run db:escalas-junho-2026 -- --confirmar` (`DATABASE_URL`).
+- **Filtro unidade Mesquita (escalas):** igual ao mural — inclui slugs `mesquita`, `fabrica`, `administrativo` (`slugsDoGrupoMural` em `mural-unidade-grupo.ts`). Quem está na **Fábrica de doces** costuma ter `unidade_id` → **fabrica**; filtrar só «Mesquita» sem esse grupo deixava a lista vazia (corrigido `b28292e`).
+- **RH:** pode gerar junho (`isAdminAuthorized` na rota aplicar); gestão completa mantém outras APIs restritas.
 
 ### Manuais no portal
 
@@ -171,7 +175,7 @@ npm run db:apply-036                        # tipo_escala (se script existir no 
 | `036_tipo_escala_colaborador.sql` | Escalas admin/portal por `tipo_escala` |
 | `037_emocional_alertas_vistos.sql` | OK individual nos alertas do termômetro |
 
-**Deploy:** push `main` → Vercel; commit de referência das evoluções jun/2026: `735cf77`.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`.
 
 ---
 
@@ -215,8 +219,8 @@ npm run db:apply-036                        # tipo_escala (se script existir no 
 
 ### Escalas admin e portal (jun/2026)
 
-- Admin: filtros mês/unidade/setor/colaborador, pesquisa, situação folga/trabalho.
-- Portal: escala mensal derivada de `tipo_escala`; migration `036`.
+- Admin: filtros, pesquisa, geração junho (botão + auto ao pesquisar), grupo Mesquita+fábrica+adm no filtro.
+- Portal: escala mensal por `tipo_escala`; migration `036`; materialização em `escalas` para o admin listar.
 
 ### Manuais dentro do portal (jun/2026)
 
@@ -273,7 +277,8 @@ Ordem sugerida lá: hardening GitHub/Vercel/Supabase → rate limit + anti-enume
 ```text
 src/app/(admin)/admin/layout.tsx, lideres-por-setor/page.tsx, escalas/page.tsx
 src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts
-src/lib/escala-portal.ts, escala-calendario.ts, manual-por-setor.ts
+src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, mural-unidade-grupo.ts, manual-por-setor.ts
+src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
 src/components/portal/AvaliacoesPortalHome.tsx, ManualPortalViewer.tsx, TrofeusParesPanel.tsx
 src/components/emocional/TermometroEmocional.tsx, EmocionalAlertasGestao.tsx
