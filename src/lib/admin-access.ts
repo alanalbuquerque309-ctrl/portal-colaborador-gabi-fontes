@@ -1,0 +1,61 @@
+import { normalizePortalRole } from '@/lib/roles';
+
+export type AdminNivelAcesso = 'full' | 'rh_limitado' | 'senha';
+
+/** Menu admin para RH (Keila): sem avaliações internas, gorjeta, sugestões, etc. */
+export const ADMIN_NAV_RH: readonly { href: string; label: string }[] = [
+  { href: '/admin/dashboard', label: 'Dashboard' },
+  { href: '/admin/colaboradores', label: 'Colaboradores' },
+  { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
+  { href: '/admin/avisos', label: 'Avisos' },
+  { href: '/admin/destaque', label: 'Destaque' },
+  { href: '/admin/escalas', label: 'Escalas' },
+  { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
+];
+
+export const ADMIN_PATHS_RH: readonly string[] = ADMIN_NAV_RH.filter((i) =>
+  i.href.startsWith('/admin')
+).map((i) => i.href);
+
+export function isRoleAdminCompleto(role: string | null | undefined): boolean {
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin' || r === 'master' || r === 'gerente';
+}
+
+export function isRoleAdminRh(role: string | null | undefined): boolean {
+  return normalizePortalRole(role) === 'rh';
+}
+
+export function resolveAdminNivel(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): AdminNivelAcesso | null {
+  if (senhaAdmin) return 'senha';
+  if (isRoleAdminCompleto(role)) return 'full';
+  if (isRoleAdminRh(role)) return 'rh_limitado';
+  return null;
+}
+
+export function adminPathPermitidoRh(pathname: string | null | undefined): boolean {
+  const p = (pathname ?? '').replace(/\/$/, '') || '/admin/dashboard';
+  if (ADMIN_PATHS_RH.some((base) => p === base || p.startsWith(`${base}/`))) return true;
+  if (p === '/portal/ajuda-inbox' || p.startsWith('/portal/ajuda-inbox/')) return true;
+  return false;
+}
+
+/** Sócios, admin e login por senha: editar mapa completo e aplicar padrão operacional. */
+export function podeEditarLiderancaMapaCompleto(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): boolean {
+  if (senhaAdmin) return true;
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin';
+}
+
+export function labelNivelAdmin(nivel: AdminNivelAcesso | null): string {
+  if (nivel === 'rh_limitado') return 'RH (acesso limitado)';
+  if (nivel === 'senha') return 'Administrador';
+  if (nivel === 'full') return 'Gestão completa';
+  return '';
+}

@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { requireAdminFullApi } from '@/lib/admin-auth';
 
 /**
  * Relatório consolidado de avaliações semanais da equipe — apenas painel admin (administrativo / sócio).
  * `data_referencia` na tabela é a segunda-feira da semana. Gerentes não utilizam esta rota.
  */
 export async function GET(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const auth = await requireAdminFullApi();
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const inicio = searchParams.get('inicio')?.trim();

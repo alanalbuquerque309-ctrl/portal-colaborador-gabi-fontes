@@ -10,14 +10,7 @@ import { normalizePortalRole } from '@/lib/roles';
 import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast';
 import { PortalOnlineStrip, PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
-
-const EMOCOES: { id: string; label: string; emoji: string; desc: string }[] = [
-  { id: 'feliz', label: 'Feliz', emoji: '😊', desc: 'Ótimo dia!' },
-  { id: 'tranquilo', label: 'Tranquilo', emoji: '😌', desc: 'Tudo bem' },
-  { id: 'neutro', label: 'Neutro', emoji: '😐', desc: 'Sem novidades' },
-  { id: 'cansado', label: 'Cansado', emoji: '😓', desc: 'Preciso de um respiro' },
-  { id: 'frustrado', label: 'Frustrado', emoji: '😔', desc: 'Não está fácil' },
-];
+import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -212,7 +205,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
               Primeiro acesso do dia: selecione como você está se sentindo para continuar no portal.
             </p>
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {EMOCOES.map((e) => (
+              {EMOCOES_TERMOMETRO.map((e) => (
                 <button
                   key={e.id}
                   type="button"

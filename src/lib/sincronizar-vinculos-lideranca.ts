@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
+import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { listarLideresConfigPorUnidadeSetor } from '@/lib/lideres-por-setor';
 import { normalizePortalRole } from '@/lib/roles';
 
@@ -116,4 +117,28 @@ export async function sincronizarVinculosTodosColaboradores(
   }
 
   return { processados, com_lider, sem_setor, erros };
+}
+
+/** Reaplica vínculos dos colaboradores afetados por uma mudança em lideres_por_setor. */
+export async function sincronizarVinculosUnidadeSetor(
+  supabase: SupabaseAdmin,
+  unidadeId: string,
+  setorCfg: string
+): Promise<{ sincronizados: number }> {
+  const { data: rows, error } = await supabase
+    .from('colaboradores')
+    .select('id, setor, role')
+    .eq('unidade_id', unidadeId)
+    .eq('role', 'colaborador');
+
+  if (error) throw new Error(error.message);
+
+  let sincronizados = 0;
+  for (const row of rows ?? []) {
+    const setorCol = String(row.setor ?? '').trim();
+    if (setorCfg !== SETOR_TODOS_NA_UNIDADE && setorCol !== setorCfg) continue;
+    await sincronizarVinculosLiderancaColaborador(supabase, String(row.id));
+    sincronizados += 1;
+  }
+  return { sincronizados };
 }

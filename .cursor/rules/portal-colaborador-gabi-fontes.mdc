@@ -1,588 +1,224 @@
 ---
-description: Portal do Colaborador Gabi Fontes — produto único de referência (stack, auth, BD, ajuda, deploy, LGPD)
+description: Portal do Colaborador Gabi Fontes — escopo, evoluções, pendências e operação
+globs: "**/*"
 alwaysApply: true
 ---
 
 # Portal do Colaborador — Gabi Fontes
 
-**Âmbito:** este repositório apenas. **Não** misturar com **ISA AI / Gestão 360**, **Estoque Inteligente** (`core_system`) nem outros apps.
+Norma **fonte única** para agentes que trabalham neste repositório. Não misturar com Gestão 360/ISA (`isa_*`, `gestao360.db`, `isa_whatsapp_receiver.py`), **Auditax** (`auditax-pro/`) nem **Site institucional** (`Site Gabi Fontes/` — ver `site-gabi-fontes-scope.mdc` na raiz ISA AI).
 
-**Caminho no PC do Alan (monorepo):** `ALAN.IA/Portal do Colaborador - Gabi Fontes`. Este ficheiro é a **fonte única** de regras Cursor para o Portal; não duplicar listas longas noutros `.md`.
-
-**Vocabulário (negócio):** usar **gorjeta**, não “comissão” nem “bonificação”, em copy nova, docs e comentários deste repo. Valores e regras de repasse **não** aparecem na UI do colaborador nem do gerente.
-
----
-
-## Separação explícita — Estoque Inteligente / outros
-
-- Sem imputação de ficheiros de stock, `estoque.json`, nem ecrãs de Master de **estoque**.
-- Identidades e dados deste portal **não** se misturam com `web_users.json` / API de movimentação de stock salvo integração futura explícita e documentada nos dois lados.
-
----
-
-## LGPD e perfil (premissa de negócio)
-
-- **Nunca** `DELETE`/`TRUNCATE` em massa em `colaboradores`. Reset organizacional permitido = só **`UPDATE`** em `cargo`, `setor`, `unidade_id`, `role` (com cuidado). Dados pessoais não apagar em lote.
-- O **perfil completo** só é visível a (1) **Master do portal** (administração e sócios) e (2) o **próprio colaborador** autenticado. Sem listagem pública nem partilha do perfil entre colaboradores. **RLS/políticas** no Supabase devem refletir isto.
-- **Campos previstos do perfil:** nome, endereço, telefone, e-mail, função/cargo, setor, unidade. Fora deste conjunto (folha, salários, dados bancários, saúde, etc.) não entram salvo decisão posterior documentada.
-
----
-
-## Stack e deploy
-
-- **Next.js 14**, **Supabase** (Postgres + PostgREST), **Vercel**.
-- **PWA:** `@ducanh2912/next-pwa`; em `next.config.js`, `runtimeCaching` com **NetworkOnly** para `GET /manuais/` (evita SW a servir HTML errado nos iframes dos manuais).
-- **Variáveis Vercel:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, e para o vídeo de onboarding **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`**. Sem vídeo em **produção**, o colaborador na 1.ª etapa não tem o botão `[Dev] Simular vídeo` (só em `NODE_ENV === development`).
-- **Ajuda (produção):** `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` (UUID em `colaboradores.id`), opcional `NEXT_PUBLIC_AJUDA_RESPONSAVEL_NOME`. Opcional: `ADMIN_ALAN_LOGIN`, `ADMIN_ALAN_PASSWORD`. **Visita RH:** opcional `AVALIADOR_RH_GERAL_COLABORADOR_ID` (UUID Keila).
-- Branch **`main`**; push → Vercel CI. Só **commit + push** entra em produção; comparar `git rev-parse HEAD` com o deploy na Vercel antes de afirmar que produção está corrigida.
-- **Agente (Cursor):** em alterações que vão para produção neste repositório (`Portal do Colaborador - Gabi Fontes`), **sempre** `git add` + `git commit` + `git push origin main` ao finalizar (salvo o Alan ter pedido explícito para não commitar). Assim o **deploy automático** da Vercel dispara sem o Alan ter de pedir. **Migrações SQL** no Supabase continuam manuais (SQL Editor) quando houver ficheiro novo em `supabase/migrations/`.
-- **Vercel — status:** em **Implantações**, sucesso = **Pronto** / **Ready** (não **Preparar** / **Building**). **Erro** = abrir **Registros de construção** daquela linha (não confundir com log de deploy antigo).
-
----
-
-## Resumo sessão 2026-05-20 — avaliações, liderança, troféus e deploy
-
-### Contrato de produto (três fluxos)
-
-| Quem | Onde | O que deve ver |
-|------|------|----------------|
-| **Colaborador** | `/portal/avaliacao-lideranca` → aba **Líderes** | Chefes do mapa (`lideres_por_setor`): ex. Mesquita Atendimento → **Silvia + Joyce** como *Chefe direto*; **1 RH**; **Daniel** só como *Administrador da empresa* (não chefe de Atendimento). |
-| **Colaborador** | Mesma página → aba **Reconhecimento entre pares** | Troféus **Postura**, **Braço direito**, **Eficiência** (3 créditos/semana); escolhe colega da **mesma unidade** com onboarding completo. Lista completa ao abrir + filtro opcional por nome. |
-| **Gerente / master / admin** | `/portal/avaliacao-master` | **Todos** os `role = colaborador` da equipe (unidade e/ou setores do mapa). **Onboarding pendente não bloqueia** avaliação; selo informativo **“Cadastro portal pendente”**. |
-
-### O que foi implementado (código)
-
-**Liderança**
-
-- Mapa em `src/lib/config-lideranca-operacional.ts` + `POST /api/admin/lideres-por-setor/aplicar-padrao` (`aplicar-config-lideranca.ts`, `desativarLideresForaDoMapaOperacional`).
-- `listarLideresDoColaborador(..., { apenasDaConfig: true })` em `avaliacao-lideranca/route.ts` (chefes só do mapa; ignora `lider_id` / vínculos legados na avaliação).
-- Filtro em `lideres-por-setor.ts`: Daniel como chefe só nos setores transversais (CD, Estoque, Motorista, Administração, RH).
-- Joyce: equipe Mesquita via `lideres_por_setor` mesmo se cadastro estiver noutra unidade (resolver por nome ao aplicar mapa).
-
-**Troféus entre pares**
-
-- Tipos: `postura`, `braco_direito`, `eficiencia` (`src/lib/trofeus-pares.ts`).
-- APIs: `GET/POST /api/portal/trofeus-pares`, `GET /api/portal/trofeus-pares/busca`.
-- UI: `TrofeusParesPanel.tsx` + abas em `avaliacao-lideranca/page.tsx`.
-
-**Avaliação semanal (gerente)**
-
-- `listarColaboradoresUnidadeParaAvaliacaoGerente` em `colaborador-lideres.ts` (substitui lista só por setor do líder em `avaliacao-master`).
-- Semana civil: `src/lib/semana-referencia.ts` (`data_referencia` = segunda-feira da semana).
-- Checklist: `AvaliacaoSemanalChecklist.tsx`; home: `AvaliacoesPortalHome.tsx`.
-- **Visita RH (Keila):** `/portal/avaliacao-rh-visita` + `GET/POST /api/portal/avaliacao-rh-visita`. Avaliadora geral complementar (rede inteira, inclusive gerentes; exclui sócios, ela mesma e Daniel). Permissão: `role = rh`, `setor = RH` + nome Keila, ou env `AVALIADOR_RH_GERAL_COLABORADOR_ID`. Gorjeta (`role = colaborador`): **70% gerente + 30% RH** na mesma semana quando ambos existem (`avaliacao-semanal-agregacao.ts`). Relatórios marcam linhas como **Visita RH**. Daniel continua avaliando Keila pelo fluxo normal de liderança.
-
-### Produção (Vercel) — estado 2026-05-28
+## Identidade do projeto
 
 | Item | Valor |
 |------|--------|
-| **URL canónica** | `https://portal-colaborador-gabi-fontes.vercel.app` |
-| **Commit de referência** | `f29a0c8` — avaliação sem bloqueio de onboarding, aptidão operacional, índice gorjeta, sessão admin↔portal |
-| **Deploy** | Vercel **Ready** após push em `main`; confirmar com `git log origin/main -1` vs deploy ativo |
+| Pasta no monorepo | `ALAN.IA/Portal do Colaborador - Gabi Fontes/` |
+| Pacote npm | `portal-colaborador-gabi-fontes` |
+| Stack | Next.js 14 (App Router), React 18, Tailwind, Supabase (Postgres + Storage), Vercel |
+| Dev local | `npm run dev` → porta **3001** |
+| Produção | https://portal-colaborador-gabi-fontes.vercel.app |
+| Git remoto | repositório `portal-colaborador-gabi-fontes`, branch `main` (deploy Vercel automático) |
+| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `037_` e seguintes) |
+| Docs operacionais | `BACKUP_RESTORE.md`, `SECURITY_ROADMAP.md` (backlog segurança, não duplicar aqui em detalhe) |
 
-**Deploys com Erro que podem ser ignorados** (histórico, já substituídos): `9Y7vpBCAu` (`7c2ae96`), `6nGwPBEKW` (`6ac958b`) — falha *Módulo não encontrado: `@/lib/semana-referencia`*; corrigido em `f63f6ab` e absorvido em `474f5c2`. Não reabrir esses logs salvo auditoria.
+## Vocabulário e tom
 
-Confirmar produção: `vercel ls` (linha mais recente **Ready**) ou `vercel inspect portal-colaborador-gabi-fontes.vercel.app` → aliases incluem a URL canónica.
+- **UI colaborador:** português BR, claro, operação de varejo. Não expor termos internos de bonificação/gorjeta na interface (uso interno/admin se existir).
+- **Onboarding:** vídeo institucional + manual da cultura + manual do setor; fluxo obrigatório para **todos** os perfis (inclui sócio/admin) até `onboarding_completo = true`.
+- **Avaliações:** semanal; líder avalia equipe; colaborador pode avaliar liderança e enviar troféus entre pares (ver secção Avaliações).
 
-### Commits relevantes no `main` (GitHub)
+## Arquitetura resumida
 
-| Commit | Conteúdo |
-|--------|----------|
-| `f29a0c8` | Avaliação equipe sem bloqueio onboarding; `operacao_apto`; índice gorjeta; cookies sessão unificados; `POST /api/admin/restaurar-portal` |
-| `d824a1d` | Relatórios completos equipe + liderança; `avaliacoes-lideranca-relatorio.ts`; admin feedback liderança |
-| `7769442` | (histórico) Lista com selo “não ativo”; **substituído** por `f29a0c8` — avaliação liberada com selo informativo |
-| `c574192` | Equipe Daniel (Estoque/CD); mapa sem desativar Daniel em Estoque |
-| `474f5c2` | Mural/destaque, presença, relatórios por setor, `colegas_elegiveis` troféus |
-| `f63f6ab` | Fix build: `src/lib/semana-referencia.ts` |
-| `b0e00f1` | Redeploy forçado pós `f63f6ab` |
-| `7c2ae96` / `6ac958b` | UI avaliações / gerente unidade (**Vercel Erro** — ver acima) |
-| `82b32c8` … `97a2c6b` | Troféus, mapa liderança, Joyce |
+- **Auth portal:** cookies de sessão (`portal_colaborador_id`, `portal_unidade_id`, `portal_role`) + `GET /api/portal/perfil`; admin/sócio também via login portal ou restauração `POST /api/admin/restaurar-portal`.
+- **Gates:** `PortalLayout` redireciona para onboarding, completar CPF, completar perfil conforme flags do perfil.
+- **APIs sensíveis:** `/api/admin/*` com gates (`isAdminAuthorized`, roles); mutações de avaliação, ajuda, upload, etc. no servidor com service role onde aplicável.
+- **PWA:** `@ducanh2912/next-pwa`; manuais HTML em `public/manuais/` (sync no `prebuild`).
 
-### Operação pós-deploy (shell no PC do Alan)
+## Avaliações (contrato funcional)
 
-**Pré-requisito local:** `.env.local` na raiz do Portal com `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_ALAN_PASSWORD` e **`DATABASE_URL`** (Supabase → Database → URI **Direct**, porta **5432**). Sem `DATABASE_URL`, `npm run db:apply-pendentes` falha.
+### Líder (gerente / master / admin)
 
-| Passo | Comando |
-|-------|---------|
-| Migrations 028, 031–035 | `npm run db:apply-pendentes` (inclui `035_operacao_apto.sql`) ou só `npm run db:apply-035` |
-| Migration 035 (1 clique) | Logado sócio/admin → `/admin/gorjeta` → botão **Aplicar atualização do banco (035)** (requer `DATABASE_URL` na Vercel) ou `POST /api/admin/aplicar-migration-035` |
-| Mapa de liderança | `.\scripts\aplicar-mapa-lideranca.ps1 -PortalUrl "https://portal-colaborador-gabi-fontes.vercel.app"` (usa `-UseBasicParsing`; lê `ADMIN_ALAN_PASSWORD` do `.env.local`) |
-| Diagnóstico Mesquita | `node scripts/diagnostico-equipe-mesquita.mjs` |
-| Git alinhado | `git fetch origin` + `git log origin/main -1 --oneline` → esperar `f29a0c8` ou posterior |
-| Diagnóstico Daniel | `node scripts/diagnostico-equipe-daniel.mjs`, `node scripts/diagnostico-setores-daniel.mjs` |
-| Reativar Daniel Estoque | `node scripts/reativar-daniel-estoque.mjs` (se mapa legado desativou vínculos) |
-| Corrigir RH Keila | `node scripts/corrigir-cadastro-rh-keila.mjs` (`setor = RH`, `role = rh`; opcional env `AVALIADOR_RH_GERAL_COLABORADOR_ID`) |
+- **Rota:** `/portal/avaliacao-master` — menu **Avaliação da equipe**.
+- **Obrigatório:** uma avaliação por colaborador da equipe **por semana** (após salvar, só leitura na mesma semana).
+- **Campos:** assiduidade; se presente, notas 1–5 (vestimenta, pontualidade, trabalho em equipe, desempenho); nota ≤3 exige justificativa.
+- **Novatos:** pode avaliar com cadastro portal pendente ou em adaptação; **Marcar como apto na função** quando aplicável.
+- **Feedback recebido:** `/portal/minha-lideranca` (menu **Minha liderança**).
+- **Acesso à rota:** `isRoleGerenteAvaliador` **ou** `pode_avaliacao_equipe` no perfil (sócia/RH com equipe direta por nome).
 
-Criar tabelas no SQL Editor **não** substitui **Aplicar mapa** (API `POST /api/admin/lideres-por-setor/aplicar-padrao`).
+### Avaliação direta por nome (mapa Alan)
 
-### Pendências operacionais (dados / cadastro)
+Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avaliacao-direta.ts`**; integração em **`listarEquipeParaAvaliacaoSemanal`** (`colaborador-lideres.ts`).
 
-1. **Supabase:** garantir `031`–`035` aplicadas (`npm run db:apply-pendentes`, `npm run db:apply-035`, SQL Editor ou botão em `/admin/gorjeta`).
-2. **Mapa:** rodar `aplicar-mapa-lideranca.ps1` após migrations.
-3. **Cadastro:** **setor** preenchido (Mesquita); **Joyce** com `unidade_id` = Mesquita se gerente da loja.
+| Avaliado(s) | Avaliador(es) | Exclusivo |
+|-------------|---------------|-----------|
+| Thaís Mathias, Lucas Gomes | Gabriela Fontes, Keila (RH) | Sim — gerentes de loja **não** veem esses nomes na equipe |
+| Keila (RH) | Daniel (ADM) | Sim |
 
-### Validação rápida em produção
+- **Exclusivo:** só os avaliadores da tabela entram na lista; outros líderes não avaliam esses alvos na mesma semana.
+- **Sócia/RH:** Gabriela e Keila usam **Avaliação da equipe** só com os alvos diretos (`portal-gerente-session` + `GET /api/portal/perfil` → `pode_avaliacao_equipe`).
+- **Materializar vínculos:** `npm run db:avaliacao-direta` ou `POST /api/admin/lideres-por-setor/aplicar-padrao` (também chama `sincronizarVinculosAvaliacaoDireta` → `colaboradores_lideres`).
+- **Match por nome:** cadastro no Supabase deve coincidir com os nomes do config (tolerância de acento/parte do nome em `nomeCoincide`).
 
-Aba anónima em `https://portal-colaborador-gabi-fontes.vercel.app`:
+### Colaborador (e admin/rh onde elegível)
 
-- `/portal/avaliacao-lideranca` → troféus com lista de colegas; líderes Silvia/Joyce + Daniel administrador (Atendimento Mesquita).
-- `/portal/avaliacao-master` (gerente Mesquita) → lista longa de colaboradores com onboarding completo.
+- **Rota:** `/portal/avaliacao-lideranca` — menu **Avaliar liderança**.
+- **Aba Líderes que vou avaliar:** notas 1–5 por pilar (exemplo, comunicação, suporte, justiça, clima); opcional para colaborador; justificativa se ≤3.
+- **Aba Reconhecimento entre pares:** até **3 troféus/semana** para **3 pessoas diferentes** na mesma unidade; tipos: `postura`, `braco_direito`, `eficiencia` (`src/lib/trofeus-pares.ts`).
+- **Desempenho próprio:** `/portal/desempenho` (colaborador).
 
----
+### RH
 
-## PostgREST / Supabase — embeds ambíguos (obrigatório ler)
+- **Visita RH:** `/portal/avaliacao-rh-visita` (rede; independente da nota do gerente local).
+- Keila também avalia **Thaís e Lucas** pela equipe direta (ver tabela acima); visita RH continua válida para o resto da rede.
 
-Quando uma tabela tem **mais de uma FK** para a **mesma** tabela referenciada, `select('outra_tabela(...)')` **falha** com: *Could not embed because more than one relationship was found*.
+### Sócio / relatórios
 
-**Regra:** qualificar com o nome da constraint FK: `colaboradores!nome_da_constraint_fkey(cols)`.
+- `/portal/relatorios-avaliacoes`, presença, etc. conforme `podeVerRelatoriosAvaliacoesCompletos`.
 
-**Tabela `ajuda_chat`:**
+### Guia operacional (Alan)
 
-| Coluna              | FK PostgreSQL típica                    | Uso no código |
-|---------------------|-----------------------------------------|-----------------|
-| `colaborador_id`    | `ajuda_chat_colaborador_id_fkey`        | Remetente (GET admin inbox) |
-| `respondido_por_id` | `ajuda_chat_respondido_por_id_fkey`    | Quem respondeu (GET/POST portal) |
+- Documento resumido na Área de Trabalho: `C:\Users\EU\Desktop\GUIA_AVALIACOES_PORTAL_GABI_FONTES.md` (equipe, liderança, troféus; sem passo a passo de login/onboarding).
 
-Exemplos já usados no repo:
+## Termômetro de emoções
 
-- Admin inbox: `colaboradores!ajuda_chat_colaborador_id_fkey(nome, telefone)`
-- Portal: `respondido_por:colaboradores!ajuda_chat_respondido_por_id_fkey(nome)`
+- **Colaborador:** 6 opções em `src/lib/emocional-opcoes.ts` — feliz, tranquilo, neutro, cansado, frustrado, **triste**; registro diário em `emocional_registro` (`POST/GET /api/portal/emocional`).
+- **Obrigatório no 1.º acesso do dia:** modal em `PortalLayout.tsx`; card na home em `TermometroEmocional.tsx`.
+- **Alerta gestão:** emoções `cansado`, `frustrado`, `triste` → faixa na home (`EmocionalAlertasGestao.tsx`) para **RH, sócio, admin** e **Daniel** (`AJUDA_RESPONSAVEL_COLABORADOR_ID` / `emocional-alertas-access.ts`).
+- **API:** `GET /api/portal/emocional-alertas` (lista do dia, filtra já vistos); `POST` marca visto por alvo (`emocional_alertas_vistos`, migration **`037_emocional_alertas_vistos.sql`**).
+- **UI alerta:** uma linha por colaborador; botão **OK** individual (some só para quem clicou, só aquele nome).
+- **Privacidade copy:** resumo anônimo para o colaborador; lista com **nome** só para quem tem permissão de gestão.
 
-Se em produção a constraint tiver outro nome, ajustar o hint no `.select()` para coincidir com `\d ajuda_chat` no SQL do Supabase.
+## Mural e ranking
 
----
+- **Grupo Mesquita:** slugs `mesquita`, `fabrica`, `administrativo` compartilham o mesmo mural/ranking (`src/lib/mural-unidade-grupo.ts`).
+- **Ranking unidade:** top 3 **mês anterior** fixos + top 3 **mês corrente** em evolução (`src/lib/mural-ranking-unidade.ts`, `MuralRankingUnidade.tsx`, `GET /api/portal/destaque`).
+- **Troféus entre pares** alimentam mural da unidade.
 
-## Sessão e auth
+## Vídeo de boas-vindas
 
-- **Portal:** cookies `portal_colaborador_id`, `portal_unidade_id`, `portal_role` (`lib/utils/session.ts` + gravação servidor em `lib/portal-session-cookies.ts` no login).
-- **Admin:** `admin_session` (httpOnly, 8h); `lib/admin-auth.ts` — aceita **password admin** OU sessão portal com `role` **socio**, **admin**, **master** ou **gerente**.
+- **Não versionar** `public/onboarding/*.mp4` (`.gitignore`); produção usa **Supabase Storage** bucket público `portal-onboarding/boas-vindas.mp4`.
+- **Resolver URL:** `src/lib/video-boas-vindas.ts` — ignora env `NEXT_PUBLIC_VIDEO_BOAS_VINDAS` se valor for `undefined`/`null`/vazio; fallback URL pública Supabase.
+- **UI:** `VideoBoasVindas.tsx`, layout 9:16 (`video-boas-vindas-layout.ts`), reassistível em `/portal/video-boas-vindas` e card Manuais.
+- **API:** `GET /api/portal/video-boas-vindas`.
+- **Upload:** `npm run upload:video-boas-vindas` (script `scripts/upload-video-boas-vindas.mjs`).
+- **Onboarding:** 3 perguntas em `onboarding-quizzes.ts` após o vídeo.
 
-### Admin ↔ Portal sem novo login (2026-05-28)
+## Scripts npm úteis
 
-- Login portal (sócio/admin/gerente com acesso admin): também define `admin_session` quando aplicável (`applyAdminSessionCookie`).
-- Login admin por senha: tenta preencher cookies portal via `resolveColaboradorForAdminBridge` (`ADMIN_ALAN_LOGIN` ou `ADMIN_PORTAL_COLABORADOR_ID` no env).
-- **Voltar ao portal** (sidebar Admin): chama `POST /api/admin/restaurar-portal` antes de `/portal`.
-- `PortalLayout`: se `/api/portal/perfil` falhar mas admin autenticado, restaura sessão portal automaticamente.
-- Ficheiros: `src/app/api/admin/restaurar-portal/route.ts`, `src/lib/admin-portal-bridge.ts`, `src/lib/portal-session-cookies.ts`.
-
-- **Login portal:** `POST /api/login/portal` (server-side, bypass RLS). Senhas: `lib/password.ts` (`scrypt$...`).
-- **Login:** celular com DDD **ou** e-mail + senha (não usar CPF como identificador principal).
-- **Primeira senha:** `POST /api/login/primeira-senha` quando não há `senha_hash`.
-- **Troca obrigatória:** `forca_troca_senha`; `POST /api/login/trocar-senha-obrigatoria`.
-- **Esqueci senha:** `POST /api/login/recuperar-senha`; valida celular + e-mail; pode resetar para padrão e marcar troca obrigatória.
-- **Compatibilidade:** produção pode não ter `telefone_login`; rotas devem cair para `telefone` normalizado. `lib/colaborador-forca-troca-compat.ts` para colunas antigas em falta.
-
----
-
-## Quem vê o onboarding
-
-- **Todos** os perfis (colaborador, gerente, master, sócio, admin) passam pelo **mesmo fluxo** enquanto `onboarding_completo = false`.
-- Login com senha já definida → redireciona para `/onboarding` (não repete primeira senha, CPF nem perfil se já estiverem OK).
-- **`PortalLayout`:** se logado e `onboarding_completo = false`, redireciona para onboarding (não acede ao portal antes de concluir).
-- **Reabrir em massa (campanha / relançamento):** `npm run db:reabrir-onboarding` ou `POST /api/admin/reabrir-onboarding` com `{ "confirmar": "REABRIR" }` — zera flags de vídeo/manuais; **mantém** `senha_hash`, CPF e dados pessoais. Um colaborador: `--login "email ou celular"` no script ou `"colaborador_id"` na API.
-- Colaborador **sem** `senha_hash` continua no fluxo `needsPassword` (primeira senha) antes do onboarding.
-
----
-
-## Onboarding (fluxo atual — 6 etapas)
-
-Ordem e ficheiros principais:
-
-1. **Vídeo** — `VideoBoasVindas.tsx`; flags `onboarding_video_visto` / quiz. Botão temporário **Pular vídeo** em `OnboardingFlow.tsx`; `NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO`.
-2. **Quiz vídeo** — `QuizOnboardingBloco` + `src/content/onboarding-quizzes.ts` (`PERGUNTAS_QUIZ_VIDEO`). Erros → reset via `POST /api/portal/onboarding/progresso`.
-3. **Manual geral (HTML)** — `ManualHtmlLeitura` + `MANUAL_GERAL_COLABORADOR` em `lib/manual-por-setor.ts`.
-4. **Quiz manual geral** — bancos A/B em `onboarding-quizzes.ts`; reset `reset_manual_geral_e_quiz` se necessário.
-5. **Escolha manual de setor** — `EscolhaManualOnboarding.tsx`; `lib/manuais-escolha-onboarding.ts`; `onboarding_manual_escolhido_file`, `onboarding_manual_escolhido_concluido`.
-6. **Termo** — `finalizarOnboarding` em `app/(auth)/onboarding/actions.ts`.
-
-- **Barra de progresso:** 6 passos em `OnboardingFlow.tsx`.
-- **Retomar:** `inferOnboardingEtapaIndex` em `lib/onboarding-step.ts` + GET `/api/portal/perfil`.
-
----
-
-### Vídeo de boas-vindas (arquivo local no portal)
-
-- **Env:** `NEXT_PUBLIC_VIDEO_BOAS_VINDAS` (opcional; override).
-- **Produção:** vídeo no **Supabase Storage** bucket público `portal-onboarding/boas-vindas.mp4` — URL derivada de `NEXT_PUBLIC_SUPABASE_URL`. Upload: `npm run upload:video-boas-vindas` (lê `public/onboarding/boas-vindas.mp4`).
-- **Dev local:** fallback `/onboarding/boas-vindas.mp4` se existir no PC (`public/onboarding/*.mp4` em `.gitignore`, não vai na Vercel).
-- **Player:** formato **vertical 9:16** (`max-w-[420px]`, `object-contain`).
-- **1ª vez (onboarding):** vídeo até o fim → **3 perguntas** em `src/content/onboarding-quizzes.ts` (`PERGUNTAS_QUIZ_VIDEO`: encantamento, excelência/detalhes, atitude de dono). Erro no quiz → reassistir vídeo do início.
-- **Depois do onboarding:** reassistência em **`/portal/video-boas-vindas`** e card em **`/portal/manuais`** (sem quiz; igual ao manual da cultura, que só exige quiz na 1ª vez).
-- **Obrigatoriedade:** botão **“Pular vídeo”** só em DEV (`NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO=true`).
-
-## Manuais
-
-- HTML: fonte **`manuals/`**; `prebuild` copia para **`public/manuais/`** (`scripts/sync-manuals-to-public.cjs`).
-- Rota `src/app/manuais/[[...path]]/route.ts`: servir de `manuals/` e `public/manuais`.
-- Mapeamento: `lib/manual-por-setor.ts`.
-- **Landing `/`:** só logo + CTA login — sem manuais públicos.
-- `Manual do Estoquista.html`: presente em onboarding e biblioteca (`lib/manuais-escolha-onboarding.ts`, `lib/manuais-biblioteca-portal.ts`).
-- **`index.html`:** links para `manuals/...`, não pasta legado `Portal do colaborador Manuais/`.
-
----
-
-## Menu portal — “Meu manual”
-
-- `Header.tsx`: link **Meu manual** quando `onboarding_completo` e `onboarding_manual_escolhido_file`.
-
----
-
-## Chat de ajuda
-
-- Colaborador: `POST /api/portal/ajuda-chat`; FAB `BotaoAjuda` em `PortalLayout`.
-- **Responder:** com `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID`, esse UUID é o atendimento principal; **sócio** e **admin** também podem `PATCH /api/admin/ajuda-chat/:id`. Sem env: legado **admin/RH** (`canResponderAjudaFinal` em `src/lib/roles.ts`).
-- **Inbox:** `/portal/ajuda-inbox`; lista via `GET /api/admin/ajuda-chat`. Sócios e admin veem tudo e podem responder; `respondido_por_id` identifica quem respondeu.
-- **Pendências / badge:** `GET /api/portal/ajuda-chat/pendencias` para quem passa `canVisualizarAjuda`.
-- Ver secção **PostgREST** acima para embeds em `ajuda_chat`.
-
-## Chat interno da equipe (sócios, admin, responsável ajuda)
-
-- Página: `/portal/equipe-chat` — abas **Sala da equipe** (grupo) e **Mensagens diretas** (1:1).
-- Tabela: `equipe_chat_mensagens` (`030_equipe_chat.sql`); `destinatario_id` NULL = sala; preenchido = direto.
-- APIs: `GET/POST /api/portal/equipe-chat/sala`, `GET/POST /api/portal/equipe-chat/direto?com=UUID`, `GET /api/portal/equipe-chat/direto/resumo`, `GET /api/portal/equipe-chat/contatos`.
-- Acesso: `canAcessarChatEquipe` em `src/lib/roles.ts` (igual a `canVisualizarAjuda`).
-- Contatos 1:1: todos com `role` socio/admin + UUID `NEXT_PUBLIC_AJUDA_RESPONSAVEL_COLABORADOR_ID` (ex.: Daniel), exceto o próprio utilizador.
-
----
-
-## Manual eventos (notificações)
-
-- Admin: `/admin/manual-eventos`; APIs `api/admin/manual-eventos`, `api/portal/manual-eventos`. Migração `026_manual_eventos.sql`. Toast: `components/notificacoes/ManualEventosToast.tsx`.
-
----
-
-## Relatórios de avaliações — visão completa (equipe + liderança)
-
-**Objetivo de produto:** sócio, administrativo, master e gerente conseguem ver **todas** as notas e **todos** os feedbacks: avaliações semanais da equipe **e** feedback dos colaboradores sobre cada líder (gerentes, admin, RH). Não depender só de `/portal/minha-lideranca` (média agregada do líder logado).
-
-### Quem acede
-
-| Função | Relatórios portal | Autor do avaliador (liderança) | Escopo |
-|--------|-------------------|--------------------------------|--------|
-| **socio** | Sim | Nome visível | Todas as unidades |
-| **admin** | Sim | Nome visível | Todas as unidades |
-| **master** | Sim | Nome visível | Todas as unidades |
-| **gerente** | Sim | Anónimo na UI | Só **própria unidade** (`relatorioRestringeUnidade`) |
-| **colaborador** / **rh** | Não | — | — |
-
-- Gate: `src/lib/avaliacoes-relatorio-access.ts` — `podeVerRelatoriosAvaliacoesCompletos`, `podeVerAutorAvaliacaoLideranca`, `relatorioRestringeUnidade`, `podeVerLiderancaPorFilialRelatorio` (admin: liderança só no bloco consolidado).
-- Menu **Relatórios** no `Header.tsx` e card na home (`AvaliacoesPortalHome.tsx`) usam o mesmo gate.
-- **Presença** (`/portal/relatorios-presenca`) usa o **mesmo** gate de relatórios completos.
-
-### Onde ver (URLs)
-
-| O quê | Portal (sessão colaborador) | Admin (sessão senha admin) |
-|-------|------------------------------|----------------------------|
-| **Equipe + liderança** | `/portal/relatorios-avaliacoes` | Link no portal; equipe também em `/admin/avaliacoes-diarias` |
-| **Feedback liderança** | Aba **Liderança** em `relatorios-avaliacoes` | `/admin/avaliacoes-lideranca` |
-| **Média só do líder logado** | `/portal/minha-lideranca` | — |
-
-### UI portal — `/portal/relatorios-avaliacoes` (2026-05-29)
-
-**Abas:** **Equipe semanal** (padrão) · **Liderança**.
-
-**Equipe semanal (lista simples, rede inteira numa chamada):**
-
-1. **Alerta amarelo:** `AlertaPendenciasVisitaRh` — gerente já avaliou na semana, Visita RH (Keila) ainda não (`calcularPendenciasVisitaRh` em `relatorio-equipe-utils.ts`).
-2. **Visão:** toggle **Por semana** (padrão, `RelatorioEquipePorSemana`) ou **Por pessoa** (`RelatorioEquipePorPessoa`). Por semana: cada pessoa mostra cartões **Gerente** + **Visita RH** lado a lado; pendente RH em destaque.
-3. **Filtros:** período, filial, origem (gerente / RH / ambos), busca por nome.
-4. **Resumo:** contadores pessoas, registros, gerente, Visita RH.
-5. API: `GET /api/portal/relatorios-avaliacoes-diarias` sem `unidade_slug` (toda a rede); campos `origem_visita_rh`, `avaliador_rotulo`, `colaborador_unidade_nome`.
-
-**Liderança:** `RelatorioLiderancaPorLider` — feedback consolidado no período.
-
-(Legado removido da UI: blocos aninhados filial → setor → tabela larga.)
-
-### UI admin
-
-- **`/admin/avaliacoes-diarias`:** tabela consolidada avaliações **semanais da equipe** (`GET /api/admin/avaliacoes-diarias`).
-- **`/admin/avaliacoes-lideranca`:** todas as notas/justificativas sobre líderes, agrupadas por líder; autor sempre visível; link no menu admin e em `avaliacoes-diarias`.
-
-### APIs
-
-| Rota | Auth | Dados |
-|------|------|-------|
-| `GET /api/portal/relatorios-avaliacoes-diarias?inicio&fim&unidade_slug&limite` | Cookie portal + gate | Tabela `avaliacoes_diarias`; período em **`data_referencia`** (segunda da semana); nomes/setor avaliado e avaliador |
-| `GET /api/portal/avaliacao-lideranca/relatorio?inicio&fim&unidade_slug&limite` | Cookie portal + gate | Tabela `avaliacoes_lideranca`; ver lib partilhada abaixo |
-| `GET /api/admin/avaliacoes-lideranca?inicio&fim&unidade_slug&limite` | `isAdminAuthorized()` | Mesma listagem; `viewerRole` tratado como **admin** (autor visível) |
-
-**Não** usar `isAdminAuthorized` nas rotas `/api/portal/relatorios-*` — evita divergência (admin logado só no portal no telemóvel vs senha admin no PC).
-
-### Lib partilhada — `src/lib/avaliacoes-lideranca-relatorio.ts`
-
-- **`listarAvaliacoesLiderancaRelatorio(supabase, opts)`** — única fonte para portal e admin.
-- **Filtro de período:** `gte`/`lte` em **`semana_inicio`** (YYYY-MM-DD). **Não** filtrar por `created_at` (bug antigo esvaziava relatório).
-- **Inclusão total:** **não** excluir linhas em que o viewer é `avaliado_id` (feedback sobre o próprio Daniel/admin deve aparecer na visão consolidada).
-- **Colunas:** preferir `n_exemplo`, `n_comunicacao`, `n_suporte`, `n_justica`, `n_clima`; fallback legado `n_fala_escuta`, `n_apoio`, `n_ambiente`, `n_organizacao` se migration 025 incompleta.
-- **Limite:** até 5000 (portal pede 3000 global + 2000 por filial).
-- **Resposta:** `itens[]` com `avaliado_nome`, `avaliado_setor`, `filial_nome`, `avaliador_label`, 5 notas, `justificativa_nota_baixa`, `media`, `semana_inicio`.
-
-### Agrupamento UI
-
-- `src/lib/relatorio-avaliacoes-agrupar.ts` — setor → colaborador.
-- `src/components/portal/RelatorioAvaliacoesPorSetor.tsx`:
-  - `RelatorioDiariasPorSetor` — equipe;
-  - `RelatorioLiderancaPorSetor` — liderança por setor do **avaliado**;
-  - `RelatorioLiderancaPorLider` — liderança por **nome do líder avaliado** (cabeçalho com setor, filial, média).
-
-### Equipe semanal (bloco “avaliações da equipe”)
-
-- Uma linha = uma semana; `data_referencia` = segunda-feira.
-- Colunas na tabela: assiduidade, vestimenta, pontualidade, trabalho em equipe, desempenho, média, justificativa (`028` + `avaliacoes-justificativa-compat.ts` se coluna ausente).
-
-### Feedback liderança (bloco “avaliação da liderança”)
-
-- Origem: colaboradores em `/portal/avaliacao-lideranca` (aba Líderes).
-- **Não** alimenta destaque automático do mural (`avaliacoes_lideranca` ≠ ranking).
-- Se contador = **0:** alargar datas no filtro ou confirmar registos em `avaliacoes_lideranca` no Supabase (pode ser ausência de dados, não só bug de UI).
-
-### Commits relacionados (main)
-
-- `d824a1d` — visão completa relatórios + admin liderança + filtro `semana_inicio`.
-- `7769442` — lista master: todos na equipe, selo não ativo.
-- `245f43f` / compat — `avaliacoes-justificativa-compat.ts` se `028` não aplicada.
-
----
-
-## Relatório de uso do portal (inatividade)
-
-- Página: `/portal/relatorios-presenca`; menu **Uso do portal** (socio, admin, master, gerente — mesmo gate que relatórios de avaliações).
-- API: `GET /api/portal/relatorios-presenca?dias=7&unidade=slug` (opcional).
-- Fonte: tabela **`portal_presenca`** (`ultimo_ping_at`) + heartbeat `PortalPresence` + `POST /api/portal/presenca/ping`. Critério: sem ping há N dias ou nunca registrou (onboarding completo).
-- Migração: **`031_portal_presenca.sql`**.
-
----
-
-## Mural (avisos + reconhecimento automático)
-
-**Não confundir** três camadas:
-
-| Camada | Origem | Onde aparece |
-|--------|--------|----------------|
-| **Avisos** | Manual no admin (`/admin/avisos` → tabela `avisos`) | `/portal/mural` (secção Avisos), preview na home |
-| **Destaques automáticos** | Cálculo sobre `avaliacoes_diarias` (só `role = colaborador`, `media_dia` não nula) | Home (`DestaqueSection`), `/portal/mural` (`MuralReconhecimento`) |
-| **Troféus entre pares** | Colaboradores enviam na aba da avaliação | Mesmo bloco de reconhecimento + aba em `/portal/avaliacao-lideranca` |
-
-**Destaques automáticos (contrato):**
-
-- API: `GET /api/portal/destaque` — lógica em `src/lib/destaque-avaliacoes.ts` (`calcularDestaquesMural`).
-- **Semana:** melhor média na semana civil (segunda via `segundaSemanaSaoPaulo`); mínimo **`AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL = 1`** (`src/lib/avaliacao-ranking.ts`).
-- **Mês:** melhor média no mês; mínimo **`AVALIACAO_RANKING_MIN_SEMANAS = 2`** (semanas com registro no mês).
-- Resposta JSON: `destaque_semana_geral`, `destaques_semana_unidade`, `destaque_geral` / `destaque`, `destaques_unidade`, `total_avaliacoes_semana`, `min_semanas_ranking_*`.
-- UI: `src/components/mural/MuralReconhecimento.tsx`, `src/components/destaque/DestaqueSection.tsx`, `src/components/mural/MuralPreview.tsx`.
-- **Avaliação de liderança** (`avaliacoes_lideranca`) **não** alimenta destaque automático.
-- **Cliente:** fetches de destaque e troféus são **independentes** e com parse seguro (`fetchJsonSafe`); nunca aceder `trof?.ok` sem optional chaining (evita crash na home se uma API falhar).
-
-**Admin — destaque manual legado:** tabela `destaque` + `/admin/destaque` (separado do ranking automático).
-
----
-
-## Troféus entre pares (reconhecimento)
-
-- Tabela: **`trofeus_entre_pares`** (`033_trofeus_entre_pares.sql`).
-- Tipos: `postura`, `braco_direito`, `eficiencia` — labels em `src/lib/trofeus-pares.ts` (migração **`034`** converte legado `energia_contagiante`→`postura`, `olhar_dono`→`eficiencia`).
-- Regras: **3 créditos/semana** por avaliador; **1 troféu por destinatário por semana** (`UNIQUE(avaliador_id, destinatario_id, semana_inicio)`); mesma unidade; só `role = colaborador` envia; onboarding completo.
-- APIs: `GET/POST /api/portal/trofeus-pares` (GET inclui `colegas_elegiveis`), `GET /api/portal/trofeus-pares/busca?q=` (legado; UI filtra localmente).
-- UI: `src/components/portal/TrofeusParesPanel.tsx` — lista completa ao abrir + filtro por nome.
-
----
-
-## Checklist semanal (avaliações pendentes)
-
-- Componente partilhado: `src/components/portal/AvaliacaoSemanalChecklist.tsx` (contador, filtro **Só pendentes**, atalho por pessoa).
-- **Gerente:** `/portal/avaliacao-master` — checklist no topo; badges **Pendente** / **Avaliado** em `ColaboradorAvaliacaoCard`; filtro esconde cards já avaliados na lista.
-- **Colaborador (liderança):** `/portal/avaliacao-lideranca` — mesmo padrão na aba **Líderes que vou avaliar**.
-
----
-
-## Liderança por setor (config automática)
-
-- Tabela **`lideres_por_setor`** (`032_lideres_por_setor.sql`): `(unidade_id, setor, lider_id, ativo)`; **N líderes** por par unidade+setor.
-- Admin: **`/admin/lideres-por-setor`**; APIs **`/api/admin/lideres-por-setor`** (GET/POST/DELETE), **`/api/admin/lideres-por-setor/candidatos`**, **`POST /api/admin/lideres-por-setor/aplicar-padrao`**.
-- **Mapa canónico (código):** `src/lib/config-lideranca-operacional.ts` → `REGRAS_LIDERANCA_OPERACIONAL`; aplicação + limpeza de vínculos antigos em `src/lib/aplicar-config-lideranca.ts` (`desativarLideresForaDoMapaOperacional`).
-- **Gerentes responsáveis pela unidade** (`unidade_todos`, setor `*`): Mesquita → Joyce + Silvia; Barra → Lucas Diniz + Matheus Morais; Nova Iguaçu → Nathalia Pereira Luna + Cristina Batista.
-- **Atendimento explícito** (mesmos gerentes por loja): regras `unidade_setor` em Mesquita, Barra e Nova Iguaçu (Daniel **não** lidera Atendimento).
-- **Daniel Martins** (`LIDER_TRANSVERSAL_CD_NOME`): **administrador da empresa** na avaliação de liderança (todos os colaboradores) + chefe direto nos setores **CD**, **Estoque**, **Motorista**, **Administração**, **RH** em todas as unidades; unidade **Administrativo** → `*`. **Não** é chefe de **Atendimento** (Mesquita/Barra/NI = gerentes da loja).
-- **Fábrica:** preparos → Joyce + Silvia; doces → Sabrina + Henrique.
-- **Derivação em runtime:** `listarEquipeDoLider` e `listarLideresDoColaborador` em `src/lib/colaborador-lideres.ts` + `src/lib/lideres-por-setor.ts` + merge com `colaboradores_lideres` / `lider_id` legado (**exceções** manuais).
-- Colaborador com **mesma unidade + setor** herda líderes do setor **e** da unidade (`*`); avaliação de liderança lista cada líder derivado (+ RH/admin conforme regras).
-- **Setores no cadastro:** `SETORES_PREDEFINIDOS` inclui CD, RH, Administração (além de Atendimento, Cozinha, etc.).
-
-## Avaliação da liderança (5 pilares)
-
-- Alvos na API: **`listarLideresDoColaborador(..., { apenasDaConfig: true })`** (só `lideres_por_setor` para *Chefe direto*) + um **RH** + um **admin** (`admin_global`). **Não** misturar Daniel como chefe de Atendimento. **Uma avaliação por par** (liderado × líder avaliado × semana).
-- Dimensões (notas 1–5): exemplo/postura, comunicação, suporte, justiça, clima (`avaliacao-lideranca/route.ts`).
-- Colaborador: `/portal/avaliacao-lideranca` (abas **Líderes** + **Reconhecimento entre pares**); líder: `/portal/minha-lideranca` (`/api/portal/avaliacao-lideranca/minha`).
-- Consolidado em `/portal/relatorios-avaliacoes` e `/admin/avaliacoes-lideranca` (ver secção **Relatórios de avaliações**); anonimato do avaliador só para **gerente** na visão portal; socio/admin/master veem autor.
-
----
-
-## Avaliação semanal da equipe (master / líder)
-
-**Contrato (produto):** os líderes avaliam cada colaborador **no máximo uma vez por semana civil** (segunda a domingo, fuso **local**). Lista em `/api/portal/avaliacao-master` via `listarEquipeParaAvaliacaoSemanal` (`colaborador-lideres.ts`):
-
-- **Gerente da loja** (`lideres_por_setor` com setor `*` na unidade): todos os `colaborador` da unidade.
-- **Líder por setor** (ex.: Daniel — CD, Estoque, Motorista, Administração, RH em todas as unidades): equipe derivada de `lideres_por_setor` + `listarEquipeDoLider` (várias unidades); perfis `admin`/`gerente` nos setores backoffice entram na lista.
-- **Onboarding:** todos aparecem na lista; `onboarding_completo: false` → selo **“Cadastro portal pendente”** (informativo). **POST `/api/portal/avaliacao-master` não bloqueia** por onboarding. Pendentes da semana = quem ainda não tem avaliação na semana (toda a equipe).
-- **Aptidão operacional:** colunas `operacao_apto`, `operacao_apto_em`, `operacao_apto_por` (migration `035`). Líder marca **“Marcar como apto na função”** em `ColaboradorAvaliacaoCard` → `POST /api/portal/operacao-apto`. UI: **“Em adaptação”** / **“Apto na função”** — **sem** mencionar gorjeta. **Não** forçar `onboarding_completo: true` em `listarEquipeParaAvaliacaoSemanal` (usar `enriquecerMembrosEquipe` com dados reais).
-- **Coluna `justificativa_nota_baixa`:** migration `028`; código usa `avaliacoes-justificativa-compat.ts` se a coluna ainda não existir no Supabase.
-
-- **UI:** `/portal/avaliacao-master`; `/api/portal/avaliacao-master` (GET lista equipe + avaliação já gravada; POST primeira gravação, sem edição depois).
-- **Chave de período:** mantém-se a tabela **`avaliacoes_diarias`** e o campo **`data_referencia`**, mas **sempre normalizado para a segunda-feira da semana** que contém a data escolhida ou enviada. Utilitários: `src/lib/semana-referencia.ts` (`inicioSemanaSegundaFeiraLocal`, `hojeInicioSemanaISO`, `formatarIntervaloSemanaPtBR`). O UNIQUE `(colaborador_id, avaliador_id, data_referencia)` passa a significar **uma avaliação por semana por par**.
-- **Home / lembrete:** `AvaliacoesPortalHome` consulta pendências com **início da semana atual** (segunda).
-- **Médias e ranking no mês:** cada linha no intervalo do mês conta como **uma semana**; `mediaMensalColaborador` em `src/lib/avaliacao-ranking.ts` continua a média sobre essas linhas. **Mês (destaque mural / ranking):** mínimo **`AVALIACAO_RANKING_MIN_SEMANAS = 2`**. **Semana (destaque mural imediato):** mínimo **`AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL = 1`**. APIs expõem `min_semanas_ranking_mensal` e `min_semanas_ranking_semanal` em `/api/portal/destaque`. Campo JSON legado `dias_avaliados` = **número de semanas com registro** no mês.
-- **Relatórios / admin:** rotas e paths **`/admin/avaliacoes-diarias`** e **`/api/admin/avaliacoes-diarias`** mantêm-se por compatibilidade; copy e cabeçalhos refletem **semanal**. Mesmo para **`/api/portal/relatorios-avaliacoes-diarias`**.
-- **Assiduidade e critérios:** inalterados na lógica (`src/lib/avaliacao-diaria.ts`, `ColaboradorAvaliacaoCard`); labels na UI falam em **semana** onde faz sentido (isento / média da semana).
-- **Transição:** registos antigos com `data_referencia` **não** na segunda podem coexistir com novos até migração ou aceitação; na mesma semana civil podem existir duas chaves diferentes só no período de legado.
-
----
-
-## Gorjeta — índice interno (2026-05-28)
-
-**Premissa:** gorjeta é **invisível** para colaboradores e gerentes. Só **sócio**, **admin** (ex.: Daniel) e sessão **admin por senha** (`password_session`) veem fechamento. **Gerente/master** não veem menu nem API.
-
-### Onde ver (UI)
-
-| O quê | Rota |
-|-------|------|
-| Tabela mensal + % sugerido no pote | `/admin/gorjeta` |
-| Menu Admin | Link **Gorjeta** só se `podeVerGorjeta` em `GET /api/admin/auth` |
-| Rota legada | `/admin/bonificacao` → redirect permanente para `/admin/gorjeta` |
-
-### APIs e libs
-
-| Rota / ficheiro | Função |
-|-----------------|--------|
-| `GET /api/admin/bonificacao/indice?mes=YYYY-MM&unidade_slug=` | Fechamento do mês (path interno legado) |
-| `POST /api/admin/aplicar-migration-035` | Aplica `035_operacao_apto.sql` (requer `DATABASE_URL`) |
-| `src/lib/bonificacao-access.ts` | `podeVerBonificacaoInterna` → sócio \| admin |
-| `src/lib/bonificacao-config.ts` | Pesos e constantes (ajustar negócio aqui) |
-| `src/lib/bonificacao-indice.ts` | Cálculo por colaborador |
-| `src/lib/bonificacao-fechamento.ts` | Agrega avaliações + troféus do mês |
-
-### Modelo em três camadas (negócio)
-
-1. **Penalidades rígidas** (faltas/atestado; atrasos 3/4 ainda **sem** registo no portal — evoluir depois).
-2. **Novato:** `operacao_apto = false` → fator **`BONIFICACAO_FATOR_NOVATO`** (default **0,5**) no índice.
-3. **Mérito** (quem merece mais dentro do pote): índice normalizado no setor/unidade.
-
-**Índice de mérito (v1, pesos em `bonificacao-config.ts`):**
-
-- **50%** média mensal avaliações equipe (`avaliacoes_diarias`, semanas com `media_dia` não nula).
-- **25%** troféus recebidos no mês (`trofeus_entre_pares`).
-- **25%** presença (% semanas com assiduidade `presente` nas avaliações do mês).
-
-`indice_final = indice_merito × fator_penalidade_falta × fator_novato`. Resposta inclui **`peso_sugerido_pct`** (partilha relativa entre elegíveis no filtro).
-
-**Penalidades por falta (camada 1, a partir das avaliações semanais):**
-
-| Regra | Efeito no fator |
-|-------|-----------------|
-| 1 falta injustificada no mês | × **0,5** |
-| 2+ faltas injustificadas no mês | × **0** |
-| Atendimento: desconto fixo | R$ **100** / semana com falta injustificada; R$ **50** / semana com falta justificada (atestado) |
-| Demais setores: atestado | R$ **50** / semana com falta justificada |
-
-**Potes 30/30/40** (casa / atendimento / demais setores) são decisão de folha; o portal exporta **índice e % sugerido**, não valores em R$ do pote total.
-
-**Não** exibir na UI portal (colaborador/gerente): palavras “gorjeta”, “comissão”, “bonificação”, percentuais de repasse, “perdeu 50%”.
-
----
-
-## Cadastro de líderes no admin
-
-- **Padrão:** configurar em **`/admin/lideres-por-setor`** (unidade × setor × líder); vínculos colaborador↔líder derivam do **setor + unidade** do colaborador.
-- `/admin/colaboradores/[id]/editar`: multiselect **`lideres_ids`** só para **exceções** (override em `colaboradores_lideres`); validar perfis permitidos (`lib/pode-ser-lider.ts`), excluir `socio`, auto-vínculo, etc.
-
----
-
-## Migrações Supabase — referência (produção)
-
-Aplicar em ordem no SQL Editor quando necessário; `ADD COLUMN IF NOT EXISTS` sem linhas é normal.
-
-- Base e políticas: `001_initial_schema.sql`, `002_rls_policies.sql`, …
-- Destaque: `017_avaliacoes_diarias_e_lider.sql`
-- Onboarding/força senha: `021_forca_troca_senha.sql`, `022_onboarding_etapas.sql`
-- `023_telefone_login_colaboradores.sql`, `024_colaboradores_cpf_opcional.sql`
-- `025_avaliacoes_lideranca_5_pilares.sql`
-- `026_manual_eventos.sql`
-- **`027_ajuda_chat.sql`** (tabela ajuda + duas FK para `colaboradores`)
-- **`030_equipe_chat.sql`** (chat interno: sala + mensagens diretas 1:1)
-- `028_justificativa_nota_baixa.sql`
-- `029_multiplos_lideres_colaborador.sql`
-- **`032_lideres_por_setor.sql`**
-- **`031_portal_presenca.sql`** (presença / relatório inatividade)
-- **`033_trofeus_entre_pares.sql`** (troféus entre pares)
-- **`034_trofeus_tipos_postura_eficiencia.sql`** (tipos Postura / Braço direito / Eficiência)
-- **`035_operacao_apto.sql`** (`operacao_apto`, `operacao_apto_em`, `operacao_apto_por` em `colaboradores`)
-
-### SQL Editor — migration 035 (aptidão na função)
-
-```sql
-alter table public.colaboradores add column if not exists operacao_apto boolean not null default false;
-alter table public.colaboradores add column if not exists operacao_apto_em timestamptz;
-alter table public.colaboradores add column if not exists operacao_apto_por uuid references public.colaboradores (id) on delete set null;
-create index if not exists idx_colaboradores_operacao_apto on public.colaboradores (operacao_apto);
-notify pgrst, 'reload schema';
+```text
+npm run dev
+npm run build
+npm run db:zerar-avaliacoes-trofeus    # --confirmar; apaga avaliacoes_diarias + trofeus_entre_pares
+npm run db:reabrir-onboarding          # --confirmar; onboarding_completo=false (mantém senha/perfil)
+npm run upload:video-boas-vindas
+npm run db:apply-pendentes / db:apply-035   # migrations locais conforme scripts
+npm run db:avaliacao-direta                 # vínculos Gabriela/Keila/Daniel → alvos por nome
+# migration 037: aplicar supabase/migrations/037_emocional_alertas_vistos.sql no Supabase (SQL editor)
 ```
 
-### SQL Editor — pacote mínimo (presença + troféus)
+**APIs admin correlatas:** `POST /api/admin/zerar-avaliacoes-trofeus`, `POST /api/admin/reabrir-onboarding` (exigem auth admin).
 
-Se `031` ou `033` ainda não existirem em produção, executar **uma vez** no Supabase (bloco idempotente; ignorar erro “already exists”):
+**Migration emocional (produção):** aplicar `037_emocional_alertas_vistos.sql` no Supabase antes do OK dos alertas persistir.
 
-```sql
-create table if not exists public.portal_presenca (
-  colaborador_id uuid primary key references public.colaboradores (id) on delete cascade,
-  ultimo_ping_at timestamptz not null default now()
-);
-create index if not exists idx_portal_presenca_ultimo_ping_at on public.portal_presenca (ultimo_ping_at desc);
+---
 
-create table if not exists public.trofeus_entre_pares (
-  id uuid primary key default gen_random_uuid(),
-  avaliador_id uuid not null references public.colaboradores(id) on delete cascade,
-  destinatario_id uuid not null references public.colaboradores(id) on delete cascade,
-  unidade_id uuid not null references public.unidades(id) on delete cascade,
-  semana_inicio date not null,
-  tipo text not null check (tipo in ('postura', 'braco_direito', 'eficiencia')),
-  created_at timestamptz not null default now(),
-  constraint trofeus_entre_pares_uq unique (avaliador_id, destinatario_id, semana_inicio),
-  constraint trofeus_entre_pares_sem_auto check (avaliador_id <> destinatario_id)
-);
-create index if not exists idx_trofeus_entre_pares_unidade_semana on public.trofeus_entre_pares (unidade_id, semana_inicio desc);
-create index if not exists idx_trofeus_entre_pares_destinatario on public.trofeus_entre_pares (destinatario_id, semana_inicio desc);
+## Evoluções entregues (registro — 2026)
 
-notify pgrst, 'reload schema';
+### Mural e dados de teste
+
+- Script + API para zerar `avaliacoes_diarias` e `trofeus_entre_pares`.
+- Ranking por unidade/grupo Mesquita; componentes e extensão de `/api/portal/destaque` + `MuralReconhecimento`.
+
+### Onboarding unificado
+
+- Removido bypass de sócio/admin: todos passam por vídeo + manuais (`portal-login-response`, rotas login, `PortalLayout`, `entrar-socio-admin`, `alan-entrar`).
+- Reabrir onboarding em massa: `src/lib/onboarding-reabrir.ts`, script e `POST /api/admin/reabrir-onboarding` **sem** resetar credenciais.
+
+### Vídeo institucional em produção
+
+- Player inline 9:16; URL via Supabase; correção de `NEXT_PUBLIC_VIDEO_BOAS_VINDAS=undefined` na Vercel (resolver robusto).
+- Commits de referência na linha `main`: incl. `d2d6390`, `65bb444`, `6c72547`, `ebf83e1` (validar histórico git se precisar do diff exato).
+
+### Documentação para líderes
+
+- Guia de uma página na Área de Trabalho do Alan (avaliações apenas).
+
+### Termômetro de emoções + alertas gestão (jun/2026)
+
+- Opção **triste**; fonte única `emocional-opcoes.ts`.
+- Alertas discretos na home do portal para RH / sócios / admin / Daniel; **OK por pessoa** com persistência `emocional_alertas_vistos` (migration 037).
+
+### Avaliação direta sócia / RH / Daniel (jun/2026)
+
+- **Gabriela Fontes** e **Keila** avaliam **Thaís Mathias** e **Lucas Gomes** (exclusivo dos gerentes de loja).
+- **Daniel** avalia **Keila** (RH) na **Avaliação da equipe**.
+- Config: `config-avaliacao-direta.ts`; script `db:avaliacao-direta`; sync no aplicar mapa de liderança.
+
+### Admin RH limitado (Keila) + mapa de liderança (jun/2026)
+
+- **RH (`role: rh`):** menu em `ADMIN_NAV_RH` — Dashboard, Colaboradores, Liderança por setor, Avisos, Destaque, Escalas, Inbox ajuda. Guard no `admin/layout.tsx` + APIs sensíveis com `requireAdminFullApi`.
+- **Editar mapa de liderança:** só **sócios**, **admin** (Daniel) ou login por senha (`podeEditarLiderancaMapaCompleto`); POST/PATCH/DELETE e aplicar padrão usam `requireAdminLiderancaMapaApi`. Alterações sincronizam `colaboradores_lideres` via `sincronizarVinculosUnidadeSetor`.
+- **UI** `admin/lideres-por-setor`: grid de todas as unidades (`GET ?todas=1`), botão **Editar mapa** no canto.
+
+### Segurança (pré-produção já feita)
+
+- Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
+
+---
+
+## Pendências e backlog (não implementar sem pedido explícito)
+
+Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`SECURITY_ROADMAP.md`**.
+
+### Produto / documentação
+
+| # | Item | Notas |
+|---|------|--------|
+| P1 | **Documentação técnica/funcional completa** (seções 1–18) | Inventário feito em conversa; texto longo **não** fechado no repo |
+| P2 | **PDF ou texto ultra-curto** do guia de avaliações | Para WhatsApp; opcional a partir do `.md` na Área de Trabalho |
+| P3 | **Manter guia na Área de Trabalho** atualizado | Se mudar rotas/labels no portal |
+
+### Infra / produção
+
+| # | Item | Notas |
+|---|------|--------|
+| I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
+| I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
+| I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
+
+### Segurança (backlog — ver SECURITY_ROADMAP.md)
+
+Ordem sugerida lá: hardening GitHub/Vercel/Supabase → rate limit + anti-enumeração + rotação de chaves → auditoria → CSRF → upgrade Next/PWA → RLS + menos service role → cookies HttpOnly → bucket privado fotos + CSP → MFA admin → Supabase Auth.
+
+**Não** misturar este backlog com o congelamento de escopo da ISA Gestão 360; são produtos separados.
+
+### Domínios fora do portal (não abrir aqui)
+
+- Gestão 360, Teknisa, WhatsApp ISA, Auditax, site público gabifontes.com.br.
+
+---
+
+## Como trabalhar (agente)
+
+1. Alterações **só** nesta árvore; deploy = push `main` → Vercel (não usar `isa_start`/`isa_stop`).
+2. Migrations: adicionar SQL numerado em `supabase/migrations/` + script `db:apply-*` se o projeto já usa esse padrão.
+3. Após mudança em auth, onboarding gate ou contrato de API usado pelo app: testar `npm run build` e fluxo login + onboarding em preview.
+4. Vídeo/mp4 grande: **nunca** commitar; usar `upload:video-boas-vindas`.
+5. Ao fechar feature relevante: atualizar **esta regra** (secções Evoluções / Pendências) e, se for segurança, uma linha em `SECURITY_ROADMAP.md`.
+
+## Ficheiros-chave (referência rápida)
+
+```text
+src/components/layout/PortalLayout.tsx, Header.tsx
+src/components/portal/AvaliacoesPortalHome.tsx, TrofeusParesPanel.tsx
+src/components/emocional/TermometroEmocional.tsx, EmocionalAlertasGestao.tsx
+src/lib/emocional-opcoes.ts, emocional-alertas-access.ts
+src/lib/config-avaliacao-direta.ts, avaliacao-direta.ts, colaborador-lideres.ts, portal-gerente-session.ts
+src/lib/portal-login-response.ts, onboarding-reabrir.ts, mural-unidade-grupo.ts
+src/lib/video-boas-vindas.ts, config-lideranca-operacional.ts
+src/app/(portal)/portal/avaliacao-master/, avaliacao-lideranca/, video-boas-vindas/
+src/app/api/portal/emocional/, emocional-alertas/, perfil/
+supabase/migrations/037_emocional_alertas_vistos.sql
+scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
+scripts/aplicar-vinculos-avaliacao-direta.mjs
 ```
-
----
-
-## Convenções de código
-
-- APIs portal: validar `portal_colaborador_id` (não `pending`).
-- Operações privilegiadas: `createAdminClient()` (`lib/supabase/admin.ts`).
-- UI: Tailwind, tema dourado / coffee / cream.
-
----
-
-## Git — o que não versionar
-
-- **`.gitignore`:** `.env`, `.env.local`, `supabase/.temp/`, `public/manuais/` (gerado), scripts operacionais locais com IDs/telefones (ex.: `scripts/set_*password*.mjs`, `set_alan_phone_login.mjs`, `set_senha_padrao.mjs`). Nunca commitar segredos nem scripts de reset com PII.
-
----
-
-## Referências de pastas
-
-- `src/app/(portal)/portal/` — área logada (`mural`, `relatorios-avaliacoes`, `relatorios-presenca`, `avaliacao-master`, `avaliacao-lideranca`, …).
-- `src/app/(auth)/onboarding/` — onboarding + `actions.ts`.
-- `src/app/api/portal/`, `src/app/api/admin/` — APIs (`destaque`, `trofeus-pares`, `relatorios-presenca`, …).
-- `src/components/mural/` — `MuralReconhecimento`, `MuralUnidade`, `MuralPreview`.
-- `src/components/portal/` — checklist, troféus, relatórios agrupados, cards de avaliação.
-- `src/lib/destaque-avaliacoes.ts`, `src/lib/trofeus-pares.ts`, `src/lib/semana-referencia.ts`, `src/lib/avaliacao-ranking.ts`, `src/lib/relatorio-avaliacoes-agrupar.ts`, `src/lib/avaliacoes-relatorio-access.ts`, `src/lib/avaliacoes-lideranca-relatorio.ts`, `src/lib/avaliacoes-justificativa-compat.ts`, `src/lib/bonificacao-*.ts`.
-- `src/app/(admin)/admin/avaliacoes-lideranca/`, `src/app/(admin)/admin/gorjeta/`, `src/app/api/admin/bonificacao/`, `src/app/api/admin/aplicar-migration-035/`.
-- `src/app/api/portal/operacao-apto/`, `src/components/portal/avaliacao-master/ColaboradorAvaliacaoCard.tsx`.
-- `src/content/onboarding-quizzes.ts` — perguntas.
-- `supabase/migrations/` — schema (`035_operacao_apto.sql` entre as mais recentes).
-- `scripts/aplicar-migrations-031-034.mjs` + `npm run db:apply-pendentes` — migrations 028, 031–035 via `DATABASE_URL`.
-- `scripts/aplicar-migration-035.mjs` + `npm run db:apply-035` — só colunas `operacao_apto`.
-- `scripts/aplicar-mapa-lideranca.ps1` — aplica mapa em produção/local via API admin.
-- `scripts/diagnostico-equipe-mesquita.mjs` — diagnóstico equipe/avaliação Mesquita.

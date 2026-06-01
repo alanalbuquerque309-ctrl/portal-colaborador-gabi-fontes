@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canViewReclamacoesAdmin, getAdminViewerContext, isAdminAuthorized } from '@/lib/admin-auth';
+import { canViewReclamacoesAdmin, getAdminViewerContext, requireAdminFullApi } from '@/lib/admin-auth';
 
 /** Lista sugestões e reclamações. Role administrativo (`admin`) não vê reclamações. */
 export async function GET(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const auth = await requireAdminFullApi();
+  if (!auth.ok) return auth.response;
 
   const ctx = await getAdminViewerContext();
   const podeReclamacoes = canViewReclamacoesAdmin(ctx);

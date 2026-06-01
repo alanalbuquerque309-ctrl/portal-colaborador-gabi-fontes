@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { requireAdminFullApi } from '@/lib/admin-auth';
 import { listarAvaliacoesLiderancaRelatorio } from '@/lib/avaliacoes-lideranca-relatorio';
 
 /**
  * Feedback sobre liderança — painel admin (visão total, autor visível).
  */
 export async function GET(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const auth = await requireAdminFullApi();
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const unidadeSlug = searchParams.get('unidade_slug')?.trim() || null;

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getPortalSession, clearPortalSession } from '@/lib/utils/session';
-import { hrefManual, manualPorSetor } from '@/lib/manual-por-setor';
+import { manualPorSetor } from '@/lib/manual-por-setor';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 import {
   canResponderAjudaFinal,
@@ -15,6 +15,9 @@ import {
 function navAtivo(pathname: string | null | undefined, href: string): boolean {
   const p = pathname ?? '';
   if (!p || !href) return false;
+  if (href === '/portal/meu-manual') {
+    return p === href || p.startsWith('/portal/manual');
+  }
   if (p === href) return true;
   const base = href.split('?')[0]?.split('#')[0] ?? href;
   return p.startsWith(`${base}/`);
@@ -99,7 +102,7 @@ export function Header() {
   const [podeResponderAjuda, setPodeResponderAjuda] = useState(false);
   const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
-  const [meuManualHref, setMeuManualHref] = useState<string | null>(null);
+  const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
 
   useEffect(() => {
     const s = getPortalSession();
@@ -160,6 +163,7 @@ export function Header() {
         (data: {
           ok?: boolean;
           pode_visita_rh?: boolean;
+          pode_avaliacao_equipe?: boolean;
           colaborador?: {
             id?: string;
             role?: string | null;
@@ -177,7 +181,12 @@ export function Header() {
           if (data.ok && roleApi) {
             setPodeAdmin(roleApi === 'socio' || roleApi === 'admin');
             setPodeGerenteAvaliador(roleApi === 'gerente' || roleApi === 'master');
-            setPodeAvaliarEquipe(roleApi === 'gerente' || roleApi === 'master' || roleApi === 'admin');
+            setPodeAvaliarEquipe(
+              roleApi === 'gerente' ||
+                roleApi === 'master' ||
+                roleApi === 'admin' ||
+                data.pode_avaliacao_equipe === true
+            );
             setPodeVerMinhaLideranca(
               roleApi === 'gerente' || roleApi === 'master' || roleApi === 'admin'
             );
@@ -197,15 +206,11 @@ export function Header() {
           } else if (porSetor?.file) {
             file = porSetor.file;
           }
-          if (data.ok && file) {
-            setMeuManualHref(hrefManual(file));
-          } else {
-            setMeuManualHref(null);
-          }
+          setMostrarMeuManual(Boolean(data.ok && file));
         }
       )
       .catch(() => {
-        if (!cancel) setMeuManualHref(null);
+        if (!cancel) setMostrarMeuManual(false);
       });
     return () => {
       cancel = true;
@@ -214,10 +219,10 @@ export function Header() {
 
   const navItensInicio = [
     navItensBase[0],
-    ...(meuManualHref
+    ...(mostrarMeuManual
       ? [
           {
-            href: meuManualHref,
+            href: '/portal/meu-manual' as const,
             label: 'Meu manual',
             short: 'Meu manual',
             icon: 'meu-manual' as const,
@@ -340,7 +345,7 @@ export function Header() {
 
   return (
     <>
-      <header className="bg-cream-100/80 backdrop-blur border-b border-cafeteria-200">
+      <header className="sticky top-0 z-50 bg-cream-100/95 backdrop-blur border-b border-cafeteria-200 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/portal" className="font-display text-xl text-cafeteria-800 font-semibold shrink-0">
             Cafeteria Gabi Fontes
@@ -378,7 +383,7 @@ export function Header() {
       </header>
       {/* Nav inferior no mobile — flex com scroll para garantir que Perfil sempre apareça */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-cafeteria-200 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-cafeteria-200 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]"
         aria-label="Navegação principal"
       >
         <div className="flex overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">

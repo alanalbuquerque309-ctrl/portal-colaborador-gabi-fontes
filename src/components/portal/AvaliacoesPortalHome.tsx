@@ -55,16 +55,20 @@ export function AvaliacoesPortalHome() {
         const data = (await res.json()) as {
           ok?: boolean;
           pode_visita_rh?: boolean;
+          pode_avaliacao_equipe?: boolean;
           colaborador?: { role?: string | null };
         };
         if (cancelado) return;
         if (data.ok && data.colaborador) {
           const nr = normalizarRole(data.colaborador.role);
           aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador, setMostrarAdmin);
+          const podeEquipe =
+            nr === 'gerente' || nr === 'master' || nr === 'admin' || data.pode_avaliacao_equipe === true;
+          if (podeEquipe) setMostrarGerente(true);
           setMostrarMinhaLideranca(nr === 'gerente' || nr === 'master' || nr === 'admin');
           setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
           setMostrarVisitaRh(data.pode_visita_rh === true);
-          if (nr === 'gerente' || nr === 'master' || nr === 'admin') {
+          if (podeEquipe) {
             fetch(`/api/portal/avaliacao-master?data=${hojeInicioSemanaISO()}`, { credentials: 'include', cache: 'no-store' })
               .then((r2) => r2.json())
               .then((d2) => {

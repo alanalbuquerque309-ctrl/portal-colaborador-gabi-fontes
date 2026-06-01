@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { adminPathPermitidoRh } from '@/lib/admin-access';
 
 export default function AdminLayout({
   children,
@@ -13,8 +14,27 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
+  const [acessoRh, setAcessoRh] = useState(false);
+  const [nivelLabel, setNivelLabel] = useState('');
+  const [menuNav, setMenuNav] = useState<{ href: string; label: string }[]>([]);
   const [podeVerGorjeta, setPodeVerGorjeta] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navCompleto: { href: string; label: string; gorjeta?: boolean }[] = [
+    { href: '/admin/dashboard', label: 'Dashboard' },
+    { href: '/admin/colaboradores', label: 'Colaboradores' },
+    { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
+    { href: '/admin/avisos', label: 'Avisos' },
+    { href: '/admin/destaque', label: 'Destaque' },
+    { href: '/admin/escalas', label: 'Escalas' },
+    { href: '/admin/avaliacoes-diarias', label: 'Avaliações equipe (semanal)' },
+    { href: '/admin/avaliacoes-lideranca', label: 'Feedback liderança' },
+    { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
+    { href: '/admin/sugestoes', label: 'Sugestões' },
+    { href: '/admin/manual-eventos', label: 'Eventos de manuais' },
+    { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
+    { href: '/portal/equipe-chat', label: 'Chat equipe' },
+  ];
 
   useEffect(() => {
     const ac = new AbortController();
@@ -30,11 +50,21 @@ export default function AdminLayout({
       .then(async (r) => {
         const d = (await r.json().catch(() => ({ ok: false }))) as {
           ok?: boolean;
+          acesso_limitado_rh?: boolean;
+          nivel_label?: string;
+          menu_rh?: { href: string; label: string }[];
           podeVerGorjeta?: boolean;
-          /** @deprecated use podeVerGorjeta */
           podeVerBonificacao?: boolean;
         };
         setAuthorized(d.ok === true);
+        const rh = d.acesso_limitado_rh === true;
+        setAcessoRh(rh);
+        setNivelLabel(String(d.nivel_label ?? ''));
+        if (rh && Array.isArray(d.menu_rh) && d.menu_rh.length > 0) {
+          setMenuNav(d.menu_rh);
+        } else {
+          setMenuNav(navCompleto.filter((i) => !i.gorjeta || d.podeVerGorjeta || d.podeVerBonificacao));
+        }
         setPodeVerGorjeta(d.podeVerGorjeta === true || d.podeVerBonificacao === true);
       })
       .catch(() => setAuthorized(false))
@@ -66,6 +96,13 @@ export default function AdminLayout({
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (authorized !== true || !acessoRh || isLoginPage) return;
+    if (!adminPathPermitidoRh(pathname)) {
+      router.replace('/admin/dashboard');
+    }
+  }, [authorized, acessoRh, pathname, isLoginPage, router]);
 
   useEffect(() => {
     if (pathname !== '/admin/dashboard') return;
@@ -143,7 +180,12 @@ export default function AdminLayout({
         `}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="font-display font-semibold text-lg">Admin</h2>
+          <div>
+            <h2 className="font-display font-semibold text-lg">Admin</h2>
+            {nivelLabel && (
+              <p className="text-xs text-cream-200/90 mt-0.5">{nivelLabel}</p>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
@@ -156,19 +198,7 @@ export default function AdminLayout({
           </button>
         </div>
         <nav className="space-y-1">
-          {navLink('/admin/dashboard', 'Dashboard')}
-          {navLink('/admin/colaboradores', 'Colaboradores')}
-          {navLink('/admin/lideres-por-setor', 'Liderança por setor')}
-          {navLink('/admin/avisos', 'Avisos')}
-          {navLink('/admin/destaque', 'Destaque')}
-          {navLink('/admin/escalas', 'Escalas')}
-          {navLink('/admin/avaliacoes-diarias', 'Avaliações equipe (semanal)')}
-          {navLink('/admin/avaliacoes-lideranca', 'Feedback liderança')}
-          {podeVerGorjeta && navLink('/admin/gorjeta', 'Gorjeta')}
-          {navLink('/admin/sugestoes', 'Sugestões')}
-          {navLink('/admin/manual-eventos', 'Eventos de manuais')}
-          {navLink('/portal/ajuda-inbox', 'Inbox ajuda')}
-          {navLink('/portal/equipe-chat', 'Chat equipe')}
+          {menuNav.map((item) => navLink(item.href, item.label))}
         </nav>
         <div className="mt-8 space-y-2 border-t border-white/20 pt-6">
           <Link

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
 import { podeAvaliarRhVisitaGeral } from '@/lib/avaliacao-rh-visita-access';
+import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { PORTAL_COOKIE_SESSAO_LONGA } from '@/lib/portal-login-persist';
 import { refreshPortalRoleCookie } from '@/lib/portal-session-cookies';
 
@@ -54,10 +55,16 @@ export async function GET() {
       setor: setorCol,
       nome: data.nome as string,
     });
+    const podeAvaliacaoEquipe = await podeUsarAvaliacaoEquipeSemanal(
+      supabase,
+      colaboradorId,
+      roleNormalizado
+    );
 
     const response = NextResponse.json({
       ok: true,
       pode_visita_rh: podeVisitaRh,
+      pode_avaliacao_equipe: podeAvaliacaoEquipe,
       colaborador: {
         id: colaboradorId,
         unidade_id: (data as { unidade_id?: string }).unidade_id ?? '',

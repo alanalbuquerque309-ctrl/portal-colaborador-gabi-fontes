@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { requireAdminFullApi } from '@/lib/admin-auth';
 
 const ROLES = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
 
 /** Altera o role de um colaborador. Sócios recebem onboarding_completo=true. */
 export async function PATCH(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const auth = await requireAdminFullApi();
+  if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');

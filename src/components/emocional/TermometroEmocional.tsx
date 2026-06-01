@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
-
-const EMOCOES: { id: string; label: string; emoji: string; desc: string }[] = [
-  { id: 'feliz', label: 'Feliz', emoji: '😊', desc: 'Ótimo dia!' },
-  { id: 'tranquilo', label: 'Tranquilo', emoji: '😌', desc: 'Tudo bem' },
-  { id: 'neutro', label: 'Neutro', emoji: '😐', desc: 'Sem novidades' },
-  { id: 'cansado', label: 'Cansado', emoji: '😓', desc: 'Preciso de um respiro' },
-  { id: 'frustrado', label: 'Frustrado', emoji: '😔', desc: 'Não está fácil' },
-];
+import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
 
 export function TermometroEmocional() {
   const [emocaoAtual, setEmocaoAtual] = useState<string | null>(null);
@@ -54,10 +47,10 @@ export function TermometroEmocional() {
         {emocaoAtual ? (
           <div className="flex items-center gap-2">
             <span className="text-2xl">
-              {EMOCOES.find((e) => e.id === emocaoAtual)?.emoji ?? '✓'}
+              {EMOCOES_TERMOMETRO.find((e) => e.id === emocaoAtual)?.emoji ?? '✓'}
             </span>
             <span className="text-sm text-coffee-base font-medium">
-              {EMOCOES.find((e) => e.id === emocaoAtual)?.label ?? emocaoAtual}
+              {EMOCOES_TERMOMETRO.find((e) => e.id === emocaoAtual)?.label ?? emocaoAtual}
             </span>
           </div>
         ) : (
@@ -75,7 +68,7 @@ export function TermometroEmocional() {
       {mostrar && (
         <div className="mt-4 pt-4 border-t border-cream-200">
           <div className="flex flex-wrap gap-2">
-            {EMOCOES.map((e) => (
+            {EMOCOES_TERMOMETRO.map((e) => (
               <button
                 key={e.id}
                 type="button"

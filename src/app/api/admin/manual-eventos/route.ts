@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { requireAdminFullApi } from '@/lib/admin-auth';
 
 function descricaoEvento(tipo: string): string {
   if (tipo === 'printscreen') return 'PrintScreen';
@@ -10,9 +10,8 @@ function descricaoEvento(tipo: string): string {
 }
 
 export async function GET(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const auth = await requireAdminFullApi();
+  if (!auth.ok) return auth.response;
 
   const url = new URL(req.url);
   const limitRaw = Number(url.searchParams.get('limit') || 100);

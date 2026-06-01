@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFile, stat } from 'fs/promises';
 import path from 'path';
 import type { Stats } from 'fs';
+import { isManualArquivoPermitido } from '@/lib/manual-por-setor';
 
 /** Origem principal (repo). */
 const MANUALS_DIR = path.join(process.cwd(), 'manuals');
@@ -110,6 +111,20 @@ export async function GET(request: NextRequest, { params }: { params: { path?: s
   }
 
   const manualPath = `/manuais/${parts.join('/')}`;
+  const fileName = decodeURIComponent(parts[parts.length - 1] ?? '');
+  const extEarly = path.extname(fileName).toLowerCase();
+
+  /** Navegação na barra de endereço (não iframe do portal) → leitor com menu do portal. */
+  if (extEarly === '.html') {
+    const fetchDest = (request.headers.get('sec-fetch-dest') ?? '').toLowerCase();
+    const isEmbedded = fetchDest === 'iframe' || fetchDest === 'nested-document';
+    if (!isEmbedded && isManualArquivoPermitido(fileName)) {
+      const dest = new URL('/portal/manual', request.url);
+      dest.searchParams.set('file', fileName);
+      return NextResponse.redirect(dest, 307);
+    }
+  }
+
   const resolved = await resolveManualFile(parts);
   if (!resolved) {
     return new NextResponse('Not Found', { status: 404 });

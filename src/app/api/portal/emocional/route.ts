@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-
-const EMOCOES = ['feliz', 'tranquilo', 'neutro', 'cansado', 'frustrado'];
+import { EMOCOES_IDS, isEmocaoId, emocaoRequerAlertaGestao } from '@/lib/emocional-opcoes';
 
 /** POST: Registra como o colaborador está se sentindo hoje. */
 export async function POST(req: Request) {
@@ -20,8 +19,14 @@ export async function POST(req: Request) {
   }
 
   const emocao = body.emocao?.toLowerCase()?.trim();
-  if (!emocao || !EMOCOES.includes(emocao)) {
-    return NextResponse.json({ ok: false, erro: 'Emoção inválida. Use: feliz, tranquilo, neutro, cansado ou frustrado.' }, { status: 400 });
+  if (!emocao || !isEmocaoId(emocao)) {
+    return NextResponse.json(
+      {
+        ok: false,
+        erro: `Emoção inválida. Use: ${EMOCOES_IDS.join(', ')}.`,
+      },
+      { status: 400 }
+    );
   }
 
   const hoje = new Date().toISOString().slice(0, 10);
@@ -34,7 +39,7 @@ export async function POST(req: Request) {
     );
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, alerta_gestao: emocaoRequerAlertaGestao(emocao) });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

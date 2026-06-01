@@ -12,6 +12,9 @@
     "db:apply-avaliacao": "node scripts/aplicar-migration-017-avaliacao.mjs",
     "db:apply-pendentes": "node scripts/aplicar-migrations-031-034.mjs",
     "db:apply-035": "node scripts/aplicar-migration-035.mjs",
+    "db:apply-036": "node scripts/aplicar-migration-036.mjs",
+    "db:avaliacao-direta": "node scripts/aplicar-vinculos-avaliacao-direta.mjs",
+    "db:escalas-junho-2026": "node scripts/aplicar-escalas-junho-2026.mjs --confirmar",
     "db:zerar-avaliacoes-trofeus": "node scripts/zerar-avaliacoes-trofeus.mjs --confirmar",
     "db:reabrir-onboarding": "node scripts/reabrir-onboarding-todos.mjs --confirmar",
     "upload:video-boas-vindas": "node scripts/upload-video-boas-vindas.mjs"

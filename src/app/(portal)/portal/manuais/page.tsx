@@ -2,9 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { MANUAL_GERAL_COLABORADOR, hrefManual, manualPorSetor } from '@/lib/manual-por-setor';
+import {
+  MANUAL_GERAL_COLABORADOR,
+  hrefManual,
+  hrefManualNoPortal,
+  manualPorSetor,
+} from '@/lib/manual-por-setor';
 import { MANUAIS_SETORIAIS_BIBLIOTECA } from '@/lib/manuais-biblioteca-portal';
 import { VIDEO_BOAS_VINDAS_TITULO } from '@/lib/video-boas-vindas';
+import { VideoBoasVindas } from '@/components/onboarding/VideoBoasVindas';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 type ManualCard = { titulo: string; file: string; destaque?: string };
@@ -107,19 +113,24 @@ export default function PortalManuaisPage() {
         </p>
       </div>
 
-      <section className="rounded-2xl border border-dourado-200 bg-dourado-50/40 p-5 shadow-sm">
+      <section
+        id="video-institucional"
+        className="rounded-2xl border border-dourado-200 bg-dourado-50/40 p-5 shadow-sm scroll-mt-24"
+      >
         <h2 className="font-display font-semibold text-cafeteria-900 text-lg">{VIDEO_BOAS_VINDAS_TITULO}</h2>
         <p className="text-sm text-cafeteria-600 mt-1">
-          Obrigatório na 1ª vez (vídeo até o fim + 3 perguntas). Depois fica disponível para reassistir.
+          Obrigatório na 1ª vez (vídeo até o fim + 3 perguntas no onboarding). Aqui você reassiste quando
+          quiser, no mesmo lugar dos manuais.
         </p>
-        <div className="mt-4 flex flex-wrap gap-3">
-          <Link
-            href="/portal/video-boas-vindas"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-dourado-base px-5 py-2.5 text-sm font-medium text-cream-100 hover:bg-dourado-400"
-          >
-            Assistir ao vídeo
-          </Link>
+        <div className="mt-4 rounded-xl border border-cafeteria-200 bg-white p-4">
+          <VideoBoasVindas modoBiblioteca assistidoCompleto />
         </div>
+        <p className="mt-3 text-xs text-cafeteria-500">
+          Problema no player?{' '}
+          <Link href="/portal/video-boas-vindas" className="text-dourado-base font-medium hover:underline">
+            Abrir só o vídeo em página dedicada
+          </Link>
+        </p>
       </section>
 
       <ul className="space-y-4">
@@ -142,10 +153,10 @@ export default function PortalManuaisPage() {
                   Abrir manual
                 </a>
                 <Link
-                  href={href}
+                  href={hrefManualNoPortal(c.file, c.titulo)}
                   className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-cafeteria-200 px-5 py-2.5 text-sm font-medium text-cafeteria-800 hover:bg-cream-50"
                 >
-                  Ver na mesma aba
+                  Ver no portal
                 </Link>
               </div>
             </li>

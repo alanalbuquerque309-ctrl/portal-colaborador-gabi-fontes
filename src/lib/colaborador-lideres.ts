@@ -6,6 +6,11 @@ import {
   listarLideresConfigPorUnidadeSetor,
   listarSetoresLideradosPor,
 } from '@/lib/lideres-por-setor';
+import {
+  buildMapaAvaliacaoDireta,
+  filtrarEquipeRespeitandoExclusividade,
+  listarEquipeAvaliacaoDireta,
+} from '@/lib/avaliacao-direta';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -65,6 +70,9 @@ export async function listarEquipeParaAvaliacaoSemanal(
   liderId: string,
   unidadeId: string
 ): Promise<MembroEquipe[]> {
+  const mapa = await buildMapaAvaliacaoDireta(supabase);
+  const direta = await listarEquipeAvaliacaoDireta(supabase, liderId);
+
   let setoresLiderados: Array<{ unidade_id: string; setor: string }> = [];
   try {
     setoresLiderados = await listarSetoresLideradosPor(supabase, liderId);
@@ -81,19 +89,30 @@ export async function listarEquipeParaAvaliacaoSemanal(
       (s) => s.unidade_id === unidadeId && s.setor === SETOR_TODOS_NA_UNIDADE
     );
 
+  const mesclar = (lista: MembroEquipe[]) => {
+    const porId = new Map<string, MembroEquipe>();
+    for (const m of filtrarEquipeRespeitandoExclusividade(lista, liderId, mapa)) {
+      porId.set(m.id, m);
+    }
+    for (const m of direta) porId.set(m.id, m);
+    return Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  };
+
   if (lideraSetoresEspecificos || setoresLiderados.length > 0) {
     const porLideranca = await listarEquipeDoLider(supabase, liderId, null);
     const equipe = await enriquecerMembrosEquipe(supabase, porLideranca);
-    if (equipe.length > 0) {
-      return equipe.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    if (equipe.length > 0 || direta.length > 0) {
+      return mesclar(equipe);
     }
   }
 
   if (gerenteDaUnidade) {
-    return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
+    return mesclar(await listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId));
   }
 
-  return listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId);
+  if (direta.length > 0) return mesclar(direta);
+
+  return mesclar(await listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId));
 }
 
 /** Avaliação semanal do gerente: todos os colaboradores da unidade (independente do onboarding). */
@@ -261,5 +280,10 @@ export async function listarEquipeDoLider(
     }
   }
 
-  return Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const mapa = await buildMapaAvaliacaoDireta(supabase);
+  return filtrarEquipeRespeitandoExclusividade(
+    Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
+    liderId,
+    mapa
+  );
 }

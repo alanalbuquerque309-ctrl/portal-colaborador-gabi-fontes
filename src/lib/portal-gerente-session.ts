@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
+import { temEquipeAvaliacaoDireta } from '@/lib/avaliacao-direta';
 
 export type PortalGerenteContext = {
   colaboradorId: string;
@@ -11,6 +12,20 @@ export type PortalGerenteContext = {
 export function isRoleGerenteAvaliador(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
   return r === 'gerente' || r === 'master' || r === 'admin';
+}
+
+/** Sócia/RH com vínculo direto (ex.: Gabriela e Keila → Thaís/Lucas; Daniel → Keila). */
+export async function podeUsarAvaliacaoEquipeSemanal(
+  supabase: ReturnType<typeof createAdminClient>,
+  colaboradorId: string,
+  role: string | null | undefined
+): Promise<boolean> {
+  if (isRoleGerenteAvaliador(role)) return true;
+  const r = normalizePortalRole(role);
+  if (r === 'socio' || r === 'rh') {
+    return temEquipeAvaliacaoDireta(supabase, colaboradorId);
+  }
+  return false;
 }
 
 export async function requirePortalGerenteSession(): Promise<
@@ -33,7 +48,11 @@ export async function requirePortalGerenteSession(): Promise<
       .eq('id', colaboradorId)
       .maybeSingle();
 
-    if (error || !data || !isRoleGerenteAvaliador(data.role as string)) {
+    const pode =
+      data &&
+      (await podeUsarAvaliacaoEquipeSemanal(supabase, data.id, data.role as string));
+
+    if (error || !data || !pode) {
       return {
         ok: false,
         response: Response.json(

@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canViewReclamacoesAdmin, getAdminViewerContext, isAdminAuthorized } from '@/lib/admin-auth';
+import { canViewReclamacoesAdmin, getAdminViewerContext, requireAdminFullApi } from '@/lib/admin-auth';
 
 /** Marca sugestão/reclamação como vista pela administração. */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
-  const ctx = await getAdminViewerContext();
+  const auth = await requireAdminFullApi();
+  if (!auth.ok) return auth.response;
+  const ctx = auth.ctx;
   const { id } = await params;
   if (!id) {
     return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });

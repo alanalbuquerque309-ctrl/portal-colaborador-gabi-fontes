@@ -105,3 +105,28 @@ export function hrefManual(file: string): string {
   const v = encodeURIComponent(MANUAL_ASSET_VERSION);
   return `${path}?v=${v}`;
 }
+
+const MANUAIS_PERMITIDOS = new Set<string>([
+  MANUAL_GERAL_COLABORADOR.file,
+  'Manual do Gerente.html',
+  'Manual do Auxiliar de Cozinha.html',
+  'Manual do Atendimento.html',
+  'Manual do ASG.html',
+  'Manual da Copa.html',
+  'Manual do Estoquista.html',
+  'Manual do ADM e RH.html',
+]);
+
+/** Evita path traversal ao abrir manual dentro do portal. */
+export function isManualArquivoPermitido(file: string): boolean {
+  const f = String(file ?? '').trim();
+  if (!f || f.includes('..') || f.includes('/') || f.includes('\\')) return false;
+  return MANUAIS_PERMITIDOS.has(f);
+}
+
+/** Abre o HTML no layout do portal (menu inferior e voltar). */
+export function hrefManualNoPortal(file: string, titulo?: string): string {
+  const params = new URLSearchParams({ file });
+  if (titulo?.trim()) params.set('titulo', titulo.trim());
+  return `/portal/manual?${params.toString()}`;
+}

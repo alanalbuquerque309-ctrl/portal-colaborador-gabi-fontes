@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { listarEscalasPortalColaborador } from '@/lib/escala-portal';
 
-/** Retorna escala do colaborador logado (próximas 2 semanas a partir de hoje). */
+/** Escala do colaborador: tabela `escalas` + geração por `tipo_escala` no cadastro. */
 export async function GET(req: Request) {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
@@ -11,34 +12,35 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const dias = Math.min(30, Math.max(7, parseInt(searchParams.get('dias') ?? '14', 10) || 14));
-
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
-  const ate = new Date(hoje);
-  ate.setDate(ate.getDate() + dias);
+  const dias = parseInt(searchParams.get('dias') ?? '45', 10);
 
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from('escalas')
-      .select('id, data, hora_entrada, hora_saida, observacao')
-      .eq('colaborador_id', colaboradorId)
-      .gte('data', hoje.toISOString().slice(0, 10))
-      .lte('data', ate.toISOString().slice(0, 10))
-      .order('data', { ascending: true });
-
-    if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+    const { escalas, periodo, meta } = await listarEscalasPortalColaborador(supabase, colaboradorId, {
+      dias,
+    });
 
     return NextResponse.json({
       ok: true,
-      escalas: (data ?? []).map((e: Record<string, unknown>) => ({
-        id: e.id,
-        data: e.data,
-        hora_entrada: e.hora_entrada,
-        hora_saida: e.hora_saida,
-        observacao: e.observacao ?? null,
+      escalas: escalas.map(({ id, data, hora_entrada, hora_saida, observacao }) => ({
+        id,
+        data,
+        hora_entrada,
+        hora_saida,
+        observacao,
       })),
+      periodo,
+      meta: {
+        ...meta,
+        aviso_12x36:
+          meta.tipo_escala === '12x36' && escalas.length === 0
+            ? 'Escala 12x36 ainda não foi lançada dia a dia. Fale com o RH.'
+            : null,
+        aviso_vazio:
+          escalas.length === 0 && !meta.tipo_escala
+            ? 'Nenhuma escala no período. Peça ao RH para cadastrar ou definir seu regime (5x2 / 6x1).'
+            : null,
+      },
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
