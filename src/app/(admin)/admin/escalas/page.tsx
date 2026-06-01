@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
 
 interface Colaborador {
   id: string;
@@ -69,7 +70,10 @@ export default function EscalasPage() {
 
   const colaboradoresFiltrados = useMemo(() => {
     return colaboradores.filter((c) => {
-      if (filtroUnidade && c.unidade_slug !== filtroUnidade) return false;
+      if (filtroUnidade) {
+        const slugs = slugsDoGrupoMural(filtroUnidade);
+        if (c.unidade_slug && !slugs.includes(c.unidade_slug)) return false;
+      }
       if (filtroSetor && (c.setor ?? '') !== filtroSetor) return false;
       return true;
     });
@@ -278,7 +282,8 @@ export default function EscalasPage() {
           <div>
             <h2 className="text-lg font-medium text-coffee-base mb-1">Consultar escalas do mês</h2>
             <p className="text-xs text-coffee-100">
-              Filtre por unidade, setor ou colaborador. A lista mostra o mês inteiro (folga ou trabalho).
+              Filtre por unidade, setor ou colaborador. Unidade <strong>Mesquita</strong> inclui loja,{' '}
+              <strong>Fábrica</strong> e Administrativo (mesmo grupo do mural).
             </p>
           </div>
           <button

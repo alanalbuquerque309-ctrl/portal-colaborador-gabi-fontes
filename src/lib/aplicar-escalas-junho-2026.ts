@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { nomeCoincide } from '@/lib/avaliacao-direta';
+import { slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
 import {
   ESCALAS_DOCUMENTO_JUNHO_2026,
   folgaDiasParaTexto,
@@ -31,7 +32,14 @@ function acharColaborador(
   chavesNome: string[],
   unidadeSlug?: string
 ): ColabRow | undefined {
-  const pool = unidadeSlug ? rows.filter((r) => r.unidade_slug === unidadeSlug) : rows;
+  const slugs =
+    unidadeSlug && slugsDoGrupoMural(unidadeSlug).length > 1
+      ? slugsDoGrupoMural(unidadeSlug)
+      : unidadeSlug
+        ? [unidadeSlug]
+        : [];
+  const pool =
+    slugs.length > 0 ? rows.filter((r) => slugs.includes(r.unidade_slug)) : rows;
   const busca = pool.length > 0 ? pool : rows;
 
   for (const chave of chavesNome) {

@@ -38,13 +38,13 @@ const ESCALAS_DOC = [
   },
   {
     chavesNome: ['sabrina'],
-    unidadeSlug: 'mesquita',
+    unidadeSlug: 'fabrica',
     setor: 'Fábrica de doces',
     config: { tipo: '6x1', folgaDiasSemana: [], folgaDomingoSemanal: true, domingosFolgaExtras: DOMINGOS_JUNHO_2026 },
   },
   {
     chavesNome: ['luis henrique', 'luiz henrique'],
-    unidadeSlug: 'mesquita',
+    unidadeSlug: 'fabrica',
     setor: 'Fábrica de doces',
     config: { tipo: '6x1', folgaDiasSemana: [], folgaDomingoSemanal: true, domingosFolgaExtras: DOMINGOS_JUNHO_2026 },
   },

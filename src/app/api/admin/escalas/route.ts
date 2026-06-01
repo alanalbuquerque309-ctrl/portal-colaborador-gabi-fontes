@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { aplicarEscalasJunho2026 } from '@/lib/aplicar-escalas-junho-2026';
+import { slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
 import {
   hojeIsoOperacao,
   listarEscalasPortalColaborador,
@@ -74,12 +75,10 @@ export async function GET(req: Request) {
     if (colaboradorId) colabQuery = colabQuery.eq('id', colaboradorId);
     if (setor) colabQuery = colabQuery.eq('setor', setor);
     if (unidadeSlug) {
-      const { data: unRow } = await supabase
-        .from('unidades')
-        .select('id')
-        .eq('slug', unidadeSlug)
-        .maybeSingle();
-      if (unRow?.id) colabQuery = colabQuery.eq('unidade_id', String(unRow.id));
+      const slugsFiltro = slugsDoGrupoMural(unidadeSlug);
+      const { data: unRows } = await supabase.from('unidades').select('id, slug').in('slug', slugsFiltro);
+      const uids = (unRows ?? []).map((u) => String(u.id)).filter(Boolean);
+      if (uids.length > 0) colabQuery = colabQuery.in('unidade_id', uids);
     }
 
     const { data: colabsRaw, error: errColab } = await colabQuery;
@@ -97,7 +96,11 @@ export async function GET(req: Request) {
           unidade_slug: String(u?.slug ?? ''),
         };
       })
-      .filter((c) => !unidadeSlug || c.unidade_slug === unidadeSlug);
+      .filter((c) => {
+        if (!unidadeSlug) return true;
+        const slugs = slugsDoGrupoMural(unidadeSlug);
+        return slugs.includes(c.unidade_slug);
+      });
 
     if (colaboradores.length === 0) {
       return NextResponse.json({
@@ -113,7 +116,7 @@ export async function GET(req: Request) {
           geradas_incluidas: incluirGeradas,
         },
         aviso: unidadeSlug
-          ? 'Nenhum colaborador nesta unidade (ou unidade sem cadastros vinculados).'
+          ? 'Nenhum colaborador neste filtro. Mesquita inclui loja + Fábrica + Administrativo; confira setor e cadastro no Supabase.'
           : 'Nenhum colaborador encontrado com estes filtros.',
       });
     }
