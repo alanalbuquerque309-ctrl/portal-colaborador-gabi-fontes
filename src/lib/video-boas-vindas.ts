@@ -8,9 +8,19 @@ export const VIDEO_BOAS_VINDAS_PATH_LOCAL = '/onboarding/boas-vindas.mp4';
 export const VIDEO_BOAS_VINDAS_STORAGE_BUCKET = 'portal-onboarding';
 export const VIDEO_BOAS_VINDAS_STORAGE_OBJECT = 'boas-vindas.mp4';
 
+/** Projeto Supabase do portal — fallback se a env não estiver disponível em runtime. */
+const SUPABASE_URL_FALLBACK = 'https://fxopbgjallrweshdehbn.supabase.co';
+
 export function isVideoArquivoLocal(src: string): boolean {
   const s = src.trim();
   return s.startsWith('/') && !s.startsWith('//');
+}
+
+/** Descarta valores inúteis vindos de env mal configurada (texto "undefined", "null", vazio). */
+function envLimpo(valor: string | undefined | null): string {
+  const v = String(valor ?? '').trim();
+  if (!v || v.toLowerCase() === 'undefined' || v.toLowerCase() === 'null') return '';
+  return v;
 }
 
 function supabasePublicVideoUrl(supabaseUrl: string): string {
@@ -20,28 +30,25 @@ function supabasePublicVideoUrl(supabaseUrl: string): string {
 
 /**
  * URL efetiva do vídeo (servidor ou build).
- * Em produção, ignora override local `/onboarding/...` (não existe na Vercel).
+ * Só aceita override http(s) explícito; nunca devolve caminho local em produção.
  */
 export function resolveUrlVideoBoasVindas(): string {
-  const envOverride = String(
+  const isProd = process.env.NODE_ENV === 'production';
+  const envOverride = envLimpo(
     typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_VIDEO_BOAS_VINDAS : ''
-  ).trim();
+  );
 
-  if (envOverride) {
-    const isProd = process.env.NODE_ENV === 'production';
-    if (!(isProd && isVideoArquivoLocal(envOverride))) {
-      return envOverride;
-    }
+  if (/^https?:\/\//i.test(envOverride)) {
+    return envOverride;
+  }
+  if (envOverride && !isProd && isVideoArquivoLocal(envOverride)) {
+    return envOverride;
   }
 
-  const supabaseUrl = String(
-    typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : ''
-  ).trim();
-  if (supabaseUrl) {
-    return supabasePublicVideoUrl(supabaseUrl);
-  }
-
-  return VIDEO_BOAS_VINDAS_PATH_LOCAL;
+  const supabaseUrl =
+    envLimpo(typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_SUPABASE_URL : '') ||
+    SUPABASE_URL_FALLBACK;
+  return supabasePublicVideoUrl(supabaseUrl);
 }
 
 /** @deprecated Preferir `resolveUrlVideoBoasVindas` ou GET `/api/portal/video-boas-vindas`. */
