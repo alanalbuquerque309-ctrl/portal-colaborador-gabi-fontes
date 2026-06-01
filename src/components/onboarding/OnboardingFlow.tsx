@@ -40,7 +40,12 @@ const ETAPAS: { id: EtapaId; titulo: string }[] = [
   { id: 'termo', titulo: 'Termo de compromisso' },
 ];
 /** Temporário: permite avançar sem assistir o vídeo enquanto o material institucional não estiver pronto. */
-const ALLOW_SKIP_VIDEO_TEMPORARIO = process.env.NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO !== 'false';
+/**
+ * Pular vídeo é apenas ferramenta temporária de DEV.
+ * Em produção o vídeo é obrigatório para liberar o quiz e os passos seguintes.
+ */
+const ALLOW_SKIP_VIDEO_TEMPORARIO =
+  process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO === 'true';
 
 type Flags = {
   onboarding_completo?: boolean;

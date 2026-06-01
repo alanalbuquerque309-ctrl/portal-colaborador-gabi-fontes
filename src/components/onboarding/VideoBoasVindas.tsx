@@ -171,7 +171,9 @@ export function VideoBoasVindas({
           <div className="relative z-10 text-center px-4">
             <p className="text-cream-100 font-display text-lg">Vídeo institucional</p>
             <p className="text-cream-200/80 text-sm mt-2">
-              Configure <code className="text-xs bg-black/30 px-1 rounded">NEXT_PUBLIC_VIDEO_BOAS_VINDAS</code> com a URL do YouTube, Vimeo ou arquivo de vídeo.
+              Configure{' '}
+              <code className="text-xs bg-black/30 px-1 rounded">NEXT_PUBLIC_VIDEO_BOAS_VINDAS</code> com a URL do
+              YouTube, Vimeo ou um arquivo local em <code className="text-xs bg-black/30 px-1 rounded">/onboarding/boas-vindas.mp4</code>.
             </p>
           </div>
         </div>

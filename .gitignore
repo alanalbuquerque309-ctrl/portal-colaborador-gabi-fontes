@@ -47,6 +47,9 @@ Portal do colaborador Manuais/
 # Gerado em prebuild a partir de manuals/ (não versionar duplicado)
 public/manuais/
 
+# Vídeos locais (onboarding) — não versionar por padrão
+public/onboarding/*.mp4
+
 # Supabase CLI cache local
 supabase/.temp/
 

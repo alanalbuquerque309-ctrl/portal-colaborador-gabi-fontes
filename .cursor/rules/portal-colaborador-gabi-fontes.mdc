@@ -197,6 +197,13 @@ Ordem e ficheiros principais:
 
 ---
 
+### Vídeo de boas-vindas (arquivo local no portal)
+
+- **Env:** `NEXT_PUBLIC_VIDEO_BOAS_VINDAS`.
+- **Padrão recomendado (arquivo no portal):** colocar o `.mp4` em `public/onboarding/boas-vindas.mp4` e definir a env como **`/onboarding/boas-vindas.mp4`**.
+- **Git:** `public/onboarding/*.mp4` fica em `.gitignore` por padrão (evita subir vídeo por acidente). Se for publicar via Vercel como arquivo do repo, remover do ignore conscientemente e commitar o `.mp4`.
+- **Obrigatoriedade:** o botão **“Pular vídeo”** é **apenas DEV**. Em produção o vídeo é obrigatório. Para habilitar o pulo em dev: `NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO=true` com `NODE_ENV=development`.
+
 ## Manuais
 
 - HTML: fonte **`manuals/`**; `prebuild` copia para **`public/manuais/`** (`scripts/sync-manuals-to-public.cjs`).
