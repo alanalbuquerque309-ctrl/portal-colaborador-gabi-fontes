@@ -2,11 +2,9 @@
 
 import Link from 'next/link';
 import { VideoBoasVindas } from '@/components/onboarding/VideoBoasVindas';
-import { urlVideoBoasVindas, VIDEO_BOAS_VINDAS_TITULO } from '@/lib/video-boas-vindas';
+import { VIDEO_BOAS_VINDAS_TITULO } from '@/lib/video-boas-vindas';
 
 export default function VideoBoasVindasPage() {
-  const videoSrc = urlVideoBoasVindas();
-
   return (
     <main className="max-w-3xl space-y-6 pb-24">
       <div>
@@ -23,7 +21,7 @@ export default function VideoBoasVindasPage() {
       </div>
 
       <div className="rounded-2xl border border-cafeteria-200 bg-white p-5 shadow-sm">
-        <VideoBoasVindas src={videoSrc} modoBiblioteca assistidoCompleto />
+        <VideoBoasVindas modoBiblioteca assistidoCompleto />
       </div>
     </main>
   );

@@ -70,10 +70,9 @@ async function postProgresso(body: Record<string, unknown>) {
 interface OnboardingFlowProps {
   colaboradorId: string;
   unidadeId?: string;
-  videoSrc?: string;
 }
 
-export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: OnboardingFlowProps) {
+export function OnboardingFlow({ colaboradorId, unidadeId = '' }: OnboardingFlowProps) {
   const router = useRouter();
   const [flags, setFlags] = useState<Flags | null>(null);
   const [carregandoFlags, setCarregandoFlags] = useState(true);
@@ -345,8 +344,6 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '', videoSrc }: Onbo
                 <div className="rounded-xl border-2 border-dourado-200 p-2 bg-cream-50 shadow-inner overflow-hidden">
                   <VideoBoasVindas
                     key={videoKey}
-                    src={videoSrc}
-                    className="w-full"
                     assistidoCompleto={videoCompleto}
                     onFirstWatchComplete={onVideoCompleto}
                   />

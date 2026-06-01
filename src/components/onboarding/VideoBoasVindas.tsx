@@ -1,11 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { VIDEO_FRAME_CLASS } from '@/lib/video-boas-vindas-layout';
+import {
+  VIDEO_ELEMENT_CLASS,
+  VIDEO_FRAME_INNER_CLASS,
+  VIDEO_FRAME_OUTER_CLASS,
+  VIDEO_FRAME_STYLE,
+} from '@/lib/video-boas-vindas-layout';
 import { isVideoArquivoLocal } from '@/lib/video-boas-vindas';
+import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 interface VideoBoasVindasProps {
-  /** URL do vídeo (YouTube, Vimeo, Supabase Storage ou arquivo local). */
+  /** Se omitido, busca GET /api/portal/video-boas-vindas */
   src?: string;
   poster?: string;
   className?: string;
@@ -34,14 +40,14 @@ declare global {
   }
 }
 
-function loadScript(src: string): Promise<void> {
+function loadScript(scriptSrc: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) {
+    if (document.querySelector(`script[src="${scriptSrc}"]`)) {
       resolve();
       return;
     }
     const s = document.createElement('script');
-    s.src = src;
+    s.src = scriptSrc;
     s.async = true;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error('script'));
@@ -49,8 +55,16 @@ function loadScript(src: string): Promise<void> {
   });
 }
 
+function FrameVertical({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`${VIDEO_FRAME_OUTER_CLASS} ${className}`.trim()} style={VIDEO_FRAME_STYLE}>
+      <div className={VIDEO_FRAME_INNER_CLASS}>{children}</div>
+    </div>
+  );
+}
+
 export function VideoBoasVindas({
-  src,
+  src: srcProp,
   poster,
   className = '',
   onFirstWatchComplete,
@@ -63,7 +77,35 @@ export function VideoBoasVindas({
   const iframeVimeoRef = useRef<HTMLIFrameElement>(null);
   const callbackFiredRef = useRef(false);
   const [rewatchTick, setRewatchTick] = useState(0);
+  const [src, setSrc] = useState<string | undefined>(srcProp);
+  const [carregandoUrl, setCarregandoUrl] = useState(!srcProp);
   const [erroCarregamento, setErroCarregamento] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (srcProp) {
+      setSrc(srcProp);
+      setCarregandoUrl(false);
+      return;
+    }
+    let cancel = false;
+    setCarregandoUrl(true);
+    fetch('/api/portal/video-boas-vindas', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; url?: string }) => {
+        if (cancel) return;
+        if (d.ok && d.url) setSrc(String(d.url));
+        else setErroCarregamento('Não foi possível obter o endereço do vídeo.');
+      })
+      .catch(() => {
+        if (!cancel) setErroCarregamento('Erro de rede ao carregar o vídeo.');
+      })
+      .finally(() => {
+        if (!cancel) setCarregandoUrl(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [srcProp]);
 
   const markComplete = useCallback(() => {
     if (modoBiblioteca) return;
@@ -78,7 +120,7 @@ export function VideoBoasVindas({
     if (videoRef.current) {
       videoRef.current.currentTime = 0;
       void videoRef.current.play().catch(() => {
-        setErroCarregamento('Toque em play para iniciar o vídeo.');
+        setErroCarregamento('Toque em ▶ play para iniciar o vídeo.');
       });
     }
   };
@@ -103,17 +145,14 @@ export function VideoBoasVindas({
         if (destroyed) return;
         const el = document.getElementById(containerId);
         if (!el) return;
-        const YTapi = window.YT;
-        if (!YTapi?.Player) return;
-        player = new YTapi.Player(el, {
+        player = new window.YT!.Player(el, {
           videoId,
           height: '100%',
           width: '100%',
           playerVars: { rel: 0, modestbranding: 1 },
           events: {
             onStateChange: (e: { data: number }) => {
-              const ended = YTapi.PlayerState?.ENDED ?? 0;
-              if (e.data === ended) markComplete();
+              if (e.data === (window.YT!.PlayerState?.ENDED ?? 0)) markComplete();
             },
           },
         });
@@ -161,25 +200,28 @@ export function VideoBoasVindas({
     };
   }, [src, markComplete, rewatchTick]);
 
-  const frameClass = `${VIDEO_FRAME_CLASS} ${className}`.trim();
   const legendaRodape = modoBiblioteca
-    ? 'Revise o vídeo quando quiser. No primeiro acesso ele é obrigatório até o fim, com questionário em seguida.'
-    : 'Assista ao vídeo até o final para liberar o próximo passo. Você poderá assistir de novo depois que concluir uma vez.';
+    ? 'Revise o vídeo quando quiser. No primeiro acesso, assista até o fim e responda ao questionário.'
+    : 'Vídeo vertical (9:16). Toque em ▶ play e assista até o final para liberar o próximo passo.';
+
+  if (carregandoUrl) {
+    return (
+      <div className="flex justify-center py-12">
+        <XicaraCarregando size="md" label="Carregando vídeo…" />
+      </div>
+    );
+  }
 
   if (!src) {
     const isDev = process.env.NODE_ENV === 'development';
     return (
       <div className="space-y-3">
-        <div className={frameClass} aria-label="Vídeo institucional">
-          <div className="absolute inset-0 bg-gradient-to-b from-cafeteria-800/90 to-cafeteria-950/90 flex items-center justify-center p-4">
-            <div className="text-center">
-              <p className="text-cream-100 font-display text-lg">Vídeo institucional</p>
-              <p className="text-cream-200/80 text-sm mt-2">
-                Configure a URL do vídeo ou rode <code className="text-xs bg-black/30 px-1 rounded">npm run upload:video-boas-vindas</code>.
-              </p>
-            </div>
-          </div>
-        </div>
+        <FrameVertical className={className}>
+          <p className="text-cream-100 text-sm text-center px-4">Vídeo institucional indisponível.</p>
+        </FrameVertical>
+        {erroCarregamento && (
+          <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{erroCarregamento}</p>
+        )}
         {isDev && (
           <button
             type="button"
@@ -197,22 +239,36 @@ export function VideoBoasVindas({
   const isVimeo = src.includes('vimeo.com');
 
   const blocoErro = erroCarregamento ? (
-    <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{erroCarregamento}</p>
+    <div className="space-y-2">
+      <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{erroCarregamento}</p>
+      {!isYouTube && !isVimeo && (
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-center text-sm font-medium text-dourado-base underline"
+        >
+          Abrir vídeo em nova aba
+        </a>
+      )}
+    </div>
   ) : null;
 
   if (isYouTube) {
     return (
       <div className="space-y-3">
-        <div className={frameClass}>
-          <div id={containerId} className="absolute inset-0 w-full h-full" key={rewatchTick} />
-        </div>
+        <FrameVertical className={className}>
+          <div className="relative w-full h-full min-h-0">
+            <div id={containerId} className="absolute inset-0 w-full h-full" key={rewatchTick} />
+          </div>
+        </FrameVertical>
         {blocoErro}
         {(modoBiblioteca || assistidoCompleto) && (
           <button type="button" onClick={handleRewatch} className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50">
             Assistir novamente
           </button>
         )}
-        <p className="text-coffee-100 text-xs">{legendaRodape}</p>
+        <p className="text-coffee-100 text-xs text-center">{legendaRodape}</p>
       </div>
     );
   }
@@ -222,65 +278,64 @@ export function VideoBoasVindas({
     if (!videoId) return null;
     return (
       <div className="space-y-3">
-        <div className={frameClass}>
-          <iframe
-            key={rewatchTick}
-            ref={iframeVimeoRef}
-            src={`https://player.vimeo.com/video/${videoId}`}
-            title="Vídeo institucional - Gabi Fontes"
-            className="absolute inset-0 w-full h-full"
-            allow="autoplay; fullscreen; picture-in-picture"
-            allowFullScreen
-          />
-        </div>
+        <FrameVertical className={className}>
+          <div className="relative w-full h-full min-h-0">
+            <iframe
+              key={rewatchTick}
+              ref={iframeVimeoRef}
+              src={`https://player.vimeo.com/video/${videoId}`}
+              title="Vídeo institucional - Gabi Fontes"
+              className="absolute inset-0 w-full h-full"
+              allow="autoplay; fullscreen; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        </FrameVertical>
         {blocoErro}
         {(modoBiblioteca || assistidoCompleto) && (
           <button type="button" onClick={handleRewatch} className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50">
             Assistir novamente
           </button>
         )}
-        <p className="text-coffee-100 text-xs">{legendaRodape}</p>
+        <p className="text-coffee-100 text-xs text-center">{legendaRodape}</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <div className={frameClass}>
+      <FrameVertical className={className}>
         <video
-          key={rewatchTick}
+          key={`${src}-${rewatchTick}`}
           ref={videoRef}
           src={src}
           poster={poster}
           controls
           playsInline
-          preload="metadata"
-          className="absolute inset-0 w-full h-full object-contain"
+          preload="auto"
+          className={VIDEO_ELEMENT_CLASS}
+          onLoadedData={() => setErroCarregamento(null)}
           onEnded={() => markComplete()}
           onError={() => {
             if (isVideoArquivoLocal(src)) {
               setErroCarregamento(
-                'Vídeo local não encontrado neste servidor. Em produção, rode npm run upload:video-boas-vindas ou configure NEXT_PUBLIC_VIDEO_BOAS_VINDAS na Vercel.'
+                'Arquivo local não encontrado neste servidor. O vídeo deve vir do Supabase Storage em produção.'
               );
             } else {
-              setErroCarregamento(
-                'Não foi possível carregar o vídeo. Verifique a conexão ou peça ao administrador para republicar o arquivo.'
-              );
+              setErroCarregamento('Não foi possível reproduzir o vídeo aqui. Use o link abaixo para abrir em nova aba.');
             }
           }}
         >
-          Seu navegador não suporta vídeo.
+          Seu navegador não suporta vídeo HTML5.
         </video>
-      </div>
+      </FrameVertical>
       {blocoErro}
       {(modoBiblioteca || assistidoCompleto) && (
         <button type="button" onClick={handleRewatch} className="w-full rounded-lg border border-dourado-300 bg-white px-4 py-3 text-sm font-medium text-coffee-base hover:bg-cream-50">
           Assistir novamente
         </button>
       )}
-      <p className="text-coffee-100 text-xs text-center max-w-sm mx-auto">
-        {modoBiblioteca ? 'Vídeo em formato vertical (9:16). Toque em play se não iniciar sozinho.' : 'Vídeo vertical (9:16). Assista até o final para continuar.'}
-      </p>
+      <p className="text-coffee-100 text-xs text-center px-2">{legendaRodape}</p>
     </div>
   );
 }
