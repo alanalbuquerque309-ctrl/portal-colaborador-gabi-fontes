@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizePortalRole } from '@/lib/roles';
+import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
+import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 
 const CPF_ALAN = '05376259765';
 
@@ -66,14 +69,19 @@ export async function POST(req: Request) {
 
     const { data: existente } = await supabase
       .from('colaboradores')
-      .select('id, unidade_id')
+      .select('id, unidade_id, role, onboarding_completo')
       .eq('cpf', cpf)
       .maybeSingle();
 
-    let colaborador: { id: string; unidade_id: string };
+    let colaborador: { id: string; unidade_id: string; role: string; onboarding_completo: boolean };
 
     if (existente) {
-      colaborador = { id: existente.id, unidade_id: existente.unidade_id };
+      colaborador = {
+        id: existente.id,
+        unidade_id: existente.unidade_id,
+        role: normalizePortalRole((existente as { role?: string }).role),
+        onboarding_completo: !!(existente as { onboarding_completo?: boolean }).onboarding_completo,
+      };
     } else {
       const { data: novo, error } = await supabase
         .from('colaboradores')
@@ -81,26 +89,39 @@ export async function POST(req: Request) {
           cpf,
           nome: 'Alan Albuquerque',
           unidade_id: unidadeId,
-          onboarding_completo: true,
+          onboarding_completo: false,
           role: 'socio',
         })
-        .select('id, unidade_id')
+        .select('id, unidade_id, role, onboarding_completo')
         .single();
 
       if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
-      colaborador = novo!;
+      colaborador = {
+        id: novo!.id,
+        unidade_id: novo!.unidade_id,
+        role: normalizePortalRole((novo as { role?: string }).role),
+        onboarding_completo: false,
+      };
     }
 
     const res = NextResponse.json({
       ok: true,
-      colaborador: { id: colaborador.id, unidade_id: colaborador.unidade_id, role: 'socio' },
+      colaborador: {
+        id: colaborador.id,
+        unidade_id: colaborador.unidade_id,
+        role: colaborador.role,
+      },
+      redirect: colaborador.onboarding_completo
+        ? '/portal'
+        : urlOnboardingColaborador(colaborador.id, colaborador.unidade_id),
     });
 
-    const opts = { path: '/', maxAge: 60 * 60 * 24 * 30, httpOnly: false, SameSite: 'lax' as const };
+    const opts = { path: '/', maxAge: 60 * 60 * 24 * 30, httpOnly: false, sameSite: 'lax' as const };
     res.cookies.set('portal_colaborador_id', colaborador.id, opts);
     res.cookies.set('portal_unidade_id', colaborador.unidade_id, opts);
-    res.cookies.set('portal_role', 'socio', opts);
+    res.cookies.set('portal_role', colaborador.role, opts);
     res.cookies.set('portal_pending_cpf', '', { path: '/', maxAge: 0 });
+    applyAdminSessionCookie(res);
 
     return res;
   } catch (e) {

@@ -69,11 +69,13 @@ const payload = {
 async function main() {
   if (loginFiltro) {
     const digits = loginFiltro.replace(/\D/g, '');
-    let q = supabase.from('colaboradores').select('id, nome, senha_hash, email, telefone');
-    if (loginFiltro.includes('@')) {
+    let q = supabase.from('colaboradores').select('id, nome, senha_hash, email, telefone, cpf');
+    if (digits.length === 11 && /^0?\d{11}$/.test(digits)) {
+      q = q.eq('cpf', digits);
+    } else if (loginFiltro.includes('@')) {
       q = q.ilike('email', loginFiltro);
     } else if (digits.length >= 10) {
-      q = q.or(`telefone.eq.${digits},telefone_login.eq.${digits}`);
+      q = q.or(`telefone.eq.${digits},telefone.ilike.%${digits}%`);
     } else {
       q = q.ilike('nome', `%${loginFiltro}%`);
     }
@@ -107,7 +109,6 @@ async function main() {
   const { data: atualizados, error: errUp } = await supabase
     .from('colaboradores')
     .update(payload)
-    .eq('onboarding_completo', true)
     .not('senha_hash', 'is', null)
     .select('id');
 

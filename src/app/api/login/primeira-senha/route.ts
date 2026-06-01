@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     const roleNorm = normalizePortalRole(colRow.role);
     if (payload.ok && !('needsPassword' in payload) && !('mustCompleteCpf' in payload)) {
       applyPortalSessionCookies(res, { id: col.id, unidade_id: col.unidade_id, role: roleNorm });
-      if (rolesComAcessoAdmin(roleNorm) || ('action' in payload && payload.action === 'socio_admin')) {
+      if (rolesComAcessoAdmin(roleNorm)) {
         applyAdminSessionCookie(res);
       }
     }
