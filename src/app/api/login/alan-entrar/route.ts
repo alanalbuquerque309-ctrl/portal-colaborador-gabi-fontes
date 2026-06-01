@@ -116,12 +116,12 @@ export async function POST(req: Request) {
         : urlOnboardingColaborador(colaborador.id, colaborador.unidade_id),
     });
 
-    const opts = { path: '/', maxAge: 60 * 60 * 24 * 30, httpOnly: false, sameSite: 'lax' as const };
-    res.cookies.set('portal_colaborador_id', colaborador.id, opts);
-    res.cookies.set('portal_unidade_id', colaborador.unidade_id, opts);
-    res.cookies.set('portal_role', colaborador.role, opts);
-    res.cookies.set('portal_pending_cpf', '', { path: '/', maxAge: 0 });
-    applyAdminSessionCookie(res);
+    applyPortalSessionCookies(
+      res,
+      { id: colaborador.id, unidade_id: colaborador.unidade_id, role: colaborador.role },
+      { persistent: true }
+    );
+    applyAdminSessionCookie(res, { persistent: true });
 
     return res;
   } catch (e) {

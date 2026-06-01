@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { verifyPassword } from '@/lib/password';
 import { selectColaboradorLoginRowByLogin } from '@/lib/colaborador-forca-troca-compat';
 import { normalizePortalRole } from '@/lib/roles';
+import { parseManterLogado } from '@/lib/portal-login-persist';
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 
 /**
@@ -10,7 +11,7 @@ import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal
  * Não marca onboarding como concluído (todos passam pelo fluxo de primeiro acesso quando pendente).
  */
 export async function POST(req: Request) {
-  let body: { login?: string; telefone?: string; senha?: string };
+  let body: { login?: string; telefone?: string; senha?: string; manter_logado?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -58,8 +59,9 @@ export async function POST(req: Request) {
         : `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
     });
 
-    applyPortalSessionCookies(res, { id: col.id, unidade_id: col.unidade_id, role });
-    applyAdminSessionCookie(res);
+    const persistent = parseManterLogado(body);
+    applyPortalSessionCookies(res, { id: col.id, unidade_id: col.unidade_id, role }, { persistent });
+    applyAdminSessionCookie(res, { persistent });
 
     return res;
   } catch (e) {

@@ -4,6 +4,7 @@ import { verifyPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { selectColaboradorLoginRowByLogin } from '@/lib/colaborador-forca-troca-compat';
 import { normalizePortalRole } from '@/lib/roles';
+import { parseManterLogado } from '@/lib/portal-login-persist';
 import {
   applyAdminSessionCookie,
   applyPortalSessionCookies,
@@ -15,7 +16,7 @@ import {
  * Sem senha cadastrada: retorna needsPassword para o cliente abrir fluxo de primeira senha.
  */
 export async function POST(req: Request) {
-  let body: { login?: string; telefone?: string; senha?: string };
+  let body: { login?: string; telefone?: string; senha?: string; manter_logado?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -95,19 +96,24 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json(payload);
     const roleNorm = normalizePortalRole(colRow.role);
+    const persistent = parseManterLogado(body);
     if (
       payload.ok &&
       !('needsPassword' in payload) &&
       !('mustChangePassword' in payload) &&
       !('mustCompleteCpf' in payload)
     ) {
-      applyPortalSessionCookies(res, {
-        id: col.id,
-        unidade_id: col.unidade_id,
-        role: roleNorm,
-      });
+      applyPortalSessionCookies(
+        res,
+        {
+          id: col.id,
+          unidade_id: col.unidade_id,
+          role: roleNorm,
+        },
+        { persistent }
+      );
       if (rolesComAcessoAdmin(roleNorm)) {
-        applyAdminSessionCookie(res);
+        applyAdminSessionCookie(res, { persistent });
       }
     }
     return res;

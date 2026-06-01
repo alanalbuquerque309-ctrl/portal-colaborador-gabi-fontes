@@ -4,26 +4,47 @@
  * role='socio' ou 'admin' → acesso às 3 lojas.
  */
 import { normalizePortalRole } from '@/lib/roles';
+import { PORTAL_MAX_AGE_PERSISTENT } from '@/lib/portal-login-persist';
 
 const COOKIE_COLABORADOR = 'portal_colaborador_id';
 const COOKIE_UNIDADE = 'portal_unidade_id';
 const COOKIE_ROLE = 'portal_role';
 const COOKIE_PENDING_CPF = 'portal_pending_cpf';
-const MAX_AGE = 60 * 60 * 24 * 30; // 30 dias
+const COOKIE_SESSAO_LONGA = 'portal_sessao_longa';
+
+export type SetPortalSessionOptions = {
+  /** Padrão true: cookies com validade longa (manter conectado). */
+  persistent?: boolean;
+};
+
+function cookieSuffix(persistent: boolean): string {
+  const base = 'path=/; SameSite=Lax';
+  if (persistent) {
+    return `${base}; max-age=${PORTAL_MAX_AGE_PERSISTENT}`;
+  }
+  return base;
+}
 
 export function setPortalSession(
   colaboradorId: string,
   unidadeId: string,
-  role?: string
+  role?: string,
+  opts?: SetPortalSessionOptions
 ): void {
   if (typeof document === 'undefined') return;
-  const opts = `path=/; max-age=${MAX_AGE}; SameSite=Lax`;
-  document.cookie = `${COOKIE_COLABORADOR}=${colaboradorId}; ${opts}`;
-  document.cookie = `${COOKIE_UNIDADE}=${unidadeId}; ${opts}`;
+  const persistent = opts?.persistent !== false;
+  const optsStr = cookieSuffix(persistent);
+  document.cookie = `${COOKIE_COLABORADOR}=${colaboradorId}; ${optsStr}`;
+  document.cookie = `${COOKIE_UNIDADE}=${unidadeId}; ${optsStr}`;
   if (role) {
-    document.cookie = `${COOKIE_ROLE}=${normalizePortalRole(role)}; ${opts}`;
+    document.cookie = `${COOKIE_ROLE}=${normalizePortalRole(role)}; ${optsStr}`;
   } else {
     document.cookie = `${COOKIE_ROLE}=; path=/; max-age=0`;
+  }
+  if (persistent) {
+    document.cookie = `${COOKIE_SESSAO_LONGA}=1; ${optsStr}`;
+  } else {
+    document.cookie = `${COOKIE_SESSAO_LONGA}=; path=/; max-age=0`;
   }
 }
 
@@ -33,16 +54,17 @@ export function clearPortalSession(): void {
   document.cookie = `${COOKIE_UNIDADE}=; path=/; max-age=0`;
   document.cookie = `${COOKIE_ROLE}=; path=/; max-age=0`;
   document.cookie = `${COOKIE_PENDING_CPF}=; path=/; max-age=0`;
+  document.cookie = `${COOKIE_SESSAO_LONGA}=; path=/; max-age=0`;
 }
 
 /** Login sem cadastro: CPF + senha no código. Usuário completa cadastro depois. */
 export function setPendingRegistration(cpf: string): void {
   if (typeof document === 'undefined') return;
-  const opts = `path=/; max-age=${MAX_AGE}; SameSite=Lax`;
-  document.cookie = `${COOKIE_COLABORADOR}=pending; ${opts}`;
-  document.cookie = `${COOKIE_UNIDADE}=pending; ${opts}`;
-  document.cookie = `${COOKIE_ROLE}=socio; ${opts}`;
-  document.cookie = `${COOKIE_PENDING_CPF}=${cpf}; ${opts}`;
+  const optsStr = cookieSuffix(true);
+  document.cookie = `${COOKIE_COLABORADOR}=pending; ${optsStr}`;
+  document.cookie = `${COOKIE_UNIDADE}=pending; ${optsStr}`;
+  document.cookie = `${COOKIE_ROLE}=socio; ${optsStr}`;
+  document.cookie = `${COOKIE_PENDING_CPF}=${cpf}; ${optsStr}`;
 }
 
 export function isPendingRegistration(): boolean {

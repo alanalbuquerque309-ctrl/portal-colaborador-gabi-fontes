@@ -48,6 +48,6 @@ export async function POST(req: Request) {
     ok: true,
     colaborador: { id: col.id, unidade_id: col.unidade_id, role: col.role },
   });
-  applyPortalSessionCookies(res, col);
+  applyPortalSessionCookies(res, col, { persistent: true });
   return res;
 }

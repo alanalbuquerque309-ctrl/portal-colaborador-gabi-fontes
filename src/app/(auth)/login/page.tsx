@@ -1,22 +1,26 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { formatTelefoneBr, normalizeTelefoneLogin, telefoneLoginValido } from '@/lib/telefone';
 import { normalizeEmail } from '@/lib/password';
 import { LoginForm } from '@/components/auth/LoginForm';
-import { setPortalSession } from '@/lib/utils/session';
+import { salvarUltimoLogin } from '@/lib/portal-remember-login';
+import { getPortalSession, setPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 async function processarRespostaLogin(
   data: Record<string, unknown>,
   loginCanonical: string,
-  senhaTrim: string,
-  router: ReturnType<typeof useRouter>
+  router: ReturnType<typeof useRouter>,
+  manterLogado: boolean
 ): Promise<boolean> {
+  const sessaoOpts = { persistent: manterLogado };
+
   if (data.mustCompleteCpf === true && data.colaborador && typeof data.colaborador === 'object') {
     const c = data.colaborador as { id: string; unidade_id: string; role?: string };
-    setPortalSession(c.id, c.unidade_id, c.role);
+    setPortalSession(c.id, c.unidade_id, c.role, sessaoOpts);
+    salvarUltimoLogin(loginCanonical, manterLogado);
     router.push('/completar-cpf');
     return true;
   }
@@ -24,8 +28,9 @@ async function processarRespostaLogin(
   if (data.redirect && typeof data.redirect === 'string') {
     if (data.colaborador && typeof data.colaborador === 'object') {
       const c = data.colaborador as { id: string; unidade_id: string; role?: string };
-      setPortalSession(c.id, c.unidade_id, c.role);
+      setPortalSession(c.id, c.unidade_id, c.role, sessaoOpts);
     }
+    salvarUltimoLogin(loginCanonical, manterLogado);
     router.push(data.redirect);
     return true;
   }
@@ -35,16 +40,27 @@ async function processarRespostaLogin(
 
 function LoginContent() {
   const router = useRouter();
+  const [verificandoSessao, setVerificandoSessao] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [primeiraSenha, setPrimeiraSenha] = useState(false);
   const [trocaObrigatoria, setTrocaObrigatoria] = useState(false);
   const [loginPrimeiraSenha, setLoginPrimeiraSenha] = useState('');
 
+  useEffect(() => {
+    const s = getPortalSession();
+    if (s?.colaboradorId && s.colaboradorId !== 'pending') {
+      router.replace('/portal');
+      return;
+    }
+    setVerificandoSessao(false);
+  }, [router]);
+
   const handleTrocarSenhaObrigatoria = async (
     login: string,
     senhaAtual: string,
     senhaNova: string,
-    senhaConfirmacao: string
+    senhaConfirmacao: string,
+    opts?: { manterLogado: boolean }
   ) => {
     setError(null);
     try {
@@ -57,6 +73,7 @@ function LoginContent() {
           senha_atual: senhaAtual,
           senha_nova: senhaNova,
           senha_confirmacao: senhaConfirmacao,
+          manter_logado: opts?.manterLogado !== false,
         }),
       });
       const data = await res.json();
@@ -64,7 +81,12 @@ function LoginContent() {
         setError(data.erro || 'Não foi possível alterar a senha.');
         return;
       }
-      const ok = await processarRespostaLogin(data as Record<string, unknown>, login, senhaNova, router);
+      const ok = await processarRespostaLogin(
+        data as Record<string, unknown>,
+        login,
+        router,
+        opts?.manterLogado !== false
+      );
       if (!ok) {
         setError('Erro ao entrar após alterar a senha.');
       }
@@ -73,8 +95,14 @@ function LoginContent() {
     }
   };
 
-  const handleLogin = async (login: string, senha?: string, senhaConfirmacao?: string) => {
+  const handleLogin = async (
+    login: string,
+    senha?: string,
+    senhaConfirmacao?: string,
+    opts?: { manterLogado: boolean }
+  ) => {
     setError(null);
+    const manterLogado = opts?.manterLogado !== false;
 
     if (primeiraSenha) {
       const loginClean = (login || loginPrimeiraSenha).trim();
@@ -89,6 +117,7 @@ function LoginContent() {
             login: loginClean,
             senha: s1,
             senhaConfirmacao: s2,
+            manter_logado: manterLogado,
           }),
         });
         const data = await res.json();
@@ -99,8 +128,8 @@ function LoginContent() {
         const ok = await processarRespostaLogin(
           data,
           String(data.login ?? loginClean),
-          s1,
-          router
+          router,
+          manterLogado
         );
         if (!ok) {
           setError('Erro ao entrar após definir a senha.');
@@ -130,7 +159,7 @@ function LoginContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ login: loginCanonical, senha: senhaTrim }),
+        body: JSON.stringify({ login: loginCanonical, senha: senhaTrim, manter_logado: manterLogado }),
       });
       const data = await res.json();
 
@@ -156,8 +185,8 @@ function LoginContent() {
       const ok = await processarRespostaLogin(
         data as Record<string, unknown>,
         String(data.login ?? loginCanonical),
-        senhaTrim,
-        router
+        router,
+        manterLogado
       );
       if (!ok) {
         setError('Erro ao entrar. Tente novamente.');
@@ -166,6 +195,14 @@ function LoginContent() {
       setError('Erro de conexão. Verifique a internet e tente novamente.');
     }
   };
+
+  if (verificandoSessao) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-cream-100">
+        <XicaraCarregando size="lg" label="Verificando sessão…" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-cream-100 px-4 py-8">

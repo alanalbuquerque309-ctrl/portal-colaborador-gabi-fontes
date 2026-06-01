@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
 import { podeAvaliarRhVisitaGeral } from '@/lib/avaliacao-rh-visita-access';
+import { PORTAL_COOKIE_SESSAO_LONGA } from '@/lib/portal-login-persist';
+import { refreshPortalRoleCookie } from '@/lib/portal-session-cookies';
 
 function isPerfilCompleto(row: {
   nome?: string | null;
@@ -88,13 +90,8 @@ export async function GET() {
           .onboarding_manual_escolhido_concluido,
       },
     });
-    response.cookies.set('portal_role', roleNormalizado, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: false,
-    });
+    const sessaoLonga = cookieStore.get(PORTAL_COOKIE_SESSAO_LONGA)?.value === '1';
+    refreshPortalRoleCookie(response, roleNormalizado, sessaoLonga);
     return response;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

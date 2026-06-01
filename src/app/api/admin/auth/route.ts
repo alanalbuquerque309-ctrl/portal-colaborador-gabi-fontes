@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveColaboradorForAdminBridge } from '@/lib/admin-portal-bridge';
+import { parseManterLogado } from '@/lib/portal-login-persist';
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 
 /**
@@ -32,14 +33,15 @@ export async function POST(req: Request) {
 
   if (credMatch || legacyMatch) {
     const res = NextResponse.json({ ok: true });
-    applyAdminSessionCookie(res);
+    const persistent = parseManterLogado(body);
+    applyAdminSessionCookie(res, { persistent });
 
     const loginBridge = credMatch?.login ?? login ?? process.env.ADMIN_ALAN_LOGIN?.trim() ?? '';
     try {
       const supabase = createAdminClient();
       const col = await resolveColaboradorForAdminBridge(supabase, loginBridge || null);
       if (col) {
-        applyPortalSessionCookies(res, col);
+        applyPortalSessionCookies(res, col, { persistent });
       }
     } catch {
       /* bridge opcional; admin segue só com admin_session */

@@ -1,17 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import {
+  lerPreferenciaManterLogado,
+  lerUltimoLoginSalvo,
+} from '@/lib/portal-remember-login';
 
 interface LoginFormProps {
-  onSubmit: (login: string, senha?: string, senhaConfirmacao?: string) => void;
+  onSubmit: (
+    login: string,
+    senha?: string,
+    senhaConfirmacao?: string,
+    opts?: { manterLogado: boolean }
+  ) => void;
   /** Troca obrigatória após senha padrão 123456 */
   onTrocarSenhaObrigatoria?: (
     login: string,
     senhaAtual: string,
     senhaNova: string,
-    senhaConfirmacao: string
+    senhaConfirmacao: string,
+    opts?: { manterLogado: boolean }
   ) => void;
   error: string | null;
   formatTelefone: (value: string) => string;
@@ -35,6 +45,15 @@ export function LoginForm({
   const [senhaAtual, setSenhaAtual] = useState('');
   const [showSenha, setShowSenha] = useState(false);
   const [showSenha2, setShowSenha2] = useState(false);
+  const [manterLogado, setManterLogado] = useState(true);
+
+  useEffect(() => {
+    setManterLogado(lerPreferenciaManterLogado());
+    const salvo = lerUltimoLoginSalvo();
+    if (salvo && mode === 'login') {
+      setLogin(salvo.includes('@') ? salvo : salvo.replace(/\D/g, '').slice(0, 11));
+    }
+  }, [mode]);
 
   const primeiraSenha = mode === 'primeira_senha';
   const trocarObrigatoria = mode === 'trocar_senha_obrigatoria';
@@ -53,14 +72,15 @@ export function LoginForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const opts = { manterLogado };
     if (trocarObrigatoria && onTrocarSenhaObrigatoria) {
-      onTrocarSenhaObrigatoria(loginBloqueado, senhaAtual, senha, senha2);
+      onTrocarSenhaObrigatoria(loginBloqueado, senhaAtual, senha, senha2, opts);
       return;
     }
     if (primeiraSenha) {
-      onSubmit(loginBloqueado, senha, senha2);
+      onSubmit(loginBloqueado, senha, senha2, opts);
     } else {
-      onSubmit(login, senha);
+      onSubmit(login, senha, undefined, opts);
     }
   };
 
@@ -168,6 +188,20 @@ export function LoginForm({
                 )}
               </button>
             </div>
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={manterLogado}
+                onChange={(e) => setManterLogado(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-cafeteria-300 text-dourado-base focus:ring-dourado-base"
+              />
+              <span className="text-sm text-cafeteria-700 leading-snug">
+                <span className="font-medium text-cafeteria-800">Manter conectado</span>
+                <span className="block text-cafeteria-500 text-xs mt-0.5">
+                  Não precisa digitar celular/e-mail de novo; sessão válida por até 90 dias neste aparelho.
+                </span>
+              </span>
+            </label>
             <p className="text-right">
               <Link
                 href="/login/esqueci-senha"
