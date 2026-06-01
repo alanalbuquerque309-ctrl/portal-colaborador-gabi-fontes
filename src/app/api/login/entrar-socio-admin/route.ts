@@ -6,9 +6,8 @@ import { normalizePortalRole } from '@/lib/roles';
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 
 /**
- * Sócios e admins entram direto (sem onboarding), após senha já validada no login.
- * Marca onboarding_completo=true e retorna dados para sessão.
- * Exige telefone + senha para evitar chamada só com identificador.
+ * Legado: sessão sócio/admin após senha validada.
+ * Não marca onboarding como concluído (todos passam pelo fluxo de primeiro acesso quando pendente).
  */
 export async function POST(req: Request) {
   let body: { login?: string; telefone?: string; senha?: string };
@@ -49,20 +48,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Senha incorreta.' }, { status: 401 });
     }
 
-    if (!(col as { onboarding_completo?: boolean }).onboarding_completo) {
-      await supabase
-        .from('colaboradores')
-        .update({
-          onboarding_completo: true,
-          termo_aceite_em: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', col.id);
-    }
+    const onboardingCompleto = !!(col as { onboarding_completo?: boolean }).onboarding_completo;
 
     const res = NextResponse.json({
       ok: true,
       colaborador: { id: col.id, unidade_id: col.unidade_id, role },
+      redirect: onboardingCompleto
+        ? '/portal'
+        : `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
     });
 
     applyPortalSessionCookies(res, { id: col.id, unidade_id: col.unidade_id, role });

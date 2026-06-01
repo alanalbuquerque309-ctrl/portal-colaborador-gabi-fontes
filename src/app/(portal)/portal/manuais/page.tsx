@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { MANUAL_GERAL_COLABORADOR, hrefManual, manualPorSetor } from '@/lib/manual-por-setor';
 import { MANUAIS_SETORIAIS_BIBLIOTECA } from '@/lib/manuais-biblioteca-portal';
+import { VIDEO_BOAS_VINDAS_TITULO } from '@/lib/video-boas-vindas';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 type ManualCard = { titulo: string; file: string; destaque?: string };
@@ -102,9 +103,24 @@ export default function PortalManuaisPage() {
         </Link>
         <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">Manuais</h1>
         <p className="text-cafeteria-600 mt-2 text-sm">
-          Abra o manual no navegador (recomendado no telemóvel). O conteúdo é o mesmo usado no onboarding.
+          Vídeo de boas-vindas e manuais oficiais. O conteúdo é o mesmo do primeiro acesso (onboarding).
         </p>
       </div>
+
+      <section className="rounded-2xl border border-dourado-200 bg-dourado-50/40 p-5 shadow-sm">
+        <h2 className="font-display font-semibold text-cafeteria-900 text-lg">{VIDEO_BOAS_VINDAS_TITULO}</h2>
+        <p className="text-sm text-cafeteria-600 mt-1">
+          Obrigatório na 1ª vez (vídeo até o fim + 3 perguntas). Depois fica disponível para reassistir.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href="/portal/video-boas-vindas"
+            className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-dourado-base px-5 py-2.5 text-sm font-medium text-cream-100 hover:bg-dourado-400"
+          >
+            Assistir ao vídeo
+          </Link>
+        </div>
+      </section>
 
       <ul className="space-y-4">
         {cards.map((c, idx) => {

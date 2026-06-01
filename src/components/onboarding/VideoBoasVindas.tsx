@@ -11,6 +11,10 @@ interface VideoBoasVindasProps {
   onFirstWatchComplete?: () => void;
   /** Se já concluiu uma vez — mostra opção de assistir novamente sem bloquear o próximo passo. */
   assistidoCompleto?: boolean;
+  /**
+   * Biblioteca pós-onboarding: só reprodução, sem bloquear fluxo nem exigir “até o fim”.
+   */
+  modoBiblioteca?: boolean;
 }
 
 declare global {
@@ -54,6 +58,7 @@ export function VideoBoasVindas({
   className = '',
   onFirstWatchComplete,
   assistidoCompleto = false,
+  modoBiblioteca = false,
 }: VideoBoasVindasProps) {
   const reactId = useId().replace(/:/g, '');
   const containerId = `yt-${reactId}`;
@@ -64,10 +69,11 @@ export function VideoBoasVindas({
   const [rewatchTick, setRewatchTick] = useState(0);
 
   const markComplete = useCallback(() => {
+    if (modoBiblioteca) return;
     if (callbackFiredRef.current) return;
     callbackFiredRef.current = true;
     onFirstWatchComplete?.();
-  }, [onFirstWatchComplete]);
+  }, [onFirstWatchComplete, modoBiblioteca]);
 
   const handleRewatch = () => {
     setRewatchTick((t) => t + 1);
@@ -199,7 +205,7 @@ export function VideoBoasVindas({
         <div className="relative w-full aspect-video overflow-hidden rounded-xl bg-black">
           <div id={containerId} className="absolute inset-0 w-full h-full" key={rewatchTick} />
         </div>
-        {assistidoCompleto && (
+        {(modoBiblioteca || assistidoCompleto) && (
           <button
             type="button"
             onClick={handleRewatch}
@@ -209,8 +215,9 @@ export function VideoBoasVindas({
           </button>
         )}
         <p className="text-coffee-100 text-xs">
-          Assista ao vídeo até o final para liberar o próximo passo. Você poderá assistir de novo
-          depois que concluir uma vez.
+          {modoBiblioteca
+            ? 'Revise o vídeo quando quiser. No primeiro acesso ele é obrigatório até o fim, com questionário em seguida.'
+            : 'Assista ao vídeo até o final para liberar o próximo passo. Você poderá assistir de novo depois que concluir uma vez.'}
         </p>
       </div>
     );
@@ -232,7 +239,7 @@ export function VideoBoasVindas({
             allowFullScreen
           />
         </div>
-        {assistidoCompleto && (
+        {(modoBiblioteca || assistidoCompleto) && (
           <button
             type="button"
             onClick={handleRewatch}
@@ -242,8 +249,9 @@ export function VideoBoasVindas({
           </button>
         )}
         <p className="text-coffee-100 text-xs">
-          Assista ao vídeo até o final. Se o botão não liberar, atualize a página e assista novamente
-          até o encerramento.
+          {modoBiblioteca
+            ? 'Revise o vídeo quando quiser.'
+            : 'Assista ao vídeo até o final. Se o botão não liberar, atualize a página e assista novamente até o encerramento.'}
         </p>
       </div>
     );
@@ -265,7 +273,7 @@ export function VideoBoasVindas({
           Seu navegador não suporta vídeo.
         </video>
       </div>
-      {assistidoCompleto && (
+      {(modoBiblioteca || assistidoCompleto) && (
         <button
           type="button"
           onClick={handleRewatch}
@@ -274,7 +282,11 @@ export function VideoBoasVindas({
           Assistir novamente
         </button>
       )}
-      <p className="text-coffee-100 text-xs">Assista até o final do vídeo para continuar.</p>
+      <p className="text-coffee-100 text-xs">
+        {modoBiblioteca
+          ? 'Revise o vídeo quando quiser.'
+          : 'Assista até o final do vídeo para continuar.'}
+      </p>
     </div>
   );
 }

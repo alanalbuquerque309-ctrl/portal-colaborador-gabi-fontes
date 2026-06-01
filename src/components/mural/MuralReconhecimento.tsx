@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { MuralRankingUnidade } from '@/components/mural/MuralRankingUnidade';
 
 type Destaque = {
   id: string;
@@ -18,6 +19,19 @@ type TrofeuMural = {
   emoji: string;
   titulo: string;
   destinatario_nome: string;
+};
+
+type RankingUnidadePayload = {
+  grupo_rotulo: string;
+  mes_atual: { mes_referencia: string; top: Array<{
+    posicao: number;
+    colaborador_id: string;
+    nome: string;
+    foto_url: string | null;
+    media: number;
+    semanas_avaliadas: number;
+  }> };
+  mes_anterior: { mes_referencia: string; top: RankingUnidadePayload['mes_atual']['top'] };
 };
 
 async function fetchJsonSafe(url: string): Promise<Record<string, unknown> | null> {
@@ -62,6 +76,7 @@ export function MuralReconhecimento({ compacto = false }: Props) {
   const [destaqueMes, setDestaqueMes] = useState<Destaque | null>(null);
   const [destaquesMesUnidade, setDestaquesMesUnidade] = useState<Destaque[]>([]);
   const [trofeus, setTrofeus] = useState<TrofeuMural[]>([]);
+  const [rankingUnidade, setRankingUnidade] = useState<RankingUnidadePayload | null>(null);
   const [meta, setMeta] = useState({ totalAvaliacoesSemana: 0, minMensal: 2, minSemanal: 1 });
 
   useEffect(() => {
@@ -91,6 +106,10 @@ export function MuralReconhecimento({ compacto = false }: Props) {
           minMensal: Number(dest.min_semanas_ranking_mensal ?? 2),
           minSemanal: Number(dest.min_semanas_ranking_semanal ?? 1),
         });
+        const ru = dest.ranking_unidade as RankingUnidadePayload | undefined;
+        if (ru?.grupo_rotulo && ru.mes_atual && ru.mes_anterior) {
+          setRankingUnidade(ru);
+        }
       }
 
       if (trof?.ok === true && Array.isArray(trof.mural_unidade)) {
@@ -108,12 +127,17 @@ export function MuralReconhecimento({ compacto = false }: Props) {
     );
   }
 
+  const temRanking =
+    rankingUnidade &&
+    (rankingUnidade.mes_atual.top.length > 0 || rankingUnidade.mes_anterior.top.length > 0);
+
   const temDestaque =
     destaqueSemana ||
     destaquesSemanaUnidade.length > 0 ||
     destaqueMes ||
     destaquesMesUnidade.length > 0 ||
-    trofeus.length > 0;
+    trofeus.length > 0 ||
+    temRanking;
 
   if (!temDestaque) {
     return (
@@ -134,6 +158,18 @@ export function MuralReconhecimento({ compacto = false }: Props) {
 
   return (
     <div className="space-y-6">
+      {rankingUnidade && (
+        <section>
+          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Melhores da unidade</h3>
+          <MuralRankingUnidade
+            grupoRotulo={rankingUnidade.grupo_rotulo}
+            mesAnterior={rankingUnidade.mes_anterior}
+            mesAtual={rankingUnidade.mes_atual}
+            compacto={compacto}
+          />
+        </section>
+      )}
+
       {(destaqueSemana || destaquesSemanaUnidade.length > 0) && (
         <section>
           <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Destaques da semana</h3>

@@ -11,7 +11,7 @@ export default function PortalHomePage() {
       <section className="rounded-2xl border border-dourado-base/40 bg-gradient-to-br from-cream-50 to-white p-5 shadow-sm">
         <h2 className="text-lg font-display font-semibold text-cafeteria-900">Manuais oficiais</h2>
         <p className="text-sm text-cafeteria-600 mt-1">
-          Cultura, conduta e manual do seu setor — os mesmos documentos do onboarding.
+          Vídeo de boas-vindas, manual da cultura e manual do seu setor — os mesmos do onboarding, para revisar quando quiser.
         </p>
         <Link
           href="/portal/manuais"

@@ -9,6 +9,7 @@ import { CompleteRegistrationForm } from '@/components/portal/CompleteRegistrati
 import { normalizePortalRole } from '@/lib/roles';
 import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast';
 import { PortalOnlineStrip, PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
+import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 
 const EMOCOES: { id: string; label: string; emoji: string; desc: string }[] = [
   { id: 'feliz', label: 'Feliz', emoji: '😊', desc: 'Ótimo dia!' },
@@ -39,6 +40,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         role?: string | null;
         cpf_cadastrado?: boolean;
         perfil_completo?: boolean;
+        onboarding_completo?: boolean;
         id?: string;
         unidade_id?: string;
       };
@@ -46,6 +48,16 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
       if (d.ok && d.colaborador && d.colaborador.cpf_cadastrado === false) {
         router.replace('/completar-cpf');
+        return;
+      }
+      if (
+        d.ok &&
+        d.colaborador &&
+        d.colaborador.onboarding_completo === false &&
+        d.colaborador.id &&
+        d.colaborador.unidade_id
+      ) {
+        router.replace(urlOnboardingColaborador(d.colaborador.id, d.colaborador.unidade_id));
         return;
       }
       if (

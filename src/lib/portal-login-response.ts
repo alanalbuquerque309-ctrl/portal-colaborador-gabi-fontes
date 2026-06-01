@@ -30,15 +30,6 @@ export function buildPortalLoginJson(
   const role = normalizePortalRole(col.role);
   const onboardingCompleto = !!col.onboarding_completo;
 
-  if (!onboardingCompleto && (role === 'socio' || role === 'admin')) {
-    return {
-      ok: true as const,
-      action: 'socio_admin' as const,
-      telefone: telefoneLogin,
-      colaborador: { id: col.id, unidade_id: col.unidade_id, role },
-    };
-  }
-
   if (!onboardingCompleto) {
     return {
       ok: true as const,

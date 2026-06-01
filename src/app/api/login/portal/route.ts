@@ -95,14 +95,7 @@ export async function POST(req: Request) {
 
     const res = NextResponse.json(payload);
     const roleNorm = normalizePortalRole(colRow.role);
-    if (payload.ok && 'action' in payload && payload.action === 'socio_admin') {
-      applyPortalSessionCookies(res, {
-        id: col.id,
-        unidade_id: col.unidade_id,
-        role: roleNorm,
-      });
-      applyAdminSessionCookie(res);
-    } else if (
+    if (
       payload.ok &&
       !('needsPassword' in payload) &&
       !('mustChangePassword' in payload) &&

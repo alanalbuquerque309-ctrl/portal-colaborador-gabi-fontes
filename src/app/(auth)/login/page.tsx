@@ -21,21 +21,6 @@ async function processarRespostaLogin(
     return true;
   }
 
-  if (data.action === 'socio_admin') {
-    const skipRes = await fetch('/api/login/entrar-socio-admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: loginCanonical, senha: senhaTrim }),
-      credentials: 'include',
-    });
-    const skipData = await skipRes.json();
-    if (skipData.ok) {
-      router.push('/portal');
-      return true;
-    }
-    return false;
-  }
-
   if (data.redirect && typeof data.redirect === 'string') {
     if (data.colaborador && typeof data.colaborador === 'object') {
       const c = data.colaborador as { id: string; unidade_id: string; role?: string };

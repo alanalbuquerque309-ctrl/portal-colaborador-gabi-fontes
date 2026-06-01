@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { OnboardingFlow } from '@/components/onboarding/OnboardingFlow';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { urlVideoBoasVindas } from '@/lib/video-boas-vindas';
 
 function OnboardingContent() {
   const router = useRouter();
@@ -42,7 +43,7 @@ function OnboardingContent() {
     );
   }
 
-  const videoSrc = process.env.NEXT_PUBLIC_VIDEO_BOAS_VINDAS || undefined;
+  const videoSrc = urlVideoBoasVindas();
 
   return (
     <div className="min-h-screen bg-cream-100">

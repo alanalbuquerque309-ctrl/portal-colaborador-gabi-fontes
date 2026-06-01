@@ -176,8 +176,11 @@ Se em produção a constraint tiver outro nome, ajustar o hint no `.select()` pa
 
 ## Quem vê o onboarding
 
-- **`lib/portal-login-response.ts`:** se `onboarding_completo` é falso e `role` é **socio** ou **admin**, a resposta é `action: 'socio_admin'` → **não** vai a `/onboarding`.
-- Colaborador com onboarding incompleto → `redirect` para `/onboarding?colaborador_id=...`.
+- **Todos** os perfis (colaborador, gerente, master, sócio, admin) passam pelo **mesmo fluxo** enquanto `onboarding_completo = false`.
+- Login com senha já definida → redireciona para `/onboarding` (não repete primeira senha, CPF nem perfil se já estiverem OK).
+- **`PortalLayout`:** se logado e `onboarding_completo = false`, redireciona para onboarding (não acede ao portal antes de concluir).
+- **Reabrir em massa (campanha / relançamento):** `npm run db:reabrir-onboarding` ou `POST /api/admin/reabrir-onboarding` com `{ "confirmar": "REABRIR" }` — zera flags de vídeo/manuais; **mantém** `senha_hash`, CPF e dados pessoais. Um colaborador: `--login "email ou celular"` no script ou `"colaborador_id"` na API.
+- Colaborador **sem** `senha_hash` continua no fluxo `needsPassword` (primeira senha) antes do onboarding.
 
 ---
 
@@ -199,10 +202,12 @@ Ordem e ficheiros principais:
 
 ### Vídeo de boas-vindas (arquivo local no portal)
 
-- **Env:** `NEXT_PUBLIC_VIDEO_BOAS_VINDAS`.
-- **Padrão recomendado (arquivo no portal):** colocar o `.mp4` em `public/onboarding/boas-vindas.mp4` e definir a env como **`/onboarding/boas-vindas.mp4`**.
-- **Git:** `public/onboarding/*.mp4` fica em `.gitignore` por padrão (evita subir vídeo por acidente). Se for publicar via Vercel como arquivo do repo, remover do ignore conscientemente e commitar o `.mp4`.
-- **Obrigatoriedade:** o botão **“Pular vídeo”** é **apenas DEV**. Em produção o vídeo é obrigatório. Para habilitar o pulo em dev: `NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO=true` com `NODE_ENV=development`.
+- **Env:** `NEXT_PUBLIC_VIDEO_BOAS_VINDAS` (opcional).
+- **URL:** `src/lib/video-boas-vindas.ts` → env ou fallback **`/onboarding/boas-vindas.mp4`** (`public/onboarding/boas-vindas.mp4`).
+- **Git:** `public/onboarding/*.mp4` em `.gitignore` por padrão; em produção usar env ou commitar o `.mp4` de propósito.
+- **1ª vez (onboarding):** vídeo até o fim → **3 perguntas** em `src/content/onboarding-quizzes.ts` (`PERGUNTAS_QUIZ_VIDEO`: encantamento, excelência/detalhes, atitude de dono). Erro no quiz → reassistir vídeo do início.
+- **Depois do onboarding:** reassistência em **`/portal/video-boas-vindas`** e card em **`/portal/manuais`** (sem quiz; igual ao manual da cultura, que só exige quiz na 1ª vez).
+- **Obrigatoriedade:** botão **“Pular vídeo”** só em DEV (`NEXT_PUBLIC_ONBOARDING_ALLOW_SKIP_VIDEO=true`).
 
 ## Manuais
 

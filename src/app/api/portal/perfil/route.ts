@@ -31,7 +31,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('colaboradores')
       .select(
-        'nome, email, telefone, endereco, cpf, cargo, setor, foto_url, role, onboarding_completo, onboarding_video_visto, onboarding_quiz_video_ok, onboarding_manual_geral_lido_ok, onboarding_quiz_manual_geral_ok, onboarding_manual_escolhido_file, onboarding_manual_escolhido_concluido, unidades(nome)'
+        'id, unidade_id, nome, email, telefone, endereco, cpf, cargo, setor, foto_url, role, onboarding_completo, onboarding_video_visto, onboarding_quiz_video_ok, onboarding_manual_geral_lido_ok, onboarding_quiz_manual_geral_ok, onboarding_manual_escolhido_file, onboarding_manual_escolhido_concluido, unidades(nome)'
       )
       .eq('id', colaboradorId)
       .single();
@@ -57,6 +57,8 @@ export async function GET() {
       ok: true,
       pode_visita_rh: podeVisitaRh,
       colaborador: {
+        id: colaboradorId,
+        unidade_id: (data as { unidade_id?: string }).unidade_id ?? '',
         nome: data.nome ?? '',
         email: data.email ?? null,
         telefone: data.telefone ?? null,
