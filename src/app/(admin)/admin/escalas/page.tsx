@@ -48,6 +48,9 @@ export default function EscalasPage() {
   const [erroBusca, setErroBusca] = useState('');
   const [pesquisou, setPesquisou] = useState(false);
   const [total, setTotal] = useState(0);
+  const [avisoBusca, setAvisoBusca] = useState('');
+  const [aplicandoJunho, setAplicandoJunho] = useState(false);
+  const [msgJunho, setMsgJunho] = useState('');
 
   const [filtroMes, setFiltroMes] = useState(mesAtualInput);
   const [filtroUnidade, setFiltroUnidade] = useState('');
@@ -72,8 +75,43 @@ export default function EscalasPage() {
     });
   }, [colaboradores, filtroUnidade, filtroSetor]);
 
+  const aplicarJunho2026 = async () => {
+    if (
+      !window.confirm(
+        'Gerar escalas de junho/2026 para os colaboradores do documento «Folgas de domingo» (Mesquita, Barra, Nova Iguaçu)? Isso grava no banco e atualiza tipo_escala.'
+      )
+    ) {
+      return;
+    }
+    setAplicandoJunho(true);
+    setMsgJunho('');
+    setErroBusca('');
+    try {
+      const res = await fetch('/api/admin/escalas/aplicar-junho-2026', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErroBusca(data.erro ?? 'Não foi possível gerar junho/2026.');
+        return;
+      }
+      const nao = (data.nao_encontrados ?? []) as string[];
+      setMsgJunho(
+        `Pronto: ${data.aplicados ?? 0} colaborador(es), ${data.dias_gravados ?? 0} dias gravados.` +
+          (nao.length ? ` Não encontrados: ${nao.join('; ')}` : '')
+      );
+      if (filtroMes === '2026-06') pesquisar();
+    } catch {
+      setErroBusca('Falha de conexão ao gerar escalas de junho.');
+    } finally {
+      setAplicandoJunho(false);
+    }
+  };
+
   const pesquisar = () => {
     setErroBusca('');
+    setAvisoBusca('');
     setLoading(true);
     setPesquisou(true);
     const params = new URLSearchParams();
@@ -94,6 +132,7 @@ export default function EscalasPage() {
         }
         setEscalas(Array.isArray(data.escalas) ? data.escalas : []);
         setTotal(Number(data.total ?? 0));
+        setAvisoBusca(typeof data.aviso === 'string' ? data.aviso : '');
       })
       .catch(() => {
         setErroBusca('Falha de conexão ao buscar escalas.');
@@ -230,10 +269,27 @@ export default function EscalasPage() {
       </section>
 
       <section className="rounded-xl border border-cream-300 bg-white p-5">
-        <h2 className="text-lg font-medium text-coffee-base mb-1">Consultar escalas do mês</h2>
-        <p className="text-xs text-coffee-100 mb-4">
-          Filtre por unidade, setor ou colaborador. A lista mostra o mês inteiro (folga ou trabalho).
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-medium text-coffee-base mb-1">Consultar escalas do mês</h2>
+            <p className="text-xs text-coffee-100">
+              Filtre por unidade, setor ou colaborador. A lista mostra o mês inteiro (folga ou trabalho).
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void aplicarJunho2026()}
+            disabled={aplicandoJunho}
+            className="shrink-0 rounded-lg border border-dourado-400 bg-cream-50 text-coffee-base px-4 py-2 text-sm font-medium hover:bg-cream-100 disabled:opacity-50"
+          >
+            {aplicandoJunho ? 'Gerando junho/2026…' : 'Gerar escalas junho/2026'}
+          </button>
+        </div>
+        {msgJunho && (
+          <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-4">
+            {msgJunho}
+          </p>
+        )}
 
         <div className="flex flex-wrap gap-3 items-end mb-4">
           <div>
@@ -329,11 +385,30 @@ export default function EscalasPage() {
             <XicaraCarregando size="md" label="Carregando escalas…" />
           </div>
         ) : escalas.length === 0 ? (
-          <div className="rounded-lg border border-cream-300 bg-cream-50 p-6">
+          <div className="rounded-lg border border-cream-300 bg-cream-50 p-6 space-y-3">
             <p className="text-coffee-base">
-              Nenhum dia encontrado em {labelMes(filtroMes)} com esses filtros. Confira se o script de
-              junho rodou ou se o colaborador tem regime 5x2/6x1 no cadastro.
+              Nenhum dia encontrado em {labelMes(filtroMes)} com esses filtros.
             </p>
+            {avisoBusca ? (
+              <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {avisoBusca}
+              </p>
+            ) : (
+              <p className="text-sm text-coffee-100">
+                Para junho/2026, use <strong>Gerar escalas junho/2026</strong> acima (documento Folgas de
+                domingo). Demais meses exigem regime 5x2 ou 6x1 no cadastro ou lançamento manual.
+              </p>
+            )}
+            {filtroMes === '2026-06' && (
+              <button
+                type="button"
+                onClick={() => void aplicarJunho2026()}
+                disabled={aplicandoJunho}
+                className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
+              >
+                {aplicandoJunho ? 'Gerando…' : 'Gerar escalas junho/2026 agora'}
+              </button>
+            )}
           </div>
         ) : (
           <>

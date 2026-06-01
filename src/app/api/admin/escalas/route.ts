@@ -50,6 +50,19 @@ export async function GET(req: Request) {
   try {
     const supabase = createAdminClient();
 
+    const { error: probeTipo } = await supabase.from('colaboradores').select('tipo_escala').limit(1);
+    if (probeTipo && /tipo_escala|column|does not exist/i.test(probeTipo.message)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          codigo: 'migration_036',
+          erro:
+            'Falta a migration 036 no Supabase (coluna tipo_escala). Aplique 036_tipo_escala_colaborador.sql no SQL Editor.',
+        },
+        { status: 503 }
+      );
+    }
+
     let colabQuery = supabase
       .from('colaboradores')
       .select('id, nome, setor, unidade_id, unidades(nome, slug)')
@@ -83,6 +96,15 @@ export async function GET(req: Request) {
         periodo: { de, ate },
         escalas: [],
         total: 0,
+        meta: {
+          colaboradores: 0,
+          com_tipo_escala: 0,
+          linhas_banco: 0,
+          geradas_incluidas: incluirGeradas,
+        },
+        aviso: unidadeSlug
+          ? 'Nenhum colaborador nesta unidade (ou unidade sem cadastros vinculados).'
+          : 'Nenhum colaborador encontrado com estes filtros.',
       });
     }
 
@@ -123,28 +145,42 @@ export async function GET(req: Request) {
       });
     }
 
-    if (incluirGeradas && colaboradores.length <= 120) {
-      for (const col of colaboradores) {
-        const { escalas: geradas } = await listarEscalasPortalColaborador(supabase, col.id, {
-          deIso: de,
-          ateIso: ate,
-        });
-        for (const g of geradas) {
-          const chave = `${col.id}|${g.data}`;
-          if (porChave.has(chave)) continue;
-          porChave.set(chave, {
-            id: g.id,
-            data: g.data,
-            colaborador_id: col.id,
-            colaborador_nome: col.nome,
-            setor: col.setor,
-            unidade_nome: col.unidade_nome,
-            unidade_slug: col.unidade_slug,
-            situacao: situacaoDia(g.observacao, g.hora_entrada, g.hora_saida),
-            fonte: g.fonte,
+    const limiteGeracao = colaboradorId ? 1 : unidadeSlug ? 300 : 100;
+    const idsTipo = colaboradores.map((c) => c.id);
+    const { data: tipos } = await supabase
+      .from('colaboradores')
+      .select('id, tipo_escala')
+      .in('id', idsTipo);
+    const tipoPorId = new Map((tipos ?? []).map((t) => [String(t.id), String(t.tipo_escala ?? '')]));
+    const comTipoEscala = colaboradores.filter((c) => {
+      const t = tipoPorId.get(c.id);
+      return t === '5x2' || t === '6x1';
+    }).length;
+
+    if (incluirGeradas && colaboradores.length <= limiteGeracao) {
+      await Promise.all(
+        colaboradores.map(async (col) => {
+          const { escalas: geradas } = await listarEscalasPortalColaborador(supabase, col.id, {
+            deIso: de,
+            ateIso: ate,
           });
-        }
-      }
+          for (const g of geradas) {
+            const chave = `${col.id}|${g.data}`;
+            if (porChave.has(chave)) continue;
+            porChave.set(chave, {
+              id: g.id,
+              data: g.data,
+              colaborador_id: col.id,
+              colaborador_nome: col.nome,
+              setor: col.setor,
+              unidade_nome: col.unidade_nome,
+              unidade_slug: col.unidade_slug,
+              situacao: situacaoDia(g.observacao, g.hora_entrada, g.hora_saida),
+              fonte: g.fonte,
+            });
+          }
+        })
+      );
     }
 
     const escalas = Array.from(porChave.values()).sort((a, b) => {
@@ -154,12 +190,33 @@ export async function GET(req: Request) {
       return String(a.colaborador_nome).localeCompare(String(b.colaborador_nome), 'pt-BR');
     });
 
+    const linhasBanco = (rows ?? []).length;
+    let aviso: string | undefined;
+    if (escalas.length === 0) {
+      if (mesRef === '2026-06') {
+        aviso =
+          'Junho/2026 ainda sem dados. Use o botão «Gerar escalas junho/2026» (documento Folgas de domingo) ou cadastre tipo_escala 5x2/6x1 em cada colaborador.';
+      } else if (comTipoEscala === 0 && linhasBanco === 0) {
+        aviso =
+          'Nenhuma escala no banco e nenhum colaborador filtrado com regime 5x2 ou 6x1 no cadastro.';
+      }
+    } else if (incluirGeradas && colaboradores.length > limiteGeracao) {
+      aviso = `Muitos colaboradores (${colaboradores.length}). Refine por unidade ou colaborador para incluir escalas geradas do cadastro.`;
+    }
+
     return NextResponse.json({
       ok: true,
       mes: mesRef,
       periodo: { de, ate },
       escalas,
       total: escalas.length,
+      meta: {
+        colaboradores: colaboradores.length,
+        com_tipo_escala: comTipoEscala,
+        linhas_banco: linhasBanco,
+        geradas_incluidas: incluirGeradas && colaboradores.length <= limiteGeracao,
+      },
+      aviso,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

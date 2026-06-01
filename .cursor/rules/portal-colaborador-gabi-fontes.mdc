@@ -31,7 +31,12 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 
 - **Auth portal:** cookies de sessão (`portal_colaborador_id`, `portal_unidade_id`, `portal_role`) + `GET /api/portal/perfil`; admin/sócio também via login portal ou restauração `POST /api/admin/restaurar-portal`.
 - **Gates:** `PortalLayout` redireciona para onboarding, completar CPF, completar perfil conforme flags do perfil.
-- **APIs sensíveis:** `/api/admin/*` com gates (`isAdminAuthorized`, roles); mutações de avaliação, ajuda, upload, etc. no servidor com service role onde aplicável.
+- **APIs sensíveis:** `/api/admin/*` com camadas de gate (`src/lib/admin-auth.ts`, `src/lib/admin-access.ts`):
+  - `isAdminAuthorized` — qualquer admin (gestão completa, gerente ou **RH limitado**).
+  - `requireAdminFullApi` — bloqueia RH (avaliações internas admin, sugestões, gorjeta, manual-eventos, alterar role, excluir colaborador, etc.).
+  - `requireAdminLiderancaMapaApi` — editar mapa de liderança e aplicar padrão (sócios, `admin`, login por senha).
+  - `GET /api/admin/auth` expõe `nivel`, `acesso_limitado_rh`, `menu_rh`, `pode_editar_lideranca_mapa`.
+- Mutações de avaliação portal, ajuda, upload, etc. no servidor com service role onde aplicável.
 - **PWA:** `@ducanh2912/next-pwa`; manuais HTML em `public/manuais/` (sync no `prebuild`).
 
 ## Avaliações (contrato funcional)
@@ -79,6 +84,46 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 
 - Documento resumido na Área de Trabalho: `C:\Users\EU\Desktop\GUIA_AVALIACOES_PORTAL_GABI_FONTES.md` (equipe, liderança, troféus; sem passo a passo de login/onboarding).
 
+## Admin (painel `/admin`)
+
+### Níveis de acesso
+
+| Nível | Quem | Menu / rotas |
+|-------|------|----------------|
+| **Gestão completa** | Sócio, `admin`, `master`, `gerente`, login por senha (`ADMIN_ALAN_*`) | Menu completo em `admin/layout.tsx` (gorjeta só se `podeVerBonificacaoInterna` ou senha) |
+| **RH limitado** | `role: rh` (ex.: Keila) | Só `ADMIN_NAV_RH` em `src/lib/admin-access.ts` |
+| **Edição mapa liderança** | Sócio, `admin` (Daniel), senha admin | `podeEditarLiderancaMapaCompleto` — **não** inclui gerente |
+
+**Menu RH (`ADMIN_NAV_RH`):** Dashboard, Colaboradores, Liderança por setor, Avisos, Destaque, Escalas, Inbox ajuda (`/portal/ajuda-inbox`).
+
+- **Guard de rota:** `admin/layout.tsx` redireciona RH para `/admin/dashboard` se pathname não estiver em `adminPathPermitidoRh`.
+- **Badge:** `nivel_label` → "RH (acesso limitado)" no sidebar.
+- **Pré-requisito Keila:** cadastro com `role: rh` + sessão portal que passa em `isAdminAuthorized` (bridge admin).
+
+### Liderança por setor (`/admin/lideres-por-setor`)
+
+- **Tabela:** `lideres_por_setor` (migration `032`); materialização em `colaboradores_lideres` via `sincronizarVinculosUnidadeSetor` / `sincronizarVinculosTodosColaboradores`.
+- **API:** `src/app/api/admin/lideres-por-setor/route.ts`
+  - `GET ?todas=1` — todas as unidades (`UNIDADES_CADASTRO` + contagens) + linhas ativas.
+  - `GET ?unidade_slug=` — detalhe de uma unidade.
+  - `POST` / `PATCH` / `DELETE` — exigem `requireAdminLiderancaMapaApi`; após mutação, sync automático dos colaboradores do setor/unidade.
+  - `POST .../aplicar-padrao` — mapa operacional (`config-lideranca-operacional.ts`) + sync geral + `sincronizarVinculosAvaliacaoDireta`.
+- **UI:** grid de cards por unidade; botão **Editar mapa** (canto superior) para quem tem `pode_editar_lideranca_mapa`; modo edição com select de líder (PATCH ao trocar), adicionar/remover vínculo.
+- **RH:** somente leitura (sem Editar mapa nem aplicar padrão).
+
+### Escalas (admin + portal)
+
+- **Admin:** `/admin/escalas` — mês inteiro, filtros unidade / setor / colaborador, opção **Todos**, botão **Pesquisar**; tabela com coluna **Situação** (folga / trabalho). API: `GET/POST /api/admin/escalas` (`incluir_geradas`, filtros); `GET /api/admin/colaboradores-para-escala` (setor + `unidade_slug`).
+- **Portal colaborador:** `/portal/escala` — geração a partir de `tipo_escala` no cadastro + calendário BR (`src/lib/escala-portal.ts`, `escala-calendario.ts`); `GET /api/portal/escala`.
+- **Migration:** `036_tipo_escala_colaborador.sql` — campo `tipo_escala` em colaboradores.
+- **Script:** `npm run db:escalas-junho-2026 -- --confirmar` (`scripts/aplicar-escalas-junho-2026.mjs`) — requer `DATABASE_URL` no `.env.local`.
+
+### Manuais no portal
+
+- Rotas: `/portal/manuais` (lista), `/portal/meu-manual` (setor do colaborador), `/portal/manual` (viewer).
+- Componente: `ManualPortalViewer.tsx`; resolução por setor em `manual-por-setor.ts`.
+- Assets HTML: `public/manuais/`; rota proxy `src/app/manuais/[[...path]]/route.ts`.
+
 ## Termômetro de emoções
 
 - **Colaborador:** 6 opções em `src/lib/emocional-opcoes.ts` — feliz, tranquilo, neutro, cansado, frustrado, **triste**; registro diário em `emocional_registro` (`POST/GET /api/portal/emocional`).
@@ -113,12 +158,20 @@ npm run db:reabrir-onboarding          # --confirmar; onboarding_completo=false 
 npm run upload:video-boas-vindas
 npm run db:apply-pendentes / db:apply-035   # migrations locais conforme scripts
 npm run db:avaliacao-direta                 # vínculos Gabriela/Keila/Daniel → alvos por nome
-# migration 037: aplicar supabase/migrations/037_emocional_alertas_vistos.sql no Supabase (SQL editor)
+npm run db:escalas-junho-2026 -- --confirmar   # gera escalas jun/2026 (DATABASE_URL)
+npm run db:apply-036                        # tipo_escala (se script existir no package.json)
 ```
 
-**APIs admin correlatas:** `POST /api/admin/zerar-avaliacoes-trofeus`, `POST /api/admin/reabrir-onboarding` (exigem auth admin).
+**APIs admin correlatas:** `POST /api/admin/zerar-avaliacoes-trofeus`, `POST /api/admin/reabrir-onboarding` (exigem gestão completa, não RH).
 
-**Migration emocional (produção):** aplicar `037_emocional_alertas_vistos.sql` no Supabase antes do OK dos alertas persistir.
+**Migrations em produção (Supabase SQL Editor), se ainda não aplicadas:**
+
+| Arquivo | Para quê |
+|---------|----------|
+| `036_tipo_escala_colaborador.sql` | Escalas admin/portal por `tipo_escala` |
+| `037_emocional_alertas_vistos.sql` | OK individual nos alertas do termômetro |
+
+**Deploy:** push `main` → Vercel; commit de referência das evoluções jun/2026: `735cf77`.
 
 ---
 
@@ -154,11 +207,20 @@ npm run db:avaliacao-direta                 # vínculos Gabriela/Keila/Daniel �
 - **Daniel** avalia **Keila** (RH) na **Avaliação da equipe**.
 - Config: `config-avaliacao-direta.ts`; script `db:avaliacao-direta`; sync no aplicar mapa de liderança.
 
-### Admin RH limitado (Keila) + mapa de liderança (jun/2026)
+### Admin RH limitado + mapa de liderança editável (jun/2026, `735cf77`)
 
-- **RH (`role: rh`):** menu em `ADMIN_NAV_RH` — Dashboard, Colaboradores, Liderança por setor, Avisos, Destaque, Escalas, Inbox ajuda. Guard no `admin/layout.tsx` + APIs sensíveis com `requireAdminFullApi`.
-- **Editar mapa de liderança:** só **sócios**, **admin** (Daniel) ou login por senha (`podeEditarLiderancaMapaCompleto`); POST/PATCH/DELETE e aplicar padrão usam `requireAdminLiderancaMapaApi`. Alterações sincronizam `colaboradores_lideres` via `sincronizarVinculosUnidadeSetor`.
-- **UI** `admin/lideres-por-setor`: grid de todas as unidades (`GET ?todas=1`), botão **Editar mapa** no canto.
+- `src/lib/admin-access.ts` + endurecimento `admin-auth.ts` (níveis `full` | `rh_limitado` | `senha`).
+- Menu RH e guard de pathname; APIs admin restritas para RH.
+- Liderança: listagem de **todas as unidades**, edição com sync em `colaboradores_lideres`; ver secção **Admin** acima.
+
+### Escalas admin e portal (jun/2026)
+
+- Admin: filtros mês/unidade/setor/colaborador, pesquisa, situação folga/trabalho.
+- Portal: escala mensal derivada de `tipo_escala`; migration `036`.
+
+### Manuais dentro do portal (jun/2026)
+
+- Viewer integrado (`ManualPortalViewer`, rotas `meu-manual` / `manual`).
 
 ### Segurança (pré-produção já feita)
 
@@ -209,16 +271,20 @@ Ordem sugerida lá: hardening GitHub/Vercel/Supabase → rate limit + anti-enume
 ## Ficheiros-chave (referência rápida)
 
 ```text
+src/app/(admin)/admin/layout.tsx, lideres-por-setor/page.tsx, escalas/page.tsx
+src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts
+src/lib/escala-portal.ts, escala-calendario.ts, manual-por-setor.ts
 src/components/layout/PortalLayout.tsx, Header.tsx
-src/components/portal/AvaliacoesPortalHome.tsx, TrofeusParesPanel.tsx
+src/components/portal/AvaliacoesPortalHome.tsx, ManualPortalViewer.tsx, TrofeusParesPanel.tsx
 src/components/emocional/TermometroEmocional.tsx, EmocionalAlertasGestao.tsx
 src/lib/emocional-opcoes.ts, emocional-alertas-access.ts
 src/lib/config-avaliacao-direta.ts, avaliacao-direta.ts, colaborador-lideres.ts, portal-gerente-session.ts
 src/lib/portal-login-response.ts, onboarding-reabrir.ts, mural-unidade-grupo.ts
 src/lib/video-boas-vindas.ts, config-lideranca-operacional.ts
-src/app/(portal)/portal/avaliacao-master/, avaliacao-lideranca/, video-boas-vindas/
-src/app/api/portal/emocional/, emocional-alertas/, perfil/
-supabase/migrations/037_emocional_alertas_vistos.sql
+src/app/(portal)/portal/avaliacao-master/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
+src/app/api/admin/auth/, lideres-por-setor/, escalas/, colaboradores-para-escala/
+src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
+supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
-scripts/aplicar-vinculos-avaliacao-direta.mjs
+scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs
 ```
