@@ -3,15 +3,16 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolveColaboradorForAdminBridge } from '@/lib/admin-portal-bridge';
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 
-/** Credenciais via env + fallbacks para admin/gabifontes. */
+/**
+ * Credenciais admin por senha vêm SOMENTE de variáveis de ambiente (Vercel).
+ * Sem ADMIN_ALAN_LOGIN/ADMIN_ALAN_PASSWORD, o login admin por senha fica desativado;
+ * o acesso administrativo continua disponível via login do portal com role socio/admin.
+ */
 function getAdminCredentials(): { login: string; senha: string }[] {
   const creds: { login: string; senha: string }[] = [];
   const login = process.env.ADMIN_ALAN_LOGIN?.trim().toLowerCase();
   const senha = process.env.ADMIN_ALAN_PASSWORD;
   if (login && senha) creds.push({ login, senha });
-  // Fallback: admin + gabifontes2019 ou gabifontes2024 (caso env não esteja configurada em prod)
-  creds.push({ login: 'admin', senha: 'gabifontes2019' });
-  creds.push({ login: 'admin', senha: 'gabifontes2024' });
   return creds;
 }
 
@@ -20,11 +21,14 @@ export async function POST(req: Request) {
   const login = (body.login ?? '').toString().trim().toLowerCase();
   const senha = (body.senha ?? body.password ?? '').toString();
 
-  const adminPassword = process.env.ADMIN_PASSWORD || 'gabifontes2024';
+  // Senha única legada: só funciona se ADMIN_PASSWORD estiver definida no ambiente (sem default).
+  const adminPassword = process.env.ADMIN_PASSWORD?.trim();
   const credentials = getAdminCredentials();
 
-  const credMatch = credentials.find((c) => c.login === login && c.senha === senha);
-  const legacyMatch = !login && senha === adminPassword; // senha única antiga ainda funciona
+  const credMatch = senha
+    ? credentials.find((c) => c.login === login && c.senha === senha)
+    : undefined;
+  const legacyMatch = !login && !!adminPassword && senha === adminPassword;
 
   if (credMatch || legacyMatch) {
     const res = NextResponse.json({ ok: true });
