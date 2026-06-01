@@ -131,10 +131,16 @@ export async function aplicarEscalasJunho2026(supabase: SupabaseAdmin): Promise<
   }
 
   return {
-    ok: erros.length === 0,
+    ok: erros.length === 0 && aplicados > 0,
     aplicados,
     dias_gravados: diasGravados,
     nao_encontrados: naoEncontrados,
-    erros,
+    erros:
+      aplicados === 0 && erros.length === 0
+        ? [
+            'Nenhum colaborador do documento foi encontrado no cadastro (conferir nomes no Supabase).',
+            ...naoEncontrados.map((n) => `Não achado: ${n}`),
+          ]
+        : erros,
   };
 }

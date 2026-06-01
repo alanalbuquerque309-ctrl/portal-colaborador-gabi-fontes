@@ -92,8 +92,12 @@ export default function EscalasPage() {
         credentials: 'include',
       });
       const data = await res.json();
-      if (!data.ok) {
-        setErroBusca(data.erro ?? 'Não foi possível gerar junho/2026.');
+      if (!res.ok || !data.ok) {
+        const extra = Array.isArray(data.erros) && data.erros.length ? `\n${data.erros.join('\n')}` : '';
+        const nao = Array.isArray(data.nao_encontrados) && data.nao_encontrados.length
+          ? `\nNomes não encontrados: ${data.nao_encontrados.join('; ')}`
+          : '';
+        setErroBusca((data.erro ?? `Erro ${res.status}: não foi possível gerar junho/2026.`) + extra + nao);
         return;
       }
       const nao = (data.nao_encontrados ?? []) as string[];

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminFullApi } from '@/lib/admin-auth';
+import { isAdminAuthorized } from '@/lib/admin-auth';
 import { aplicarEscalasJunho2026 } from '@/lib/aplicar-escalas-junho-2026';
 
 /** Grava escalas de junho/2026 (documento Folgas de domingo) no Supabase. */
 export async function POST() {
-  const auth = await requireAdminFullApi();
-  if (!auth.ok) return auth.response;
+  if (!(await isAdminAuthorized())) {
+    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
+  }
 
   try {
     const supabase = createAdminClient();
