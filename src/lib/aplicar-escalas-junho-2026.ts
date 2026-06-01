@@ -1,11 +1,16 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
+import { nomeCoincide } from '@/lib/avaliacao-direta';
 import {
   ESCALAS_DOCUMENTO_JUNHO_2026,
   folgaDiasParaTexto,
   gerarMes,
-  normalizarNomeEscala,
+  parseFolgaDiasTexto,
   type ConfigEscala,
 } from '@/lib/escala-calendario';
+
+function parseFolgaDiasFromRow(row: { escala_folga_dias?: string | null }) {
+  return parseFolgaDiasTexto(row.escala_folga_dias);
+}
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -21,9 +26,52 @@ type ColabRow = {
   unidade_slug: string;
 };
 
-function acharColaborador(rows: ColabRow[], chavesNome: string[]): ColabRow | undefined {
-  const keys = new Set(chavesNome.map(normalizarNomeEscala));
-  return rows.find((r) => keys.has(normalizarNomeEscala(r.nome)));
+function acharColaborador(
+  rows: ColabRow[],
+  chavesNome: string[],
+  unidadeSlug?: string
+): ColabRow | undefined {
+  const pool = unidadeSlug ? rows.filter((r) => r.unidade_slug === unidadeSlug) : rows;
+  const busca = pool.length > 0 ? pool : rows;
+
+  for (const chave of chavesNome) {
+    const hits = busca.filter((r) => nomeCoincide(r.nome, chave));
+    if (hits.length === 1) return hits[0];
+    if (hits.length > 1 && unidadeSlug) {
+      const naUnidade = hits.filter((r) => r.unidade_slug === unidadeSlug);
+      if (naUnidade.length === 1) return naUnidade[0];
+    }
+    if (hits.length > 0) return hits[0];
+  }
+  return undefined;
+}
+
+async function materializarJunhoNoBanco(
+  supabase: SupabaseAdmin,
+  colaboradorId: string,
+  config: ConfigEscala
+): Promise<number> {
+  const dias = gerarMes(config, ANO, MES);
+  await supabase
+    .from('escalas')
+    .delete()
+    .eq('colaborador_id', colaboradorId)
+    .gte('data', DE)
+    .lte('data', ATE);
+
+  const payloads = dias.map((dia) => ({
+    colaborador_id: colaboradorId,
+    data: dia.data,
+    hora_entrada: dia.folga ? '00:00' : '08:00',
+    hora_saida: dia.folga ? '00:00' : '17:00',
+    observacao: dia.observacao,
+  }));
+
+  const { error } = await supabase.from('escalas').upsert(payloads, {
+    onConflict: 'colaborador_id,data',
+  });
+  if (error) throw new Error(error.message);
+  return dias.length;
 }
 
 function folgaTextoDeConfig(config: ConfigEscala): string {
@@ -78,14 +126,15 @@ export async function aplicarEscalasJunho2026(supabase: SupabaseAdmin): Promise<
     };
   });
 
+  const idsDocumento = new Set<string>();
+
   for (const perfil of ESCALAS_DOCUMENTO_JUNHO_2026) {
-    const col = acharColaborador(cols, perfil.chavesNome);
+    const col = acharColaborador(cols, perfil.chavesNome, perfil.unidadeSlug);
     if (!col) {
       naoEncontrados.push(perfil.chavesNome.join(' / '));
       continue;
     }
-
-    const dias = gerarMes(perfil.config, ANO, MES);
+    idsDocumento.add(col.id);
 
     const { error: errUpd } = await supabase
       .from('colaboradores')
@@ -102,32 +151,38 @@ export async function aplicarEscalasJunho2026(supabase: SupabaseAdmin): Promise<
       continue;
     }
 
-    await supabase
-      .from('escalas')
-      .delete()
-      .eq('colaborador_id', col.id)
-      .gte('data', DE)
-      .lte('data', ATE);
-
-    const payloads = dias.map((dia) => ({
-      colaborador_id: col.id,
-      data: dia.data,
-      hora_entrada: dia.folga ? '00:00' : '08:00',
-      hora_saida: dia.folga ? '00:00' : '17:00',
-      observacao: dia.observacao,
-    }));
-
-    const { error: errIns } = await supabase.from('escalas').upsert(payloads, {
-      onConflict: 'colaborador_id,data',
-    });
-
-    if (errIns) {
-      erros.push(`${col.nome} escalas: ${errIns.message}`);
-      continue;
+    try {
+      const n = await materializarJunhoNoBanco(supabase, col.id, perfil.config);
+      aplicados += 1;
+      diasGravados += n;
+    } catch (e) {
+      erros.push(`${col.nome} escalas: ${e instanceof Error ? e.message : 'erro'}`);
     }
+  }
 
-    aplicados += 1;
-    diasGravados += dias.length;
+  const { data: comTipo } = await supabase
+    .from('colaboradores')
+    .select('id, nome, tipo_escala, escala_folga_dias')
+    .in('tipo_escala', ['5x2', '6x1']);
+
+  for (const row of comTipo ?? []) {
+    const id = String(row.id);
+    if (idsDocumento.has(id)) continue;
+    const tipo = String(row.tipo_escala);
+    if (tipo !== '5x2' && tipo !== '6x1') continue;
+    const { folgaDiasSemana, folgaDomingoSemanal } = parseFolgaDiasFromRow(row);
+    const config: ConfigEscala = {
+      tipo,
+      folgaDiasSemana,
+      folgaDomingoSemanal,
+    };
+    try {
+      const n = await materializarJunhoNoBanco(supabase, id, config);
+      aplicados += 1;
+      diasGravados += n;
+    } catch (e) {
+      erros.push(`${row.nome} (cadastro): ${e instanceof Error ? e.message : 'erro'}`);
+    }
   }
 
   return {

@@ -124,6 +124,7 @@ export default function EscalasPage() {
     if (filtroSetor) params.set('setor', filtroSetor);
     if (filtroColaborador) params.set('colaborador_id', filtroColaborador);
     params.set('incluir_geradas', '1');
+    if (filtroMes === '2026-06') params.set('aplicar_auto', '1');
 
     fetch(`/api/admin/escalas?${params}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())

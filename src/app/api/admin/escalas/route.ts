@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
+import { aplicarEscalasJunho2026 } from '@/lib/aplicar-escalas-junho-2026';
 import {
   hojeIsoOperacao,
   listarEscalasPortalColaborador,
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
   const unidadeSlug = searchParams.get('unidade_slug')?.trim() || '';
   const setor = searchParams.get('setor')?.trim() || '';
   const incluirGeradas = searchParams.get('incluir_geradas') !== '0';
+  const aplicarAuto = searchParams.get('aplicar_auto') === '1';
   const { de, ate, label: mesRef } = parseMesReferencia(searchParams.get('mes'));
 
   try {
@@ -71,6 +73,14 @@ export async function GET(req: Request) {
 
     if (colaboradorId) colabQuery = colabQuery.eq('id', colaboradorId);
     if (setor) colabQuery = colabQuery.eq('setor', setor);
+    if (unidadeSlug) {
+      const { data: unRow } = await supabase
+        .from('unidades')
+        .select('id')
+        .eq('slug', unidadeSlug)
+        .maybeSingle();
+      if (unRow?.id) colabQuery = colabQuery.eq('unidade_id', String(unRow.id));
+    }
 
     const { data: colabsRaw, error: errColab } = await colabQuery;
     if (errColab) return NextResponse.json({ ok: false, erro: errColab.message }, { status: 500 });
@@ -157,7 +167,8 @@ export async function GET(req: Request) {
       return t === '5x2' || t === '6x1';
     }).length;
 
-    if (incluirGeradas && colaboradores.length <= limiteGeracao) {
+    const preencherGeradas = async () => {
+      if (!incluirGeradas || colaboradores.length > limiteGeracao) return;
       await Promise.all(
         colaboradores.map(async (col) => {
           const { escalas: geradas } = await listarEscalasPortalColaborador(supabase, col.id, {
@@ -181,6 +192,45 @@ export async function GET(req: Request) {
           }
         })
       );
+    };
+
+    await preencherGeradas();
+
+    let seedJunho: { aplicados: number; dias_gravados: number } | null = null;
+    if (aplicarAuto && mesRef === '2026-06' && porChave.size === 0 && colaboradores.length > 0) {
+      const seed = await aplicarEscalasJunho2026(supabase);
+      seedJunho = { aplicados: seed.aplicados, dias_gravados: seed.dias_gravados };
+      if (seed.aplicados > 0) {
+        const { data: rows2 } = await supabase
+          .from('escalas')
+          .select('id, data, hora_entrada, hora_saida, observacao, colaborador_id')
+          .in('colaborador_id', ids)
+          .gte('data', de)
+          .lte('data', ate)
+          .order('data', { ascending: true });
+        for (const e of rows2 ?? []) {
+          const cid = String(e.colaborador_id);
+          const data = String(e.data);
+          const col = colabPorId.get(cid);
+          if (!col) continue;
+          porChave.set(`${cid}|${data}`, {
+            id: String(e.id),
+            data,
+            colaborador_id: cid,
+            colaborador_nome: col.nome,
+            setor: col.setor,
+            unidade_nome: col.unidade_nome,
+            unidade_slug: col.unidade_slug,
+            situacao: situacaoDia(
+              (e.observacao as string | null) ?? null,
+              String(e.hora_entrada ?? ''),
+              String(e.hora_saida ?? '')
+            ),
+            fonte: 'banco',
+          });
+        }
+      }
+      if (porChave.size === 0) await preencherGeradas();
     }
 
     const escalas = Array.from(porChave.values()).sort((a, b) => {
@@ -190,12 +240,14 @@ export async function GET(req: Request) {
       return String(a.colaborador_nome).localeCompare(String(b.colaborador_nome), 'pt-BR');
     });
 
-    const linhasBanco = (rows ?? []).length;
+    const linhasBanco = porChave.size > 0 ? Array.from(porChave.values()).filter((r) => r.fonte === 'banco').length : (rows ?? []).length;
     let aviso: string | undefined;
-    if (escalas.length === 0) {
+    if (seedJunho && seedJunho.aplicados > 0) {
+      aviso = `Escalas de junho/2026 geradas automaticamente (${seedJunho.aplicados} colaborador(es)).`;
+    } else if (escalas.length === 0) {
       if (mesRef === '2026-06') {
         aviso =
-          'Junho/2026 ainda sem dados. Use o botão «Gerar escalas junho/2026» (documento Folgas de domingo) ou cadastre tipo_escala 5x2/6x1 em cada colaborador.';
+          'Junho/2026 ainda sem dados. Clique em Pesquisar de novo ou use «Gerar escalas junho/2026». Se persistir, confira os nomes no cadastro (documento Folgas de domingo).';
       } else if (comTipoEscala === 0 && linhasBanco === 0) {
         aviso =
           'Nenhuma escala no banco e nenhum colaborador filtrado com regime 5x2 ou 6x1 no cadastro.';
@@ -217,6 +269,7 @@ export async function GET(req: Request) {
         geradas_incluidas: incluirGeradas && colaboradores.length <= limiteGeracao,
       },
       aviso,
+      seed_junho: seedJunho,
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
