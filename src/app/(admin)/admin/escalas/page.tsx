@@ -1,9 +1,11 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
+import { primeiroUltimoDiaMes } from '@/lib/escala-calendario-grade';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
+import { EscalasCalendarioFolgas } from '@/components/admin/EscalasCalendarioFolgas';
 
 interface Colaborador {
   id: string;
@@ -15,11 +17,13 @@ interface Colaborador {
 
 interface EscalaLinha {
   id: string;
+  colaborador_id: string;
   data: string;
   colaborador_nome: string;
   setor: string | null;
   unidade_nome: string;
   situacao: 'folga' | 'trabalho';
+  no_mes_ref?: boolean;
 }
 
 function mesAtualInput(): string {
@@ -52,6 +56,8 @@ export default function EscalasPage() {
   const [avisoBusca, setAvisoBusca] = useState('');
   const [aplicandoJunho, setAplicandoJunho] = useState(false);
   const [msgJunho, setMsgJunho] = useState('');
+  const [podeEditarEscalas, setPodeEditarEscalas] = useState(false);
+  const [salvandoLinha, setSalvandoLinha] = useState<string | null>(null);
 
   const [filtroMes, setFiltroMes] = useState(mesAtualInput);
   const [filtroUnidade, setFiltroUnidade] = useState('');
@@ -66,7 +72,17 @@ export default function EscalasPage() {
           setColaboradores(data.colaboradores);
         }
       });
+    fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) setPodeEditarEscalas(data.pode_editar_escalas === true);
+      });
   }, []);
+
+  const escalasNoMes = useMemo(
+    () => escalas.filter((e) => e.no_mes_ref !== false),
+    [escalas]
+  );
 
   const colaboradoresFiltrados = useMemo(() => {
     return colaboradores.filter((c) => {
@@ -117,37 +133,116 @@ export default function EscalasPage() {
     }
   };
 
-  const pesquisar = () => {
-    setErroBusca('');
-    setAvisoBusca('');
-    setLoading(true);
-    setPesquisou(true);
-    const params = new URLSearchParams();
-    params.set('mes', filtroMes);
-    if (filtroUnidade) params.set('unidade_slug', filtroUnidade);
-    if (filtroSetor) params.set('setor', filtroSetor);
-    if (filtroColaborador) params.set('colaborador_id', filtroColaborador);
-    params.set('incluir_geradas', '1');
-    if (filtroMes === '2026-06') params.set('aplicar_auto', '1');
+  const aplicarEscalasNaTela = useCallback((lista: EscalaLinha[], totalApi: number, aviso?: string) => {
+    setEscalas(lista);
+    setTotal(totalApi);
+    if (aviso !== undefined) setAvisoBusca(aviso);
+  }, []);
 
-    fetch(`/api/admin/escalas?${params}`, { credentials: 'include', cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.ok) {
-          setErroBusca(data.erro ?? 'Erro ao buscar escalas.');
-          setEscalas([]);
-          setTotal(0);
-          return;
+  const atualizarSituacaoLocal = useCallback(
+    (colaboradorId: string, data: string, situacao: 'folga' | 'trabalho') => {
+      const periodoMes = primeiroUltimoDiaMes(filtroMes);
+      const noMesRef = data >= periodoMes.de && data <= periodoMes.ate;
+
+      setEscalas((prev) => {
+        const idx = prev.findIndex((e) => e.colaborador_id === colaboradorId && e.data === data);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = { ...next[idx], situacao };
+          return next;
         }
-        setEscalas(Array.isArray(data.escalas) ? data.escalas : []);
-        setTotal(Number(data.total ?? 0));
-        setAvisoBusca(typeof data.aviso === 'string' ? data.aviso : '');
-      })
-      .catch(() => {
-        setErroBusca('Falha de conexão ao buscar escalas.');
-        setEscalas([]);
-      })
-      .finally(() => setLoading(false));
+        const col = colaboradores.find((c) => c.id === colaboradorId);
+        if (!col) return prev;
+        return [
+          ...prev,
+          {
+            id: `local-${colaboradorId}-${data}`,
+            colaborador_id: colaboradorId,
+            data,
+            colaborador_nome: col.nome,
+            setor: col.setor,
+            unidade_nome: col.unidade_nome ?? '',
+            situacao,
+            no_mes_ref: noMesRef,
+          },
+        ];
+      });
+    },
+    [colaboradores, filtroMes]
+  );
+
+  const pesquisar = useCallback(
+    (opts?: { silencioso?: boolean }) => {
+      setErroBusca('');
+      if (!opts?.silencioso) {
+        setAvisoBusca('');
+        setLoading(true);
+        setPesquisou(true);
+      }
+      const params = new URLSearchParams();
+      params.set('mes', filtroMes);
+      if (filtroUnidade) params.set('unidade_slug', filtroUnidade);
+      if (filtroSetor) params.set('setor', filtroSetor);
+      if (filtroColaborador) params.set('colaborador_id', filtroColaborador);
+      params.set('incluir_geradas', '1');
+      params.set('semanas_completas', '1');
+      if (filtroMes === '2026-06') params.set('aplicar_auto', '1');
+
+      fetch(`/api/admin/escalas?${params}`, { credentials: 'include', cache: 'no-store' })
+        .then((r) => r.json())
+        .then((data) => {
+          if (!data.ok) {
+            if (!opts?.silencioso) {
+              setErroBusca(data.erro ?? 'Erro ao buscar escalas.');
+              aplicarEscalasNaTela([], 0);
+            }
+            return;
+          }
+          const lista = Array.isArray(data.escalas) ? (data.escalas as EscalaLinha[]) : [];
+          aplicarEscalasNaTela(lista, Number(data.total ?? 0), typeof data.aviso === 'string' ? data.aviso : '');
+        })
+        .catch(() => {
+          if (!opts?.silencioso) {
+            setErroBusca('Falha de conexão ao buscar escalas.');
+            aplicarEscalasNaTela([], 0);
+          }
+        })
+        .finally(() => {
+          if (!opts?.silencioso) setLoading(false);
+        });
+    },
+    [filtroMes, filtroUnidade, filtroSetor, filtroColaborador, aplicarEscalasNaTela]
+  );
+
+  const salvarSituacao = async (
+    colaboradorId: string,
+    data: string,
+    situacao: 'folga' | 'trabalho'
+  ) => {
+    const res = await fetch('/api/admin/escalas', {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ colaborador_id: colaboradorId, data, situacao }),
+    });
+    const dataRes = await res.json();
+    if (!res.ok || !dataRes.ok) {
+      setErroBusca(dataRes.erro ?? 'Não foi possível salvar.');
+      throw new Error('patch_failed');
+    }
+    atualizarSituacaoLocal(colaboradorId, data, situacao);
+    if (pesquisou) void pesquisar({ silencioso: true });
+  };
+
+  const toggleSituacaoLinha = async (e: EscalaLinha) => {
+    const nova = e.situacao === 'folga' ? 'trabalho' : 'folga';
+    const chave = `${e.colaborador_id}|${e.data}`;
+    setSalvandoLinha(chave);
+    try {
+      await salvarSituacao(e.colaborador_id, e.data, nova);
+    } finally {
+      setSalvandoLinha(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -376,7 +471,7 @@ export default function EscalasPage() {
           </div>
           <button
             type="button"
-            onClick={pesquisar}
+            onClick={() => pesquisar()}
             disabled={loading}
             className="rounded-lg bg-dourado-base px-5 py-2.5 text-cream-100 font-medium hover:bg-dourado-400 disabled:opacity-50 min-h-[42px]"
           >
@@ -422,11 +517,18 @@ export default function EscalasPage() {
           </div>
         ) : (
           <>
+            {podeEditarEscalas && (
+              <p className="text-sm text-green-900 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-3">
+                Tabela e calendário usam os mesmos dados: ao alterar folga em um, o outro atualiza na hora
+                (Keila, Daniel e sócios).
+              </p>
+            )}
             <p className="text-xs text-coffee-100 mb-2">
-              {labelMes(filtroMes)} · {total} registro{total === 1 ? '' : 's'}
+              {labelMes(filtroMes)} · {escalasNoMes.length} dia(s) no mês · {total} registro
+              {total === 1 ? '' : 's'} no período (inclui semanas que cruzam o mês)
             </p>
             <div className="rounded-xl border border-cream-300 overflow-x-auto">
-              <table className="w-full text-sm min-w-[520px]">
+              <table className="w-full text-sm min-w-[600px]">
                 <thead className="bg-cream-200">
                   <tr>
                     <th className="text-left px-4 py-3 text-coffee-base font-medium">Colaborador</th>
@@ -434,12 +536,15 @@ export default function EscalasPage() {
                     <th className="text-left px-4 py-3 text-coffee-base font-medium">Setor</th>
                     <th className="text-left px-4 py-3 text-coffee-base font-medium">Data</th>
                     <th className="text-left px-4 py-3 text-coffee-base font-medium">Situação</th>
+                    {podeEditarEscalas && (
+                      <th className="text-left px-4 py-3 text-coffee-base font-medium">Alterar</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
-                  {escalas.map((e) => (
+                  {escalasNoMes.map((e) => (
                     <tr
-                      key={e.id}
+                      key={`${e.colaborador_id}|${e.data}`}
                       className={`border-t border-cream-300 ${
                         e.situacao === 'folga' ? 'bg-cafeteria-50/70' : 'hover:bg-cream-50'
                       }`}
@@ -461,11 +566,34 @@ export default function EscalasPage() {
                           <span className="text-coffee-base">Trabalho</span>
                         )}
                       </td>
+                      {podeEditarEscalas && (
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            disabled={salvandoLinha === `${e.colaborador_id}|${e.data}`}
+                            onClick={() => void toggleSituacaoLinha(e)}
+                            className="text-xs font-medium text-dourado-700 hover:underline disabled:opacity-50"
+                          >
+                            {salvandoLinha === `${e.colaborador_id}|${e.data}`
+                              ? 'Salvando…'
+                              : e.situacao === 'folga'
+                                ? 'Marcar trabalho'
+                                : 'Dar folga'}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            <EscalasCalendarioFolgas
+              mesRef={filtroMes}
+              escalas={escalas}
+              podeEditar={podeEditarEscalas}
+              onSalvarSituacao={salvarSituacao}
+            />
           </>
         )}
       </section>

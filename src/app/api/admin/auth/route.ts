@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 
-import { ADMIN_NAV_RH, labelNivelAdmin, podeEditarLiderancaMapaCompleto } from '@/lib/admin-access';
+import {
+  ADMIN_NAV_RH,
+  labelNivelAdmin,
+  podeEditarEscalasAdmin,
+  podeEditarLiderancaMapaCompleto,
+} from '@/lib/admin-access';
 
 import { resolveColaboradorForAdminBridge } from '@/lib/admin-portal-bridge';
 
@@ -143,6 +148,8 @@ export async function GET() {
     menu_rh: [...ADMIN_NAV_RH],
 
     pode_editar_lideranca_mapa: podeEditarLiderancaMapaCompleto(role, senhaAdmin),
+
+    pode_editar_escalas: podeEditarEscalasAdmin(role, senhaAdmin),
 
     podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
 

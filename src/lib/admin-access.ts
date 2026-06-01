@@ -43,6 +43,16 @@ export function adminPathPermitidoRh(pathname: string | null | undefined): boole
   return false;
 }
 
+/** Editar folgas/escalas no admin: sócios, admin (Daniel), RH (Keila) ou senha. */
+export function podeEditarEscalasAdmin(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): boolean {
+  if (senhaAdmin) return true;
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin' || r === 'rh';
+}
+
 /** Sócios, admin e login por senha: editar mapa completo e aplicar padrão operacional. */
 export function podeEditarLiderancaMapaCompleto(
   role: string | null | undefined,

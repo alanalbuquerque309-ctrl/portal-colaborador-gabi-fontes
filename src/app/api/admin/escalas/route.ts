@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { isAdminAuthorized, requireAdminEscalasEditApi } from '@/lib/admin-auth';
 import { aplicarEscalasJunho2026 } from '@/lib/aplicar-escalas-junho-2026';
+import { periodoSemanasCompletas, primeiroUltimoDiaMes } from '@/lib/escala-calendario-grade';
 import { slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
 import {
   hojeIsoOperacao,
@@ -36,6 +37,31 @@ type ColabRow = {
   unidade_slug: string;
 };
 
+function linhaEscala(
+  col: ColabRow,
+  cid: string,
+  data: string,
+  id: string,
+  entrada: string,
+  saida: string,
+  observacao: string | null,
+  periodoMes: { de: string; ate: string },
+  fonte: 'banco' | 'gerada'
+) {
+  return {
+    id,
+    data,
+    colaborador_id: cid,
+    colaborador_nome: col.nome,
+    setor: col.setor,
+    unidade_nome: col.unidade_nome,
+    unidade_slug: col.unidade_slug,
+    situacao: situacaoDia(observacao, entrada, saida),
+    no_mes_ref: data >= periodoMes.de && data <= periodoMes.ate,
+    fonte,
+  };
+}
+
 /** Lista escalas do mês com filtros (unidade, setor, colaborador). */
 export async function GET(req: Request) {
   if (!(await isAdminAuthorized())) {
@@ -48,7 +74,13 @@ export async function GET(req: Request) {
   const setor = searchParams.get('setor')?.trim() || '';
   const incluirGeradas = searchParams.get('incluir_geradas') !== '0';
   const aplicarAuto = searchParams.get('aplicar_auto') === '1';
-  const { de, ate, label: mesRef } = parseMesReferencia(searchParams.get('mes'));
+  const semanasCompletas = searchParams.get('semanas_completas') !== '0';
+  const mesParam = searchParams.get('mes');
+  const { label: mesRef } = parseMesReferencia(mesParam);
+  const periodoMes = primeiroUltimoDiaMes(mesRef);
+  const periodoConsulta = semanasCompletas ? periodoSemanasCompletas(mesRef) : parseMesReferencia(mesParam);
+  const de = periodoConsulta.de;
+  const ate = periodoConsulta.ate;
 
   try {
     const supabase = createAdminClient();
@@ -141,21 +173,20 @@ export async function GET(req: Request) {
       const data = String(e.data);
       const col = colabPorId.get(cid);
       if (!col) continue;
-      porChave.set(`${cid}|${data}`, {
-        id: String(e.id),
-        data,
-        colaborador_id: cid,
-        colaborador_nome: col.nome,
-        setor: col.setor,
-        unidade_nome: col.unidade_nome,
-        unidade_slug: col.unidade_slug,
-        situacao: situacaoDia(
+      porChave.set(
+        `${cid}|${data}`,
+        linhaEscala(
+          col,
+          cid,
+          data,
+          String(e.id),
+          String(e.hora_entrada ?? '08:00'),
+          String(e.hora_saida ?? '17:00'),
           (e.observacao as string | null) ?? null,
-          String(e.hora_entrada ?? ''),
-          String(e.hora_saida ?? '')
-        ),
-        fonte: 'banco',
-      });
+          periodoMes,
+          'banco'
+        )
+      );
     }
 
     const limiteGeracao = colaboradorId ? 1 : unidadeSlug ? 300 : 100;
@@ -181,17 +212,20 @@ export async function GET(req: Request) {
           for (const g of geradas) {
             const chave = `${col.id}|${g.data}`;
             if (porChave.has(chave)) continue;
-            porChave.set(chave, {
-              id: g.id,
-              data: g.data,
-              colaborador_id: col.id,
-              colaborador_nome: col.nome,
-              setor: col.setor,
-              unidade_nome: col.unidade_nome,
-              unidade_slug: col.unidade_slug,
-              situacao: situacaoDia(g.observacao, g.hora_entrada, g.hora_saida),
-              fonte: g.fonte,
-            });
+            porChave.set(
+              chave,
+              linhaEscala(
+                col,
+                col.id,
+                g.data,
+                g.id,
+                g.hora_entrada,
+                g.hora_saida,
+                g.observacao,
+                periodoMes,
+                g.fonte
+              )
+            );
           }
         })
       );
@@ -216,21 +250,20 @@ export async function GET(req: Request) {
           const data = String(e.data);
           const col = colabPorId.get(cid);
           if (!col) continue;
-          porChave.set(`${cid}|${data}`, {
-            id: String(e.id),
-            data,
-            colaborador_id: cid,
-            colaborador_nome: col.nome,
-            setor: col.setor,
-            unidade_nome: col.unidade_nome,
-            unidade_slug: col.unidade_slug,
-            situacao: situacaoDia(
+          porChave.set(
+            `${cid}|${data}`,
+            linhaEscala(
+              col,
+              cid,
+              data,
+              String(e.id),
+              String(e.hora_entrada ?? '08:00'),
+              String(e.hora_saida ?? '17:00'),
               (e.observacao as string | null) ?? null,
-              String(e.hora_entrada ?? ''),
-              String(e.hora_saida ?? '')
-            ),
-            fonte: 'banco',
-          });
+              periodoMes,
+              'banco'
+            )
+          );
         }
       }
       if (porChave.size === 0) await preencherGeradas();
@@ -263,6 +296,8 @@ export async function GET(req: Request) {
       ok: true,
       mes: mesRef,
       periodo: { de, ate },
+      periodo_mes: periodoMes,
+      semanas_completas: semanasCompletas,
       escalas,
       total: escalas.length,
       meta: {
@@ -280,11 +315,65 @@ export async function GET(req: Request) {
   }
 }
 
+/** Altera folga/trabalho de um colaborador em um dia (grava em `escalas`). */
+export async function PATCH(req: Request) {
+  const auth = await requireAdminEscalasEditApi();
+  if (!auth.ok) return auth.response;
+
+  let body: { colaborador_id?: string; data?: string; situacao?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, erro: 'Corpo inválido' }, { status: 400 });
+  }
+
+  const colaboradorId = String(body.colaborador_id ?? '').trim();
+  const data = String(body.data ?? '').trim();
+  const situacao = String(body.situacao ?? '').trim();
+
+  if (!colaboradorId || !/^\d{4}-\d{2}-\d{2}$/.test(data)) {
+    return NextResponse.json({ ok: false, erro: 'colaborador_id e data (YYYY-MM-DD) obrigatórios' }, { status: 400 });
+  }
+  if (situacao !== 'folga' && situacao !== 'trabalho') {
+    return NextResponse.json({ ok: false, erro: 'situacao deve ser folga ou trabalho' }, { status: 400 });
+  }
+
+  const payload =
+    situacao === 'folga'
+      ? {
+          colaborador_id: colaboradorId,
+          data,
+          hora_entrada: '00:00',
+          hora_saida: '00:00',
+          observacao: 'Folga',
+        }
+      : {
+          colaborador_id: colaboradorId,
+          data,
+          hora_entrada: '08:00',
+          hora_saida: '17:00',
+          observacao: null,
+        };
+
+  try {
+    const supabase = createAdminClient();
+    const { data: row, error } = await supabase
+      .from('escalas')
+      .upsert(payload, { onConflict: 'colaborador_id,data' })
+      .select('id')
+      .single();
+    if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, id: row?.id, situacao });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Erro';
+    return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+  }
+}
+
 /** Cria escala(s). Aceita array para cadastro em lote. */
 export async function POST(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const auth = await requireAdminEscalasEditApi();
+  if (!auth.ok) return auth.response;
 
   let body: {
     escalas?: Array<{

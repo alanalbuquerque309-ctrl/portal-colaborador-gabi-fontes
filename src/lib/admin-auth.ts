@@ -5,6 +5,7 @@ import {
   adminPathPermitidoRh,
   isRoleAdminCompleto,
   isRoleAdminRh,
+  podeEditarEscalasAdmin,
   podeEditarLiderancaMapaCompleto,
   resolveAdminNivel,
   type AdminNivelAcesso,
@@ -99,6 +100,31 @@ export async function requireAdminFullApi(): Promise<
 /** RH limitado só nas rotas permitidas (uso opcional em páginas). */
 export function rhPodeAcessarAdminPath(pathname: string): boolean {
   return adminPathPermitidoRh(pathname);
+}
+
+/** Editar escalas/folgas: sócios, admin, RH ou senha. */
+export async function requireAdminEscalasEditApi(): Promise<
+  { ok: true; ctx: AdminViewerContext } | { ok: false; response: NextResponse }
+> {
+  const ctx = await getAdminViewerContext();
+  if (!ctx) {
+    return {
+      ok: false,
+      response: NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 }),
+    };
+  }
+  const senha = ctx.kind === 'password_session';
+  const role = ctx.kind === 'portal' ? ctx.role : null;
+  if (!podeEditarEscalasAdmin(role, senha)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { ok: false, erro: 'Sem permissão para editar escalas e folgas.' },
+        { status: 403 }
+      ),
+    };
+  }
+  return { ok: true, ctx };
 }
 
 /** Editar mapa de liderança e aplicar padrão: sócios, admin portal ou login por senha. */

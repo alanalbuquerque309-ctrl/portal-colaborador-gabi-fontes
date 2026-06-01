@@ -121,6 +121,9 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 - **Gerar dados:** botão **Gerar escalas junho/2026** no admin **ou** `Pesquisar` em `2026-06` com `aplicar_auto=1` (grava no Supabase se vazio). Script local: `npm run db:escalas-junho-2026 -- --confirmar` (`DATABASE_URL`).
 - **Filtro unidade Mesquita (escalas):** igual ao mural — inclui slugs `mesquita`, `fabrica`, `administrativo` (`slugsDoGrupoMural` em `mural-unidade-grupo.ts`). Quem está na **Fábrica de doces** costuma ter `unidade_id` → **fabrica**; filtrar só «Mesquita» sem esse grupo deixava a lista vazia (corrigido `b28292e`).
 - **RH:** pode gerar junho (`isAdminAuthorized` na rota aplicar); gestão completa mantém outras APIs restritas.
+- **Editar folgas/escalas:** `podeEditarEscalasAdmin` — sócios, `admin` (Daniel), `rh` (Keila), senha. API `PATCH /api/admin/escalas` (`situacao`: folga | trabalho). UI: coluna **Alterar** na tabela + **calendário** com gaveta por dia (`EscalasCalendarioFolgas.tsx`).
+- **Sincronização tabela ↔ calendário:** um único estado `escalas` na página; após PATCH, `atualizarSituacaoLocal` + `pesquisar({ silencioso: true })` — contagem no calendário e lista na gaveta refletem a edição na hora.
+- **Calendário:** semanas completas (`semanas_completas=1`, `escala-calendario-grade.ts`); dias de outros meses esmaecidos; clique no dia lista folgas e permite editar.
 
 ### Manuais no portal
 
