@@ -1,6 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
-import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import {
   listarColaboradoresPorUnidadeSetor,
   listarLideresConfigPorUnidadeSetor,
@@ -11,6 +10,7 @@ import {
   filtrarEquipeRespeitandoExclusividade,
   listarEquipeAvaliacaoDireta,
 } from '@/lib/avaliacao-direta';
+import { resolverUnidadesListaCompletaEquipeAvaliacao } from '@/lib/resolver-unidades-equipe-avaliacao';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -73,6 +73,19 @@ export async function listarEquipeParaAvaliacaoSemanal(
   const mapa = await buildMapaAvaliacaoDireta(supabase);
   const direta = await listarEquipeAvaliacaoDireta(supabase, liderId);
 
+  const mesclarListas = (listas: MembroEquipe[][]) => {
+    const porId = new Map<string, MembroEquipe>();
+    for (const lista of listas) {
+      for (const m of filtrarEquipeRespeitandoExclusividade(lista, liderId, mapa)) {
+        porId.set(m.id, m);
+      }
+    }
+    for (const m of direta) porId.set(m.id, m);
+    return Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  };
+
+  const listas: MembroEquipe[][] = [];
+
   let setoresLiderados: Array<{ unidade_id: string; setor: string }> = [];
   try {
     setoresLiderados = await listarSetoresLideradosPor(supabase, liderId);
@@ -80,39 +93,25 @@ export async function listarEquipeParaAvaliacaoSemanal(
     setoresLiderados = [];
   }
 
-  const lideraSetoresEspecificos = setoresLiderados.some(
-    (s) => s.setor !== SETOR_TODOS_NA_UNIDADE
-  );
-  const gerenteDaUnidade =
-    !lideraSetoresEspecificos &&
-    setoresLiderados.some(
-      (s) => s.unidade_id === unidadeId && s.setor === SETOR_TODOS_NA_UNIDADE
-    );
-
-  const mesclar = (lista: MembroEquipe[]) => {
-    const porId = new Map<string, MembroEquipe>();
-    for (const m of filtrarEquipeRespeitandoExclusividade(lista, liderId, mapa)) {
-      porId.set(m.id, m);
-    }
-    for (const m of direta) porId.set(m.id, m);
-    return Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  };
-
-  if (lideraSetoresEspecificos || setoresLiderados.length > 0) {
+  if (setoresLiderados.length > 0) {
     const porLideranca = await listarEquipeDoLider(supabase, liderId, null);
-    const equipe = await enriquecerMembrosEquipe(supabase, porLideranca);
-    if (equipe.length > 0 || direta.length > 0) {
-      return mesclar(equipe);
-    }
+    listas.push(await enriquecerMembrosEquipe(supabase, porLideranca));
   }
 
-  if (gerenteDaUnidade) {
-    return mesclar(await listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId));
+  const unidadesListaCompleta = await resolverUnidadesListaCompletaEquipeAvaliacao(
+    supabase,
+    liderId,
+    unidadeId
+  );
+  for (const uid of unidadesListaCompleta) {
+    listas.push(await listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, uid, liderId));
   }
 
-  if (direta.length > 0) return mesclar(direta);
+  if (listas.length === 0 && direta.length === 0) {
+    listas.push(await listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId));
+  }
 
-  return mesclar(await listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId));
+  return mesclarListas(listas);
 }
 
 /** Avaliação semanal do gerente: todos os colaboradores da unidade (independente do onboarding). */

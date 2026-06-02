@@ -1,0 +1,92 @@
+import type { createAdminClient } from '@/lib/supabase/admin';
+import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import {
+  REGRAS_LIDERANCA_OPERACIONAL,
+  type RegraLiderancaOperacional,
+} from '@/lib/config-lideranca-operacional';
+import { REGRAS_UNIDADE_EXTRA_TEMPORARIA } from '@/lib/config-avaliacao-unidade-extra';
+import { nomeCoincide } from '@/lib/avaliacao-direta';
+import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
+import { listarSetoresLideradosPor } from '@/lib/lideres-por-setor';
+
+type SupabaseAdmin = ReturnType<typeof createAdminClient>;
+
+async function resolverUnidadeIdPorSlug(
+  supabase: SupabaseAdmin,
+  slug: string
+): Promise<string | null> {
+  const { data } = await supabase.from('unidades').select('id').eq('slug', slug).maybeSingle();
+  if (data?.id) return String(data.id);
+  const def = UNIDADES_CADASTRO.find((u) => u.slug === slug);
+  if (!def) return null;
+  const { data: ins } = await supabase
+    .from('unidades')
+    .insert({ nome: def.label, slug: def.slug })
+    .select('id')
+    .single();
+  return ins?.id ? String(ins.id) : null;
+}
+
+function slugsOperacionaisParaNome(nome: string): string[] {
+  const slugs = new Set<string>();
+  for (const regra of REGRAS_LIDERANCA_OPERACIONAL) {
+    if (!regraLideraUnidade(regra, nome)) continue;
+    if (regra.tipo === 'unidade_todos' || regra.tipo === 'unidade_setor') {
+      slugs.add(regra.unidade_slug);
+    }
+  }
+  return Array.from(slugs);
+}
+
+function regraLideraUnidade(regra: RegraLiderancaOperacional, nomeLider: string): boolean {
+  const nomes =
+    regra.tipo === 'setor_todas_unidades' ? regra.lideres_nomes : regra.lideres_nomes;
+  return nomes.some((n) => nomeCoincide(nomeLider, n));
+}
+
+function slugsExtraTemporariosParaNome(nome: string): string[] {
+  const slugs: string[] = [];
+  for (const regra of REGRAS_UNIDADE_EXTRA_TEMPORARIA) {
+    if (regra.lideres_nomes.some((n) => nomeCoincide(nome, n))) {
+      slugs.push(regra.unidade_slug);
+    }
+  }
+  return slugs;
+}
+
+/** Unidades cujos colaboradores (role colaborador) entram na lista de avaliação semanal deste líder. */
+export async function resolverUnidadesListaCompletaEquipeAvaliacao(
+  supabase: SupabaseAdmin,
+  liderId: string,
+  unidadeIdCadastro: string
+): Promise<string[]> {
+  const ids = new Set<string>();
+
+  let setoresLiderados: Array<{ unidade_id: string; setor: string }> = [];
+  try {
+    setoresLiderados = await listarSetoresLideradosPor(supabase, liderId);
+  } catch {
+    setoresLiderados = [];
+  }
+
+  for (const s of setoresLiderados) {
+    if (s.setor === SETOR_TODOS_NA_UNIDADE && s.unidade_id) ids.add(s.unidade_id);
+  }
+
+  const { data: eu } = await supabase.from('colaboradores').select('nome').eq('id', liderId).maybeSingle();
+  const nomeLider = String(eu?.nome ?? '');
+
+  if (nomeLider) {
+    const slugs = Array.from(
+      new Set([...slugsOperacionaisParaNome(nomeLider), ...slugsExtraTemporariosParaNome(nomeLider)])
+    );
+    for (const slug of slugs) {
+      const uid = await resolverUnidadeIdPorSlug(supabase, slug);
+      if (uid) ids.add(uid);
+    }
+  }
+
+  if (ids.size === 0 && unidadeIdCadastro) ids.add(unidadeIdCadastro);
+
+  return Array.from(ids);
+}

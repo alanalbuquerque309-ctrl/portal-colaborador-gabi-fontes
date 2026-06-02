@@ -70,7 +70,7 @@ export const REGRAS_LIDERANCA_OPERACIONAL: RegraLiderancaOperacional[] = [
 
     unidade_slug: 'nova-iguacu',
 
-    lideres_nomes: ['Nathalia Pereira Luna', 'Cristina Batista'],
+    lideres_nomes: ['Nathalia Pereira Luna', 'Nathalia', 'Nathália', 'Cristina Batista', 'Cristina'],
 
   },
 
@@ -118,7 +118,7 @@ export const REGRAS_LIDERANCA_OPERACIONAL: RegraLiderancaOperacional[] = [
 
     setor: 'Atendimento',
 
-    lideres_nomes: ['Nathalia Pereira Luna', 'Cristina Batista'],
+    lideres_nomes: ['Nathalia Pereira Luna', 'Nathalia', 'Nathália', 'Cristina Batista', 'Cristina'],
 
   },
 

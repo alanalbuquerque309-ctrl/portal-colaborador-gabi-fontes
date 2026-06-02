@@ -1,11 +1,12 @@
 'use client';
 
-type Item = { id: string; nome: string; concluido: boolean; subtitulo?: string };
+type Item = { id: string; nome: string; concluido: boolean; subtitulo?: string; editavel?: boolean };
 
 type Props = {
   titulo?: string;
   itens: Item[];
   onIrPara: (id: string) => void;
+  onEditar?: (id: string) => void;
   filtroPendentes: boolean;
   onToggleFiltro: () => void;
 };
@@ -14,6 +15,7 @@ export function AvaliacaoSemanalChecklist({
   titulo = 'Checklist da semana',
   itens,
   onIrPara,
+  onEditar,
   filtroPendentes,
   onToggleFiltro,
 }: Props) {
@@ -51,22 +53,36 @@ export function AvaliacaoSemanalChecklist({
         <ul className="grid gap-2 sm:grid-cols-2">
           {visiveis.map((m) => (
             <li key={`check-${m.id}`}>
-              <button
-                type="button"
-                onClick={() => onIrPara(m.id)}
-                className={`w-full text-left rounded-lg border px-3 py-2 text-sm ${
+              <div
+                className={`flex items-stretch gap-1 rounded-lg border text-sm ${
                   m.concluido
                     ? 'border-green-200 bg-green-50 text-green-900'
                     : 'border-amber-200 bg-amber-50 text-amber-900'
                 }`}
               >
-                <span className="font-medium">
-                  {m.concluido ? '✅' : '⬜'} {m.nome}
-                </span>
-                {m.subtitulo ? (
-                  <span className="block text-xs opacity-80 mt-0.5">{m.subtitulo}</span>
+                <button
+                  type="button"
+                  onClick={() => onIrPara(m.id)}
+                  className="flex-1 text-left px-3 py-2 min-w-0"
+                >
+                  <span className="font-medium">
+                    {m.concluido ? '✅' : '⬜'} {m.nome}
+                  </span>
+                  {m.subtitulo ? (
+                    <span className="block text-xs opacity-80 mt-0.5">{m.subtitulo}</span>
+                  ) : null}
+                </button>
+                {m.concluido && m.editavel && onEditar ? (
+                  <button
+                    type="button"
+                    onClick={() => onEditar(m.id)}
+                    className="shrink-0 px-2.5 border-l border-green-200/80 text-xs font-medium hover:bg-green-100/80"
+                    title="Editar avaliação (uma vez)"
+                  >
+                    ✏️
+                  </button>
                 ) : null}
-              </button>
+              </div>
             </li>
           ))}
         </ul>

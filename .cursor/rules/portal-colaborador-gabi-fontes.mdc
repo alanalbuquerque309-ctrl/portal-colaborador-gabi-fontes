@@ -44,7 +44,10 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 ### Líder (gerente / master / admin)
 
 - **Rota:** `/portal/avaliacao-master` — menu **Avaliação da equipe**.
-- **Obrigatório:** uma avaliação por colaborador da equipe **por semana** (após salvar, só leitura na mesma semana).
+- **Obrigatório:** uma avaliação por colaborador da equipe **por semana**; após salvar, **uma correção** via botão **Editar** (ícone ✏️ no checklist ou no card); depois só leitura (`edicao_utilizada`, migration `038`).
+- **Equipe Nova Iguaçu:** gerentes no mapa operacional (`config-lideranca-operacional.ts` — Nathália, Cristina); lista também via `resolver-unidades-equipe-avaliacao.ts` se `lideres_por_setor` ainda não estiver aplicado.
+- **Joyce (temporário):** também avalia Nova Iguaçu via `config-avaliacao-unidade-extra.ts` (remover regra quando não precisar).
+- **API:** `POST` primeiro envio; `PATCH /api/portal/avaliacao-master` com `avaliacao_id` para edição única.
 - **Campos:** assiduidade; se presente, notas 1–5 (vestimenta, pontualidade, trabalho em equipe, desempenho); nota ≤3 exige justificativa.
 - **Novatos:** pode avaliar com cadastro portal pendente ou em adaptação; **Marcar como apto na função** quando aplicável.
 - **Feedback recebido:** `/portal/minha-lideranca` (menu **Minha liderança**).

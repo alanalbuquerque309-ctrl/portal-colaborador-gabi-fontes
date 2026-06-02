@@ -32,6 +32,7 @@ export default function AvaliacaoMasterPage() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [filtroPendentes, setFiltroPendentes] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
 
   const autorizado =
     !!session?.colaboradorId &&
@@ -137,6 +138,7 @@ export default function AvaliacaoMasterPage() {
             id: m.id,
             nome: m.nome,
             concluido: m.avaliacao != null,
+            editavel: Boolean(m.avaliacao && !m.avaliacao.edicao_utilizada && m.avaliacao.id),
             subtitulo:
               [
                 m.cargo,
@@ -150,6 +152,11 @@ export default function AvaliacaoMasterPage() {
           filtroPendentes={filtroPendentes}
           onToggleFiltro={() => setFiltroPendentes((v) => !v)}
           onIrPara={(id) => {
+            setEditandoId(null);
+            document.getElementById(`membro-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          onEditar={(id) => {
+            setEditandoId(id);
             document.getElementById(`membro-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }}
         />
@@ -180,7 +187,14 @@ export default function AvaliacaoMasterPage() {
                 avaliacaoInicial={m.avaliacao}
                 onboardingCompleto={m.onboarding_completo !== false}
                 operacaoApto={m.operacao_apto === true}
-                onSalvo={carregar}
+                forcarEdicao={editandoId === m.id}
+                onModoEdicaoChange={(ativo) => {
+                  if (!ativo && editandoId === m.id) setEditandoId(null);
+                }}
+                onSalvo={() => {
+                  setEditandoId(null);
+                  carregar();
+                }}
               />
             </li>
           ))}

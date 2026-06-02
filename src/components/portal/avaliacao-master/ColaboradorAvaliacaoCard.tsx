@@ -6,6 +6,7 @@ import type { AssiduidadeTipo } from '@/lib/avaliacao-diaria';
 import { calcularMediaDia } from '@/lib/avaliacao-diaria';
 
 export type AvaliacaoServidor = {
+  id?: string;
   assiduidade: AssiduidadeTipo;
   nota_vestimenta: number | null;
   nota_pontualidade: number | null;
@@ -13,6 +14,7 @@ export type AvaliacaoServidor = {
   nota_desempenho_tarefas: number | null;
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
+  edicao_utilizada?: boolean;
 } | null;
 
 type Props = {
@@ -29,6 +31,10 @@ type Props = {
   /** Endpoint POST (default: avaliação do gerente). */
   postUrl?: string;
   rotuloSalvar?: string;
+  forcarEdicao?: boolean;
+  onModoEdicaoChange?: (ativo: boolean) => void;
+  /** Desabilita edição única (ex.: visita RH). */
+  permiteEdicaoUnica?: boolean;
 };
 
 function mapRowToState(row: NonNullable<AvaliacaoServidor>): {
@@ -71,8 +77,15 @@ export function ColaboradorAvaliacaoCard({
   onSalvo,
   postUrl = '/api/portal/avaliacao-master',
   rotuloSalvar = 'Salvar avaliação',
+  forcarEdicao = false,
+  onModoEdicaoChange,
+  permiteEdicaoUnica = true,
 }: Props) {
-  const somenteLeitura = avaliacaoInicial != null;
+  const [modoEdicao, setModoEdicao] = useState(false);
+  const edicaoUtilizada = avaliacaoInicial?.edicao_utilizada === true;
+  const podeEditarAvaliacao =
+    permiteEdicaoUnica && avaliacaoInicial != null && !edicaoUtilizada && !!avaliacaoInicial.id;
+  const somenteLeitura = avaliacaoInicial != null && !modoEdicao;
   const cadastroPortalPendente = !onboardingCompleto;
 
   const inicial = useMemo(() => {
@@ -116,6 +129,34 @@ export function ColaboradorAvaliacaoCard({
   useEffect(() => {
     setApto(operacaoApto);
   }, [operacaoApto]);
+
+  useEffect(() => {
+    if (forcarEdicao && podeEditarAvaliacao) {
+      setModoEdicao(true);
+      onModoEdicaoChange?.(true);
+    }
+  }, [forcarEdicao, podeEditarAvaliacao, onModoEdicaoChange]);
+
+  const iniciarEdicao = () => {
+    if (!podeEditarAvaliacao) return;
+    setModoEdicao(true);
+    onModoEdicaoChange?.(true);
+    setMsg(null);
+    setErro(null);
+  };
+
+  const cancelarEdicao = () => {
+    setModoEdicao(false);
+    onModoEdicaoChange?.(false);
+    setAssiduidade(inicial.assiduidade);
+    setV(inicial.v);
+    setP(inicial.p);
+    setE(inicial.e);
+    setD(inicial.d);
+    setJustificativaNotaBaixa(avaliacaoInicial?.justificativa_nota_baixa ?? '');
+    setMsg(null);
+    setErro(null);
+  };
 
   const injustificada = assiduidade === 'falta_injustificada';
   const isento =
@@ -206,27 +247,32 @@ export function ColaboradorAvaliacaoCard({
     }
     setSalvando(true);
     try {
+      const payload = {
+        data_referencia: dataReferencia,
+        colaborador_id: colaboradorId,
+        assiduidade,
+        nota_vestimenta: estrelasDesabilitadas ? null : v,
+        nota_pontualidade: estrelasDesabilitadas ? null : p,
+        nota_trabalho_equipe: estrelasDesabilitadas ? null : e,
+        nota_desempenho_tarefas: estrelasDesabilitadas ? null : d,
+        justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa.trim() : '',
+      };
       const res = await fetch(postUrl, {
-        method: 'POST',
+        method: modoEdicao ? 'PATCH' : 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data_referencia: dataReferencia,
-          colaborador_id: colaboradorId,
-          assiduidade,
-          nota_vestimenta: estrelasDesabilitadas ? null : v,
-          nota_pontualidade: estrelasDesabilitadas ? null : p,
-          nota_trabalho_equipe: estrelasDesabilitadas ? null : e,
-          nota_desempenho_tarefas: estrelasDesabilitadas ? null : d,
-          justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa.trim() : '',
-        }),
+        body: JSON.stringify(
+          modoEdicao ? { ...payload, avaliacao_id: avaliacaoInicial?.id } : payload
+        ),
       });
       const data = await res.json();
       if (!data.ok) {
         setErro(data.erro || 'Não foi possível salvar.');
         return;
       }
-      setMsg('Salvo.');
+      setModoEdicao(false);
+      onModoEdicaoChange?.(false);
+      setMsg(modoEdicao ? 'Correção salva (edição única usada).' : 'Salvo.');
       onSalvo();
     } catch {
       setErro('Erro de conexão.');
@@ -242,7 +288,24 @@ export function ColaboradorAvaliacaoCard({
       }`}
     >
       <div className="p-4 border-b border-cafeteria-100 bg-cream-50/80 flex flex-wrap items-start justify-between gap-2">
-        <h3 className="font-display text-lg text-cafeteria-900">{nome}</h3>
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
+          <h3 className="font-display text-lg text-cafeteria-900">{nome}</h3>
+          {podeEditarAvaliacao && !modoEdicao ? (
+            <button
+              type="button"
+              onClick={iniciarEdicao}
+              className="inline-flex items-center gap-1 rounded-lg border border-cafeteria-300 bg-white px-2 py-1 text-xs font-medium text-cafeteria-800 hover:bg-cafeteria-50"
+              title="Editar avaliação (uma vez)"
+            >
+              ✏️ Editar
+            </button>
+          ) : null}
+          {modoEdicao ? (
+            <span className="text-xs font-medium rounded-full bg-sky-100 text-sky-900 px-2.5 py-0.5">
+              Editando (única vez)
+            </span>
+          ) : null}
+        </div>
         {cadastroPortalPendente ? (
           <span className="text-xs font-medium rounded-full bg-cafeteria-200 text-cafeteria-900 px-2.5 py-0.5">
             Cadastro portal pendente
@@ -288,9 +351,20 @@ export function ColaboradorAvaliacaoCard({
             </button>
           </div>
         )}
-        {somenteLeitura && (
+        {somenteLeitura && !modoEdicao && (
           <p className="text-sm text-cafeteria-800 bg-dourado-50 border border-dourado-200 rounded-lg px-3 py-2">
-            <strong>Avaliação enviada</strong> — leitura apenas. Alterações só pelo administrativo/RH.
+            <strong>Avaliação enviada</strong>
+            {edicaoUtilizada
+              ? ' — leitura apenas (edição única já usada).'
+              : podeEditarAvaliacao
+                ? ' — use Editar ao lado do nome para corrigir uma vez.'
+                : ' — leitura apenas.'}
+          </p>
+        )}
+        {modoEdicao && (
+          <p className="text-sm text-sky-950 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
+            Você pode corrigir esta avaliação <strong>uma única vez</strong>. Depois de salvar, não será possível
+            alterar de novo.
           </p>
         )}
         <div>
@@ -419,14 +493,26 @@ export function ColaboradorAvaliacaoCard({
             )}
           </p>
           {!somenteLeitura && (
-            <button
-              type="button"
-              onClick={salvar}
-              disabled={salvando}
-              className="rounded-lg bg-cafeteria-700 text-cream-50 px-4 py-2 text-sm font-medium hover:bg-cafeteria-800 disabled:opacity-50"
-            >
-              {salvando ? 'Salvando…' : rotuloSalvar}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              {modoEdicao ? (
+                <button
+                  type="button"
+                  onClick={cancelarEdicao}
+                  disabled={salvando}
+                  className="rounded-lg border border-cafeteria-300 px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-cafeteria-50 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={salvar}
+                disabled={salvando}
+                className="rounded-lg bg-cafeteria-700 text-cream-50 px-4 py-2 text-sm font-medium hover:bg-cafeteria-800 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : modoEdicao ? 'Salvar correção' : rotuloSalvar}
+              </button>
+            </div>
           )}
         </div>
         {erro && <p className="text-sm text-red-600">{erro}</p>}
