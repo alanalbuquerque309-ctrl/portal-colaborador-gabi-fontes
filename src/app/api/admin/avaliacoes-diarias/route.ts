@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { podeVerDetalheNotasAvaliacaoAdmin } from '@/lib/admin-access';
 import { requireAdminFullApi } from '@/lib/admin-auth';
+import { queryAvaliacoesDiariasAdmin } from '@/lib/avaliacoes-justificativa-compat';
 
 /**
  * Relatório consolidado de avaliações semanais da equipe — apenas painel admin (administrativo / sócio).
@@ -49,35 +50,21 @@ export async function GET(req: Request) {
       }
     }
 
-    let q = incluirDetalhe
-      ? supabase
-          .from('avaliacoes_diarias')
-          .select(
-            'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade'
-          )
-      : supabase
-          .from('avaliacoes_diarias')
-          .select(
-            'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id'
-          );
+    const { data: rows, error: errQuery } = await queryAvaliacoesDiariasAdmin(incluirDetalhe, async (select) => {
+      let q = supabase
+        .from('avaliacoes_diarias')
+        .select(select)
+        .gte('data_referencia', inicio)
+        .lte('data_referencia', fim)
+        .order('data_referencia', { ascending: false })
+        .limit(limite);
+      if (idsFiltro) q = q.in('colaborador_id', idsFiltro);
+      return await q;
+    });
 
-    q = q
-      .gte('data_referencia', inicio)
-      .lte('data_referencia', fim)
-      .order('data_referencia', { ascending: false })
-      .limit(limite);
-
-    if (idsFiltro) {
-      q = q.in('colaborador_id', idsFiltro);
+    if (errQuery) {
+      return NextResponse.json({ ok: false, erro: errQuery }, { status: 500 });
     }
-
-    const { data, error } = await q;
-
-    if (error) {
-      return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
-    }
-
-    const rows = data ?? [];
     const idsNomes = new Set<string>();
     for (const r of rows) {
       idsNomes.add(r.colaborador_id as string);

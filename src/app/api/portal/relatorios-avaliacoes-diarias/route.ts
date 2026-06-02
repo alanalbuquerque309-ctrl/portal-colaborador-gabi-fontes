@@ -11,6 +11,7 @@ import {
   rotuloAvaliadorRelatorio,
 } from '@/lib/avaliacao-semanal-agregacao';
 import { isAvaliacaoDeVisitaRh } from '@/lib/avaliacao-rh-visita-access';
+import { queryAvaliacoesDiariasRelatorio } from '@/lib/avaliacoes-justificativa-compat';
 
 /**
  * Avaliações semanais da equipe para /portal/relatorios-avaliacoes (data_referencia = segunda da semana).
@@ -83,27 +84,21 @@ export async function GET(req: Request) {
       }
     }
 
-    let q = supabase
-      .from('avaliacoes_diarias')
-      .select(
-        'id, data_referencia, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id'
-      )
-      .gte('data_referencia', inicio)
-      .lte('data_referencia', fim)
-      .order('data_referencia', { ascending: false })
-      .limit(limite);
+    const { data: rows, error: errQuery } = await queryAvaliacoesDiariasRelatorio(async (select) => {
+      let q = supabase
+        .from('avaliacoes_diarias')
+        .select(select)
+        .gte('data_referencia', inicio)
+        .lte('data_referencia', fim)
+        .order('data_referencia', { ascending: false })
+        .limit(limite);
+      if (idsFiltro) q = q.in('colaborador_id', idsFiltro);
+      return await q;
+    });
 
-    if (idsFiltro) {
-      q = q.in('colaborador_id', idsFiltro);
+    if (errQuery) {
+      return NextResponse.json({ ok: false, erro: errQuery }, { status: 500 });
     }
-
-    const { data, error } = await q;
-
-    if (error) {
-      return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
-    }
-
-    const rows = data ?? [];
     const idsNomes = new Set<string>();
     for (const r of rows) {
       idsNomes.add(r.colaborador_id as string);

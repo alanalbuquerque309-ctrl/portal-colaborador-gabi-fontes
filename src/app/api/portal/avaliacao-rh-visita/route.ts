@@ -37,20 +37,34 @@ export async function GET(req: Request) {
     const outrasCount: Record<string, number> = {};
 
     if (ids.length > 0) {
-      const { data: rows, error } = await supabase
-        .from('avaliacoes_diarias')
-        .select(
-          'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa'
-        )
-        .eq('data_referencia', dataRef)
-        .in('colaborador_id', ids);
-
-      if (error) {
-        return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+      const selectsVisita = [
+        'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa',
+        'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa',
+      ];
+      let rows: Record<string, unknown>[] | null = null;
+      let lastErr: string | null = null;
+      for (const sel of selectsVisita) {
+        const res = await supabase
+          .from('avaliacoes_diarias')
+          .select(sel)
+          .eq('data_referencia', dataRef)
+          .in('colaborador_id', ids);
+        if (!res.error) {
+          rows = (res.data ?? []) as unknown as Record<string, unknown>[];
+          break;
+        }
+        lastErr = res.error.message;
+        const m = res.error.message.toLowerCase();
+        if (!m.includes('does not exist') && !m.includes('schema cache')) {
+          return NextResponse.json({ ok: false, erro: res.error.message }, { status: 500 });
+        }
+      }
+      if (!rows) {
+        return NextResponse.json({ ok: false, erro: lastErr ?? 'Erro ao carregar avaliações' }, { status: 500 });
       }
 
       for (const id of ids) outrasCount[id] = 0;
-      for (const row of rows ?? []) {
+      for (const row of rows) {
         const cid = String(row.colaborador_id);
         const aid = String(row.avaliador_id);
         if (aid === colaboradorId) {
