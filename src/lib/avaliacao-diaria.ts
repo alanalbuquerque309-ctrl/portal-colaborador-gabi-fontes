@@ -79,3 +79,89 @@ export function calcularMediaMensal(linhas: LinhaMediaMensal[]): number | null {
   const soma = valores.reduce((a, b) => a + b, 0);
   return Math.round((soma / valores.length) * 100) / 100;
 }
+
+/** Texto de média e justificativa para relatório admin (sem coluna assiduidade). */
+export function formatarExibicaoAvaliacaoAdmin(l: {
+  assiduidade: string;
+  media_dia: number | null;
+  justificativa_nota_baixa?: string | null;
+}): {
+  mediaLabel: string;
+  justificativaLabel: string;
+  faltaInjustificada: boolean;
+  isenta: boolean;
+} {
+  const just = String(l.justificativa_nota_baixa ?? '').trim();
+  const a = String(l.assiduidade ?? '').trim();
+
+  if (a === 'falta_injustificada') {
+    return {
+      mediaLabel: '0,00',
+      justificativaLabel: just
+        ? `Falta injustificada — média zerada. ${just}`
+        : 'Falta injustificada — média zerada.',
+      faltaInjustificada: true,
+      isenta: false,
+    };
+  }
+
+  if (a === 'falta_justificada') {
+    return {
+      mediaLabel: 'Isenta',
+      justificativaLabel: just || 'Semana isenta (folga, outra escala ou falta justificada).',
+      faltaInjustificada: false,
+      isenta: true,
+    };
+  }
+
+  return {
+    mediaLabel: l.media_dia != null ? Number(l.media_dia).toFixed(2).replace('.', ',') : '—',
+    justificativaLabel: just || '—',
+    faltaInjustificada: false,
+    isenta: false,
+  };
+}
+
+export type ItemDetalheNotaAvaliacao = {
+  label: string;
+  nota: string;
+  destaque?: 'zero' | 'isento';
+};
+
+function fmtNota(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return '—';
+  return String(n);
+}
+
+/** Critérios item a item para gaveta admin (sócio / Daniel). */
+export function detalharItensNotaAvaliacaoAdmin(l: {
+  assiduidade: string;
+  nota_vestimenta?: number | null;
+  nota_pontualidade?: number | null;
+  nota_trabalho_equipe?: number | null;
+  nota_desempenho_tarefas?: number | null;
+}): ItemDetalheNotaAvaliacao[] {
+  const a = String(l.assiduidade ?? '').trim();
+
+  if (a === 'falta_injustificada') {
+    return [
+      { label: 'Presença (assiduidade)', nota: '0', destaque: 'zero' },
+      { label: 'Vestimenta', nota: '0', destaque: 'zero' },
+      { label: 'Pontualidade', nota: '0', destaque: 'zero' },
+      { label: 'Trabalho em equipe', nota: '0', destaque: 'zero' },
+      { label: 'Desempenho de tarefas', nota: '0', destaque: 'zero' },
+    ];
+  }
+
+  if (a === 'falta_justificada') {
+    return [{ label: 'Semana', nota: 'Isenta (folga, outra escala ou falta justificada)', destaque: 'isento' }];
+  }
+
+  return [
+    { label: 'Presença (assiduidade)', nota: '5' },
+    { label: 'Vestimenta', nota: fmtNota(l.nota_vestimenta) },
+    { label: 'Pontualidade', nota: fmtNota(l.nota_pontualidade) },
+    { label: 'Trabalho em equipe', nota: fmtNota(l.nota_trabalho_equipe) },
+    { label: 'Desempenho de tarefas', nota: fmtNota(l.nota_desempenho_tarefas) },
+  ];
+}

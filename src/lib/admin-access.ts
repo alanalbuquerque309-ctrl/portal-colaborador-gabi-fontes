@@ -63,6 +63,16 @@ export function podeEditarLiderancaMapaCompleto(
   return r === 'socio' || r === 'admin';
 }
 
+/** Sócios, admin (Daniel) e login por senha: detalhe item a item das notas no admin. */
+export function podeVerDetalheNotasAvaliacaoAdmin(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): boolean {
+  if (senhaAdmin) return true;
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin';
+}
+
 export function labelNivelAdmin(nivel: AdminNivelAcesso | null): string {
   if (nivel === 'rh_limitado') return 'RH (acesso limitado)';
   if (nivel === 'senha') return 'Administrador';

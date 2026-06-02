@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { podeVerDetalheNotasAvaliacaoAdmin } from '@/lib/admin-access';
 import { requireAdminFullApi } from '@/lib/admin-auth';
 
 /**
@@ -26,6 +27,10 @@ export async function GET(req: Request) {
 
   try {
     const supabase = createAdminClient();
+    const role = auth.ctx.kind === 'portal' ? auth.ctx.role : null;
+    const senhaAdmin = auth.ctx.kind === 'password_session';
+    const incluirDetalhe = podeVerDetalheNotasAvaliacaoAdmin(role, senhaAdmin);
+
     let unidadeId = unidadeIdParam;
     if (!unidadeId && unidadeSlug) {
       const { data: u } = await supabase.from('unidades').select('id').eq('slug', unidadeSlug).maybeSingle();
@@ -44,9 +49,19 @@ export async function GET(req: Request) {
       }
     }
 
-    let q = supabase
-      .from('avaliacoes_diarias')
-      .select('id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id')
+    let q = incluirDetalhe
+      ? supabase
+          .from('avaliacoes_diarias')
+          .select(
+            'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas'
+          )
+      : supabase
+          .from('avaliacoes_diarias')
+          .select(
+            'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id'
+          );
+
+    q = q
       .gte('data_referencia', inicio)
       .lte('data_referencia', fim)
       .order('data_referencia', { ascending: false })
@@ -91,9 +106,18 @@ export async function GET(req: Request) {
       colaborador_nome: nomePorId[r.colaborador_id as string] ?? null,
       avaliador_id: r.avaliador_id,
       avaliador_nome: nomePorId[r.avaliador_id as string] ?? null,
+      ...(incluirDetalhe
+        ? {
+            nota_vestimenta: (r as { nota_vestimenta?: number | null }).nota_vestimenta ?? null,
+            nota_pontualidade: (r as { nota_pontualidade?: number | null }).nota_pontualidade ?? null,
+            nota_trabalho_equipe: (r as { nota_trabalho_equipe?: number | null }).nota_trabalho_equipe ?? null,
+            nota_desempenho_tarefas:
+              (r as { nota_desempenho_tarefas?: number | null }).nota_desempenho_tarefas ?? null,
+          }
+        : {}),
     }));
 
-    return NextResponse.json({ ok: true, total: linhas.length, linhas });
+    return NextResponse.json({ ok: true, total: linhas.length, linhas, pode_ver_detalhe: incluirDetalhe });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

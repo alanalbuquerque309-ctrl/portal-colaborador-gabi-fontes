@@ -7,6 +7,7 @@ import {
   labelNivelAdmin,
   podeEditarEscalasAdmin,
   podeEditarLiderancaMapaCompleto,
+  podeVerDetalheNotasAvaliacaoAdmin,
 } from '@/lib/admin-access';
 
 import { resolveColaboradorForAdminBridge } from '@/lib/admin-portal-bridge';
@@ -150,6 +151,8 @@ export async function GET() {
     pode_editar_lideranca_mapa: podeEditarLiderancaMapaCompleto(role, senhaAdmin),
 
     pode_editar_escalas: podeEditarEscalasAdmin(role, senhaAdmin),
+
+    pode_ver_detalhe_notas_avaliacao: podeVerDetalheNotasAvaliacaoAdmin(role, senhaAdmin),
 
     podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
 
