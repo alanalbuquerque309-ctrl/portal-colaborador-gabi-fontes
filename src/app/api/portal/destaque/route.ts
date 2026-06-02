@@ -5,6 +5,8 @@ import { calcularDestaquesMural } from '@/lib/destaque-avaliacoes';
 import { calcularRankingsMuralDoColaborador } from '@/lib/mural-ranking-unidade';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 
+export const dynamic = 'force-dynamic';
+
 /** Destaque automático (semana + mês) e top 3 da unidade (mês anterior fixo + mês atual). */
 export async function GET() {
   const cookieStore = await cookies();
@@ -37,11 +39,18 @@ export async function GET() {
       calcularRankingsMuralDoColaborador(supabase, unidadeSlug ? String(unidadeSlug) : null),
     ]);
 
-    return NextResponse.json({
-      ok: true,
-      ...resultado,
-      ranking_unidade: rankingUnidade,
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        ...resultado,
+        ranking_unidade: rankingUnidade,
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      }
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

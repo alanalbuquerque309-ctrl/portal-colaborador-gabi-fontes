@@ -293,7 +293,7 @@ export async function carregarLiderIdsPorColaboradores(
   colaboradorIds: string[]
 ): Promise<Record<string, Set<string>>> {
   const out: Record<string, Set<string>> = {};
-  const ids = [...new Set(colaboradorIds.map(String).filter(Boolean))];
+  const ids = Array.from(new Set(colaboradorIds.map(String).filter(Boolean)));
   for (const id of ids) out[id] = new Set();
 
   if (ids.length === 0) return out;
@@ -332,7 +332,7 @@ export async function carregarLiderIdsPorColaboradores(
   }
 
   const lideresConfigPorPar = new Map<string, string[]>();
-  for (const { unidade_id, setor } of pares.values()) {
+  for (const { unidade_id, setor } of Array.from(pares.values())) {
     const key = `${unidade_id}|${setor}`;
     if (lideresConfigPorPar.has(key)) continue;
     const lideres = await listarLideresConfigPorUnidadeSetor(supabase, unidade_id, setor);

@@ -128,7 +128,7 @@ function ultimaNotaPorAvaliadorNaSemana(
     const curTs = r.created_at ? Date.parse(r.created_at) : 0;
     if (!Number.isNaN(curTs) && curTs >= prevTs) porAv.set(aid, r);
   }
-  return [...porAv.values()];
+  return Array.from(porAv.values());
 }
 
 /**
@@ -152,7 +152,7 @@ export function consolidarNotasSemanaisParaRanking(
   }
 
   const out: { media_dia: number | null }[] = [];
-  for (const ref of [...porSemana.keys()].sort()) {
+  for (const ref of Array.from(porSemana.keys()).sort()) {
     const unicas = ultimaNotaPorAvaliadorNaSemana(porSemana.get(ref) ?? []);
     const liderRows = unicas.filter((r) => opts.liderIds.has(String(r.avaliador_id ?? '')));
     const gerenteRows = unicas.filter(

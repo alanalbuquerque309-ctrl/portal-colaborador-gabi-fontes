@@ -97,7 +97,7 @@ async function carregarCandidatos(
 ): Promise<Candidato[]> {
   if (linhas.length === 0) return [];
 
-  const ids = [...new Set(linhas.map((l) => String(l.colaborador_id)).filter(Boolean))];
+  const ids = Array.from(new Set(linhas.map((l) => String(l.colaborador_id)).filter(Boolean)));
   const porColabMedias = agruparMediasPorColaborador(linhas, ids, periodoIni, ctx);
   const porColab: Record<string, number[]> = {};
   for (const [cid, semanas] of Object.entries(porColabMedias)) {

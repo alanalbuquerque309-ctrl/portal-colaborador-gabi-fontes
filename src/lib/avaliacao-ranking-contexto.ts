@@ -17,14 +17,14 @@ export async function montarContextoConsolidacaoRanking(
   supabase: SupabaseAdmin,
   linhas: Array<AvaliacaoSemanaConsolidavel & { colaborador_id: string }>
 ): Promise<ContextoConsolidacaoRanking> {
-  const colaboradorIds = [...new Set(linhas.map((l) => String(l.colaborador_id)).filter(Boolean))];
+  const colaboradorIds = Array.from(
+    new Set(linhas.map((l) => String(l.colaborador_id)).filter(Boolean))
+  );
   const liderIdsPorColaborador = await carregarLiderIdsPorColaboradores(supabase, colaboradorIds);
 
-  const avaliadorIds = [
-    ...new Set(
-      linhas.map((l) => String(l.avaliador_id ?? '').trim()).filter(Boolean)
-    ),
-  ];
+  const avaliadorIds = Array.from(
+    new Set(linhas.map((l) => String(l.avaliador_id ?? '').trim()).filter(Boolean))
+  );
 
   const metaAvaliador = new Map<string, { role: string | null; setor: string | null; nome: string }>();
   if (avaliadorIds.length > 0) {
@@ -46,9 +46,9 @@ export async function montarContextoConsolidacaoRanking(
   );
 
   const rolePorAvaliador = new Map<string, string | null>();
-  for (const [id, m] of metaAvaliador) {
+  metaAvaliador.forEach((m, id) => {
     rolePorAvaliador.set(id, m.role);
-  }
+  });
 
   return { liderIdsPorColaborador, rhIds, rolePorAvaliador };
 }
