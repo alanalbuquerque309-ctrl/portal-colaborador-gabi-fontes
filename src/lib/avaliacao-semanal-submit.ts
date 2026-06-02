@@ -1,8 +1,10 @@
 import {
   calcularMediaDia,
+  temNotaBaixaEquipe,
   type AssiduidadeTipo,
   type NotasCriterios,
 } from '@/lib/avaliacao-diaria';
+import { notaCriterioValida } from '@/lib/avaliacao-notas';
 import { assiduidadeParaBanco } from '@/lib/avaliacao-semanal-shared';
 
 export type BodyAvaliacaoSemanal = {
@@ -13,6 +15,7 @@ export type BodyAvaliacaoSemanal = {
   nota_pontualidade?: number | null;
   nota_trabalho_equipe?: number | null;
   nota_desempenho_tarefas?: number | null;
+  nota_proatividade?: number | null;
   justificativa_nota_baixa?: string;
 };
 
@@ -51,12 +54,11 @@ export function validarBodyAvaliacaoSemanal(
     pontualidade: body.nota_pontualidade ?? null,
     trabalhoEquipe: body.nota_trabalho_equipe ?? null,
     desempenhoTarefas: body.nota_desempenho_tarefas ?? null,
+    proatividade: body.nota_proatividade ?? null,
   };
 
   const { media, notasPersistidas } = calcularMediaDia(assidRaw, notasEntrada);
-  const temNotaBaixa =
-    assidRaw === 'falta_injustificada' ||
-    Object.values(notasPersistidas).some((nota) => typeof nota === 'number' && nota <= 3);
+  const temNotaBaixa = temNotaBaixaEquipe(assidRaw, notasPersistidas);
 
   if (temNotaBaixa && justificativaNotaBaixa.length < 10) {
     return {
@@ -74,25 +76,18 @@ export function validarBodyAvaliacaoSemanal(
   }
 
   if (assidRaw === 'presente') {
-    const { vestimenta, pontualidade, trabalhoEquipe, desempenhoTarefas } = notasPersistidas;
-    if (
-      vestimenta == null ||
-      pontualidade == null ||
-      trabalhoEquipe == null ||
-      desempenhoTarefas == null ||
-      vestimenta < 1 ||
-      vestimenta > 5 ||
-      pontualidade < 1 ||
-      pontualidade > 5 ||
-      trabalhoEquipe < 1 ||
-      trabalhoEquipe > 5 ||
-      desempenhoTarefas < 1 ||
-      desempenhoTarefas > 5
-    ) {
+    const campos = [
+      notasPersistidas.vestimenta,
+      notasPersistidas.pontualidade,
+      notasPersistidas.trabalhoEquipe,
+      notasPersistidas.desempenhoTarefas,
+      notasPersistidas.proatividade,
+    ];
+    if (!campos.every((n) => notaCriterioValida(n))) {
       return {
         ok: false,
         status: 400,
-        erro: 'Com presença, informe de 1 a 5 estrelas nos quatro critérios.',
+        erro: 'Com presença, informe os cinco critérios de 1 a 5 (meio em meio ponto).',
       };
     }
   }
@@ -111,6 +106,7 @@ export function validarBodyAvaliacaoSemanal(
       nota_pontualidade: notasPersistidas.pontualidade,
       nota_trabalho_equipe: notasPersistidas.trabalhoEquipe,
       nota_desempenho_tarefas: notasPersistidas.desempenhoTarefas,
+      nota_proatividade: notasPersistidas.proatividade,
       media_dia: media,
       justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa : null,
     },

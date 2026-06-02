@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarRating } from './StarRating';
 import type { AssiduidadeTipo } from '@/lib/avaliacao-diaria';
-import { calcularMediaDia } from '@/lib/avaliacao-diaria';
+import { calcularMediaDia, temNotaBaixaEquipe } from '@/lib/avaliacao-diaria';
+import { DICA_CRITERIO_PROATIVIDADE, notaCriterioValida } from '@/lib/avaliacao-notas';
 
 export type AvaliacaoServidor = {
   id?: string;
@@ -12,6 +13,7 @@ export type AvaliacaoServidor = {
   nota_pontualidade: number | null;
   nota_trabalho_equipe: number | null;
   nota_desempenho_tarefas: number | null;
+  nota_proatividade?: number | null;
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
   edicao_utilizada?: boolean;
@@ -43,25 +45,16 @@ function mapRowToState(row: NonNullable<AvaliacaoServidor>): {
   p: number | null;
   e: number | null;
   d: number | null;
+  pr: number | null;
 } {
+  const pick = (n: number | null | undefined) => (notaCriterioValida(n) ? n : null);
   return {
     assiduidade: row.assiduidade,
-    v:
-      row.nota_vestimenta != null && row.nota_vestimenta >= 1 && row.nota_vestimenta <= 5
-        ? row.nota_vestimenta
-        : null,
-    p:
-      row.nota_pontualidade != null && row.nota_pontualidade >= 1 && row.nota_pontualidade <= 5
-        ? row.nota_pontualidade
-        : null,
-    e:
-      row.nota_trabalho_equipe != null && row.nota_trabalho_equipe >= 1 && row.nota_trabalho_equipe <= 5
-        ? row.nota_trabalho_equipe
-        : null,
-    d:
-      row.nota_desempenho_tarefas != null && row.nota_desempenho_tarefas >= 1 && row.nota_desempenho_tarefas <= 5
-        ? row.nota_desempenho_tarefas
-        : null,
+    v: pick(row.nota_vestimenta),
+    p: pick(row.nota_pontualidade),
+    e: pick(row.nota_trabalho_equipe),
+    d: pick(row.nota_desempenho_tarefas),
+    pr: pick(row.nota_proatividade),
   };
 }
 
@@ -96,6 +89,7 @@ export function ColaboradorAvaliacaoCard({
         p: null as number | null,
         e: null as number | null,
         d: null as number | null,
+        pr: null as number | null,
       };
     }
     return mapRowToState(avaliacaoInicial);
@@ -106,6 +100,7 @@ export function ColaboradorAvaliacaoCard({
   const [p, setP] = useState<number | null>(inicial.p);
   const [e, setE] = useState<number | null>(inicial.e);
   const [d, setD] = useState<number | null>(inicial.d);
+  const [pr, setPr] = useState<number | null>(inicial.pr);
   const [salvando, setSalvando] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -121,10 +116,11 @@ export function ColaboradorAvaliacaoCard({
     setP(inicial.p);
     setE(inicial.e);
     setD(inicial.d);
+    setPr(inicial.pr);
     setJustificativaNotaBaixa(avaliacaoInicial?.justificativa_nota_baixa ?? '');
     setMsg(null);
     setErro(null);
-  }, [avaliacaoInicial?.justificativa_nota_baixa, inicial.assiduidade, inicial.v, inicial.p, inicial.e, inicial.d]);
+  }, [avaliacaoInicial?.justificativa_nota_baixa, inicial.assiduidade, inicial.v, inicial.p, inicial.e, inicial.d, inicial.pr]);
 
   useEffect(() => {
     setApto(operacaoApto);
@@ -153,6 +149,7 @@ export function ColaboradorAvaliacaoCard({
     setP(inicial.p);
     setE(inicial.e);
     setD(inicial.d);
+    setPr(inicial.pr);
     setJustificativaNotaBaixa(avaliacaoInicial?.justificativa_nota_baixa ?? '');
     setMsg(null);
     setErro(null);
@@ -162,9 +159,13 @@ export function ColaboradorAvaliacaoCard({
   const isento =
     assiduidade === 'falta_justificada' || assiduidade === 'folga' || assiduidade === 'outra_escala';
   const estrelasDesabilitadas = somenteLeitura || injustificada || isento;
-  const temNotaBaixa =
-    injustificada ||
-    [v, p, e, d].some((nota) => typeof nota === 'number' && nota <= 3);
+  const temNotaBaixa = temNotaBaixaEquipe(assiduidade, {
+    vestimenta: v,
+    pontualidade: p,
+    trabalhoEquipe: e,
+    desempenhoTarefas: d,
+    proatividade: pr,
+  });
 
   const previewMedia = useMemo(() => {
     return calcularMediaDia(assiduidade, {
@@ -172,8 +173,9 @@ export function ColaboradorAvaliacaoCard({
       pontualidade: p,
       trabalhoEquipe: e,
       desempenhoTarefas: d,
+      proatividade: pr,
     }).media;
-  }, [assiduidade, v, p, e, d]);
+  }, [assiduidade, v, p, e, d, pr]);
 
   const setAssiduidadeComEfeito = useCallback((next: AssiduidadeTipo) => {
     setAssiduidade(next);
@@ -255,6 +257,7 @@ export function ColaboradorAvaliacaoCard({
         nota_pontualidade: estrelasDesabilitadas ? null : p,
         nota_trabalho_equipe: estrelasDesabilitadas ? null : e,
         nota_desempenho_tarefas: estrelasDesabilitadas ? null : d,
+        nota_proatividade: estrelasDesabilitadas ? null : pr,
         justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa.trim() : '',
       };
       const res = await fetch(postUrl, {
@@ -416,7 +419,7 @@ export function ColaboradorAvaliacaoCard({
 
         {injustificada && (
           <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            Os critérios Vestimenta, Pontualidade, Equipe e Desempenho foram zerados. A média da semana é{' '}
+            Os cinco critérios foram zerados. A média da semana é{' '}
             <strong>0</strong>.
           </p>
         )}
@@ -450,6 +453,16 @@ export function ColaboradorAvaliacaoCard({
             disabled={estrelasDesabilitadas}
             onChange={setD}
           />
+          <div>
+            <StarRating
+              idPrefix={`${colaboradorId}-pro`}
+              label="Proatividade e iniciativa"
+              value={isento || injustificada ? null : pr}
+              disabled={estrelasDesabilitadas}
+              onChange={setPr}
+            />
+            <p className="text-[11px] text-cafeteria-500 pl-0 sm:pl-[10.5rem] -mt-1">{DICA_CRITERIO_PROATIVIDADE}</p>
+          </div>
         </div>
 
         {(temNotaBaixa || avaliacaoInicial?.justificativa_nota_baixa) && (
@@ -484,12 +497,12 @@ export function ColaboradorAvaliacaoCard({
                   ? 'Isenta'
                   : previewMedia === null
                     ? assiduidade === 'presente'
-                      ? 'Preencha as 4 notas'
+                      ? 'Preencha os 5 critérios'
                       : '—'
                     : previewMedia.toFixed(2)}
             </strong>
             {!somenteLeitura && assiduidade === 'presente' && previewMedia !== null && (
-              <span className="text-cafeteria-500 font-normal"> (inclui presença = 5)</span>
+              <span className="text-cafeteria-500 font-normal"> (média dos 5 critérios)</span>
             )}
           </p>
           {!somenteLeitura && (

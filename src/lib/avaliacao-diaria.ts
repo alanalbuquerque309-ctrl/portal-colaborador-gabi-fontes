@@ -1,8 +1,11 @@
 /**
- * Regras: falta injustificada → média 0 e os 4 critérios em 0 (assiduidade = 0 no somatório);
- * folga/outra escala/falta justificada → isento (média null, não entra na média mensal);
- * presente → assiduidade conta como 5 estrelas (compareceu) + 4 critérios 1–5 → média = soma/5.
+ * Avaliação semanal da equipe:
+ * - Assiduidade (presente / folga / falta…) não entra na média numérica.
+ * - Com presença: 5 critérios de 1 a 5 em meio ponto → média aritmética.
+ * - Falta injustificada → média 0; isento → média null.
  */
+
+import { normalizarNotaCriterio, notaCriterioValida } from '@/lib/avaliacao-notas';
 
 export type AssiduidadeTipo =
   | 'presente'
@@ -16,63 +19,93 @@ export type NotasCriterios = {
   pontualidade: number | null;
   trabalhoEquipe: number | null;
   desempenhoTarefas: number | null;
+  proatividade: number | null;
 };
 
-/** Contribuição numérica da assiduidade no somatório dos 5 critérios (1–5 estrelas). */
-export function notaAssiduidadeNumerica(assiduidade: AssiduidadeTipo): number | null {
-  if (assiduidade === 'presente') return 5;
-  if (assiduidade === 'falta_injustificada') return 0;
+const CRITERIOS_ZERADOS: NotasCriterios = {
+  vestimenta: 0,
+  pontualidade: 0,
+  trabalhoEquipe: 0,
+  desempenhoTarefas: 0,
+  proatividade: 0,
+};
+
+const CRITERIOS_VAZIOS: NotasCriterios = {
+  vestimenta: null,
+  pontualidade: null,
+  trabalhoEquipe: null,
+  desempenhoTarefas: null,
+  proatividade: null,
+};
+
+function normalizarEntrada(notas: NotasCriterios): NotasCriterios {
+  const norm = (n: number | null) =>
+    n == null ? null : notaCriterioValida(n) ? normalizarNotaCriterio(n) : null;
+  return {
+    vestimenta: norm(notas.vestimenta),
+    pontualidade: norm(notas.pontualidade),
+    trabalhoEquipe: norm(notas.trabalhoEquipe),
+    desempenhoTarefas: norm(notas.desempenhoTarefas),
+    proatividade: norm(notas.proatividade),
+  };
+}
+
+function mediaDosCriterios(notas: NotasCriterios): number | null {
+  const vals = [
+    notas.vestimenta,
+    notas.pontualidade,
+    notas.trabalhoEquipe,
+    notas.desempenhoTarefas,
+    notas.proatividade,
+  ];
+  if (vals.some((v) => v == null)) return null;
+  const soma = (vals as number[]).reduce((a, b) => a + b, 0);
+  return Math.round((soma / 5) * 100) / 100;
+}
+
+/** @deprecated Presença não compõe mais a média; mantido por compatibilidade de import. */
+export function notaAssiduidadeNumerica(_assiduidade: AssiduidadeTipo): number | null {
   return null;
 }
 
-/** Média do dia conforme regras; null = isento (folga/outra escala/falta justificada). */
 export function calcularMediaDia(
   assiduidade: AssiduidadeTipo,
   notas: NotasCriterios
 ): { media: number | null; notasPersistidas: NotasCriterios } {
+  const entrada = normalizarEntrada(notas);
+
   if (assiduidade === 'falta_justificada' || assiduidade === 'folga' || assiduidade === 'outra_escala') {
-    return {
-      media: null,
-      notasPersistidas: {
-        vestimenta: null,
-        pontualidade: null,
-        trabalhoEquipe: null,
-        desempenhoTarefas: null,
-      },
-    };
+    return { media: null, notasPersistidas: { ...CRITERIOS_VAZIOS } };
   }
+
   if (assiduidade === 'falta_injustificada') {
-    return {
-      media: 0,
-      notasPersistidas: {
-        vestimenta: 0,
-        pontualidade: 0,
-        trabalhoEquipe: 0,
-        desempenhoTarefas: 0,
-      },
-    };
+    return { media: 0, notasPersistidas: { ...CRITERIOS_ZERADOS } };
   }
-  const v = notas.vestimenta;
-  const p = notas.pontualidade;
-  const e = notas.trabalhoEquipe;
-  const d = notas.desempenhoTarefas;
-  if (v == null || p == null || e == null || d == null) {
-    return { media: null, notasPersistidas: { ...notas } };
-  }
-  const soma = 5 + v + p + e + d;
-  const media = Math.round((soma / 5) * 100) / 100;
-  return {
-    media,
-    notasPersistidas: { vestimenta: v, pontualidade: p, trabalhoEquipe: e, desempenhoTarefas: d },
-  };
+
+  const media = mediaDosCriterios(entrada);
+  return { media, notasPersistidas: entrada };
+}
+
+export function listaValoresCriterios(notas: NotasCriterios): number[] {
+  return [
+    notas.vestimenta,
+    notas.pontualidade,
+    notas.trabalhoEquipe,
+    notas.desempenhoTarefas,
+    notas.proatividade,
+  ].filter((n): n is number => typeof n === 'number' && !Number.isNaN(n));
+}
+
+export function temNotaBaixaEquipe(
+  assiduidade: AssiduidadeTipo,
+  notas: NotasCriterios
+): boolean {
+  if (assiduidade === 'falta_injustificada') return true;
+  return listaValoresCriterios(notas).some((n) => n <= 3);
 }
 
 export type LinhaMediaMensal = { media_dia: number | null };
 
-/**
- * Média mensal: ignora dias isentos (media_dia null).
- * Inclui zeros (falta injustificada). Se não houver dias válidos, retorna null.
- */
 export function calcularMediaMensal(linhas: LinhaMediaMensal[]): number | null {
   const valores = linhas.map((l) => l.media_dia).filter((m): m is number => m !== null && !Number.isNaN(m));
   if (valores.length === 0) return null;
@@ -80,7 +113,6 @@ export function calcularMediaMensal(linhas: LinhaMediaMensal[]): number | null {
   return Math.round((soma / valores.length) * 100) / 100;
 }
 
-/** Texto de média e justificativa para relatório admin (sem coluna assiduidade). */
 export function formatarExibicaoAvaliacaoAdmin(l: {
   assiduidade: string;
   media_dia: number | null;
@@ -125,31 +157,32 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
 export type ItemDetalheNotaAvaliacao = {
   label: string;
   nota: string;
-  destaque?: 'zero' | 'isento';
+  destaque?: 'zero' | 'isento' | 'info';
 };
 
-function fmtNota(n: number | null | undefined): string {
-  if (n == null || Number.isNaN(n)) return '—';
-  return String(n);
-}
-
-/** Critérios item a item para gaveta admin (sócio / Daniel). */
 export function detalharItensNotaAvaliacaoAdmin(l: {
   assiduidade: string;
   nota_vestimenta?: number | null;
   nota_pontualidade?: number | null;
   nota_trabalho_equipe?: number | null;
   nota_desempenho_tarefas?: number | null;
+  nota_proatividade?: number | null;
 }): ItemDetalheNotaAvaliacao[] {
   const a = String(l.assiduidade ?? '').trim();
+  const fmt = (n: number | null | undefined) => {
+    if (n == null || Number.isNaN(n)) return '—';
+    const x = Number(n);
+    return Number.isInteger(x) ? String(x) : x.toFixed(1).replace('.', ',');
+  };
 
   if (a === 'falta_injustificada') {
     return [
-      { label: 'Presença (assiduidade)', nota: '0', destaque: 'zero' },
+      { label: 'Assiduidade', nota: 'Falta injustificada', destaque: 'zero' },
       { label: 'Vestimenta', nota: '0', destaque: 'zero' },
       { label: 'Pontualidade', nota: '0', destaque: 'zero' },
       { label: 'Trabalho em equipe', nota: '0', destaque: 'zero' },
       { label: 'Desempenho de tarefas', nota: '0', destaque: 'zero' },
+      { label: 'Proatividade e iniciativa', nota: '0', destaque: 'zero' },
     ];
   }
 
@@ -157,11 +190,13 @@ export function detalharItensNotaAvaliacaoAdmin(l: {
     return [{ label: 'Semana', nota: 'Isenta (folga, outra escala ou falta justificada)', destaque: 'isento' }];
   }
 
-  return [
-    { label: 'Presença (assiduidade)', nota: '5' },
-    { label: 'Vestimenta', nota: fmtNota(l.nota_vestimenta) },
-    { label: 'Pontualidade', nota: fmtNota(l.nota_pontualidade) },
-    { label: 'Trabalho em equipe', nota: fmtNota(l.nota_trabalho_equipe) },
-    { label: 'Desempenho de tarefas', nota: fmtNota(l.nota_desempenho_tarefas) },
+  const itens: ItemDetalheNotaAvaliacao[] = [
+    { label: 'Assiduidade', nota: 'Presente', destaque: 'info' },
+    { label: 'Vestimenta', nota: fmt(l.nota_vestimenta) },
+    { label: 'Pontualidade', nota: fmt(l.nota_pontualidade) },
+    { label: 'Trabalho em equipe', nota: fmt(l.nota_trabalho_equipe) },
+    { label: 'Desempenho de tarefas', nota: fmt(l.nota_desempenho_tarefas) },
+    { label: 'Proatividade e iniciativa', nota: fmt(l.nota_proatividade) },
   ];
+  return itens;
 }

@@ -6,7 +6,8 @@ export function DetalheAvaliacaoLinha({ l }: { l: LinhaDiariaRelatorio }) {
     l.nota_vestimenta != null ||
     l.nota_pontualidade != null ||
     l.nota_trabalho_equipe != null ||
-    l.nota_desempenho_tarefas != null;
+    l.nota_desempenho_tarefas != null ||
+    (l as { nota_proatividade?: number | null }).nota_proatividade != null;
 
   if (!temDetalhe) return null;
 
@@ -17,7 +18,8 @@ export function DetalheAvaliacaoLinha({ l }: { l: LinhaDiariaRelatorio }) {
         <p>Assiduidade: {l.assiduidade}</p>
         <p>
           Vestimenta {l.nota_vestimenta ?? '—'} · Pontualidade {l.nota_pontualidade ?? '—'} · Equipe{' '}
-          {l.nota_trabalho_equipe ?? '—'} · Desempenho {l.nota_desempenho_tarefas ?? '—'}
+          {l.nota_trabalho_equipe ?? '—'} · Desempenho {l.nota_desempenho_tarefas ?? '—'} · Proativ.{' '}
+          {(l as { nota_proatividade?: number | null }).nota_proatividade ?? '—'}
         </p>
         {l.justificativa_nota_baixa && (
           <p className="text-cafeteria-700 italic">{l.justificativa_nota_baixa}</p>

@@ -40,7 +40,7 @@ export async function GET(req: Request) {
       const { data: rows, error } = await supabase
         .from('avaliacoes_diarias')
         .select(
-          'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa'
+          'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa'
         )
         .eq('data_referencia', dataRef)
         .in('colaborador_id', ids);

@@ -5,6 +5,7 @@ import {
   formatarExibicaoAvaliacaoAdmin,
   type ItemDetalheNotaAvaliacao,
 } from '@/lib/avaliacao-diaria';
+import { formatarNotaCriterioPt } from '@/lib/avaliacao-notas';
 
 export type LinhaAvaliacaoGaveta = {
   id: string;
@@ -18,6 +19,7 @@ export type LinhaAvaliacaoGaveta = {
   nota_pontualidade?: number | null;
   nota_trabalho_equipe?: number | null;
   nota_desempenho_tarefas?: number | null;
+  nota_proatividade?: number | null;
 };
 
 type Props = {
@@ -26,7 +28,10 @@ type Props = {
 };
 
 function EstrelasNota({ nota }: { nota: string }) {
-  const n = Number(nota);
+  if (nota === '—' || nota.includes('Isenta') || nota.includes('Falta') || nota.includes('Presente')) {
+    return <span className="text-sm font-medium text-coffee-base">{nota}</span>;
+  }
+  const n = Number(String(nota).replace(',', '.'));
   if (!Number.isFinite(n) || n < 0 || n > 5) {
     return <span className="text-sm font-medium text-coffee-base">{nota}</span>;
   }
@@ -45,9 +50,9 @@ function ItemNota({ item }: { item: ItemDetalheNotaAvaliacao }) {
       className={`rounded-lg border px-3 py-2.5 flex flex-wrap items-center justify-between gap-2 ${
         item.destaque === 'zero'
           ? 'border-red-200 bg-red-50'
-          : item.destaque === 'isento'
-            ? 'border-cream-300 bg-cream-50'
-            : 'border-cream-200 bg-white'
+          :         item.destaque === 'isento' || item.destaque === 'info'
+          ? 'border-cream-300 bg-cream-50'
+          : 'border-cream-200 bg-white'
       }`}
     >
       <span className="text-sm text-coffee-base">{item.label}</span>
@@ -129,7 +134,8 @@ export function AvaliacaoNotasGaveta({ linha, onFechar }: Props) {
             </ul>
             {!exib.isenta && !exib.faltaInjustificada && (
               <p className="text-xs text-coffee-100 mt-3">
-                A média inclui presença (5) + os quatro critérios, dividido por 5.
+                A média é a soma dos cinco critérios dividida por 5 (meio ponto permitido). Assiduidade fica à
+                parte.
               </p>
             )}
           </section>

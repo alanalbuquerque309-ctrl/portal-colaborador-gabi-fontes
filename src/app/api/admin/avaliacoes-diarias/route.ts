@@ -53,7 +53,7 @@ export async function GET(req: Request) {
       ? supabase
           .from('avaliacoes_diarias')
           .select(
-            'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas'
+            'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade'
           )
       : supabase
           .from('avaliacoes_diarias')
@@ -113,6 +113,7 @@ export async function GET(req: Request) {
             nota_trabalho_equipe: (r as { nota_trabalho_equipe?: number | null }).nota_trabalho_equipe ?? null,
             nota_desempenho_tarefas:
               (r as { nota_desempenho_tarefas?: number | null }).nota_desempenho_tarefas ?? null,
+            nota_proatividade: (r as { nota_proatividade?: number | null }).nota_proatividade ?? null,
           }
         : {}),
     }));

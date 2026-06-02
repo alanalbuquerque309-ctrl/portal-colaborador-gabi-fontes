@@ -3,13 +3,13 @@ import type { createAdminClient } from '@/lib/supabase/admin';
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
 const SELECT_COM_JUST =
-  'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa, edicao_utilizada';
+  'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa, edicao_utilizada';
 
 const SELECT_SEM_JUST =
-  'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, edicao_utilizada';
+  'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, edicao_utilizada';
 
 const SELECT_SEM_EDICAO =
-  'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa';
+  'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa';
 
 const SELECT_MINIMO =
   'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia';
@@ -27,6 +27,7 @@ export type AvaliacaoDiariaLeitura = {
   nota_pontualidade: number | null;
   nota_trabalho_equipe: number | null;
   nota_desempenho_tarefas: number | null;
+  nota_proatividade?: number | null;
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
   edicao_utilizada?: boolean;

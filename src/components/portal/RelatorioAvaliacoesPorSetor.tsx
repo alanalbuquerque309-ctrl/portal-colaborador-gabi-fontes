@@ -11,6 +11,7 @@ export type LinhaDiariaRelatorio = {
   nota_pontualidade: number | null;
   nota_trabalho_equipe: number | null;
   nota_desempenho_tarefas: number | null;
+  nota_proatividade?: number | null;
   media_dia: number | null;
   justificativa_nota_baixa: string | null;
   colaborador_nome: string | null;
@@ -51,6 +52,7 @@ function TabelaDiariasColaborador({ linhas }: { linhas: LinhaDiariaRelatorio[] }
             <th className="px-2 py-2 text-center">Pontual.</th>
             <th className="px-2 py-2 text-center">Trabalho eq.</th>
             <th className="px-2 py-2 text-center">Desempenho</th>
+            <th className="px-2 py-2 text-center">Proativ.</th>
             <th className="px-2 py-2">Média</th>
             <th className="px-2 py-2">Justificativa</th>
           </tr>
@@ -72,6 +74,7 @@ function TabelaDiariasColaborador({ linhas }: { linhas: LinhaDiariaRelatorio[] }
               <td className="px-2 py-2 text-center">{l.nota_pontualidade ?? '—'}</td>
               <td className="px-2 py-2 text-center">{l.nota_trabalho_equipe ?? '—'}</td>
               <td className="px-2 py-2 text-center">{l.nota_desempenho_tarefas ?? '—'}</td>
+              <td className="px-2 py-2 text-center">{l.nota_proatividade ?? '—'}</td>
               <td className="px-2 py-2">{l.media_dia != null ? Number(l.media_dia).toFixed(2) : '—'}</td>
               <td className="px-2 py-2 text-cafeteria-600 max-w-xs">{l.justificativa_nota_baixa || '—'}</td>
             </tr>
