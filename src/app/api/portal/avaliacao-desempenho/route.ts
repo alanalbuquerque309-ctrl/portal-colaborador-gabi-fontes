@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
+  agruparMediasPorColaborador,
   AVALIACAO_RANKING_MIN_SEMANAS,
+  inicioDataReferenciaRanking,
   mediaMensalColaborador,
   topTresComEmpateNoTerceiro,
   type ScoreMensal,
 } from '@/lib/avaliacao-ranking';
+import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { fraseMotivacionalDesempenho, motivacaoSemanalPorPontuacao } from '@/lib/frases-motivacao-desempenho';
 
 function mesBoundsUTC(ano: number, mes: number): { ini: string; fim: string } {
@@ -77,15 +80,27 @@ export async function GET(req: Request) {
 
     const idsRanking = (colegas ?? []).map((c) => c.id as string);
 
+    const refMin = inicioDataReferenciaRanking(ini);
+
     const { data: minhasLinhas } = await supabase
       .from('avaliacoes_diarias')
-      .select('media_dia')
+      .select('avaliador_id, data_referencia, media_dia, created_at')
       .eq('colaborador_id', colaboradorId)
-      .gte('data_referencia', ini)
+      .gte('data_referencia', refMin)
       .lte('data_referencia', fim);
 
+    const minhasMapeadas = (minhasLinhas ?? []).map((r) => ({
+      colaborador_id: colaboradorId,
+      avaliador_id: r.avaliador_id != null ? String(r.avaliador_id) : null,
+      data_referencia: String(r.data_referencia),
+      media_dia: r.media_dia as number | null,
+      created_at: r.created_at != null ? String(r.created_at) : null,
+    }));
+    const ctxEu = await montarContextoConsolidacaoRanking(supabase, minhasMapeadas);
+
     const agg = mediaMensalColaborador(
-      (minhasLinhas ?? []).map((r) => ({ media_dia: r.media_dia as number | null }))
+      agruparMediasPorColaborador(minhasMapeadas, [colaboradorId], ini, ctxEu)[colaboradorId] ??
+        []
     );
     const meu_desempenho = {
       nome: String(eu.nome ?? ''),
@@ -112,22 +127,25 @@ export async function GET(req: Request) {
 
     const { data: linhas, error: errLin } = await supabase
       .from('avaliacoes_diarias')
-      .select('colaborador_id, media_dia, data_referencia')
+      .select('colaborador_id, avaliador_id, media_dia, data_referencia, created_at')
       .in('colaborador_id', idsRanking)
-      .gte('data_referencia', ini)
+      .gte('data_referencia', refMin)
       .lte('data_referencia', fim);
 
     if (errLin) {
       return NextResponse.json({ ok: false, erro: errLin.message }, { status: 500 });
     }
 
-    const porColab: Record<string, { media_dia: number | null }[]> = {};
-    for (const id of idsRanking) porColab[id] = [];
-    for (const row of linhas ?? []) {
-      const cid = row.colaborador_id as string;
-      if (!porColab[cid]) continue;
-      porColab[cid].push({ media_dia: row.media_dia as number | null });
-    }
+    const linhasMapeadas = (linhas ?? []).map((row) => ({
+      colaborador_id: String(row.colaborador_id),
+      avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
+      data_referencia: String(row.data_referencia),
+      media_dia: row.media_dia as number | null,
+      created_at: row.created_at != null ? String(row.created_at) : null,
+    }));
+    const ctxRanking = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
+
+    const porColab = agruparMediasPorColaborador(linhasMapeadas, idsRanking, ini, ctxRanking);
 
     const nomePorId = Object.fromEntries((colegas ?? []).map((c) => [c.id, String(c.nome ?? '')]));
 

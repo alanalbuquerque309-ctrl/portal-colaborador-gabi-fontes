@@ -1,5 +1,63 @@
-/** Mínimo de semanas (registros de avaliação da equipe) no mês para entrar no ranking. */
-export const AVALIACAO_RANKING_MIN_SEMANAS = 2;
+import {
+  consolidarNotasSemanaisParaRanking,
+  type AvaliacaoSemanaConsolidavel,
+} from '@/lib/avaliacao-semanal-agregacao';
+import type { ContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
+
+/**
+ * Segunda-feira (`data_referencia`) da primeira semana oficial no mural/ranking.
+ * Semanas anteriores não entram em médias nem em contagem de semanas avaliadas.
+ */
+export const AVALIACAO_RANKING_EPOCA_INICIO = '2026-06-01';
+
+/** Mínimo de semanas distintas no mês para entrar no ranking mensal (top 3). */
+export const AVALIACAO_RANKING_MIN_SEMANAS = 1;
+
+export type AvaliacaoSemanaLinha = {
+  data_referencia: string;
+  media_dia: number | null;
+  created_at?: string | null;
+  avaliador_id?: string | null;
+  avaliador_role?: string | null;
+};
+
+/** Limite inferior efetivo: não antes da época oficial nem antes do início do mês consultado. */
+export function inicioDataReferenciaRanking(periodoIni: string): string {
+  return periodoIni >= AVALIACAO_RANKING_EPOCA_INICIO
+    ? periodoIni
+    : AVALIACAO_RANKING_EPOCA_INICIO;
+}
+
+export function agruparMediasPorColaborador(
+  linhas: Array<AvaliacaoSemanaLinha & { colaborador_id: string }>,
+  colaboradorIds: string[],
+  periodoIni: string,
+  ctx: ContextoConsolidacaoRanking
+): Record<string, { media_dia: number | null }[]> {
+  const desde = inicioDataReferenciaRanking(periodoIni);
+  const raw: Record<string, AvaliacaoSemanaConsolidavel[]> = {};
+  for (const id of colaboradorIds) raw[id] = [];
+  for (const row of linhas) {
+    const cid = String(row.colaborador_id);
+    if (!raw[cid]) continue;
+    const aid = String(row.avaliador_id ?? '');
+    raw[cid].push({
+      ...row,
+      avaliador_role:
+        row.avaliador_role ?? ctx.rolePorAvaliador.get(aid) ?? null,
+    });
+  }
+  const out: Record<string, { media_dia: number | null }[]> = {};
+  for (const id of colaboradorIds) {
+    const liderIds = ctx.liderIdsPorColaborador[id] ?? new Set<string>();
+    out[id] = consolidarNotasSemanaisParaRanking(raw[id] ?? [], {
+      liderIds,
+      rhIds: ctx.rhIds,
+      desde,
+    });
+  }
+  return out;
+}
 
 /** Mínimo para destaque semanal no mural (1 avaliação na semana já conta). */
 export const AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL = 1;

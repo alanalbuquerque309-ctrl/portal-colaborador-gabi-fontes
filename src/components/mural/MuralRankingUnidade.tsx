@@ -78,7 +78,7 @@ export function MuralRankingUnidade({ grupoRotulo, mesAnterior, mesAtual, compac
     return (
       <p className="text-sm text-cafeteria-600 rounded-xl border border-dourado-200 bg-cream-50 p-4">
         O top 3 de {grupoRotulo} aparece aqui quando houver avaliações semanais registradas no mês
-        (mínimo de 2 semanas por colaborador no ranking mensal).
+        (a partir de junho/2026; uma nota por semana, priorizando a avaliação do líder direto).
       </p>
     );
   }

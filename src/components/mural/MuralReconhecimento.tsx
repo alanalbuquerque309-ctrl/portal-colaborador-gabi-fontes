@@ -103,7 +103,7 @@ export function MuralReconhecimento({ compacto = false }: Props) {
         );
         setMeta({
           totalAvaliacoesSemana: Number(dest.total_avaliacoes_semana ?? 0),
-          minMensal: Number(dest.min_semanas_ranking_mensal ?? 2),
+          minMensal: Number(dest.min_semanas_ranking_mensal ?? 1),
           minSemanal: Number(dest.min_semanas_ranking_semanal ?? 1),
         });
         const ru = dest.ranking_unidade as RankingUnidadePayload | undefined;

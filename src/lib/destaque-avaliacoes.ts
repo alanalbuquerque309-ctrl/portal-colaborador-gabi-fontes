@@ -1,8 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  agruparMediasPorColaborador,
   AVALIACAO_RANKING_MIN_SEMANAS,
   AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL,
+  inicioDataReferenciaRanking,
 } from '@/lib/avaliacao-ranking';
+import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 
 export type DestaqueAvaliacaoItem = {
   id: string;
@@ -77,22 +80,31 @@ function toDestaque(
   };
 }
 
+type LinhaDestaque = {
+  colaborador_id: string;
+  avaliador_id: string | null;
+  data_referencia: string;
+  media_dia: number;
+  created_at?: string | null;
+};
+
 async function carregarCandidatos(
   supabase: SupabaseClient,
-  linhas: { colaborador_id: string; media_dia: number }[],
-  minSemanas: number
+  linhas: LinhaDestaque[],
+  minSemanas: number,
+  periodoIni: string,
+  ctx: Awaited<ReturnType<typeof montarContextoConsolidacaoRanking>>
 ): Promise<Candidato[]> {
   if (linhas.length === 0) return [];
 
+  const ids = [...new Set(linhas.map((l) => String(l.colaborador_id)).filter(Boolean))];
+  const porColabMedias = agruparMediasPorColaborador(linhas, ids, periodoIni, ctx);
   const porColab: Record<string, number[]> = {};
-  for (const l of linhas) {
-    const cid = String(l.colaborador_id ?? '');
-    if (!cid) continue;
-    if (!porColab[cid]) porColab[cid] = [];
-    porColab[cid].push(Number(l.media_dia));
+  for (const [cid, semanas] of Object.entries(porColabMedias)) {
+    porColab[cid] = semanas
+      .map((d) => d.media_dia)
+      .filter((m): m is number => m !== null && !Number.isNaN(m));
   }
-
-  const ids = Object.keys(porColab);
   const { data: cols, error } = await supabase
     .from('colaboradores')
     .select('id, nome, foto_url, role, unidade_id, unidades(nome, slug)')
@@ -152,32 +164,54 @@ export async function calcularDestaquesMural(
   total_avaliacoes_semana: number;
 }> {
   const { ini, fim, mesRef } = mesAtualBoundsUTC();
+  const refMin = inicioDataReferenciaRanking(ini);
 
   const [{ data: linhasMes }, { data: linhasSemana, count: countSemana }] = await Promise.all([
     supabase
       .from('avaliacoes_diarias')
-      .select('colaborador_id, media_dia')
-      .gte('data_referencia', ini)
+      .select('colaborador_id, avaliador_id, data_referencia, media_dia, created_at')
+      .gte('data_referencia', refMin)
       .lte('data_referencia', fim)
       .not('media_dia', 'is', null)
       .limit(8000),
     supabase
       .from('avaliacoes_diarias')
-      .select('colaborador_id, media_dia', { count: 'exact' })
+      .select('colaborador_id, avaliador_id, data_referencia, media_dia, created_at', { count: 'exact' })
       .eq('data_referencia', semanaInicio)
+      .gte('data_referencia', refMin)
       .not('media_dia', 'is', null)
       .limit(2000),
   ]);
 
+  const mapLinhas = (rows: typeof linhasMes): LinhaDestaque[] =>
+    (rows ?? []).map((r) => ({
+      colaborador_id: String(r.colaborador_id),
+      avaliador_id: r.avaliador_id != null ? String(r.avaliador_id) : null,
+      data_referencia: String(r.data_referencia),
+      media_dia: Number(r.media_dia),
+      created_at: r.created_at != null ? String(r.created_at) : null,
+    }));
+
+  const linhasMesMap = mapLinhas(linhasMes);
+  const linhasSemanaMap = mapLinhas(linhasSemana);
+  const ctx = await montarContextoConsolidacaoRanking(supabase, [
+    ...linhasMesMap,
+    ...linhasSemanaMap,
+  ]);
+
   const candidatosMes = await carregarCandidatos(
     supabase,
-    (linhasMes ?? []) as { colaborador_id: string; media_dia: number }[],
-    AVALIACAO_RANKING_MIN_SEMANAS
+    linhasMesMap,
+    AVALIACAO_RANKING_MIN_SEMANAS,
+    ini,
+    ctx
   );
   const candidatosSemana = await carregarCandidatos(
     supabase,
-    (linhasSemana ?? []) as { colaborador_id: string; media_dia: number }[],
-    AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL
+    linhasSemanaMap,
+    AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL,
+    semanaInicio,
+    ctx
   );
 
   const geraisMes = ranquear(candidatosMes);

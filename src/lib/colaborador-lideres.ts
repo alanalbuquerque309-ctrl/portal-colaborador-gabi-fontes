@@ -286,3 +286,72 @@ export async function listarEquipeDoLider(
     mapa
   );
 }
+
+/** Líderes diretos por colaborador (config unidade/setor + vínculos + `lider_id`). */
+export async function carregarLiderIdsPorColaboradores(
+  supabase: SupabaseAdmin,
+  colaboradorIds: string[]
+): Promise<Record<string, Set<string>>> {
+  const out: Record<string, Set<string>> = {};
+  const ids = [...new Set(colaboradorIds.map(String).filter(Boolean))];
+  for (const id of ids) out[id] = new Set();
+
+  if (ids.length === 0) return out;
+
+  const { data: cols, error: errCol } = await supabase
+    .from('colaboradores')
+    .select('id, lider_id, unidade_id, setor')
+    .in('id', ids);
+
+  if (errCol) throw new Error(errCol.message);
+
+  for (const c of cols ?? []) {
+    const cid = String(c.id);
+    const lid = c.lider_id ? String(c.lider_id) : '';
+    if (lid && lid !== cid) out[cid].add(lid);
+  }
+
+  const { data: vinculos } = await supabase
+    .from('colaboradores_lideres')
+    .select('colaborador_id, lider_id')
+    .in('colaborador_id', ids)
+    .eq('ativo', true);
+
+  for (const v of vinculos ?? []) {
+    const cid = String(v.colaborador_id);
+    const lid = String(v.lider_id ?? '');
+    if (lid && lid !== cid) out[cid]?.add(lid);
+  }
+
+  const pares = new Map<string, { unidade_id: string; setor: string }>();
+  for (const c of cols ?? []) {
+    const uid = c.unidade_id ? String(c.unidade_id) : '';
+    const setor = String(c.setor ?? '').trim();
+    if (!uid) continue;
+    pares.set(`${uid}|${setor}`, { unidade_id: uid, setor });
+  }
+
+  const lideresConfigPorPar = new Map<string, string[]>();
+  for (const { unidade_id, setor } of pares.values()) {
+    const key = `${unidade_id}|${setor}`;
+    if (lideresConfigPorPar.has(key)) continue;
+    const lideres = await listarLideresConfigPorUnidadeSetor(supabase, unidade_id, setor);
+    lideresConfigPorPar.set(
+      key,
+      lideres.map((l) => String(l.id))
+    );
+  }
+
+  for (const c of cols ?? []) {
+    const cid = String(c.id);
+    const uid = c.unidade_id ? String(c.unidade_id) : '';
+    const setor = String(c.setor ?? '').trim();
+    if (!uid) continue;
+    const key = `${uid}|${setor}`;
+    for (const lid of lideresConfigPorPar.get(key) ?? []) {
+      if (lid && lid !== cid) out[cid].add(lid);
+    }
+  }
+
+  return out;
+}

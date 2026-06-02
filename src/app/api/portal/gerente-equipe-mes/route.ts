@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { mediaMensalColaborador } from '@/lib/avaliacao-ranking';
+import {
+  agruparMediasPorColaborador,
+  inicioDataReferenciaRanking,
+  mediaMensalColaborador,
+} from '@/lib/avaliacao-ranking';
+import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
 import { listarEquipeDoLider } from '@/lib/colaborador-lideres';
 import { normalizePortalRole } from '@/lib/roles';
@@ -58,24 +63,28 @@ export async function GET(req: Request) {
     }
 
     const ids = membros.map((m) => m.id as string);
+    const refMin = inicioDataReferenciaRanking(ini);
+
     const { data: linhas, error: errLin } = await supabase
       .from('avaliacoes_diarias')
-      .select('colaborador_id, media_dia')
+      .select('colaborador_id, avaliador_id, data_referencia, media_dia, created_at')
       .in('colaborador_id', ids)
-      .gte('data_referencia', ini)
+      .gte('data_referencia', refMin)
       .lte('data_referencia', fim);
 
     if (errLin) {
       return NextResponse.json({ ok: false, erro: errLin.message }, { status: 500 });
     }
 
-    const porId: Record<string, { media_dia: number | null }[]> = {};
-    for (const id of ids) porId[id] = [];
-    for (const row of linhas ?? []) {
-      const cid = row.colaborador_id as string;
-      if (!porId[cid]) continue;
-      porId[cid].push({ media_dia: row.media_dia as number | null });
-    }
+    const linhasMapeadas = (linhas ?? []).map((row) => ({
+      colaborador_id: String(row.colaborador_id),
+      avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
+      data_referencia: String(row.data_referencia),
+      media_dia: row.media_dia as number | null,
+      created_at: row.created_at != null ? String(row.created_at) : null,
+    }));
+    const ctx = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
+    const porId = agruparMediasPorColaborador(linhasMapeadas, ids, ini, ctx);
 
     const colaboradores = membros.map((m) => {
       const id = m.id as string;
