@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
+import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
 import { calcularIndicesBonificacao, type EntradaIndiceBonificacao } from '@/lib/bonificacao-indice';
 import {
   agregarSemanasAvaliacaoParaGorjeta,
@@ -62,7 +63,7 @@ export async function montarFechamentoBonificacao(
   if (errAval) throw new Error(errAval.message);
 
   const avaliadorIds = new Set<string>();
-  for (const row of avalRows ?? []) {
+  for (const row of filtrarAvaliacoesParaMedia(avalRows ?? [])) {
     if (row.avaliador_id) avaliadorIds.add(String(row.avaliador_id));
   }
   const metaAvaliador = new Map<string, { role: string | null; setor: string | null; nome: string }>();
@@ -84,7 +85,7 @@ export async function montarFechamentoBonificacao(
   );
 
   const avalPorColab = new Map<string, AvaliacaoSemanalBruta[]>();
-  for (const row of avalRows ?? []) {
+  for (const row of filtrarAvaliacoesParaMedia(avalRows ?? [])) {
     const cid = String(row.colaborador_id);
     const aid = String(row.avaliador_id);
     const meta = metaAvaliador.get(aid);

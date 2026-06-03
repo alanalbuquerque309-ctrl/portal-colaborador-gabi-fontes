@@ -9,6 +9,7 @@ import {
   topTresComEmpateNoTerceiro,
   type ScoreMensal,
 } from '@/lib/avaliacao-ranking';
+import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { fraseMotivacionalDesempenho, motivacaoSemanalPorPontuacao } from '@/lib/frases-motivacao-desempenho';
 
@@ -89,13 +90,16 @@ export async function GET(req: Request) {
       .gte('data_referencia', refMin)
       .lte('data_referencia', fim);
 
-    const minhasMapeadas = (minhasLinhas ?? []).map((r) => ({
-      colaborador_id: colaboradorId,
-      avaliador_id: r.avaliador_id != null ? String(r.avaliador_id) : null,
-      data_referencia: String(r.data_referencia),
-      media_dia: r.media_dia as number | null,
-      created_at: r.created_at != null ? String(r.created_at) : null,
-    }));
+    const minhasMapeadas = filtrarAvaliacoesParaMedia(
+      (minhasLinhas ?? []).map((r) => ({
+        colaborador_id: colaboradorId,
+        avaliador_id: r.avaliador_id != null ? String(r.avaliador_id) : null,
+        data_referencia: String(r.data_referencia),
+        media_dia: r.media_dia as number | null,
+        created_at: r.created_at != null ? String(r.created_at) : null,
+        ignorada: (r as { ignorada?: boolean }).ignorada,
+      }))
+    );
     const ctxEu = await montarContextoConsolidacaoRanking(supabase, minhasMapeadas);
 
     const agg = mediaMensalColaborador(
@@ -136,13 +140,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, erro: errLin.message }, { status: 500 });
     }
 
-    const linhasMapeadas = (linhas ?? []).map((row) => ({
-      colaborador_id: String(row.colaborador_id),
-      avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
-      data_referencia: String(row.data_referencia),
-      media_dia: row.media_dia as number | null,
-      created_at: row.created_at != null ? String(row.created_at) : null,
-    }));
+    const linhasMapeadas = filtrarAvaliacoesParaMedia(
+      (linhas ?? []).map((row) => ({
+        colaborador_id: String(row.colaborador_id),
+        avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
+        data_referencia: String(row.data_referencia),
+        media_dia: row.media_dia as number | null,
+        created_at: row.created_at != null ? String(row.created_at) : null,
+        ignorada: (row as { ignorada?: boolean }).ignorada,
+      }))
+    );
     const ctxRanking = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
 
     const porColab = agruparMediasPorColaborador(linhasMapeadas, idsRanking, ini, ctxRanking);

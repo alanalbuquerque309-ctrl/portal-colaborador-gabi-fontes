@@ -5,6 +5,7 @@ import {
   mediaMensalColaborador,
   topTresComEmpateNoTerceiro,
 } from '@/lib/avaliacao-ranking';
+import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { rotuloGrupoMural, slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
 
@@ -88,13 +89,16 @@ export async function calcularTop3GrupoMural(
 
   if (errLin) throw new Error(errLin.message);
 
-  const linhasMapeadas = (linhas ?? []).map((row) => ({
-    colaborador_id: String(row.colaborador_id),
-    avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
-    data_referencia: String(row.data_referencia),
-    media_dia: row.media_dia as number | null,
-    created_at: row.created_at != null ? String(row.created_at) : null,
-  }));
+  const linhasMapeadas = filtrarAvaliacoesParaMedia(
+    (linhas ?? []).map((row) => ({
+      colaborador_id: String(row.colaborador_id),
+      avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
+      data_referencia: String(row.data_referencia),
+      media_dia: row.media_dia as number | null,
+      created_at: row.created_at != null ? String(row.created_at) : null,
+      ignorada: (row as { ignorada?: boolean }).ignorada,
+    }))
+  );
 
   const ctx = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
 

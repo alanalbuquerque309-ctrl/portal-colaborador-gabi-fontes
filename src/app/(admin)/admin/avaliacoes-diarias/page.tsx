@@ -13,6 +13,8 @@ import {
   type LinhaAvaliacaoGaveta,
 } from '@/components/admin/AvaliacaoNotasGaveta';
 import { AdminAvaliacoesEquipeAgrupado } from '@/components/admin/AdminAvaliacoesEquipeAgrupado';
+import { AdminAvaliacaoIgnorarAcao } from '@/components/admin/AdminAvaliacaoIgnorarAcao';
+import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
 
 type Linha = LinhaAdminAvaliacaoEquipe;
 
@@ -92,12 +94,14 @@ export default function AdminAvaliacoesDiariasPage() {
         </Link>
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Avaliações semanais (equipe)</h1>
         <p className="text-sm text-coffee-100 mt-1">
-          Avaliações semanais que os líderes fizeram da equipe. Falta injustificada aparece com média{' '}
+          Avaliações semanais que os líderes fizeram da equipe.           Falta injustificada aparece com média{' '}
           <strong>0,00</strong>; semanas isentas mostram <strong>Isenta</strong>.
           {podeVerDetalhe ? (
             <>
               {' '}
               Clique na <strong>média</strong> (chip ou tabela) para ver cada critério (sócio / administrador).
+              {' '}
+              Use <strong>Ignorar avaliação</strong> quando o vínculo estava errado: some da média e do ranking, o registro permanece.
             </>
           ) : null}
         </p>
@@ -211,8 +215,10 @@ export default function AdminAvaliacoesDiariasPage() {
               linhas={linhasExibidas}
               busca=""
               podeVerDetalhe={podeVerDetalhe}
+              podeIgnorar={podeVerDetalhe}
               gavetaId={gavetaId}
               onAbrirGaveta={abrirGaveta}
+              onRecarregar={() => void buscar()}
             />
           )
         ) : (
@@ -226,12 +232,13 @@ export default function AdminAvaliacoesDiariasPage() {
                   <th className="px-3 py-2 font-semibold">Avaliador</th>
                   <th className="px-3 py-2 font-semibold">Média</th>
                   <th className="px-3 py-2 font-semibold">Justificativa</th>
+                  {podeVerDetalhe && <th className="px-3 py-2 font-semibold">Ação</th>}
                 </tr>
               </thead>
               <tbody>
                 {linhasExibidas.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-8 text-center text-coffee-100">
+                    <td colSpan={podeVerDetalhe ? 7 : 6} className="px-3 py-8 text-center text-coffee-100">
                       {carregando ? '…' : 'Nenhum registro. Ajuste o período e busque.'}
                     </td>
                   </tr>
@@ -239,11 +246,18 @@ export default function AdminAvaliacoesDiariasPage() {
                   linhasExibidas.map((l) => {
                     const exib = formatarExibicaoAvaliacaoAdmin(l);
                     const gavetaAberta = gavetaId === l.id;
+                    const ignorada = avaliacaoEstaIgnorada(l);
                     return (
                       <tr
                         key={l.id}
                         className={`border-b border-cream-200 hover:bg-cream-50/80 ${
-                          exib.faltaInjustificada ? 'bg-red-50/40' : gavetaAberta ? 'bg-dourado-50/50' : ''
+                          ignorada
+                            ? 'bg-cream-100/60 opacity-80'
+                            : exib.faltaInjustificada
+                              ? 'bg-red-50/40'
+                              : gavetaAberta
+                                ? 'bg-dourado-50/50'
+                                : ''
                         }`}
                       >
                         <td className="px-3 py-2 whitespace-nowrap text-coffee-base">{l.data_referencia}</td>
@@ -292,7 +306,26 @@ export default function AdminAvaliacoesDiariasPage() {
                           }`}
                         >
                           {exib.justificativaLabel}
+                          {ignorada && l.ignorada_motivo && (
+                            <span className="block text-[10px] text-coffee-100 mt-1">
+                              Ignorada: {l.ignorada_motivo}
+                            </span>
+                          )}
                         </td>
+                        {podeVerDetalhe && (
+                          <td className="px-3 py-2 align-top">
+                            {ignorada ? (
+                              <span className="text-xs text-coffee-100">Ignorada</span>
+                            ) : (
+                              <AdminAvaliacaoIgnorarAcao
+                                avaliacaoId={l.id}
+                                colaboradorNome={l.colaborador_nome}
+                                avaliadorRotulo={l.avaliador_rotulo ?? l.avaliador_nome}
+                                onIgnorada={() => void buscar()}
+                              />
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })

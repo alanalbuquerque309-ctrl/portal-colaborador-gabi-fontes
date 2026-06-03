@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
 import {
   agruparMediasPorColaborador,
   AVALIACAO_RANKING_MIN_SEMANAS,
@@ -184,7 +185,7 @@ export async function calcularDestaquesMural(
   ]);
 
   const mapLinhas = (rows: typeof linhasMes): LinhaDestaque[] =>
-    (rows ?? []).map((r) => ({
+    filtrarAvaliacoesParaMedia(rows ?? []).map((r) => ({
       colaborador_id: String(r.colaborador_id),
       avaliador_id: r.avaliador_id != null ? String(r.avaliador_id) : null,
       data_referencia: String(r.data_referencia),

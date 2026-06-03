@@ -1,5 +1,6 @@
 import type { LinhaAvaliacaoGaveta } from '@/components/admin/AvaliacaoNotasGaveta';
 import { formatarExibicaoAvaliacaoAdmin } from '@/lib/avaliacao-diaria';
+import { avaliacaoContaNaMedia } from '@/lib/avaliacao-ignorada';
 
 export type LinhaAdminAvaliacaoEquipe = LinhaAvaliacaoGaveta & {
   colaborador_id: string;
@@ -9,6 +10,9 @@ export type LinhaAdminAvaliacaoEquipe = LinhaAvaliacaoGaveta & {
   colaborador_unidade_nome?: string | null;
   avaliador_rotulo?: string | null;
   origem_visita_rh?: boolean;
+  ignorada?: boolean;
+  ignorada_em?: string | null;
+  ignorada_motivo?: string | null;
 };
 
 export type GrupoColaboradorSemana = {
@@ -40,6 +44,7 @@ export function formatarSemanaAdmin(iso: string): string {
 export function mediaSemanaAdmin(avaliacoes: LinhaAdminAvaliacaoEquipe[]): number | null {
   const vals: number[] = [];
   for (const a of avaliacoes) {
+    if (!avaliacaoContaNaMedia(a)) continue;
     const exib = formatarExibicaoAvaliacaoAdmin(a);
     if (exib.isenta) continue;
     if (a.media_dia != null && !Number.isNaN(Number(a.media_dia))) {

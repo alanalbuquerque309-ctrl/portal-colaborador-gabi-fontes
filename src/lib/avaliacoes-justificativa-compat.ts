@@ -17,6 +17,9 @@ const SELECTS_LEITURA: string[] = [
 ];
 
 export const SELECT_AVALIACAO_META =
+  'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id, ignorada, ignorada_em, ignorada_motivo';
+
+export const SELECT_AVALIACAO_META_SEM_IGNORAR =
   'id, data_referencia, assiduidade, media_dia, justificativa_nota_baixa, colaborador_id, avaliador_id';
 
 const NOTAS =
@@ -34,6 +37,7 @@ const SELECTS_ADMIN_DETALHE = [
   SELECT_AVALIACAO_ADMIN_DETALHE,
   SELECT_AVALIACAO_ADMIN_DETALHE_FULL,
   SELECT_AVALIACAO_ADMIN_RESUMO,
+  SELECT_AVALIACAO_META_SEM_IGNORAR,
 ];
 
 function erroColunaAusente(msg: string): boolean {
@@ -44,8 +48,14 @@ function erroColunaAusente(msg: string): boolean {
     m.includes('could not find') ||
     /column.*nota_proatividade/i.test(m) ||
     /column.*edicao_utilizada/i.test(m) ||
-    /column.*justificativa_nota_baixa/i.test(m)
+    /column.*justificativa_nota_baixa/i.test(m) ||
+    /column.*ignorada/i.test(m)
   );
+}
+
+function faltaColunaIgnorada(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (m.includes('ignorada') || m.includes('ignorada_em') || m.includes('ignorada_motivo')) && erroColunaAusente(msg);
 }
 
 function faltaColunaJustificativa(msg: string): boolean {

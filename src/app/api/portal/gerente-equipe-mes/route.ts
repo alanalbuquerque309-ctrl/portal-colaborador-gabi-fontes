@@ -5,6 +5,7 @@ import {
   inicioDataReferenciaRanking,
   mediaMensalColaborador,
 } from '@/lib/avaliacao-ranking';
+import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
 import { listarEquipeDoLider } from '@/lib/colaborador-lideres';
@@ -76,13 +77,16 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, erro: errLin.message }, { status: 500 });
     }
 
-    const linhasMapeadas = (linhas ?? []).map((row) => ({
-      colaborador_id: String(row.colaborador_id),
-      avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
-      data_referencia: String(row.data_referencia),
-      media_dia: row.media_dia as number | null,
-      created_at: row.created_at != null ? String(row.created_at) : null,
-    }));
+    const linhasMapeadas = filtrarAvaliacoesParaMedia(
+      (linhas ?? []).map((row) => ({
+        colaborador_id: String(row.colaborador_id),
+        avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
+        data_referencia: String(row.data_referencia),
+        media_dia: row.media_dia as number | null,
+        created_at: row.created_at != null ? String(row.created_at) : null,
+        ignorada: (row as { ignorada?: boolean }).ignorada,
+      }))
+    );
     const ctx = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
     const porId = agruparMediasPorColaborador(linhasMapeadas, ids, ini, ctx);
 

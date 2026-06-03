@@ -7,35 +7,46 @@ import {
   formatarSemanaAdmin,
   type LinhaAdminAvaliacaoEquipe,
 } from '@/lib/admin-avaliacoes-equipe-agrupar';
+import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
+import { AdminAvaliacaoIgnorarAcao } from '@/components/admin/AdminAvaliacaoIgnorarAcao';
 
 type Props = {
   linhas: LinhaAdminAvaliacaoEquipe[];
   busca: string;
   podeVerDetalhe: boolean;
+  podeIgnorar: boolean;
   gavetaId: string | null;
   onAbrirGaveta: (id: string) => void;
+  onRecarregar: () => void;
 };
 
 function ChipAvaliacao({
   linha,
   podeVerDetalhe,
+  podeIgnorar,
   gavetaAberta,
   onAbrir,
+  onRecarregar,
 }: {
   linha: LinhaAdminAvaliacaoEquipe;
   podeVerDetalhe: boolean;
+  podeIgnorar: boolean;
   gavetaAberta: boolean;
   onAbrir: () => void;
+  onRecarregar: () => void;
 }) {
   const exib = formatarExibicaoAvaliacaoAdmin(linha);
   const rotulo = linha.avaliador_rotulo ?? linha.avaliador_nome ?? 'Avaliador';
   const rh = linha.origem_visita_rh === true;
+  const ignorada = avaliacaoEstaIgnorada(linha);
 
   const base =
     'rounded-lg border px-3 py-2 min-w-[8.5rem] shrink-0 text-left transition-colors ' +
-    (rh
-      ? 'border-sky-200 bg-sky-50/80'
-      : 'border-dourado-200 bg-dourado-50/60');
+    (ignorada
+      ? 'border-cream-300 bg-cream-100/80 opacity-75'
+      : rh
+        ? 'border-sky-200 bg-sky-50/80'
+        : 'border-dourado-200 bg-dourado-50/60');
 
   const conteudo = (
     <>
@@ -49,6 +60,11 @@ function ChipAvaliacao({
       >
         {exib.mediaLabel}
       </p>
+      {ignorada && (
+        <p className="text-[10px] font-medium text-coffee-100 mt-1" title={linha.ignorada_motivo ?? ''}>
+          Ignorada (fora da média)
+        </p>
+      )}
       {exib.justificativaLabel !== '—' && (
         <p className="text-[10px] text-coffee-100 mt-1 line-clamp-2" title={exib.justificativaLabel}>
           {exib.justificativaLabel}
@@ -57,7 +73,21 @@ function ChipAvaliacao({
     </>
   );
 
-  if (podeVerDetalhe && !exib.isenta) {
+  const inner = (
+    <>
+      {conteudo}
+      {podeIgnorar && !ignorada && (
+        <AdminAvaliacaoIgnorarAcao
+          avaliacaoId={linha.id}
+          colaboradorNome={linha.colaborador_nome}
+          avaliadorRotulo={rotulo}
+          onIgnorada={onRecarregar}
+        />
+      )}
+    </>
+  );
+
+  if (podeVerDetalhe && !exib.isenta && !ignorada) {
     return (
       <button
         type="button"
@@ -65,20 +95,22 @@ function ChipAvaliacao({
         className={`${base} hover:ring-2 hover:ring-dourado-base/30 ${gavetaAberta ? 'ring-2 ring-dourado-base/40' : ''}`}
         title="Ver critérios"
       >
-        {conteudo}
+        {inner}
       </button>
     );
   }
 
-  return <div className={base}>{conteudo}</div>;
+  return <div className={base}>{inner}</div>;
 }
 
 export function AdminAvaliacoesEquipeAgrupado({
   linhas,
   busca,
   podeVerDetalhe,
+  podeIgnorar,
   gavetaId,
   onAbrirGaveta,
+  onRecarregar,
 }: Props) {
   const filtradas = filtrarLinhasAdminBusca(linhas, busca);
   const grupos = agruparLinhasAdminPorColaboradorSemana(filtradas);
@@ -151,8 +183,10 @@ export function AdminAvaliacoesEquipeAgrupado({
                   key={a.id}
                   linha={a}
                   podeVerDetalhe={podeVerDetalhe}
+                  podeIgnorar={podeIgnorar}
                   gavetaAberta={gavetaId === a.id}
                   onAbrir={() => onAbrirGaveta(a.id)}
+                  onRecarregar={onRecarregar}
                 />
               ))}
             </div>

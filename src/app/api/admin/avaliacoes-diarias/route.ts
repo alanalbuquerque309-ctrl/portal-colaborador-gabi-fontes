@@ -144,6 +144,9 @@ export async function GET(req: Request) {
         avaliador_nome: avaliadorNome,
         avaliador_rotulo: rotuloAvaliadorRelatorio(avaliadorId, avaliadorRole, avaliadorNome, rhIds),
         origem_visita_rh: origemVisitaRh,
+        ignorada: (r as { ignorada?: boolean }).ignorada === true,
+        ignorada_em: (r as { ignorada_em?: string | null }).ignorada_em ?? null,
+        ignorada_motivo: (r as { ignorada_motivo?: string | null }).ignorada_motivo ?? null,
         ...(incluirDetalhe
           ? {
               nota_vestimenta: (r as { nota_vestimenta?: number | null }).nota_vestimenta ?? null,
