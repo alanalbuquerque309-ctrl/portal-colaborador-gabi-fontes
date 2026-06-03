@@ -137,7 +137,7 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
     };
   }
 
-  if (a === 'falta_justificada') {
+  if (a === 'falta_justificada' || a === 'folga' || a === 'outra_escala') {
     return {
       mediaLabel: 'Isenta',
       justificativaLabel: just || 'Semana isenta (folga, outra escala ou falta justificada).',
@@ -186,7 +186,7 @@ export function detalharItensNotaAvaliacaoAdmin(l: {
     ];
   }
 
-  if (a === 'falta_justificada') {
+  if (a === 'falta_justificada' || a === 'folga' || a === 'outra_escala') {
     return [{ label: 'Semana', nota: 'Isenta (folga, outra escala ou falta justificada)', destaque: 'isento' }];
   }
 

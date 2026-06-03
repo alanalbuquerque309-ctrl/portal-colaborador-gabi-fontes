@@ -8,6 +8,8 @@ type Props = {
   colaboradorNome?: string | null;
   avaliadorRotulo?: string | null;
   onIgnorada: () => void;
+  /** aside = botão compacto ao lado do chip de nota */
+  variant?: 'inline' | 'aside';
 };
 
 export function AdminAvaliacaoIgnorarAcao({
@@ -15,6 +17,7 @@ export function AdminAvaliacaoIgnorarAcao({
   colaboradorNome,
   avaliadorRotulo,
   onIgnorada,
+  variant = 'inline',
 }: Props) {
   const [aberto, setAberto] = useState(false);
   const [motivo, setMotivo] = useState('Vínculo de liderança incorreto no cadastro');
@@ -46,19 +49,24 @@ export function AdminAvaliacaoIgnorarAcao({
   };
 
   if (!aberto) {
+    const triggerClass =
+      variant === 'aside'
+        ? 'rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-900 hover:bg-amber-100 whitespace-nowrap'
+        : 'text-[10px] font-medium text-amber-800 hover:text-amber-950 underline underline-offset-2';
     return (
-      <button
-        type="button"
-        onClick={() => setAberto(true)}
-        className="text-[10px] font-medium text-amber-800 hover:text-amber-950 underline underline-offset-2 mt-1"
-      >
-        Ignorar avaliação
+      <button type="button" onClick={() => setAberto(true)} className={triggerClass}>
+        Ignorar
       </button>
     );
   }
 
+  const painelClass =
+    variant === 'aside'
+      ? 'basis-full w-full rounded-lg border border-amber-200 bg-amber-50/90 p-2 text-left'
+      : 'mt-2 rounded-lg border border-amber-200 bg-amber-50/90 p-2 text-left max-w-[14rem]';
+
   return (
-    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/90 p-2 text-left max-w-[14rem]">
+    <div className={painelClass}>
       <p className="text-[10px] text-amber-950 font-medium leading-snug">
         Não contará na média.
         {colaboradorNome ? ` ${colaboradorNome}` : ''}

@@ -20,20 +20,16 @@ type Props = {
   onRecarregar: () => void;
 };
 
-function ChipAvaliacao({
+function ChipNotaAvaliacao({
   linha,
   podeVerDetalhe,
-  podeIgnorar,
   gavetaAberta,
   onAbrir,
-  onRecarregar,
 }: {
   linha: LinhaAdminAvaliacaoEquipe;
   podeVerDetalhe: boolean;
-  podeIgnorar: boolean;
   gavetaAberta: boolean;
   onAbrir: () => void;
-  onRecarregar: () => void;
 }) {
   const exib = formatarExibicaoAvaliacaoAdmin(linha);
   const rotulo = linha.avaliador_rotulo ?? linha.avaliador_nome ?? 'Avaliador';
@@ -73,20 +69,6 @@ function ChipAvaliacao({
     </>
   );
 
-  const inner = (
-    <>
-      {conteudo}
-      {podeIgnorar && !ignorada && (
-        <AdminAvaliacaoIgnorarAcao
-          avaliacaoId={linha.id}
-          colaboradorNome={linha.colaborador_nome}
-          avaliadorRotulo={rotulo}
-          onIgnorada={onRecarregar}
-        />
-      )}
-    </>
-  );
-
   if (podeVerDetalhe && !exib.isenta && !ignorada) {
     return (
       <button
@@ -95,12 +77,55 @@ function ChipAvaliacao({
         className={`${base} hover:ring-2 hover:ring-dourado-base/30 ${gavetaAberta ? 'ring-2 ring-dourado-base/40' : ''}`}
         title="Ver critérios"
       >
-        {inner}
+        {conteudo}
       </button>
     );
   }
 
-  return <div className={base}>{inner}</div>;
+  return <div className={base}>{conteudo}</div>;
+}
+
+function BlocoAvaliacaoComAcao({
+  linha,
+  podeVerDetalhe,
+  podeIgnorar,
+  gavetaAberta,
+  onAbrir,
+  onRecarregar,
+}: {
+  linha: LinhaAdminAvaliacaoEquipe;
+  podeVerDetalhe: boolean;
+  podeIgnorar: boolean;
+  gavetaAberta: boolean;
+  onAbrir: () => void;
+  onRecarregar: () => void;
+}) {
+  const ignorada = avaliacaoEstaIgnorada(linha);
+  const rotulo = linha.avaliador_rotulo ?? linha.avaliador_nome ?? 'Avaliador';
+
+  return (
+    <div className="flex flex-col gap-1.5 shrink-0 min-w-[10rem] max-w-[20rem]">
+      <div className="flex flex-wrap items-start gap-x-2 gap-y-1.5 max-w-[26rem]">
+        <ChipNotaAvaliacao
+          linha={linha}
+          podeVerDetalhe={podeVerDetalhe}
+          gavetaAberta={gavetaAberta}
+          onAbrir={onAbrir}
+        />
+        {podeIgnorar && !ignorada && (
+          <div className="pt-2 shrink-0">
+            <AdminAvaliacaoIgnorarAcao
+              avaliacaoId={linha.id}
+              colaboradorNome={linha.colaborador_nome}
+              avaliadorRotulo={rotulo}
+              onIgnorada={onRecarregar}
+              variant="aside"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export function AdminAvaliacoesEquipeAgrupado({
@@ -177,9 +202,9 @@ export function AdminAvaliacoesEquipeAgrupado({
               </div>
             </div>
 
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            <div className="flex flex-wrap gap-3 pb-1">
               {g.avaliacoes.map((a) => (
-                <ChipAvaliacao
+                <BlocoAvaliacaoComAcao
                   key={a.id}
                   linha={a}
                   podeVerDetalhe={podeVerDetalhe}
