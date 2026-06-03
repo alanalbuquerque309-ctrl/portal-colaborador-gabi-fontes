@@ -103,8 +103,10 @@ export default function AvaliacaoMasterPage() {
           Avaliação <strong>semanal</strong> dos colaboradores vinculados ao seu usuário como liderança. Cada
           colaborador pode receber também uma <strong>visita RH</strong> independente na mesma semana.
         </p>
-        <p className="mt-2 text-xs rounded-md bg-amber-50 border border-amber-300 px-3 py-2 text-amber-800 max-w-2xl">
-          Aviso interno da liderança: esta avaliação da equipe é obrigatória.
+        <p className="mt-2 text-sm rounded-md bg-amber-50 border border-amber-300 px-3 py-2.5 text-amber-800 max-w-2xl">
+          Aviso interno da liderança: esta avaliação da equipe é obrigatória. Depois de salvar, use o botão{' '}
+          <strong>✏️ Editar</strong> no checklist ou no card (uma correção por semana). Semanas anteriores: altere a
+          data acima e toque em <strong>Atualizar lista</strong>.
         </p>
       </div>
 

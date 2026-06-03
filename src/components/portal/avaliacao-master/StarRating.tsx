@@ -91,7 +91,7 @@ export function StarRating({ label, value, onChange, disabled, idPrefix }: Props
           </span>
         )}
       </div>
-      <p className="text-[11px] text-cafeteria-500 pl-0 sm:pl-[10.5rem]">
+      <p className="text-xs sm:text-sm text-cafeteria-500 pl-0 sm:pl-[10.5rem]">
         Toque na metade esquerda ou direita da estrela (1 a 5 em meio ponto).
       </p>
     </div>

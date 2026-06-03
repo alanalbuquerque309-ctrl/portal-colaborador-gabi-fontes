@@ -38,7 +38,7 @@ export function AvaliacaoSemanalChecklist({
         <button
           type="button"
           onClick={onToggleFiltro}
-          className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${
+          className={`rounded-lg border px-3 py-2 text-sm font-medium min-h-[44px] ${
             filtroPendentes
               ? 'border-dourado-base bg-dourado-50 text-cafeteria-900'
               : 'border-cafeteria-200 text-cafeteria-700 hover:bg-cafeteria-50'
@@ -69,17 +69,17 @@ export function AvaliacaoSemanalChecklist({
                     {m.concluido ? '✅' : '⬜'} {m.nome}
                   </span>
                   {m.subtitulo ? (
-                    <span className="block text-xs opacity-80 mt-0.5">{m.subtitulo}</span>
+                    <span className="block text-sm opacity-80 mt-0.5">{m.subtitulo}</span>
                   ) : null}
                 </button>
                 {m.concluido && m.editavel && onEditar ? (
                   <button
                     type="button"
                     onClick={() => onEditar(m.id)}
-                    className="shrink-0 px-2.5 border-l border-green-200/80 text-xs font-medium hover:bg-green-100/80"
+                    className="shrink-0 px-3 border-l border-green-200/80 text-sm font-medium hover:bg-green-100/80 min-w-[44px] min-h-[44px]"
                     title="Editar avaliação (uma vez)"
                   >
-                    ✏️
+                    ✏️ Editar
                   </button>
                 ) : null}
               </div>

@@ -130,6 +130,10 @@ export default function AvaliacaoLiderancaPage() {
     }
   };
 
+  const totalLista = avaliados.length;
+  const jaAvaliados = avaliados.filter((a) => a.ja_avaliado_esta_semana).length;
+  const pendentesLista = totalLista - jaAvaliados;
+
   if (!sessionOk) {
     return (
       <div className="flex justify-center py-12">
@@ -147,11 +151,34 @@ export default function AvaliacaoLiderancaPage() {
         <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
           Avaliar liderança
         </h1>
-        <p className="text-cafeteria-600 mt-1 text-sm">
+        <p className="text-cafeteria-600 mt-1 text-sm md:text-base">
           {perfilRole === 'admin'
-            ? 'Administrador: avalie seus subordinados elegíveis (Estoque, Motorista e Aux. administrativo). Notas de 1 a 5.'
+            ? 'Como administrador, aqui você avalia subordinados diretos (Estoque, Motorista e Aux. administrativo). Notas de 1 a 5.'
             : 'Avalie, se desejar, seus perfis de referência da semana (chefe direto, RH e administrador). Notas de 1 a 5.'}
         </p>
+        {perfilRole === 'admin' && (
+          <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm md:text-base text-sky-950 space-y-1">
+            <p>
+              <strong>Quem te avaliou?</strong> Isso não aparece nesta tela. Abra o menu{' '}
+              <Link href="/portal/minha-lideranca" className="text-dourado-base font-medium underline">
+                Minha liderança
+              </Link>{' '}
+              para ver médias anônimas da equipe.
+            </p>
+            <p className="text-sky-900/90">
+              Nesta lista entram só os cargos que você deve avaliar. Quem já foi avaliado continua visível com a
+              etiqueta <strong>Avaliado</strong> (desabilitado). Se faltar alguém, toque em{' '}
+              <strong>Mostrar todos</strong> no checklist.
+            </p>
+          </div>
+        )}
+        {totalLista > 0 && (
+          <p className="text-sm text-cafeteria-700 mt-2">
+            Semana: <strong>{jaAvaliados}</strong> avaliado{jaAvaliados === 1 ? '' : 's'},{' '}
+            <strong>{pendentesLista}</strong> pendente{pendentesLista === 1 ? '' : 's'} (total{' '}
+            <strong>{totalLista}</strong> na sua lista).
+          </p>
+        )}
         {avaliacaoOpcional && (
           <p className="mt-2 text-xs rounded-md bg-cafeteria-100 px-3 py-2 text-cafeteria-700">
             Esta avaliação é opcional para colaboradores.
@@ -269,7 +296,7 @@ export default function AvaliacaoLiderancaPage() {
                             <span className="text-xs rounded-full bg-amber-100 text-amber-900 px-2 py-0.5">Pendente</span>
                           )}
                         </span>
-                        <span className="block text-xs text-cafeteria-600 mt-0.5">
+                        <span className="block text-sm text-cafeteria-600 mt-0.5">
                           {a.papel_label ?? 'Referência'} · {a.role_label ?? a.role}
                         </span>
                       </button>

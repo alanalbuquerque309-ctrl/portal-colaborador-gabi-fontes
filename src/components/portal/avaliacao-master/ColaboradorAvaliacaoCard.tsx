@@ -297,7 +297,7 @@ export function ColaboradorAvaliacaoCard({
             <button
               type="button"
               onClick={iniciarEdicao}
-              className="inline-flex items-center gap-1 rounded-lg border border-cafeteria-300 bg-white px-2 py-1 text-xs font-medium text-cafeteria-800 hover:bg-cafeteria-50"
+              className="inline-flex items-center gap-1 rounded-lg border border-cafeteria-300 bg-white px-3 py-2 text-sm font-medium text-cafeteria-800 hover:bg-cafeteria-50 min-h-[44px]"
               title="Editar avaliação (uma vez)"
             >
               ✏️ Editar
@@ -461,7 +461,7 @@ export function ColaboradorAvaliacaoCard({
               disabled={estrelasDesabilitadas}
               onChange={setPr}
             />
-            <p className="text-[11px] text-cafeteria-500 pl-0 sm:pl-[10.5rem] -mt-1">{DICA_CRITERIO_PROATIVIDADE}</p>
+            <p className="text-xs sm:text-sm text-cafeteria-500 pl-0 sm:pl-[10.5rem] -mt-1">{DICA_CRITERIO_PROATIVIDADE}</p>
           </div>
         </div>
 
