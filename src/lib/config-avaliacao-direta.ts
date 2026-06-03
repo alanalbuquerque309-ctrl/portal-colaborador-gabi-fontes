@@ -12,12 +12,12 @@ export type RegraAvaliacaoDireta = {
 export const REGRAS_AVALIACAO_DIRETA: RegraAvaliacaoDireta[] = [
   {
     avaliadores_nomes: ['Gabriela Fontes', 'Gabriela'],
-    colaboradores_nomes: ['Thaís Mathias', 'Thais Mathias', 'Lucas Gomes'],
-    exclusivo: true,
-  },
-  {
-    avaliadores_nomes: ['Keila Campos', 'Keila'],
-    colaboradores_nomes: ['Thaís Mathias', 'Thais Mathias', 'Lucas Gomes'],
+    colaboradores_nomes: [
+      'Thaís Mathias',
+      'Thais Mathias',
+      'Lucas Gomes',
+      'Lucas Geova',
+    ],
     exclusivo: true,
   },
   {

@@ -142,7 +142,7 @@ export async function temEquipeAvaliacaoDireta(
 export async function sincronizarVinculosAvaliacaoDireta(
   supabase: SupabaseAdmin,
   regras: RegraAvaliacaoDireta[] = REGRAS_AVALIACAO_DIRETA
-): Promise<{ vinculos: number; ignorados_nao_colaborador: number }> {
+): Promise<{ vinculos: number; ignorados_nao_colaborador: number; vinculos_desativados: number }> {
   const todos = await listarColaboradoresAtivos(supabase);
   const agora = new Date().toISOString();
   let vinculos = 0;
@@ -174,5 +174,25 @@ export async function sincronizarVinculosAvaliacaoDireta(
     }
   }
 
-  return { vinculos, ignorados_nao_colaborador: ignorados };
+  const mapa = await buildMapaAvaliacaoDireta(supabase);
+  let desativados = 0;
+  for (const alvoId of Array.from(mapa.alvosExclusivos)) {
+    const permitidos = mapa.avaliadoresPorAlvo.get(alvoId) ?? new Set<string>();
+    const { data: vinculosAtivos } = await supabase
+      .from('colaboradores_lideres')
+      .select('id, lider_id')
+      .eq('colaborador_id', alvoId)
+      .eq('ativo', true);
+    for (const v of vinculosAtivos ?? []) {
+      const lid = String(v.lider_id ?? '');
+      if (permitidos.has(lid)) continue;
+      const { error } = await supabase
+        .from('colaboradores_lideres')
+        .update({ ativo: false, updated_at: agora })
+        .eq('id', v.id);
+      if (!error) desativados += 1;
+    }
+  }
+
+  return { vinculos, ignorados_nao_colaborador: ignorados, vinculos_desativados: desativados };
 }

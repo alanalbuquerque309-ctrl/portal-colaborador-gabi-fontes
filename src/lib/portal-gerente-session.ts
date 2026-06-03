@@ -14,7 +14,7 @@ export function isRoleGerenteAvaliador(role: string | null | undefined): boolean
   return r === 'gerente' || r === 'master' || r === 'admin';
 }
 
-/** Sócia/RH com vínculo direto (ex.: Gabriela e Keila → Thaís/Lucas; Daniel → Keila). */
+/** Sócia/RH com alvos na avaliação direta (ex.: Gabriela → marketing; Daniel → Keila). */
 export async function podeUsarAvaliacaoEquipeSemanal(
   supabase: ReturnType<typeof createAdminClient>,
   colaboradorId: string,

@@ -10,15 +10,13 @@ import { createClient } from '@supabase/supabase-js';
 const REGRAS = [
   {
     avaliadores_nomes: ['Gabriela Fontes', 'Gabriela'],
-    colaboradores_nomes: ['Thaís Mathias', 'Thais Mathias', 'Lucas Gomes'],
-  },
-  {
-    avaliadores_nomes: ['Keila Campos', 'Keila'],
-    colaboradores_nomes: ['Thaís Mathias', 'Thais Mathias', 'Lucas Gomes'],
+    colaboradores_nomes: ['Thaís Mathias', 'Thais Mathias', 'Lucas Gomes', 'Lucas Geova'],
+    exclusivo: true,
   },
   {
     avaliadores_nomes: ['Daniel Martins', 'Daniel Brito', 'Daniel'],
     colaboradores_nomes: ['Keila Campos', 'Keila'],
+    exclusivo: true,
   },
 ];
 
@@ -63,6 +61,20 @@ function idsPorNomes(todos, padroes) {
 const { data: todos, error: errList } = await sb.from('colaboradores').select('id, nome');
 if (errList) throw errList;
 
+const avaliadoresPorAlvo = new Map();
+const alvosExclusivos = new Set();
+
+for (const regra of REGRAS) {
+  const avaliadores = idsPorNomes(todos, regra.avaliadores_nomes);
+  const alvos = idsPorNomes(todos, regra.colaboradores_nomes);
+  for (const alvoId of alvos) {
+    if (regra.exclusivo) alvosExclusivos.add(alvoId);
+    const set = avaliadoresPorAlvo.get(alvoId) ?? new Set();
+    for (const av of avaliadores) set.add(av);
+    avaliadoresPorAlvo.set(alvoId, set);
+  }
+}
+
 let vinculos = 0;
 const agora = new Date().toISOString();
 
@@ -85,4 +97,25 @@ for (const regra of REGRAS) {
   }
 }
 
-console.log(`OK: ${vinculos} vínculos (avaliação direta).`);
+let desativados = 0;
+for (const alvoId of alvosExclusivos) {
+  const permitidos = avaliadoresPorAlvo.get(alvoId) ?? new Set();
+  const { data: ativos } = await sb
+    .from('colaboradores_lideres')
+    .select('id, lider_id, colaboradores!colaboradores_lideres_lider_id_fkey(nome)')
+    .eq('colaborador_id', alvoId)
+    .eq('ativo', true);
+  for (const v of ativos ?? []) {
+    if (permitidos.has(v.lider_id)) continue;
+    const { error } = await sb
+      .from('colaboradores_lideres')
+      .update({ ativo: false, updated_at: agora })
+      .eq('id', v.id);
+    if (error) throw error;
+    const liderNome = v.colaboradores?.nome ?? v.lider_id;
+    console.log(`Desativado vínculo obsoleto: ${liderNome} → alvo ${alvoId}`);
+    desativados += 1;
+  }
+}
+
+console.log(`OK: ${vinculos} vínculos ativos; ${desativados} desativados.`);
