@@ -42,56 +42,56 @@ export function StarRating({ label, value, onChange, disabled, idPrefix }: Props
   const valorExib = value != null ? normalizarNotaCriterio(value) : null;
 
   return (
-    <div className="space-y-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-cafeteria-800 min-w-[10rem]">{label}</span>
-        <div className="flex gap-0.5" role="group" aria-label={label}>
-          {Array.from({ length: NOTA_CRITERIO_MAX }, (_, i) => i + 1).map((indice) => {
-            const tipo = preenchimentoEstrela(valorExib, indice);
-            return (
-              <span key={indice} className="relative inline-flex">
-                <button
-                  type="button"
-                  disabled={disabled}
-                  title={`${indice - 0.5} — ${legendaNotaCriterio(indice - 0.5)}`}
-                  aria-label={`${indice - 0.5} para ${label}`}
-                  onClick={() => onChange(normalizarNotaCriterio(indice - 0.5))}
-                  className={`absolute left-0 top-0 w-1/2 h-full z-10 rounded-l-md disabled:cursor-not-allowed ${
-                    !disabled ? 'hover:bg-dourado-base/10' : ''
-                  }`}
-                />
-                <button
-                  type="button"
-                  disabled={disabled}
-                  title={`${indice} — ${legendaNotaCriterio(indice)}`}
-                  aria-label={`${indice} para ${label}`}
-                  onClick={() => onChange(normalizarNotaCriterio(indice))}
-                  className={`absolute right-0 top-0 w-1/2 h-full z-10 rounded-r-md disabled:cursor-not-allowed ${
-                    !disabled ? 'hover:bg-dourado-base/10' : ''
-                  }`}
-                />
-                <span
-                  id={`${idPrefix}-${indice}`}
-                  className={`relative block p-1 pointer-events-none ${disabled ? 'opacity-40' : ''}`}
-                >
-                  <IconeEstrela tipo={tipo} />
+    <div className="space-y-1.5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <span className="text-sm font-medium text-cafeteria-800 sm:min-w-[10rem]">{label}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex gap-0.5" role="group" aria-label={label}>
+            {Array.from({ length: NOTA_CRITERIO_MAX }, (_, i) => i + 1).map((indice) => {
+              const tipo = preenchimentoEstrela(valorExib, indice);
+              return (
+                <span key={indice} className="relative inline-flex">
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`${indice - 0.5} — ${legendaNotaCriterio(indice - 0.5)} para ${label}`}
+                    onClick={() => onChange(normalizarNotaCriterio(indice - 0.5))}
+                    className={`absolute left-0 top-0 w-1/2 h-full z-10 rounded-l-md disabled:cursor-not-allowed ${
+                      !disabled ? 'hover:bg-dourado-base/10' : ''
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`${indice} — ${legendaNotaCriterio(indice)} para ${label}`}
+                    onClick={() => onChange(normalizarNotaCriterio(indice))}
+                    className={`absolute right-0 top-0 w-1/2 h-full z-10 rounded-r-md disabled:cursor-not-allowed ${
+                      !disabled ? 'hover:bg-dourado-base/10' : ''
+                    }`}
+                  />
+                  <span
+                    id={`${idPrefix}-${indice}`}
+                    className={`relative block p-1 pointer-events-none ${disabled ? 'opacity-40' : ''}`}
+                  >
+                    <IconeEstrela tipo={tipo} />
+                  </span>
                 </span>
-              </span>
-            );
-          })}
+              );
+            })}
+          </div>
+          {valorExib != null && (
+            <span className="text-sm text-cafeteria-600 font-medium tabular-nums">
+              {Number.isInteger(valorExib) ? valorExib : valorExib.toFixed(1).replace('.', ',')}
+            </span>
+          )}
         </div>
-        {valorExib != null && (
-          <span className="text-xs text-cafeteria-600 font-medium tabular-nums">
-            {Number.isInteger(valorExib) ? valorExib : valorExib.toFixed(1).replace('.', ',')}
-          </span>
-        )}
-        {valorExib != null && (
-          <span className="text-xs text-cafeteria-500 hidden sm:inline max-w-[12rem] leading-tight">
-            {legendaNotaCriterio(valorExib)}
-          </span>
-        )}
       </div>
-      <p className="text-xs sm:text-sm text-cafeteria-500 pl-0 sm:pl-[10.5rem]">
+      {valorExib != null && (
+        <p className="text-sm text-cafeteria-600 leading-snug break-words whitespace-normal sm:pl-[10.5rem]">
+          {legendaNotaCriterio(valorExib)}
+        </p>
+      )}
+      <p className="text-sm text-cafeteria-500 leading-snug sm:pl-[10.5rem]">
         Toque na metade esquerda ou direita da estrela (1 a 5 em meio ponto).
       </p>
     </div>

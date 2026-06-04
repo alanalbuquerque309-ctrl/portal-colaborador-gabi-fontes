@@ -69,7 +69,9 @@ export function AvaliacaoSemanalChecklist({
                     {m.concluido ? '✅' : '⬜'} {m.nome}
                   </span>
                   {m.subtitulo ? (
-                    <span className="block text-sm opacity-80 mt-0.5">{m.subtitulo}</span>
+                    <span className="block text-sm opacity-80 mt-0.5 break-words whitespace-normal leading-snug">
+                      {m.subtitulo}
+                    </span>
                   ) : null}
                 </button>
                 {m.concluido && m.editavel && onEditar ? (

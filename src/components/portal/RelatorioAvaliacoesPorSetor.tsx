@@ -76,7 +76,7 @@ function TabelaDiariasColaborador({ linhas }: { linhas: LinhaDiariaRelatorio[] }
               <td className="px-2 py-2 text-center">{l.nota_desempenho_tarefas ?? '—'}</td>
               <td className="px-2 py-2 text-center">{l.nota_proatividade ?? '—'}</td>
               <td className="px-2 py-2">{l.media_dia != null ? Number(l.media_dia).toFixed(2) : '—'}</td>
-              <td className="px-2 py-2 text-cafeteria-600 max-w-xs">{l.justificativa_nota_baixa || '—'}</td>
+              <td className="px-2 py-2 text-cafeteria-600 max-w-xs whitespace-pre-wrap break-words align-top">{l.justificativa_nota_baixa || '—'}</td>
             </tr>
           ))}
         </tbody>

@@ -362,13 +362,13 @@ export function ColaboradorAvaliacaoCard({
             </button>
           ) : null}
           {modoEdicao ? (
-            <span className="text-xs font-medium rounded-full bg-sky-100 text-sky-900 px-2.5 py-0.5">
+            <span className="text-xs sm:text-sm font-medium rounded-full bg-sky-100 text-sky-900 px-2.5 py-0.5">
               Editando (única vez)
             </span>
           ) : null}
         </div>
         {cadastroPortalPendente ? (
-          <span className="text-xs font-medium rounded-full bg-cafeteria-200 text-cafeteria-900 px-2.5 py-0.5">
+          <span className="text-xs sm:text-sm font-medium rounded-full bg-cafeteria-200 text-cafeteria-900 px-2.5 py-0.5">
             Cadastro portal pendente
           </span>
         ) : null}
@@ -377,7 +377,7 @@ export function ColaboradorAvaliacaoCard({
             Em adaptação
           </span>
         ) : apto ? (
-          <span className="text-xs font-medium rounded-full bg-emerald-100 text-emerald-900 px-2.5 py-0.5">
+          <span className="text-xs sm:text-sm font-medium rounded-full bg-emerald-100 text-emerald-900 px-2.5 py-0.5">
             Apto na função
           </span>
         ) : null}
@@ -387,12 +387,12 @@ export function ColaboradorAvaliacaoCard({
               Outro líder
             </span>
           ) : (
-            <span className="text-xs font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">
+            <span className="text-xs sm:text-sm font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">
               Avaliado
             </span>
           )
         ) : (
-          <span className="text-xs font-medium rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5">Pendente</span>
+          <span className="text-xs sm:text-sm font-medium rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5">Pendente</span>
         )}
         <p className="text-sm text-cafeteria-600">
           {[cargo, setor].filter(Boolean).join(' · ') || '—'}
@@ -518,7 +518,7 @@ export function ColaboradorAvaliacaoCard({
                   disabled={estrelasDesabilitadas}
                   onChange={setPr}
                 />
-                <p className="text-xs sm:text-sm text-cafeteria-500 pl-0 sm:pl-[10.5rem] -mt-1">
+                <p className="text-sm text-cafeteria-500 pl-0 sm:pl-[10.5rem] leading-snug break-words">
                   {DICA_CRITERIO_PROATIVIDADE}
                 </p>
               </div>
@@ -537,17 +537,22 @@ export function ColaboradorAvaliacaoCard({
             <label className="block text-sm font-medium text-cafeteria-800 mb-1">
               Justificativa da nota baixa
             </label>
-            <textarea
-              value={justificativaNotaBaixa}
-              onChange={(e) => setJustificativaNotaBaixa(e.target.value)}
-              disabled={somenteLeitura}
-              maxLength={500}
-              rows={3}
-              className="w-full rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900 disabled:bg-cafeteria-50"
-              placeholder="Explique o motivo para orientar o acompanhamento."
-            />
+            {somenteLeitura ? (
+              <div className="rounded-lg border border-cafeteria-200 bg-cafeteria-50 px-3 py-2.5 text-sm text-cafeteria-900 whitespace-pre-wrap break-words leading-relaxed">
+                {justificativaNotaBaixa.trim() || '—'}
+              </div>
+            ) : (
+              <textarea
+                value={justificativaNotaBaixa}
+                onChange={(e) => setJustificativaNotaBaixa(e.target.value)}
+                maxLength={500}
+                rows={4}
+                className="w-full rounded-lg border border-cafeteria-200 px-3 py-2.5 text-sm text-cafeteria-900 whitespace-pre-wrap break-words leading-relaxed"
+                placeholder="Explique o motivo para orientar o acompanhamento."
+              />
+            )}
             {!somenteLeitura && temNotaBaixa && (
-              <p className="mt-1 text-xs text-cafeteria-600">
+              <p className="mt-1 text-sm text-cafeteria-600">
                 Obrigatório quando houver nota 3 ou menor.
               </p>
             )}

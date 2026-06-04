@@ -143,7 +143,7 @@ export function AvaliacaoNotasGaveta({ linha, onFechar }: Props) {
           {linha.justificativa_nota_baixa && (
             <section>
               <h5 className="text-sm font-medium text-coffee-base mb-2">Justificativa</h5>
-              <p className="text-sm text-coffee-100 rounded-lg border border-cream-200 bg-cream-50 px-3 py-2">
+              <p className="text-sm text-cafeteria-600 rounded-lg border border-cream-200 bg-cream-50 px-3 py-2 whitespace-pre-wrap break-words leading-relaxed">
                 {linha.justificativa_nota_baixa}
               </p>
             </section>

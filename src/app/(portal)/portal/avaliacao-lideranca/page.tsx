@@ -330,7 +330,7 @@ export default function AvaliacaoLiderancaPage() {
                     onChange={(e) => setNotas((prev) => ({ ...prev, [k]: parseInt(e.target.value, 10) }))}
                     className="w-full accent-dourado-base"
                   />
-                  <div className="flex justify-between text-xs text-cafeteria-500 mb-1">
+                  <div className="flex justify-between text-sm text-cafeteria-500 mb-1">
                     <span>1 precisa melhorar</span>
                     <span className="font-semibold text-cafeteria-800">{notas[k]}</span>
                     <span>5 excelente</span>
@@ -347,17 +347,17 @@ export default function AvaliacaoLiderancaPage() {
                     value={justificativaNotaBaixa}
                     onChange={(e) => setJustificativaNotaBaixa(e.target.value)}
                     maxLength={500}
-                    rows={3}
-                    className="w-full rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900"
+                    rows={4}
+                    className="w-full rounded-lg border border-cafeteria-200 px-3 py-2.5 text-sm text-cafeteria-900 whitespace-pre-wrap break-words leading-relaxed"
                     placeholder="Explique o motivo para orientar o acompanhamento."
                   />
-                  <p className="mt-1 text-xs text-cafeteria-600">
+                  <p className="mt-1 text-sm text-cafeteria-600">
                     Obrigatório quando houver nota 3 ou menor.
                   </p>
                 </div>
               )}
 
-              <p className="text-xs rounded-md bg-cafeteria-100 px-3 py-2 text-cafeteria-700">
+              <p className="text-sm rounded-md bg-cafeteria-100 px-3 py-2 text-cafeteria-700 leading-relaxed">
                 Sua identidade não é exibida para o líder avaliado. Esta avaliação é sempre anônima.
               </p>
 

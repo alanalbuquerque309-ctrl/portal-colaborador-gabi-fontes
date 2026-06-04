@@ -37,7 +37,7 @@ function ChipNotaAvaliacao({
   const ignorada = avaliacaoEstaIgnorada(linha);
 
   const base =
-    'rounded-lg border px-3 py-2 min-w-[8.5rem] shrink-0 text-left transition-colors ' +
+    'rounded-lg border px-3 py-2 min-w-[8.5rem] max-w-full w-full sm:w-auto sm:max-w-[14rem] text-left transition-colors ' +
     (ignorada
       ? 'border-cream-300 bg-cream-100/80 opacity-75'
       : rh
@@ -46,7 +46,7 @@ function ChipNotaAvaliacao({
 
   const conteudo = (
     <>
-      <p className={`text-xs font-medium truncate max-w-[12rem] ${rh ? 'text-sky-900' : 'text-dourado-800'}`}>
+      <p className={`text-sm font-medium break-words ${rh ? 'text-sky-900' : 'text-dourado-800'}`}>
         {rotulo}
       </p>
       <p
@@ -63,12 +63,12 @@ function ChipNotaAvaliacao({
         {exib.mediaLabel}
       </p>
       {ignorada && (
-        <p className="text-[10px] font-medium text-coffee-100 mt-1" title={linha.ignorada_motivo ?? ''}>
+        <p className="text-xs font-medium text-coffee-100 mt-1 break-words">
           Ignorada (fora da média)
         </p>
       )}
       {exib.justificativaLabel !== '—' && (
-        <p className="text-[10px] text-coffee-100 mt-1 line-clamp-2" title={exib.justificativaLabel}>
+        <p className="text-xs sm:text-sm text-coffee-100 mt-1 break-words whitespace-normal leading-snug">
           {exib.justificativaLabel}
         </p>
       )}
@@ -185,17 +185,17 @@ export function AdminAvaliacoesEquipeAgrupado({
                     </>
                   )}
                 </p>
-                <p className="text-xs text-dourado-700 mt-1">
+                <p className="text-sm text-dourado-700 mt-1">
                   Semana {formatarSemanaAdmin(g.data_referencia)}
                   {g.tem_multiplos_avaliadores && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 text-amber-900 px-2 py-0.5 text-[10px] font-medium">
+                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 text-amber-900 px-2 py-0.5 text-xs font-medium">
                       {g.qtd_avaliadores} avaliações
                     </span>
                   )}
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-[10px] uppercase tracking-wide text-coffee-100">Média da semana</p>
+                <p className="text-xs uppercase tracking-wide text-coffee-100">Média da semana</p>
                 <p
                   className={`text-2xl font-display font-semibold tabular-nums ${
                     falta ? 'text-red-700' : 'text-coffee-base'
@@ -204,7 +204,7 @@ export function AdminAvaliacoesEquipeAgrupado({
                   {mediaLabel}
                 </p>
                 {g.tem_multiplos_avaliadores && (
-                  <p className="text-[10px] text-coffee-100 mt-0.5">média das notas ao lado</p>
+                  <p className="text-xs text-coffee-100 mt-0.5">média das notas ao lado</p>
                 )}
               </div>
             </div>
