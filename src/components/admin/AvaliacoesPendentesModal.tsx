@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
-import { semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana';
 
 type Props = {
@@ -12,8 +11,8 @@ type Props = {
 };
 
 const FILTROS: { id: FiltroPendenciasSemana; label: string }[] = [
+  { id: 'pendentes', label: 'Pendentes (líder ou RH)' },
   { id: 'gerente', label: 'Sem líder' },
-  { id: 'todos', label: 'Líder ou RH (c/ gerente)' },
   { id: 'rh_complemento', label: 'RH (com gerente)' },
   { id: 'rh_rede', label: 'Sem Visita RH' },
 ];
@@ -38,9 +37,9 @@ export function AvaliacoesPendentesModal({
   onFechar,
   apiBase = '/api/admin/avaliacoes-pendentes',
 }: Props) {
-  const [dataRef, setDataRef] = useState(semanaAvaliacaoEquipePadraoISO);
+  const [dataRef, setDataRef] = useState('');
   const [unidadeSlug, setUnidadeSlug] = useState('');
-  const [filtro, setFiltro] = useState<FiltroPendenciasSemana>('gerente');
+  const [filtro, setFiltro] = useState<FiltroPendenciasSemana>('pendentes');
   const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -52,7 +51,8 @@ export function AvaliacoesPendentesModal({
     setCarregando(true);
     setErro(null);
     try {
-      const q = new URLSearchParams({ data: dataRef, filtro });
+      const q = new URLSearchParams({ filtro });
+      if (dataRef) q.set('data', dataRef);
       if (unidadeSlug) q.set('unidade_slug', unidadeSlug);
       if (busca.trim()) q.set('q', busca.trim());
       const res = await fetch(`${apiBase}?${q}`, { credentials: 'include', cache: 'no-store' });
@@ -63,6 +63,7 @@ export function AvaliacoesPendentesModal({
         return;
       }
       setIntervalo(String(data.intervalo ?? ''));
+      if (data.data_referencia) setDataRef(String(data.data_referencia));
       setResumo(data.resumo ?? { sem_lider: 0, sem_rh_complemento: 0, sem_rh_rede: 0, criticos: 0 });
       setItens(Array.isArray(data.itens) ? data.itens : []);
     } catch {

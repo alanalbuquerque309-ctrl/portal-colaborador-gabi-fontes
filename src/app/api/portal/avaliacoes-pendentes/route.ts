@@ -9,12 +9,20 @@ import {
   podeVerRelatoriosAvaliacoesCompletos,
   relatorioRestringeUnidade,
 } from '@/lib/avaliacoes-relatorio-access';
-import { isDateIsoAvaliacao, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
+import { isDateIsoAvaliacao } from '@/lib/semana-referencia';
 
 function parseFiltro(raw: string | null): FiltroPendenciasSemana {
-  const v = raw?.trim() ?? 'gerente';
-  if (v === 'gerente' || v === 'rh_complemento' || v === 'rh_rede' || v === 'todos') return v;
-  return 'gerente';
+  const v = raw?.trim() ?? 'pendentes';
+  if (
+    v === 'pendentes' ||
+    v === 'gerente' ||
+    v === 'rh_complemento' ||
+    v === 'rh_rede' ||
+    v === 'todos'
+  ) {
+    return v;
+  }
+  return 'pendentes';
 }
 
 export async function GET(req: Request) {
@@ -25,8 +33,8 @@ export async function GET(req: Request) {
   }
 
   const { searchParams } = new URL(req.url);
-  const dataRaw = searchParams.get('data')?.trim() || semanaAvaliacaoEquipePadraoISO();
-  if (!isDateIsoAvaliacao(dataRaw)) {
+  const dataRaw = searchParams.get('data')?.trim();
+  if (dataRaw && !isDateIsoAvaliacao(dataRaw)) {
     return NextResponse.json({ ok: false, erro: 'Parâmetro data inválido (YYYY-MM-DD)' }, { status: 400 });
   }
 
@@ -56,7 +64,7 @@ export async function GET(req: Request) {
     }
 
     const resultado = await calcularPendenciasSemana(supabase, {
-      dataIso: dataRaw,
+      dataIso: dataRaw || undefined,
       unidadeId,
       unidadeSlug,
       filtro: parseFiltro(searchParams.get('filtro')),

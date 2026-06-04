@@ -14,8 +14,10 @@ import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { normalizePortalRole } from '@/lib/roles';
 import {
   formatarIntervaloSemanaPtBR,
+  hojeInicioSemanaISO,
   inicioSemanaSegundaFeiraLocal,
   isDateIsoAvaliacao,
+  semanaAvaliacaoEquipePadraoISO,
 } from '@/lib/semana-referencia';
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
 
@@ -361,12 +363,41 @@ function statusResponsavel(
   return 'pendente';
 }
 
-export type FiltroPendenciasSemana = 'gerente' | 'rh_complemento' | 'rh_rede' | 'todos';
+export type FiltroPendenciasSemana = 'pendentes' | 'gerente' | 'rh_complemento' | 'rh_rede' | 'todos';
+
+/** Semana com dados reais quando a operacional (semana passada) ainda está vazia. */
+export async function resolverDataRefPendentes(
+  supabase: SupabaseAdmin,
+  dataIso?: string
+): Promise<string> {
+  const informada = dataIso?.trim();
+  if (informada && isDateIsoAvaliacao(informada)) {
+    return inicioSemanaSegundaFeiraLocal(informada);
+  }
+
+  const padrao = semanaAvaliacaoEquipePadraoISO();
+  const atual = hojeInicioSemanaISO();
+  if (padrao === atual) return padrao;
+
+  const { data, error } = await supabase
+    .from('avaliacoes_diarias')
+    .select('data_referencia')
+    .in('data_referencia', [padrao, atual]);
+  if (error) return padrao;
+
+  const counts: Record<string, number> = { [padrao]: 0, [atual]: 0 };
+  for (const row of data ?? []) {
+    const d = String(row.data_referencia ?? '');
+    if (d in counts) counts[d]++;
+  }
+  if (counts[atual] > counts[padrao]) return atual;
+  return padrao;
+}
 
 export async function calcularPendenciasSemana(
   supabase: SupabaseAdmin,
   opts: {
-    dataIso: string;
+    dataIso?: string;
     unidadeId?: string;
     unidadeSlug?: string;
     filtro?: FiltroPendenciasSemana;
@@ -374,7 +405,7 @@ export async function calcularPendenciasSemana(
     rhAvaliadorId?: string;
   }
 ): Promise<ResultadoPendenciasSemana> {
-  const dataRef = inicioSemanaSegundaFeiraLocal(opts.dataIso);
+  const dataRef = await resolverDataRefPendentes(supabase, opts.dataIso);
   if (!isDateIsoAvaliacao(dataRef)) {
     throw new Error('Data inválida');
   }
@@ -418,7 +449,7 @@ export async function calcularPendenciasSemana(
     avalPorColab.set(a.colaborador_id, list);
   }
 
-  const filtro = opts.filtro ?? 'todos';
+  const filtro = opts.filtro ?? 'pendentes';
   const buscaNorm = opts.busca?.trim().toLowerCase() ?? '';
   const itens: ItemPendenciaSemana[] = [];
   const resumo = { sem_lider: 0, sem_rh_complemento: 0, sem_rh_rede: 0, criticos: 0 };
@@ -449,28 +480,31 @@ export async function calcularPendenciasSemana(
 
     const { label: responsavel_lider_label, critico } = montarLabelResponsavel(responsaveis);
     const semLider = !temNotaGerente;
-    const semRhComplemento = temNotaGerente && elegivelRh && !temRh;
-    const semRhRede = elegivelRh && !temRh;
+    const semRhVisita = elegivelRh && !temRh;
+    const semRhComplemento = temNotaGerente && semRhVisita;
+    const pendente = semLider || semRhVisita;
+
+    if (!pendente) continue;
 
     if (semLider) resumo.sem_lider++;
     if (semRhComplemento) resumo.sem_rh_complemento++;
-    if (semRhRede) resumo.sem_rh_rede++;
+    if (semRhVisita) resumo.sem_rh_rede++;
     if (semLider && critico) resumo.criticos++;
 
     let tipo: TipoPendenciaItem | null = null;
     if (semLider && critico) tipo = 'critico_fora_plantao';
-    else if (semLider && semRhRede) tipo = 'sem_lider_e_rh';
+    else if (semLider && semRhVisita) tipo = 'sem_lider_e_rh';
     else if (semLider) tipo = 'sem_lider';
-    else if (semRhRede) tipo = 'sem_rh';
+    else if (semRhVisita) tipo = 'sem_rh';
 
     const incluir =
-      filtro === 'todos'
-        ? semLider || semRhComplemento
+      filtro === 'pendentes' || filtro === 'todos'
+        ? true
         : filtro === 'gerente'
           ? semLider
           : filtro === 'rh_complemento'
             ? semRhComplemento
-            : semRhRede;
+            : semRhVisita;
 
     if (!incluir || !tipo) continue;
 
@@ -481,9 +515,9 @@ export async function calcularPendenciasSemana(
       unidade_nome: info.unidade_nome,
       unidade_slug: info.unidade_slug,
       tipo,
-      responsaveis_lider: responsaveis.filter((r) => r.status !== 'ja_avaliou'),
+      responsaveis_lider: semLider ? responsaveis.filter((r) => r.status !== 'ja_avaliou') : [],
       responsavel_lider_label: semLider ? responsavel_lider_label : '—',
-      responsavel_rh_label: semRhRede || semRhComplemento ? 'Keila (Visita RH)' : null,
+      responsavel_rh_label: semRhVisita ? 'Keila (Visita RH)' : null,
       detalhe:
         semLider && responsaveis.filter((r) => r.status === 'pendente').length > 1
           ? 'Mapa de liderança atual.'
