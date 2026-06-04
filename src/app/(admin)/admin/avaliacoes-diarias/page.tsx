@@ -15,6 +15,7 @@ import {
 import { AdminAvaliacoesEquipeAgrupado } from '@/components/admin/AdminAvaliacoesEquipeAgrupado';
 import { AdminAvaliacaoIgnorarAcao } from '@/components/admin/AdminAvaliacaoIgnorarAcao';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
+import { AvaliacoesPendentesModal } from '@/components/admin/AvaliacoesPendentesModal';
 
 type Linha = LinhaAdminAvaliacaoEquipe;
 
@@ -41,6 +42,7 @@ export default function AdminAvaliacoesDiariasPage() {
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [podeVerDetalhe, setPodeVerDetalhe] = useState(false);
   const [gavetaId, setGavetaId] = useState<string | null>(null);
+  const [pendentesAberto, setPendentesAberto] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
@@ -94,8 +96,8 @@ export default function AdminAvaliacoesDiariasPage() {
         </Link>
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Avaliações semanais (equipe)</h1>
         <p className="text-sm text-coffee-100 mt-1">
-          Avaliações semanais que os líderes fizeram da equipe.           Falta injustificada aparece com média{' '}
-          <strong>0,00</strong>; semanas isentas mostram <strong>Isenta</strong>.
+          Avaliações semanais que os líderes fizeram da equipe. Falta injustificada aparece com média{' '}
+          <strong>0,00</strong>; repasse ao outro líder aparece como <strong>Outro líder</strong>.
           {podeVerDetalhe ? (
             <>
               {' '}
@@ -168,6 +170,13 @@ export default function AdminAvaliacoesDiariasPage() {
             className="rounded-lg bg-dourado-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
           >
             {carregando ? 'Carregando…' : 'Buscar'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPendentesAberto(true)}
+            className="rounded-lg border border-dourado-base text-coffee-base px-4 py-2 text-sm font-medium hover:bg-dourado-50"
+          >
+            Ver pendentes da semana
           </button>
         </div>
 
@@ -278,9 +287,11 @@ export default function AdminAvaliacoesDiariasPage() {
                               className={`font-medium rounded-md px-1.5 py-0.5 -mx-1.5 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-dourado-base/40 ${
                                 exib.faltaInjustificada
                                   ? 'text-red-700'
-                                  : exib.isenta
-                                    ? 'text-coffee-100'
-                                    : 'text-dourado-600 hover:text-dourado-500'
+                                  : exib.foraPlantao
+                                    ? 'text-violet-800'
+                                    : exib.legado
+                                      ? 'text-coffee-100'
+                                      : 'text-dourado-600 hover:text-dourado-500'
                               } ${gavetaAberta ? 'ring-2 ring-dourado-base/30 bg-dourado-50' : ''}`}
                               title="Ver notas por critério"
                             >
@@ -291,9 +302,11 @@ export default function AdminAvaliacoesDiariasPage() {
                               className={`font-medium ${
                                 exib.faltaInjustificada
                                   ? 'text-red-700'
-                                  : exib.isenta
-                                    ? 'text-coffee-100'
-                                    : 'text-coffee-base'
+                                  : exib.foraPlantao
+                                    ? 'text-violet-800'
+                                    : exib.legado
+                                      ? 'text-coffee-100'
+                                      : 'text-coffee-base'
                               }`}
                             >
                               {exib.mediaLabel}
@@ -337,6 +350,7 @@ export default function AdminAvaliacoesDiariasPage() {
       </div>
 
       <AvaliacaoNotasGaveta linha={linhaGaveta} onFechar={() => setGavetaId(null)} />
+      <AvaliacoesPendentesModal aberto={pendentesAberto} onFechar={() => setPendentesAberto(false)} />
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
-import { hojeInicioSemanaISO } from '@/lib/semana-referencia';
+import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 
 function normalizarRole(raw: unknown): string {
   if (typeof raw !== 'string') return 'colaborador';
@@ -41,6 +41,9 @@ export function AvaliacoesPortalHome() {
   const [mostrarVisitaRh, setMostrarVisitaRh] = useState(false);
   const [alertaLiderancaSemanal, setAlertaLiderancaSemanal] = useState<string | null>(null);
   const [alertaGerenteSemanal, setAlertaGerenteSemanal] = useState<string | null>(null);
+  const [pendentesSemanaPassada, setPendentesSemanaPassada] = useState<number | null>(null);
+
+  const lembreteLider = lembreteAvaliacaoSemanaPassada();
 
   useEffect(() => {
     let cancelado = false;
@@ -69,7 +72,7 @@ export function AvaliacoesPortalHome() {
           setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
           setMostrarVisitaRh(data.pode_visita_rh === true);
           if (podeEquipe) {
-            fetch(`/api/portal/avaliacao-master?data=${hojeInicioSemanaISO()}`, { credentials: 'include', cache: 'no-store' })
+            fetch(`/api/portal/avaliacao-master?data=${semanaAvaliacaoEquipePadraoISO()}`, { credentials: 'include', cache: 'no-store' })
               .then((r2) => r2.json())
               .then((d2) => {
                 if (!d2?.ok || !Array.isArray(d2.equipe)) return;
@@ -77,11 +80,10 @@ export function AvaliacoesPortalHome() {
                 const pendentes = d2.equipe.filter(
                   (m: { avaliacao?: unknown }) => m.avaliacao == null
                 ).length;
+                setPendentesSemanaPassada(pendentes);
                 if (total > 0 && pendentes > 0) {
                   setAlertaGerenteSemanal(
-                    `Lembrete semanal: faltam ${pendentes} avaliação${
-                      pendentes === 1 ? '' : 'ões'
-                    } da sua equipe para a semana atual.`
+                    `Faltam ${pendentes} de ${total} colaborador${total === 1 ? '' : 'es'} para concluir.`
                   );
                 }
               })
@@ -153,12 +155,32 @@ export function AvaliacoesPortalHome() {
         Avaliações
       </h2>
       <div className="grid gap-4 sm:grid-cols-2">
+        {mostrarGerente && (
+          <Link
+            href="/portal/avaliacao-master"
+            className="sm:col-span-2 block rounded-xl border-2 border-dourado-base bg-gradient-to-r from-dourado-50 to-amber-50 px-4 py-4 shadow-sm hover:border-dourado-600 hover:shadow-md transition-all"
+          >
+            <p className="text-base md:text-lg font-display font-semibold text-cafeteria-900">
+              {lembreteLider.titulo}
+            </p>
+            <p className="text-sm md:text-base text-cafeteria-800 mt-1.5">{lembreteLider.detalhe}</p>
+            {pendentesSemanaPassada != null && pendentesSemanaPassada > 0 && alertaGerenteSemanal && (
+              <p className="mt-2 text-sm font-medium text-amber-900">{alertaGerenteSemanal}</p>
+            )}
+            {pendentesSemanaPassada === 0 && (
+              <p className="mt-2 text-sm font-medium text-green-800">Semana passada concluída na sua equipe.</p>
+            )}
+            <span className="inline-block mt-3 text-sm font-semibold text-dourado-base underline-offset-2 hover:underline">
+              Abrir avaliação da equipe →
+            </span>
+          </Link>
+        )}
         {alertaLiderancaSemanal && (
           <div className="sm:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {alertaLiderancaSemanal}
           </div>
         )}
-        {alertaGerenteSemanal && (
+        {alertaGerenteSemanal && !mostrarGerente && (
           <div className="sm:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {alertaGerenteSemanal}
           </div>
@@ -190,7 +212,7 @@ export function AvaliacoesPortalHome() {
               Avaliação da equipe
             </h3>
             <p className="text-sm text-cafeteria-600 mt-2">
-              Registrar a semana da sua equipe (após envio, só leitura).
+              Semana passada — registrar notas ou marcar quem não estava no seu plantão.
             </p>
             <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
               Abrir →

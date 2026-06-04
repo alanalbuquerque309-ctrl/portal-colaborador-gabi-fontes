@@ -8,7 +8,7 @@ import {
   updateAvaliacaoDiariaCompat,
 } from '@/lib/avaliacoes-justificativa-compat';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
-import { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
+import { isDateIsoAvaliacao, assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
 
 /** Equipe do gerente + avaliações já salvas na semana (segunda de `data`); leitura após envio. */
@@ -42,7 +42,15 @@ export async function GET(req: Request) {
       if (errAval) {
         return NextResponse.json({ ok: false, erro: errAval }, { status: 500 });
       }
-      avaliacoesPorColab = Object.fromEntries(avalRows.map((r) => [r.colaborador_id, r]));
+      avaliacoesPorColab = Object.fromEntries(
+        avalRows.map((r) => [
+          r.colaborador_id,
+          {
+            ...r,
+            assiduidade: assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa),
+          },
+        ])
+      );
     }
 
     return NextResponse.json({

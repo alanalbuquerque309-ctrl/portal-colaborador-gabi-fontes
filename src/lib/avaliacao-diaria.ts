@@ -6,13 +6,36 @@
  */
 
 import { normalizarNotaCriterio, notaCriterioValida } from '@/lib/avaliacao-notas';
+import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 
 export type AssiduidadeTipo =
   | 'presente'
   | 'folga'
   | 'outra_escala'
+  | 'fora_plantao'
   | 'falta_justificada'
   | 'falta_injustificada';
+
+/** Semana sem média numérica (fora do plantão ou registos legados de folga/escala). */
+export function assiduidadeIsentaSemana(a: AssiduidadeTipo | string): boolean {
+  return (
+    a === 'falta_justificada' ||
+    a === 'folga' ||
+    a === 'outra_escala' ||
+    a === 'fora_plantao'
+  );
+}
+
+export function assiduidadeLegacySemanalRemovida(a: AssiduidadeTipo | string): boolean {
+  return a === 'folga' || a === 'outra_escala' || a === 'falta_justificada';
+}
+
+/** Tipos aceitos em envios novos (avaliação semanal). */
+export const ASSIDUIDADES_SEMANAL_ATIVAS: AssiduidadeTipo[] = [
+  'presente',
+  'falta_injustificada',
+  'fora_plantao',
+];
 
 export type NotasCriterios = {
   vestimenta: number | null;
@@ -74,7 +97,7 @@ export function calcularMediaDia(
 ): { media: number | null; notasPersistidas: NotasCriterios } {
   const entrada = normalizarEntrada(notas);
 
-  if (assiduidade === 'falta_justificada' || assiduidade === 'folga' || assiduidade === 'outra_escala') {
+  if (assiduidadeIsentaSemana(assiduidade)) {
     return { media: null, notasPersistidas: { ...CRITERIOS_VAZIOS } };
   }
 
@@ -122,9 +145,11 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
   justificativaLabel: string;
   faltaInjustificada: boolean;
   isenta: boolean;
+  foraPlantao: boolean;
+  legado: boolean;
 } {
   const just = String(l.justificativa_nota_baixa ?? '').trim();
-  const a = String(l.assiduidade ?? '').trim();
+  const a = assiduidadeDoBanco(l.assiduidade, just);
 
   if (a === 'falta_injustificada') {
     return {
@@ -134,15 +159,30 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
         : 'Falta injustificada — média zerada.',
       faltaInjustificada: true,
       isenta: false,
+      foraPlantao: false,
+      legado: false,
     };
   }
 
-  if (a === 'falta_justificada' || a === 'folga' || a === 'outra_escala') {
+  if (a === 'fora_plantao') {
     return {
-      mediaLabel: 'Isenta',
-      justificativaLabel: just || 'Semana isenta (folga, outra escala ou falta justificada).',
+      mediaLabel: 'Outro líder',
+      justificativaLabel: just || 'Líder informou: colaborador no plantão de outro gerente nesta semana.',
       faltaInjustificada: false,
-      isenta: true,
+      isenta: false,
+      foraPlantao: true,
+      legado: false,
+    };
+  }
+
+  if (assiduidadeLegacySemanalRemovida(a)) {
+    return {
+      mediaLabel: 'Registro antigo',
+      justificativaLabel: just || 'Tipo de assiduidade descontinuado (folga/escala). Edite se precisar.',
+      faltaInjustificada: false,
+      isenta: false,
+      foraPlantao: false,
+      legado: true,
     };
   }
 
@@ -151,6 +191,8 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
     justificativaLabel: just || '—',
     faltaInjustificada: false,
     isenta: false,
+    foraPlantao: false,
+    legado: false,
   };
 }
 
@@ -162,13 +204,14 @@ export type ItemDetalheNotaAvaliacao = {
 
 export function detalharItensNotaAvaliacaoAdmin(l: {
   assiduidade: string;
+  justificativa_nota_baixa?: string | null;
   nota_vestimenta?: number | null;
   nota_pontualidade?: number | null;
   nota_trabalho_equipe?: number | null;
   nota_desempenho_tarefas?: number | null;
   nota_proatividade?: number | null;
 }): ItemDetalheNotaAvaliacao[] {
-  const a = String(l.assiduidade ?? '').trim();
+  const a = assiduidadeDoBanco(l.assiduidade, l.justificativa_nota_baixa);
   const fmt = (n: number | null | undefined) => {
     if (n == null || Number.isNaN(n)) return '—';
     const x = Number(n);
@@ -186,12 +229,22 @@ export function detalharItensNotaAvaliacaoAdmin(l: {
     ];
   }
 
-  if (a === 'falta_justificada' || a === 'folga' || a === 'outra_escala') {
-    return [{ label: 'Semana', nota: 'Isenta (folga, outra escala ou falta justificada)', destaque: 'isento' }];
+  if (a === 'fora_plantao') {
+    return [
+      {
+        label: 'Plantão',
+        nota: 'Outro líder avalia nesta semana',
+        destaque: 'info',
+      },
+    ];
+  }
+
+  if (assiduidadeLegacySemanalRemovida(a)) {
+    return [{ label: 'Semana', nota: 'Registro antigo (folga/escala descontinuados)', destaque: 'info' }];
   }
 
   const itens: ItemDetalheNotaAvaliacao[] = [
-    { label: 'Assiduidade', nota: 'Presente', destaque: 'info' },
+    { label: 'Avaliação', nota: 'Semanal com critérios', destaque: 'info' },
     { label: 'Vestimenta', nota: fmt(l.nota_vestimenta) },
     { label: 'Pontualidade', nota: fmt(l.nota_pontualidade) },
     { label: 'Trabalho em equipe', nota: fmt(l.nota_trabalho_equipe) },

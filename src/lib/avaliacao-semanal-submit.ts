@@ -5,7 +5,7 @@ import {
   type NotasCriterios,
 } from '@/lib/avaliacao-diaria';
 import { notaCriterioValida } from '@/lib/avaliacao-notas';
-import { assiduidadeParaBanco } from '@/lib/avaliacao-semanal-shared';
+import { assiduidadeParaBanco, JUSTIFICATIVA_FORA_PLANTAO } from '@/lib/avaliacao-semanal-shared';
 
 export type BodyAvaliacaoSemanal = {
   data_referencia?: string;
@@ -22,11 +22,16 @@ export type BodyAvaliacaoSemanal = {
 export function isAssiduidadeSemanal(s: string): s is AssiduidadeTipo {
   return (
     s === 'presente' ||
+    s === 'fora_plantao' ||
+    s === 'falta_injustificada' ||
     s === 'folga' ||
     s === 'outra_escala' ||
-    s === 'falta_justificada' ||
-    s === 'falta_injustificada'
+    s === 'falta_justificada'
   );
+}
+
+function assiduidadePermitidaNovoEnvio(s: string): s is AssiduidadeTipo {
+  return s === 'presente' || s === 'fora_plantao' || s === 'falta_injustificada';
 }
 
 export function sanitizeJustificativaSemanal(value: unknown): string {
@@ -48,6 +53,13 @@ export function validarBodyAvaliacaoSemanal(
   if (!colaboradorAlvo || !isAssiduidadeSemanal(assidRaw)) {
     return { ok: false, status: 400, erro: 'Dados obrigatórios inválidos' };
   }
+  if (!assiduidadePermitidaNovoEnvio(assidRaw)) {
+    return {
+      ok: false,
+      status: 400,
+      erro: 'Tipo de assiduidade descontinuado. Use notas semanais, falta injustificada ou fora do plantão.',
+    };
+  }
 
   const notasEntrada: NotasCriterios = {
     vestimenta: body.nota_vestimenta ?? null,
@@ -58,16 +70,19 @@ export function validarBodyAvaliacaoSemanal(
   };
 
   const { media, notasPersistidas } = calcularMediaDia(assidRaw, notasEntrada);
-  const temNotaBaixa = temNotaBaixaEquipe(assidRaw, notasPersistidas);
+  const temNotaBaixa =
+    assidRaw !== 'fora_plantao' && temNotaBaixaEquipe(assidRaw, notasPersistidas);
+  const justificativaFinal =
+    assidRaw === 'fora_plantao' ? JUSTIFICATIVA_FORA_PLANTAO : justificativaNotaBaixa;
 
-  if (temNotaBaixa && justificativaNotaBaixa.length < 10) {
+  if (temNotaBaixa && justificativaFinal.length < 10) {
     return {
       ok: false,
       status: 400,
       erro: 'Explique em poucas palavras o motivo da nota 3 ou menor.',
     };
   }
-  if (justificativaNotaBaixa.length > 500) {
+  if (justificativaFinal.length > 500) {
     return {
       ok: false,
       status: 400,
@@ -108,7 +123,8 @@ export function validarBodyAvaliacaoSemanal(
       nota_desempenho_tarefas: notasPersistidas.desempenhoTarefas,
       nota_proatividade: notasPersistidas.proatividade,
       media_dia: media,
-      justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa : null,
+      justificativa_nota_baixa:
+        assidRaw === 'fora_plantao' ? JUSTIFICATIVA_FORA_PLANTAO : temNotaBaixa ? justificativaFinal : null,
     },
   };
 }

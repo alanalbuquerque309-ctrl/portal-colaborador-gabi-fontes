@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { StarRating } from './StarRating';
-import type { AssiduidadeTipo } from '@/lib/avaliacao-diaria';
-import { calcularMediaDia, temNotaBaixaEquipe } from '@/lib/avaliacao-diaria';
+import {
+  calcularMediaDia,
+  temNotaBaixaEquipe,
+  assiduidadeLegacySemanalRemovida,
+  type AssiduidadeTipo,
+} from '@/lib/avaliacao-diaria';
 import { DICA_CRITERIO_PROATIVIDADE, notaCriterioValida } from '@/lib/avaliacao-notas';
 
 export type AvaliacaoServidor = {
@@ -25,6 +29,8 @@ type Props = {
   cargo: string | null;
   setor: string | null;
   dataReferencia: string;
+  /** Intervalo legível (ex.: 26 mai a 1 jun 2026) — usado no botão fora do plantão. */
+  semanaLabel?: string;
   avaliacaoInicial: AvaliacaoServidor;
   /** Cadastro do portal ainda pendente (informativo; não bloqueia avaliação). */
   onboardingCompleto?: boolean;
@@ -37,10 +43,20 @@ type Props = {
   onModoEdicaoChange?: (ativo: boolean) => void;
   /** Desabilita edição única (ex.: visita RH). */
   permiteEdicaoUnica?: boolean;
+  /** Gerente de loja: botão «fora do plantão». Visita RH não usa. */
+  mostrarForaPlantao?: boolean;
 };
+
+function normalizarAssiduidadeForm(row: NonNullable<AvaliacaoServidor>): AssiduidadeTipo {
+  const a = row.assiduidade;
+  if (assiduidadeLegacySemanalRemovida(a)) return 'presente';
+  if (a === 'fora_plantao' || a === 'falta_injustificada') return a;
+  return 'presente';
+}
 
 function mapRowToState(row: NonNullable<AvaliacaoServidor>): {
   assiduidade: AssiduidadeTipo;
+  legado: boolean;
   v: number | null;
   p: number | null;
   e: number | null;
@@ -49,7 +65,8 @@ function mapRowToState(row: NonNullable<AvaliacaoServidor>): {
 } {
   const pick = (n: number | null | undefined) => (notaCriterioValida(n) ? n : null);
   return {
-    assiduidade: row.assiduidade,
+    assiduidade: normalizarAssiduidadeForm(row),
+    legado: assiduidadeLegacySemanalRemovida(row.assiduidade),
     v: pick(row.nota_vestimenta),
     p: pick(row.nota_pontualidade),
     e: pick(row.nota_trabalho_equipe),
@@ -64,6 +81,7 @@ export function ColaboradorAvaliacaoCard({
   cargo,
   setor,
   dataReferencia,
+  semanaLabel,
   avaliacaoInicial,
   onboardingCompleto = true,
   operacaoApto = false,
@@ -73,6 +91,7 @@ export function ColaboradorAvaliacaoCard({
   forcarEdicao = false,
   onModoEdicaoChange,
   permiteEdicaoUnica = true,
+  mostrarForaPlantao = true,
 }: Props) {
   const [modoEdicao, setModoEdicao] = useState(false);
   const edicaoUtilizada = avaliacaoInicial?.edicao_utilizada === true;
@@ -85,6 +104,7 @@ export function ColaboradorAvaliacaoCard({
     if (!avaliacaoInicial) {
       return {
         assiduidade: 'presente' as AssiduidadeTipo,
+        legado: false,
         v: null as number | null,
         p: null as number | null,
         e: null as number | null,
@@ -96,6 +116,7 @@ export function ColaboradorAvaliacaoCard({
   }, [avaliacaoInicial]);
 
   const [assiduidade, setAssiduidade] = useState<AssiduidadeTipo>(inicial.assiduidade);
+  const [registroLegado, setRegistroLegado] = useState(inicial.legado);
   const [v, setV] = useState<number | null>(inicial.v);
   const [p, setP] = useState<number | null>(inicial.p);
   const [e, setE] = useState<number | null>(inicial.e);
@@ -112,6 +133,7 @@ export function ColaboradorAvaliacaoCard({
 
   useEffect(() => {
     setAssiduidade(inicial.assiduidade);
+    setRegistroLegado(inicial.legado);
     setV(inicial.v);
     setP(inicial.p);
     setE(inicial.e);
@@ -120,7 +142,7 @@ export function ColaboradorAvaliacaoCard({
     setJustificativaNotaBaixa(avaliacaoInicial?.justificativa_nota_baixa ?? '');
     setMsg(null);
     setErro(null);
-  }, [avaliacaoInicial?.justificativa_nota_baixa, inicial.assiduidade, inicial.v, inicial.p, inicial.e, inicial.d, inicial.pr]);
+  }, [avaliacaoInicial?.justificativa_nota_baixa, inicial.assiduidade, inicial.legado, inicial.v, inicial.p, inicial.e, inicial.d, inicial.pr]);
 
   useEffect(() => {
     setApto(operacaoApto);
@@ -145,6 +167,7 @@ export function ColaboradorAvaliacaoCard({
     setModoEdicao(false);
     onModoEdicaoChange?.(false);
     setAssiduidade(inicial.assiduidade);
+    setRegistroLegado(inicial.legado);
     setV(inicial.v);
     setP(inicial.p);
     setE(inicial.e);
@@ -156,9 +179,8 @@ export function ColaboradorAvaliacaoCard({
   };
 
   const injustificada = assiduidade === 'falta_injustificada';
-  const isento =
-    assiduidade === 'falta_justificada' || assiduidade === 'folga' || assiduidade === 'outra_escala';
-  const estrelasDesabilitadas = somenteLeitura || injustificada || isento;
+  const foraPlantao = assiduidade === 'fora_plantao';
+  const estrelasDesabilitadas = somenteLeitura || injustificada || foraPlantao;
   const temNotaBaixa = temNotaBaixaEquipe(assiduidade, {
     vestimenta: v,
     pontualidade: p,
@@ -177,39 +199,24 @@ export function ColaboradorAvaliacaoCard({
     }).media;
   }, [assiduidade, v, p, e, d, pr]);
 
-  const setAssiduidadeComEfeito = useCallback((next: AssiduidadeTipo) => {
-    setAssiduidade(next);
+  const toggleFaltaInjustificada = useCallback((marcada: boolean) => {
+    setRegistroLegado(false);
     setMsg(null);
     setErro(null);
-    if (next === 'falta_injustificada') {
+    if (marcada) {
+      setAssiduidade('falta_injustificada');
       setV(0);
       setP(0);
       setE(0);
       setD(0);
-    }
-    if (next === 'falta_justificada') {
+      setPr(0);
+    } else {
+      setAssiduidade('presente');
       setV(null);
       setP(null);
       setE(null);
       setD(null);
-    }
-    if (next === 'folga') {
-      setV(null);
-      setP(null);
-      setE(null);
-      setD(null);
-    }
-    if (next === 'outra_escala') {
-      setV(null);
-      setP(null);
-      setE(null);
-      setD(null);
-    }
-    if (next === 'presente') {
-      setV(null);
-      setP(null);
-      setE(null);
-      setD(null);
+      setPr(null);
     }
   }, []);
 
@@ -236,6 +243,57 @@ export function ColaboradorAvaliacaoCard({
       setErro('Erro de conexão.');
     } finally {
       setMarcandoApto(false);
+    }
+  };
+
+  const marcarForaPlantao = async () => {
+    if (somenteLeitura) return;
+    if (
+      !window.confirm(
+        `${nome} não estava no seu plantão na semana ${semanaLabel ?? 'selecionada'}?\n\nUse só se a pessoa NÃO trabalhou com você nessa semana (mesmo que o plantão mude no dia 1º). O outro líder avalia com notas.`
+      )
+    ) {
+      return;
+    }
+    setAssiduidade('fora_plantao');
+    setV(null);
+    setP(null);
+    setE(null);
+    setD(null);
+    setPr(null);
+    setJustificativaNotaBaixa('');
+    setErro(null);
+    setMsg(null);
+    setSalvando(true);
+    try {
+      const payload = {
+        data_referencia: dataReferencia,
+        colaborador_id: colaboradorId,
+        assiduidade: 'fora_plantao' as const,
+        nota_vestimenta: null,
+        nota_pontualidade: null,
+        nota_trabalho_equipe: null,
+        nota_desempenho_tarefas: null,
+        nota_proatividade: null,
+        justificativa_nota_baixa: '',
+      };
+      const res = await fetch(postUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível registrar.');
+        return;
+      }
+      setMsg('Registrado: fora do seu plantão nesta semana.');
+      onSalvo();
+    } catch {
+      setErro('Erro de conexão.');
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -324,7 +382,15 @@ export function ColaboradorAvaliacaoCard({
           </span>
         ) : null}
         {somenteLeitura ? (
-          <span className="text-xs font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">Avaliado</span>
+          foraPlantao ? (
+            <span className="text-sm font-medium rounded-full bg-violet-100 text-violet-900 px-2.5 py-0.5">
+              Outro líder
+            </span>
+          ) : (
+            <span className="text-xs font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">
+              Avaliado
+            </span>
+          )
         ) : (
           <span className="text-xs font-medium rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5">Pendente</span>
         )}
@@ -334,6 +400,22 @@ export function ColaboradorAvaliacaoCard({
       </div>
 
       <div className="p-4 space-y-5">
+        {mostrarForaPlantao && !somenteLeitura && !foraPlantao && (
+          <div className="rounded-lg border-2 border-violet-300 bg-violet-50/90 p-3 space-y-2">
+            <p className="text-sm text-violet-950">
+              <strong>Semana {semanaLabel ?? 'em avaliação'}:</strong> marque só se{' '}
+              <strong>não trabalhou com você nessa semana</strong>. O outro gerente avalia com notas.
+            </p>
+            <button
+              type="button"
+              disabled={salvando}
+              onClick={() => void marcarForaPlantao()}
+              className="w-full sm:w-auto rounded-lg bg-violet-700 text-white text-sm font-semibold px-4 py-3 min-h-[48px] hover:bg-violet-800 disabled:opacity-50"
+            >
+              {salvando ? 'Salvando…' : 'Não estava no meu plantão nessa semana'}
+            </button>
+          </div>
+        )}
         {cadastroPortalPendente && (
           <p className="text-sm text-cafeteria-800 bg-cafeteria-50 border border-cafeteria-200 rounded-lg px-3 py-2">
             Cadastro no portal ainda não concluído. Você pode avaliar a operação da semana normalmente.
@@ -356,12 +438,19 @@ export function ColaboradorAvaliacaoCard({
         )}
         {somenteLeitura && !modoEdicao && (
           <p className="text-sm text-cafeteria-800 bg-dourado-50 border border-dourado-200 rounded-lg px-3 py-2">
-            <strong>Avaliação enviada</strong>
-            {edicaoUtilizada
-              ? ' — leitura apenas (edição única já usada).'
-              : podeEditarAvaliacao
-                ? ' — use Editar ao lado do nome para corrigir uma vez.'
-                : ' — leitura apenas.'}
+            <strong>{foraPlantao ? 'Repasse ao outro líder' : 'Avaliação enviada'}</strong>
+            {foraPlantao
+              ? ' — você informou que não era o gerente desta semana. Pendência sai da sua lista.'
+              : edicaoUtilizada
+                ? ' — leitura apenas (edição única já usada).'
+                : podeEditarAvaliacao
+                  ? ' — use Editar ao lado do nome para corrigir uma vez.'
+                  : ' — leitura apenas.'}
+          </p>
+        )}
+        {registroLegado && somenteLeitura && !foraPlantao && (
+          <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Registro antigo (folga/escala). Edite para lançar a nota semanal atual.
           </p>
         )}
         {modoEdicao && (
@@ -370,102 +459,80 @@ export function ColaboradorAvaliacaoCard({
             alterar de novo.
           </p>
         )}
-        <div>
-          <span className="block text-sm font-medium text-cafeteria-800 mb-2">Assiduidade</span>
-          <div
-            className={`flex flex-col gap-2 ${somenteLeitura ? 'pointer-events-none opacity-90' : ''}`}
-            role="radiogroup"
-            aria-label="Assiduidade"
-            aria-readonly={somenteLeitura}
-          >
-            {(
-              [
-                { value: 'presente' as const, label: 'Presente' },
-                { value: 'folga' as const, label: 'Folga (semana isenta na média mensal)' },
-                { value: 'outra_escala' as const, label: 'Outra escala (12x36, semana isenta na média mensal)' },
-                { value: 'falta_justificada' as const, label: 'Falta justificada (semana isenta na média mensal)' },
-                { value: 'falta_injustificada' as const, label: 'Falta injustificada (zera a semana)' },
-              ] as const
-            ).map((opt) => (
-              <label
-                key={opt.value}
-                className={`flex items-start gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm ${
-                  assiduidade === opt.value
-                    ? opt.value === 'falta_injustificada'
-                      ? 'border-red-500 bg-red-50 text-red-950'
-                      : 'border-dourado-base bg-dourado-50'
-                    : 'border-cafeteria-200 hover:border-cafeteria-300'
-                }`}
-              >
+        {!foraPlantao && (
+          <>
+            {!somenteLeitura && (
+              <label className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/60 px-3 py-3 cursor-pointer">
                 <input
-                  type="radio"
-                  name={`assid-${colaboradorId}`}
-                  value={opt.value}
-                  checked={assiduidade === opt.value}
-                  onChange={() => setAssiduidadeComEfeito(opt.value)}
+                  type="checkbox"
+                  checked={injustificada}
+                  onChange={(e) => toggleFaltaInjustificada(e.target.checked)}
                   className="mt-1"
                 />
-                <span>{opt.label}</span>
+                <span className="text-sm text-red-950">
+                  <strong>Falta injustificada na semana</strong> — zera a pontuação e impacta a equipe.
+                </span>
               </label>
-            ))}
-          </div>
-        </div>
+            )}
 
-        {isento && (
-          <p className="text-sm text-cafeteria-600 bg-cafeteria-50 border border-cafeteria-100 rounded-lg px-3 py-2">
-            Semana marcada como <strong>isenta</strong> — não entra no cálculo da média mensal.
+            {injustificada && (
+              <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                Os cinco critérios foram zerados. A média da semana é <strong>0</strong>.
+              </p>
+            )}
+
+            <div className={`space-y-4 ${estrelasDesabilitadas ? 'opacity-60 pointer-events-none' : ''}`}>
+              <StarRating
+                idPrefix={`${colaboradorId}-vest`}
+                label="Vestimenta"
+                value={injustificada ? null : v}
+                disabled={estrelasDesabilitadas}
+                onChange={setV}
+              />
+              <StarRating
+                idPrefix={`${colaboradorId}-pont`}
+                label="Pontualidade"
+                value={injustificada ? null : p}
+                disabled={estrelasDesabilitadas}
+                onChange={setP}
+              />
+              <StarRating
+                idPrefix={`${colaboradorId}-eq`}
+                label="Trabalho em equipe"
+                value={injustificada ? null : e}
+                disabled={estrelasDesabilitadas}
+                onChange={setE}
+              />
+              <StarRating
+                idPrefix={`${colaboradorId}-des`}
+                label="Desempenho de tarefas"
+                value={injustificada ? null : d}
+                disabled={estrelasDesabilitadas}
+                onChange={setD}
+              />
+              <div>
+                <StarRating
+                  idPrefix={`${colaboradorId}-pro`}
+                  label="Proatividade e iniciativa"
+                  value={injustificada ? null : pr}
+                  disabled={estrelasDesabilitadas}
+                  onChange={setPr}
+                />
+                <p className="text-xs sm:text-sm text-cafeteria-500 pl-0 sm:pl-[10.5rem] -mt-1">
+                  {DICA_CRITERIO_PROATIVIDADE}
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {foraPlantao && somenteLeitura && (
+          <p className="text-sm text-violet-900 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
+            Você sinalizou que <strong>outro líder</strong> deve avaliar esta semana. Não há notas suas aqui.
           </p>
         )}
 
-        {injustificada && (
-          <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            Os cinco critérios foram zerados. A média da semana é{' '}
-            <strong>0</strong>.
-          </p>
-        )}
-
-        <div className={`space-y-4 ${estrelasDesabilitadas ? 'opacity-60 pointer-events-none' : ''}`}>
-          <StarRating
-            idPrefix={`${colaboradorId}-vest`}
-            label="Vestimenta"
-            value={isento || injustificada ? null : v}
-            disabled={estrelasDesabilitadas}
-            onChange={setV}
-          />
-          <StarRating
-            idPrefix={`${colaboradorId}-pont`}
-            label="Pontualidade"
-            value={isento || injustificada ? null : p}
-            disabled={estrelasDesabilitadas}
-            onChange={setP}
-          />
-          <StarRating
-            idPrefix={`${colaboradorId}-eq`}
-            label="Trabalho em equipe"
-            value={isento || injustificada ? null : e}
-            disabled={estrelasDesabilitadas}
-            onChange={setE}
-          />
-          <StarRating
-            idPrefix={`${colaboradorId}-des`}
-            label="Desempenho de tarefas"
-            value={isento || injustificada ? null : d}
-            disabled={estrelasDesabilitadas}
-            onChange={setD}
-          />
-          <div>
-            <StarRating
-              idPrefix={`${colaboradorId}-pro`}
-              label="Proatividade e iniciativa"
-              value={isento || injustificada ? null : pr}
-              disabled={estrelasDesabilitadas}
-              onChange={setPr}
-            />
-            <p className="text-xs sm:text-sm text-cafeteria-500 pl-0 sm:pl-[10.5rem] -mt-1">{DICA_CRITERIO_PROATIVIDADE}</p>
-          </div>
-        </div>
-
-        {(temNotaBaixa || avaliacaoInicial?.justificativa_nota_baixa) && (
+        {!foraPlantao && (temNotaBaixa || avaliacaoInicial?.justificativa_nota_baixa) && (
           <div>
             <label className="block text-sm font-medium text-cafeteria-800 mb-1">
               Justificativa da nota baixa
@@ -487,47 +554,47 @@ export function ColaboradorAvaliacaoCard({
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-cafeteria-100">
-          <p className="text-sm text-cafeteria-700">
-            Média da semana{somenteLeitura ? '' : ' (prévia)'}:{' '}
-            <strong>
-              {somenteLeitura && avaliacaoInicial?.media_dia != null
-                ? Number(avaliacaoInicial.media_dia).toFixed(2)
-                : isento
-                  ? 'Isenta'
-                  : previewMedia === null
-                    ? assiduidade === 'presente'
+        {!foraPlantao && (
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-cafeteria-100">
+            <p className="text-sm text-cafeteria-700">
+              Média da semana{somenteLeitura ? '' : ' (prévia)'}:{' '}
+              <strong>
+                {somenteLeitura && avaliacaoInicial?.media_dia != null
+                  ? Number(avaliacaoInicial.media_dia).toFixed(2)
+                  : injustificada
+                    ? '0,00'
+                    : previewMedia === null
                       ? 'Preencha os 5 critérios'
-                      : '—'
-                    : previewMedia.toFixed(2)}
-            </strong>
-            {!somenteLeitura && assiduidade === 'presente' && previewMedia !== null && (
-              <span className="text-cafeteria-500 font-normal"> (média dos 5 critérios)</span>
-            )}
-          </p>
-          {!somenteLeitura && (
-            <div className="flex flex-wrap gap-2">
-              {modoEdicao ? (
+                      : previewMedia.toFixed(2)}
+              </strong>
+              {!somenteLeitura && !injustificada && previewMedia !== null && (
+                <span className="text-cafeteria-500 font-normal"> (média dos 5 critérios)</span>
+              )}
+            </p>
+            {!somenteLeitura && (
+              <div className="flex flex-wrap gap-2">
+                {modoEdicao ? (
+                  <button
+                    type="button"
+                    onClick={cancelarEdicao}
+                    disabled={salvando}
+                    className="rounded-lg border border-cafeteria-300 px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-cafeteria-50 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={cancelarEdicao}
+                  onClick={salvar}
                   disabled={salvando}
-                  className="rounded-lg border border-cafeteria-300 px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-cafeteria-50 disabled:opacity-50"
+                  className="rounded-lg bg-cafeteria-700 text-cream-50 px-4 py-2 text-sm font-medium hover:bg-cafeteria-800 disabled:opacity-50"
                 >
-                  Cancelar
+                  {salvando ? 'Salvando…' : modoEdicao ? 'Salvar correção' : rotuloSalvar}
                 </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={salvar}
-                disabled={salvando}
-                className="rounded-lg bg-cafeteria-700 text-cream-50 px-4 py-2 text-sm font-medium hover:bg-cafeteria-800 disabled:opacity-50"
-              >
-                {salvando ? 'Salvando…' : modoEdicao ? 'Salvar correção' : rotuloSalvar}
-              </button>
-            </div>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
+        )}
         {erro && <p className="text-sm text-red-600">{erro}</p>}
         {msg && !erro && <p className="text-sm text-green-700">{msg}</p>}
       </div>

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { ColaboradorAvaliacaoCard, type AvaliacaoServidor } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
 import { normalizePortalRole } from '@/lib/roles';
-import { formatarIntervaloSemanaPtBR, hojeInicioSemanaISO, inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
+import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 
 function isRoleGerenteAvaliadorPortal(role: string | null | undefined): boolean {
@@ -27,7 +27,7 @@ type MembroEquipe = {
 export default function AvaliacaoMasterPage() {
   const router = useRouter();
   const [session, setSession] = useState<ReturnType<typeof getPortalSession>>(null);
-  const [dataRef, setDataRef] = useState(hojeInicioSemanaISO);
+  const [dataRef, setDataRef] = useState(semanaAvaliacaoEquipePadraoISO);
   const [equipe, setEquipe] = useState<MembroEquipe[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -41,6 +41,8 @@ export default function AvaliacaoMasterPage() {
   const avaliadosNaSemana = equipe.filter((m) => m.avaliacao != null).length;
   const pendentesNaSemana = Math.max(0, equipe.length - avaliadosNaSemana);
   const intervaloSemana = formatarIntervaloSemanaPtBR(dataRef);
+  const lembretePadrao = lembreteAvaliacaoSemanaPassada();
+  const exibindoSemanaPassada = dataRef === semanaAvaliacaoEquipePadraoISO();
 
   useEffect(() => {
     const s = getPortalSession();
@@ -99,10 +101,31 @@ export default function AvaliacaoMasterPage() {
         <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
           Avaliação da equipe
         </h1>
-        <p className="text-cafeteria-600 mt-1 text-sm md:text-base max-w-2xl">
-          Avaliação <strong>semanal</strong> dos colaboradores vinculados ao seu usuário como liderança. Cada
-          colaborador pode receber também uma <strong>visita RH</strong> independente na mesma semana.
+        <p className="mt-2 text-base md:text-lg font-medium text-dourado-900 max-w-2xl">
+          {exibindoSemanaPassada ? lembretePadrao.titulo : 'Semana selecionada'}:{' '}
+          <strong>{intervaloSemana}</strong>
         </p>
+        <p className="text-cafeteria-600 mt-2 text-sm md:text-base max-w-2xl">
+          Avaliação <strong>semanal</strong> sobre a <strong>semana que já terminou</strong> (segunda a domingo). Por
+          padrão abrimos a <strong>semana passada</strong>. Cada colaborador pode receber também uma{' '}
+          <strong>visita RH</strong> independente na mesma semana.
+        </p>
+
+        <div className="mt-3 rounded-xl border-2 border-dourado-base/50 bg-dourado-50/80 px-4 py-3 max-w-2xl space-y-2">
+          <p className="text-sm md:text-base font-semibold text-cafeteria-900">
+            Semana em avaliação: {intervaloSemana}
+          </p>
+          <p className="text-sm text-cafeteria-800">
+            Pense nesta semana, <strong>não no plantão que começou hoje</strong>. Na troca mensal de líderes (12x36),
+            quem estava com o colaborador <strong>naquela semana</strong> dá as notas; o outro líder usa{' '}
+            <strong>Não estava no meu plantão</strong>.
+          </p>
+          <p className="text-sm text-cafeteria-700">
+            Exemplo: no dia 1º viramos o plantão, mas a semana passada (até domingo) ainda era do líder anterior — ele
+            avalia; o líder novo só marca fora do plantão se a pessoa não estava com ele naquela semana.
+          </p>
+        </div>
+
         <p className="mt-2 text-sm rounded-md bg-amber-50 border border-amber-300 px-3 py-2.5 text-amber-800 max-w-2xl">
           Aviso interno da liderança: esta avaliação da equipe é obrigatória. Depois de salvar, use o botão{' '}
           <strong>✏️ Editar</strong> no checklist ou no card (uma correção por semana). Semanas anteriores: altere a
@@ -113,7 +136,7 @@ export default function AvaliacaoMasterPage() {
       <div className="flex flex-wrap items-end gap-4 bg-white border border-cafeteria-200 rounded-xl p-4">
         <div>
           <label htmlFor="data-avaliacao" className="block text-sm font-medium text-cafeteria-800 mb-1">
-            Semana (qualquer dia — usamos a segunda-feira da semana)
+            Semana avaliada (segunda-feira da semana que terminou no domingo)
           </label>
           <input
             id="data-avaliacao"
@@ -122,7 +145,9 @@ export default function AvaliacaoMasterPage() {
             onChange={(e) => setDataRef(inicioSemanaSegundaFeiraLocal(e.target.value))}
             className="rounded-lg border border-cafeteria-200 px-3 py-2 text-cafeteria-900 focus:border-dourado-base focus:outline-none focus:ring-1 focus:ring-dourado-base"
           />
-          <p className="text-xs text-cafeteria-500 mt-1">Semana selecionada: {intervaloSemana}</p>
+          <p className="text-sm text-cafeteria-600 mt-1">
+            Intervalo: <strong>{intervaloSemana}</strong>
+          </p>
         </div>
         <button
           type="button"
@@ -143,6 +168,7 @@ export default function AvaliacaoMasterPage() {
             editavel: Boolean(m.avaliacao && !m.avaliacao.edicao_utilizada && m.avaliacao.id),
             subtitulo:
               [
+                m.avaliacao?.assiduidade === 'fora_plantao' ? 'fora do plantão' : null,
                 m.cargo,
                 m.setor,
                 m.onboarding_completo === false ? 'cadastro portal pendente' : null,
@@ -186,6 +212,7 @@ export default function AvaliacaoMasterPage() {
                 cargo={m.cargo}
                 setor={m.setor}
                 dataReferencia={dataRef}
+                semanaLabel={intervaloSemana}
                 avaliacaoInicial={m.avaliacao}
                 onboardingCompleto={m.onboarding_completo !== false}
                 operacaoApto={m.operacao_apto === true}

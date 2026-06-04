@@ -51,7 +51,13 @@ function ChipNotaAvaliacao({
       </p>
       <p
         className={`text-lg font-semibold tabular-nums mt-0.5 ${
-          exib.faltaInjustificada ? 'text-red-700' : exib.isenta ? 'text-coffee-100' : 'text-coffee-base'
+          exib.faltaInjustificada
+            ? 'text-red-700'
+            : exib.foraPlantao
+              ? 'text-violet-800'
+              : exib.legado
+                ? 'text-coffee-100'
+                : 'text-coffee-base'
         }`}
       >
         {exib.mediaLabel}
@@ -69,7 +75,7 @@ function ChipNotaAvaliacao({
     </>
   );
 
-  if (podeVerDetalhe && !exib.isenta && !ignorada) {
+  if (podeVerDetalhe && !exib.foraPlantao && !exib.legado && !ignorada) {
     return (
       <button
         type="button"

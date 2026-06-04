@@ -20,6 +20,7 @@ import {
 import { RelatorioEquipePorSemana } from '@/components/portal/RelatorioEquipePorSemana';
 import { AlertaPendenciasVisitaRh } from '@/components/portal/AlertaPendenciasVisitaRh';
 import { calcularPendenciasVisitaRh } from '@/lib/relatorio-equipe-utils';
+import { AvaliacoesPendentesModal } from '@/components/admin/AvaliacoesPendentesModal';
 
 function hojeISO(): string {
   const d = new Date();
@@ -50,6 +51,7 @@ export default function RelatoriosAvaliacoesPage() {
   const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigemEquipe>('todos');
   const [busca, setBusca] = useState('');
   const [modoEquipe, setModoEquipe] = useState<ModoEquipe>('semana');
+  const [pendentesAberto, setPendentesAberto] = useState(false);
 
   useEffect(() => {
     let cancel = false;
@@ -201,6 +203,13 @@ export default function RelatoriosAvaliacoesPage() {
           >
             {carregando ? 'Atualizando…' : 'Atualizar'}
           </button>
+          <button
+            type="button"
+            onClick={() => setPendentesAberto(true)}
+            className="rounded-lg border border-dourado-base px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-dourado-50"
+          >
+            Pendentes da semana
+          </button>
         </div>
 
         <div className="flex rounded-lg border border-cafeteria-200 text-sm overflow-hidden">
@@ -346,6 +355,11 @@ export default function RelatoriosAvaliacoesPage() {
           )}
         </section>
       )}
+      <AvaliacoesPendentesModal
+        aberto={pendentesAberto}
+        onFechar={() => setPendentesAberto(false)}
+        apiBase="/api/portal/avaliacoes-pendentes"
+      />
     </main>
   );
 }

@@ -38,6 +38,29 @@ export function hojeInicioSemanaISO(): string {
   return inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(new Date()));
 }
 
+/** Segunda-feira da semana anterior (operacional: avaliar a semana que acabou no domingo). */
+export function semanaAnteriorInicioISO(ref: Date = new Date()): string {
+  const segAtual = parseDataLocalISO(inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(ref)));
+  if (Number.isNaN(segAtual.getTime())) return hojeInicioSemanaISO();
+  segAtual.setDate(segAtual.getDate() - 7);
+  return formatarDataLocalISO(segAtual);
+}
+
+/** Semana que a liderança deve avaliar por defeito (semana civil anterior). */
+export function semanaAvaliacaoEquipePadraoISO(): string {
+  return semanaAnteriorInicioISO();
+}
+
+/** Texto curto para lembretes na home e telas de liderança. */
+export function lembreteAvaliacaoSemanaPassada(): { intervalo: string; titulo: string; detalhe: string } {
+  const intervalo = formatarIntervaloSemanaPtBR(semanaAvaliacaoEquipePadraoISO());
+  return {
+    intervalo,
+    titulo: 'Avalie sua equipe da semana passada',
+    detalhe: `Semana ${intervalo} (segunda a domingo que já terminou). Quem não estava no seu plantão nessa semana: marque no card, não dê nota.`,
+  };
+}
+
 export function formatarIntervaloSemanaPtBR(inicioSegundaIso: string): string {
   const ini = parseDataLocalISO(inicioSegundaIso);
   const fim = parseDataLocalISO(fimSemanaDomingoLocal(inicioSegundaIso));

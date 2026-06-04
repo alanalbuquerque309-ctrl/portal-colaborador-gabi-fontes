@@ -8,7 +8,7 @@ import {
   type AvaliacaoServidor,
 } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
-import { formatarIntervaloSemanaPtBR, hojeInicioSemanaISO, inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
+import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 
 type MembroRede = {
@@ -27,7 +27,7 @@ type MembroRede = {
 export default function AvaliacaoRhVisitaPage() {
   const router = useRouter();
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
-  const [dataRef, setDataRef] = useState(hojeInicioSemanaISO);
+  const [dataRef, setDataRef] = useState(semanaAvaliacaoEquipePadraoISO);
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [setor, setSetor] = useState('');
   const [busca, setBusca] = useState('');
@@ -237,6 +237,7 @@ export default function AvaliacaoRhVisitaPage() {
                 onSalvo={carregar}
                 postUrl="/api/portal/avaliacao-rh-visita"
                 rotuloSalvar="Salvar visita RH"
+                mostrarForaPlantao={false}
               />
             </li>
           ))}

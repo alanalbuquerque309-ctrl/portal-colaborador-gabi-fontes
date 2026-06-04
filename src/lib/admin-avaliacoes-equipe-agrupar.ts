@@ -46,7 +46,7 @@ export function mediaSemanaAdmin(avaliacoes: LinhaAdminAvaliacaoEquipe[]): numbe
   for (const a of avaliacoes) {
     if (!avaliacaoContaNaMedia(a)) continue;
     const exib = formatarExibicaoAvaliacaoAdmin(a);
-    if (exib.isenta) continue;
+    if (exib.foraPlantao || exib.legado) continue;
     if (a.media_dia != null && !Number.isNaN(Number(a.media_dia))) {
       vals.push(Number(a.media_dia));
     }
