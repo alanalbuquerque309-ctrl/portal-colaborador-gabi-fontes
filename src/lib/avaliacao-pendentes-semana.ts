@@ -241,7 +241,7 @@ async function buildMapaAvaliadoresEsperados(
       const gerentes = gerentesPorUnidade.get(uidColab) ?? new Set<string>();
       const inner = porColaborador.get(cid);
       if (!inner) continue;
-      for (const [lid, av] of inner.entries()) {
+      for (const [lid, av] of Array.from(inner.entries())) {
         inner.set(lid, {
           ...av,
           papel: inferirPapel(cid, lid, gerentes, mapaDirect.avaliadoresPorAlvo),
@@ -251,7 +251,7 @@ async function buildMapaAvaliadoresEsperados(
   }
 
   const out = new Map<string, AvaliadorEsperado[]>();
-  for (const [cid, inner] of porColaborador.entries()) {
+  for (const [cid, inner] of Array.from(porColaborador.entries())) {
     out.set(
       cid,
       Array.from(inner.values()).sort((a, b) => a.lider_nome.localeCompare(b.lider_nome, 'pt-BR'))
@@ -278,7 +278,7 @@ async function carregarAvaliacoesSemana(
       .in('colaborador_id', colaboradorIds);
 
     if (!res.error) {
-      rawRows = (res.data ?? []) as Record<string, unknown>[];
+      rawRows = (res.data ?? []) as unknown as Record<string, unknown>[];
       break;
     }
     const msg = res.error.message.toLowerCase();
@@ -294,7 +294,7 @@ async function carregarAvaliacoesSemana(
       .eq('data_referencia', dataRef)
       .in('colaborador_id', colaboradorIds);
     if (fallback.error) throw new Error(fallback.error.message);
-    rawRows = (fallback.data ?? []) as Record<string, unknown>[];
+    rawRows = (fallback.data ?? []) as unknown as Record<string, unknown>[];
   }
 
   const avaliadorIds = Array.from(new Set(rawRows.map((r) => String(r.avaliador_id ?? '')).filter(Boolean)));

@@ -3,6 +3,8 @@
  * `data_referencia` em `avaliacoes_diarias` guarda sempre a segunda-feira da semana.
  */
 
+export { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
+
 export function parseDataLocalISO(ymd: string): Date {
   const [y, m, d] = ymd.split('-').map((x) => parseInt(x, 10));
   if (!y || !m || !d) return new Date(NaN);
