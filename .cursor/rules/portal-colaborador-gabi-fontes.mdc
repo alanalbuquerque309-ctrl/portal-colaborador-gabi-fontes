@@ -18,7 +18,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 | Dev local | `npm run dev` → porta **3001** |
 | Produção | https://portal-colaborador-gabi-fontes.vercel.app |
 | Git remoto | repositório `portal-colaborador-gabi-fontes`, branch `main` (deploy Vercel automático) |
-| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `037_` e seguintes) |
+| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `040_` e seguintes) |
 | Docs operacionais | `BACKUP_RESTORE.md`, `SECURITY_ROADMAP.md` (backlog segurança, não duplicar aqui em detalhe) |
 
 ## Vocabulário e tom
@@ -82,6 +82,31 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 ### Sócio / relatórios
 
 - `/portal/relatorios-avaliacoes`, presença, etc. conforme `podeVerRelatoriosAvaliacoesCompletos`.
+
+### Admin — tabela de avaliações (gestão completa)
+
+- **UI:** `AdminAvaliacoesEquipeAgrupado.tsx` — linhas **agrupadas por colaborador + semana** (`admin-avaliacoes-equipe-agrupar.ts`); chips por avaliador quando há mais de um na mesma semana.
+- **Gaveta de notas:** clicar na **média** (ou chip) abre detalhe por critério (`AvaliacaoNotasGaveta.tsx`, `detalharItensNotaAvaliacaoAdmin` em `avaliacao-diaria.ts`). Só quem passa em `podeVerDetalheNotasAvaliacaoAdmin`.
+- **Assiduidade isenta:** `folga`, `outra_escala` e `falta_justificada` exibem **Isenta** na tabela e uma linha resumida na gaveta (não listam critérios vazios como «—»).
+- **Compat SELECT admin:** `avaliacoes-justificativa-compat.ts` — modo detalhe **sempre** inclui colunas de notas; se migration `040` ainda não existir no Supabase, cai em `SELECT_*_SEM_IGNORAR` (com notas), **nunca** em resumo sem critérios.
+- **Ignorar avaliação (fora da média):**
+  - Migration **`040_avaliacao_ignorada.sql`**: `ignorada`, `ignorada_em`, `ignorada_por`, `ignorada_motivo` em `avaliacoes_diarias`.
+  - Lógica: `src/lib/avaliacao-ignorada.ts` — registro **permanece**; `ignorada=true` **não entra** em média agregada admin, ranking mural (`mural-ranking-unidade.ts`), destaque (`destaque-avaliacoes.ts`), bonificação (`bonificacao-fechamento.ts`) nem desempenho portal (`avaliacao-desempenho`, `gerente-equipe-mes`).
+  - **API:** `POST /api/admin/avaliacoes-diarias/ignorar` — `requireAdminFullApi` + `podeVerDetalheNotasAvaliacaoAdmin`; motivo **8–500** caracteres.
+  - **UI:** `AdminAvaliacaoIgnorarAcao.tsx` — botão **Ignorar ao lado** do chip de nota (`variant="aside"`); formulário de motivo abre **abaixo**, fora da área clicável da gaveta.
+  - **Script em lote:** `npm run db:ignorar-avaliacoes-vinculo` (padrão Silvia → Leandro + Rodrigos; exige `040` aplicada). Cópia SQL: `APLIQUE_040_SQL_EDITOR.sql`.
+- **Edição única + meio ponto:** migrations `038` (uma correção por semana) e `039` (nota em meio ponto + **proatividade**); ver guia na Área de Trabalho.
+
+### Mobile — layout de avaliações
+
+Uso principal no telefone (líder na loja). Manter estes padrões ao tocar em justificativas, estrelas ou chips admin:
+
+- **Justificativa de nota baixa** (`justificativa_nota_baixa`, obrigatória se nota ≤3): sempre **`whitespace-pre-wrap break-words leading-relaxed`** em textarea, bloco de leitura e chips; **`max-w-full`** no container. **Não** usar `line-clamp`, `truncate` nem `title` nativo como substituto de quebra (no mobile vira balão longo e corta o texto).
+- **Legenda da nota (estrelas):** exibir **abaixo** das estrelas em `StarRating.tsx` (`break-words whitespace-normal`, `text-sm`); não depender só de tooltip/`title`.
+- **Chips admin** (`AdminAvaliacoesEquipeAgrupado.tsx`): justificativa no chip com `text-xs sm:text-sm`, `break-words whitespace-normal`; chip com `max-w-full w-full sm:max-w-[14rem]`.
+- **Gaveta admin** (`AvaliacaoNotasGaveta.tsx`): secção Justificativa com o mesmo padrão de quebra.
+- **Fontes auxiliares:** preferir **`text-sm`** no mobile para dicas, legendas e rótulos de apoio; badges de status **`text-xs sm:text-sm`** (evitar `text-[10px]` no fluxo de avaliação). Aumento moderado, sem exagerar títulos ou números principais.
+- **Ficheiros do padrão:** `StarRating.tsx`, `ColaboradorAvaliacaoCard.tsx`, `AvaliacaoSemanalChecklist.tsx`, `avaliacao-lideranca/page.tsx`, `RelatorioAvaliacoesPorSetor.tsx` (+ admin acima).
 
 ### Guia operacional (Alan)
 
@@ -167,9 +192,12 @@ npm run db:zerar-avaliacoes-trofeus    # --confirmar; apaga avaliacoes_diarias +
 npm run db:reabrir-onboarding          # --confirmar; onboarding_completo=false (mantém senha/perfil)
 npm run upload:video-boas-vindas
 npm run db:apply-pendentes / db:apply-035   # migrations locais conforme scripts
+npm run db:apply-migrations-avaliacao       # 038 + 039 (edicao unica, proatividade)
+npm run db:apply-039 / db:apply-040         # proatividade; ignorada (040)
+npm run db:ignorar-avaliacoes-vinculo       # --confirmar; marca ignorada por nome (requer 040)
 npm run db:avaliacao-direta                 # vínculos Gabriela/Keila/Daniel → alvos por nome
 npm run db:escalas-junho-2026 -- --confirmar   # gera escalas jun/2026 (DATABASE_URL)
-npm run db:apply-036                        # tipo_escala (se script existir no package.json)
+npm run db:apply-036                        # tipo_escala
 ```
 
 **APIs admin correlatas:** `POST /api/admin/zerar-avaliacoes-trofeus`, `POST /api/admin/reabrir-onboarding` (exigem gestão completa, não RH).
@@ -180,6 +208,9 @@ npm run db:apply-036                        # tipo_escala (se script existir no 
 |---------|----------|
 | `036_tipo_escala_colaborador.sql` | Escalas admin/portal por `tipo_escala` |
 | `037_emocional_alertas_vistos.sql` | OK individual nos alertas do termômetro |
+| `038_avaliacao_edicao_unica.sql` | Uma edição por avaliação/semana (`edicao_utilizada`) |
+| `039_avaliacao_meio_ponto_proatividade.sql` | Notas 1–5 em meio ponto + `nota_proatividade` |
+| `040_avaliacao_ignorada.sql` | Marcar avaliação ignorada (fora de média/ranking/bonificação) |
 
 **Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`.
 
@@ -232,6 +263,36 @@ npm run db:apply-036                        # tipo_escala (se script existir no 
 
 - Viewer integrado (`ManualPortalViewer`, rotas `meu-manual` / `manual`).
 
+### Admin avaliações agrupadas + proatividade (jun/2026, `132f8f0`, `55dcf24`)
+
+- Tabela admin agrupada por **colaborador/semana** com múltiplos avaliadores na mesma linha.
+- Critério **Proatividade e iniciativa** (migration `039`); notas em meio ponto.
+- Edição única pós-envio (migration `038`).
+- Ajuste mapa: Keila removida da equipe direta de marketing na listagem de avaliação.
+
+### Ignorar avaliação fora da média (jun/2026, `9407699`)
+
+- Migration `040`; lib `avaliacao-ignorada.ts`; API `POST .../avaliacoes-diarias/ignorar`.
+- Filtro em ranking mural, destaque, bonificação e APIs de desempenho.
+- Script `db:ignorar-avaliacoes-vinculo` para vínculos incorretos (Silvia/Leandro/Rodrigos).
+
+### Correções admin gaveta e botão Ignorar (jun/2026, `2ed99ac`)
+
+- Botão **Ignorar** fora do chip clicável (`variant="aside"`).
+- Gaveta admin deixa de mostrar critérios «—» quando coluna `ignorada` ainda não existe no Supabase (fallback SELECT com notas).
+- Exibição **Isenta** para `folga` e `outra_escala` alinhada à gaveta.
+
+### Mobile — justificativa e legibilidade na avaliação (jun/2026, `6040d7b`)
+
+- Justificativas de nota baixa passam a **quebrar linha** no celular (card equipe, admin chips/gaveta, liderança, checklist, relatório por setor).
+- Legenda das estrelas visível abaixo do critério (`StarRating`); removido dependência de tooltip de uma linha.
+- Textos auxiliares um degrau mais legíveis (`text-sm` / `text-xs sm:text-sm`); ver contrato **Mobile — layout de avaliações** acima.
+
+### Cadastro pessoal obrigatório + reconhecimento na home (jun/2026, `37f4d38`)
+
+- Todos completam perfil (nome, e-mail, telefone, endereço, data nascimento) antes do portal; admissão opcional (RH depois).
+- Home: ranking mensal de troféus entre pares + bloco aniversariantes do mês (`MuralReconhecimento`, APIs `trofeus-pares`, `aniversariantes`).
+
 ### Segurança (pré-produção já feita)
 
 - Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
@@ -257,6 +318,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
+| I4 | Aplicar migrations **`038`**, **`039`** e **`040`** no Supabase produção | SQL Editor ou `npm run db:apply-migrations-avaliacao` + `db:apply-040`; ignorar em lote só após `040` |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
 
@@ -287,15 +349,24 @@ src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, m
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
 src/components/portal/AvaliacoesPortalHome.tsx, ManualPortalViewer.tsx, TrofeusParesPanel.tsx
+src/components/portal/avaliacao-master/StarRating.tsx, ColaboradorAvaliacaoCard.tsx, AvaliacaoSemanalChecklist.tsx
+src/components/portal/RelatorioAvaliacoesPorSetor.tsx
 src/components/emocional/TermometroEmocional.tsx, EmocionalAlertasGestao.tsx
 src/lib/emocional-opcoes.ts, emocional-alertas-access.ts
 src/lib/config-avaliacao-direta.ts, avaliacao-direta.ts, colaborador-lideres.ts, portal-gerente-session.ts
+src/lib/avaliacao-ignorada.ts, avaliacoes-justificativa-compat.ts, admin-avaliacoes-equipe-agrupar.ts
+src/lib/bonificacao-fechamento.ts, destaque-avaliacoes.ts
+src/components/admin/AdminAvaliacoesEquipeAgrupado.tsx, AdminAvaliacaoIgnorarAcao.tsx, AvaliacaoNotasGaveta.tsx
+src/app/api/admin/avaliacoes-diarias/ignorar/
 src/lib/portal-login-response.ts, onboarding-reabrir.ts, mural-unidade-grupo.ts
 src/lib/video-boas-vindas.ts, config-lideranca-operacional.ts
 src/app/(portal)/portal/avaliacao-master/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
 src/app/api/admin/auth/, lideres-por-setor/, escalas/, colaboradores-para-escala/
 src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
+supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
 scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs
+scripts/aplicar-migrations-038-039.mjs, aplicar-migration-040.mjs, ignorar-avaliacoes-vinculo-incorreto.mjs
+APLIQUE_040_SQL_EDITOR.sql
 ```
