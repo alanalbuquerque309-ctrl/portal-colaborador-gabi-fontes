@@ -13,7 +13,7 @@ import {
   type LinhaAvaliacaoGaveta,
 } from '@/components/admin/AvaliacaoNotasGaveta';
 import { AdminAvaliacoesEquipeAgrupado } from '@/components/admin/AdminAvaliacoesEquipeAgrupado';
-import { AdminAvaliacaoIgnorarAcao } from '@/components/admin/AdminAvaliacaoIgnorarAcao';
+import { AdminAvaliacaoAdminAcao } from '@/components/admin/AdminAvaliacaoAdminAcao';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
 import { AvaliacoesPendentesModal } from '@/components/admin/AvaliacoesPendentesModal';
 
@@ -90,32 +90,43 @@ export default function AdminAvaliacoesDiariasPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <Link href="/admin/dashboard" className="text-sm text-dourado-500 hover:underline">
-          ← Dashboard
-        </Link>
-        <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Avaliações semanais (equipe)</h1>
-        <p className="text-sm text-coffee-100 mt-1">
-          Avaliações semanais que os líderes fizeram da equipe. Falta injustificada aparece com média{' '}
-          <strong>0,00</strong>; repasse ao outro líder aparece como <strong>Outro líder</strong>.
-          {podeVerDetalhe ? (
-            <>
-              {' '}
-              Clique na <strong>média</strong> (chip ou tabela) para ver cada critério (sócio / administrador).
-              {' '}
-              Use <strong>Ignorar avaliação</strong> quando o vínculo estava errado: some da média e do ranking, o registro permanece.
-            </>
-          ) : null}
-        </p>
-        <p className="text-sm mt-2">
-          <Link href="/admin/avaliacoes-lideranca" className="text-dourado-500 hover:underline">
-            Ver feedback dos colaboradores sobre a liderança →
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <Link href="/admin/dashboard" className="text-sm text-dourado-500 hover:underline">
+            ← Dashboard
           </Link>
-          {' · '}
-          <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
-            Relatório completo no portal →
-          </Link>
-        </p>
+          <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">
+            Avaliações semanais (equipe)
+          </h1>
+          <p className="text-sm text-coffee-100 mt-1">
+            Avaliações semanais que os líderes fizeram da equipe. Falta injustificada aparece com média{' '}
+            <strong>0,00</strong>; repasse ao outro líder aparece como <strong>Outro líder</strong>.
+            {podeVerDetalhe ? (
+              <>
+                {' '}
+                Clique na <strong>média</strong> (chip ou tabela) para ver cada critério (sócio / administrador).
+                {' '}
+                Use <strong>Ignorar avaliação</strong> quando o vínculo estava errado: some da média e do ranking, o registro permanece.
+              </>
+            ) : null}
+          </p>
+          <p className="text-sm mt-2">
+            <Link href="/admin/avaliacoes-lideranca" className="text-dourado-500 hover:underline">
+              Ver feedback dos colaboradores sobre a liderança →
+            </Link>
+            {' · '}
+            <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
+              Relatório completo no portal →
+            </Link>
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setPendentesAberto(true)}
+          className="shrink-0 w-full sm:w-auto rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-950 px-4 py-2.5 text-sm font-semibold hover:bg-amber-100 shadow-sm"
+        >
+          Pendentes da semana
+        </button>
       </div>
 
       <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm space-y-4 mb-6">
@@ -170,13 +181,6 @@ export default function AdminAvaliacoesDiariasPage() {
             className="rounded-lg bg-dourado-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
           >
             {carregando ? 'Carregando…' : 'Buscar'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPendentesAberto(true)}
-            className="rounded-lg border border-dourado-base text-coffee-base px-4 py-2 text-sm font-medium hover:bg-dourado-50"
-          >
-            Ver pendentes da semana
           </button>
         </div>
 
@@ -327,16 +331,13 @@ export default function AdminAvaliacoesDiariasPage() {
                         </td>
                         {podeVerDetalhe && (
                           <td className="px-3 py-2 align-top">
-                            {ignorada ? (
-                              <span className="text-xs text-coffee-100">Ignorada</span>
-                            ) : (
-                              <AdminAvaliacaoIgnorarAcao
-                                avaliacaoId={l.id}
-                                colaboradorNome={l.colaborador_nome}
-                                avaliadorRotulo={l.avaliador_rotulo ?? l.avaliador_nome}
-                                onIgnorada={() => void buscar()}
-                              />
-                            )}
+                            <AdminAvaliacaoAdminAcao
+                              avaliacaoId={l.id}
+                              colaboradorNome={l.colaborador_nome}
+                              avaliadorRotulo={l.avaliador_rotulo ?? l.avaliador_nome}
+                              jaIgnorada={ignorada}
+                              onAlterada={() => void buscar()}
+                            />
                           </td>
                         )}
                       </tr>

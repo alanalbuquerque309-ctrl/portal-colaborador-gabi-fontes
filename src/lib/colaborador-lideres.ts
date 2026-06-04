@@ -62,8 +62,9 @@ async function enriquecerMembrosEquipe(
 
 /**
  * Equipe para `/portal/avaliacao-master`:
- * gerente da loja (`*` na unidade) → todos os colaboradores da unidade;
- * líder por setor (ex.: Daniel — Estoque, RH, CD…) → derivado de `lideres_por_setor` em todas as unidades.
+ * gerente da loja (`unidade_todos` / `*` na unidade) → todos os colaboradores daquela unidade;
+ * líder por setor (ex.: Joyce/Silvia — Fábrica de preparos; Sabrina/Henrique — doces) → só via `lideres_por_setor`.
+ * Unidade Fábrica não entra na lista completa de Mesquita; setor na Fábrica não vira lista da unidade inteira.
  */
 export async function listarEquipeParaAvaliacaoSemanal(
   supabase: SupabaseAdmin,

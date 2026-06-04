@@ -27,13 +27,13 @@ async function resolverUnidadeIdPorSlug(
   return ins?.id ? String(ins.id) : null;
 }
 
-function slugsOperacionaisParaNome(nome: string): string[] {
+/** Slugs em que o líder vê todos os colaboradores da unidade (gerente de loja). */
+function slugsUnidadeCompletaOperacionalParaNome(nome: string): string[] {
   const slugs = new Set<string>();
   for (const regra of REGRAS_LIDERANCA_OPERACIONAL) {
+    if (regra.tipo !== 'unidade_todos') continue;
     if (!regraLideraUnidade(regra, nome)) continue;
-    if (regra.tipo === 'unidade_todos' || regra.tipo === 'unidade_setor') {
-      slugs.add(regra.unidade_slug);
-    }
+    slugs.add(regra.unidade_slug);
   }
   return Array.from(slugs);
 }
@@ -54,7 +54,11 @@ function slugsExtraTemporariosParaNome(nome: string): string[] {
   return slugs;
 }
 
-/** Unidades cujos colaboradores (role colaborador) entram na lista de avaliação semanal deste líder. */
+/**
+ * Unidades cujos colaboradores (role colaborador) entram na lista completa de avaliação semanal.
+ * Apenas gerentes de unidade (`unidade_todos` / `*` em `lideres_por_setor`).
+ * Líderes por setor (ex.: Fábrica de preparos) ficam só em `listarEquipeDoLider` — Fábrica ≠ Mesquita.
+ */
 export async function resolverUnidadesListaCompletaEquipeAvaliacao(
   supabase: SupabaseAdmin,
   liderId: string,
@@ -78,7 +82,10 @@ export async function resolverUnidadesListaCompletaEquipeAvaliacao(
 
   if (nomeLider) {
     const slugs = Array.from(
-      new Set([...slugsOperacionaisParaNome(nomeLider), ...slugsExtraTemporariosParaNome(nomeLider)])
+      new Set([
+        ...slugsUnidadeCompletaOperacionalParaNome(nomeLider),
+        ...slugsExtraTemporariosParaNome(nomeLider),
+      ])
     );
     for (const slug of slugs) {
       const uid = await resolverUnidadeIdPorSlug(supabase, slug);

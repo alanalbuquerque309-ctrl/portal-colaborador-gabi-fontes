@@ -8,7 +8,7 @@ import {
   type LinhaAdminAvaliacaoEquipe,
 } from '@/lib/admin-avaliacoes-equipe-agrupar';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
-import { AdminAvaliacaoIgnorarAcao } from '@/components/admin/AdminAvaliacaoIgnorarAcao';
+import { AdminAvaliacaoAdminAcao } from '@/components/admin/AdminAvaliacaoAdminAcao';
 
 type Props = {
   linhas: LinhaAdminAvaliacaoEquipe[];
@@ -118,13 +118,14 @@ function BlocoAvaliacaoComAcao({
           gavetaAberta={gavetaAberta}
           onAbrir={onAbrir}
         />
-        {podeIgnorar && !ignorada && (
+        {podeIgnorar && (
           <div className="pt-2 shrink-0">
-            <AdminAvaliacaoIgnorarAcao
+            <AdminAvaliacaoAdminAcao
               avaliacaoId={linha.id}
               colaboradorNome={linha.colaborador_nome}
               avaliadorRotulo={rotulo}
-              onIgnorada={onRecarregar}
+              jaIgnorada={ignorada}
+              onAlterada={onRecarregar}
               variant="aside"
             />
           </div>
