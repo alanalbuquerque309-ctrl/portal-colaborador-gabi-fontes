@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { MuralRankingUnidade } from '@/components/mural/MuralRankingUnidade';
+import { MuralRankingTrofeusPares } from '@/components/mural/MuralRankingTrofeusPares';
+import { AniversariantesReconhecimento } from '@/components/mural/AniversariantesReconhecimento';
 
 type Destaque = {
   id: string;
@@ -19,6 +21,18 @@ type TrofeuMural = {
   emoji: string;
   titulo: string;
   destinatario_nome: string;
+};
+
+type RankingTrofeusPayload = {
+  grupo_rotulo: string;
+  mes_atual: { mes_referencia: string; top: Array<{
+    posicao: number;
+    colaborador_id: string;
+    nome: string;
+    foto_url: string | null;
+    total_trofeus: number;
+  }> };
+  mes_anterior: { mes_referencia: string; top: RankingTrofeusPayload['mes_atual']['top'] };
 };
 
 type RankingUnidadePayload = {
@@ -77,6 +91,7 @@ export function MuralReconhecimento({ compacto = false }: Props) {
   const [destaquesMesUnidade, setDestaquesMesUnidade] = useState<Destaque[]>([]);
   const [trofeus, setTrofeus] = useState<TrofeuMural[]>([]);
   const [rankingUnidade, setRankingUnidade] = useState<RankingUnidadePayload | null>(null);
+  const [rankingTrofeus, setRankingTrofeus] = useState<RankingTrofeusPayload | null>(null);
   const [meta, setMeta] = useState({ totalAvaliacoesSemana: 0, minMensal: 2, minSemanal: 1 });
 
   useEffect(() => {
@@ -116,6 +131,10 @@ export function MuralReconhecimento({ compacto = false }: Props) {
         const lista = (trof.mural_unidade as TrofeuMural[]).filter((t) => t && t.id);
         setTrofeus(lista.slice(0, compacto ? 5 : 20));
       }
+      const rt = trof?.ranking_trofeus as RankingTrofeusPayload | undefined;
+      if (rt?.grupo_rotulo && rt.mes_atual && rt.mes_anterior) {
+        setRankingTrofeus(rt);
+      }
     })().finally(() => setLoading(false));
   }, [compacto]);
 
@@ -127,9 +146,13 @@ export function MuralReconhecimento({ compacto = false }: Props) {
     );
   }
 
-  const temRanking =
+  const temRankingUnidade =
     rankingUnidade &&
     (rankingUnidade.mes_atual.top.length > 0 || rankingUnidade.mes_anterior.top.length > 0);
+
+  const temRankingTrofeus =
+    rankingTrofeus &&
+    (rankingTrofeus.mes_atual.top.length > 0 || rankingTrofeus.mes_anterior.top.length > 0);
 
   const temDestaque =
     destaqueSemana ||
@@ -137,21 +160,36 @@ export function MuralReconhecimento({ compacto = false }: Props) {
     destaqueMes ||
     destaquesMesUnidade.length > 0 ||
     trofeus.length > 0 ||
-    temRanking;
+    temRankingUnidade ||
+    temRankingTrofeus;
 
   if (!temDestaque) {
     return (
-      <div className="rounded-xl border border-dourado-200 bg-cream-50 p-5 text-sm text-cafeteria-700 space-y-2">
-        <p>
-          Ainda não há destaques automáticos no mural. Eles aparecem quando a equipe recebe avaliações semanais
-          (destaque da semana com pelo menos {meta.minSemanal} registro) e, no mês, com pelo menos {meta.minMensal}{' '}
-          semanas por colaborador.
-        </p>
-        {meta.totalAvaliacoesSemana > 0 && (
-          <p className="text-cafeteria-600">
-            Esta semana já há {meta.totalAvaliacoesSemana} avaliação(ões) registrada(s).
+      <div className="space-y-6">
+        <div className="rounded-xl border border-dourado-200 bg-cream-50 p-5 text-sm text-cafeteria-700 space-y-2">
+          <p>
+            Ainda não há destaques automáticos no mural. Eles aparecem quando a equipe recebe avaliações semanais
+            (destaque da semana com pelo menos {meta.minSemanal} registro) e, no mês, com pelo menos {meta.minMensal}{' '}
+            semanas por colaborador.
           </p>
+          {meta.totalAvaliacoesSemana > 0 && (
+            <p className="text-cafeteria-600">
+              Esta semana já há {meta.totalAvaliacoesSemana} avaliação(ões) registrada(s).
+            </p>
+          )}
+        </div>
+        {rankingTrofeus && (
+          <section>
+            <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Ranking troféus entre pares</h3>
+            <MuralRankingTrofeusPares
+              grupoRotulo={rankingTrofeus.grupo_rotulo}
+              mesAnterior={rankingTrofeus.mes_anterior}
+              mesAtual={rankingTrofeus.mes_atual}
+              compacto={compacto}
+            />
+          </section>
         )}
+        <AniversariantesReconhecimento />
       </div>
     );
   }
@@ -197,7 +235,7 @@ export function MuralReconhecimento({ compacto = false }: Props) {
 
       {trofeus.length > 0 && (
         <section>
-          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Troféus entre pares</h3>
+          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Troféus entre pares (esta semana)</h3>
           <ul className="space-y-2">
             {trofeus.map((t, i) => (
               <li
@@ -213,6 +251,20 @@ export function MuralReconhecimento({ compacto = false }: Props) {
           </ul>
         </section>
       )}
+
+      {rankingTrofeus && (
+        <section>
+          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Ranking troféus entre pares</h3>
+          <MuralRankingTrofeusPares
+            grupoRotulo={rankingTrofeus.grupo_rotulo}
+            mesAnterior={rankingTrofeus.mes_anterior}
+            mesAtual={rankingTrofeus.mes_atual}
+            compacto={compacto}
+          />
+        </section>
+      )}
+
+      <AniversariantesReconhecimento />
     </div>
   );
 }

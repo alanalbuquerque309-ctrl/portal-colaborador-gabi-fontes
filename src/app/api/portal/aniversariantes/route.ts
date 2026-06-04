@@ -25,17 +25,23 @@ export async function GET() {
       return new Date(c.data_nascimento).getMonth() + 1 === mes;
     });
 
-    const resultado = doMes.map((c: Record<string, unknown>) => {
-      const un = c.unidades;
-      const nomeUnidade = Array.isArray(un) ? (un[0] as { nome?: string })?.nome : (un as { nome?: string })?.nome;
-      return {
-        id: c.id,
-        nome: c.nome,
-        data_nascimento: c.data_nascimento,
-        foto_url: c.foto_url ?? null,
-        unidade_nome: nomeUnidade ?? '',
-      };
-    });
+    const resultado = doMes
+      .map((c: Record<string, unknown>) => {
+        const un = c.unidades;
+        const nomeUnidade = Array.isArray(un) ? (un[0] as { nome?: string })?.nome : (un as { nome?: string })?.nome;
+        return {
+          id: c.id,
+          nome: c.nome,
+          data_nascimento: c.data_nascimento,
+          foto_url: c.foto_url ?? null,
+          unidade_nome: nomeUnidade ?? '',
+        };
+      })
+      .sort((a, b) => {
+        const da = a.data_nascimento ? new Date(String(a.data_nascimento)).getDate() : 32;
+        const db = b.data_nascimento ? new Date(String(b.data_nascimento)).getDate() : 32;
+        return da - db || String(a.nome).localeCompare(String(b.nome), 'pt-BR');
+      });
 
     return NextResponse.json({ ok: true, aniversariantes: resultado });
   } catch (e) {

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { normalizePortalRole } from '@/lib/roles';
+import { calcularRankingsTrofeusMuralDoColaborador } from '@/lib/mural-ranking-trofeus-pares';
 import {
   isTrofeuParTipo,
   metaTrofeuPar,
@@ -31,6 +32,20 @@ export async function GET() {
 
   try {
     const supabase = createAdminClient();
+
+    const { data: viewer, error: errViewer } = await supabase
+      .from('colaboradores')
+      .select('unidades(slug)')
+      .eq('id', colaboradorId)
+      .maybeSingle();
+
+    if (errViewer) {
+      return NextResponse.json({ ok: false, erro: errViewer.message }, { status: 500, headers: NO_STORE });
+    }
+
+    const unidadeEmbed = viewer?.unidades as { slug?: string } | { slug?: string }[] | null | undefined;
+    const unidadeSlug = Array.isArray(unidadeEmbed) ? unidadeEmbed[0]?.slug : unidadeEmbed?.slug;
+
     const { data: enviados, error: errEnv } = await supabase
       .from('trofeus_entre_pares')
       .select('id, destinatario_id, tipo, created_at')
@@ -120,6 +135,16 @@ export async function GET() {
         setor: (c as { setor?: string | null }).setor ?? null,
       }));
 
+    let ranking_trofeus = null;
+    try {
+      ranking_trofeus = await calcularRankingsTrofeusMuralDoColaborador(
+        supabase,
+        unidadeSlug ? String(unidadeSlug) : null
+      );
+    } catch {
+      ranking_trofeus = null;
+    }
+
     return NextResponse.json({
       ok: true,
       semana_inicio: semanaInicio,
@@ -130,6 +155,7 @@ export async function GET() {
         mapTrofeu(r as { id: string; destinatario_id: string; tipo: string })
       ),
       mural_unidade: mural,
+      ranking_trofeus,
       colegas_elegiveis,
       tipos: TROFEUS_PARES_TIPOS.map((t) => ({ id: t, ...TROFEU_PAR_LABELS[t] })),
     });

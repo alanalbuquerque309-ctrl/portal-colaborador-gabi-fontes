@@ -21,6 +21,10 @@ function OnboardingContent() {
           router.replace('/completar-cpf');
           return;
         }
+        if (d.ok && d.colaborador && d.colaborador.perfil_completo === false) {
+          router.replace('/portal/perfil?completar=1');
+          return;
+        }
         setCpfOk(true);
       })
       .catch(() => setCpfOk(true));

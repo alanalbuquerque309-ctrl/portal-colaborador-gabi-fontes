@@ -4,6 +4,7 @@ import { hashPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
 import { selectColaboradorLoginRowByLogin, updateSenhaColaboradorByIdCompat } from '@/lib/colaborador-forca-troca-compat';
+import { perfilPessoalCompletoPorId } from '@/lib/colaborador-perfil-login';
 import { parseManterLogado } from '@/lib/portal-login-persist';
 import {
   applyAdminSessionCookie,
@@ -72,12 +73,14 @@ export async function POST(req: Request) {
     }
 
     const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
+    const perfilCompleto = await perfilPessoalCompletoPorId(supabase, col.id);
 
     const colRow = {
       id: col.id,
       unidade_id: col.unidade_id,
       role: (col as { role?: string }).role,
       onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
+      perfil_completo: perfilCompleto,
     };
 
     const payload = buildPortalLoginJson(
