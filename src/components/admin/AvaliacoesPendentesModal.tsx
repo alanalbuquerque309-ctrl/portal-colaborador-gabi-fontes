@@ -12,8 +12,8 @@ type Props = {
 };
 
 const FILTROS: { id: FiltroPendenciasSemana; label: string }[] = [
-  { id: 'todos', label: 'Todos' },
   { id: 'gerente', label: 'Sem líder' },
+  { id: 'todos', label: 'Líder ou RH (c/ gerente)' },
   { id: 'rh_complemento', label: 'RH (com gerente)' },
   { id: 'rh_rede', label: 'Sem Visita RH' },
 ];
@@ -40,7 +40,7 @@ export function AvaliacoesPendentesModal({
 }: Props) {
   const [dataRef, setDataRef] = useState(semanaAvaliacaoEquipePadraoISO);
   const [unidadeSlug, setUnidadeSlug] = useState('');
-  const [filtro, setFiltro] = useState<FiltroPendenciasSemana>('todos');
+  const [filtro, setFiltro] = useState<FiltroPendenciasSemana>('gerente');
   const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);

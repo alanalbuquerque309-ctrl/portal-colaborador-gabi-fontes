@@ -8,9 +8,9 @@ import {
 import { isDateIsoAvaliacao, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 
 function parseFiltro(raw: string | null): FiltroPendenciasSemana {
-  const v = raw?.trim() ?? 'todos';
+  const v = raw?.trim() ?? 'gerente';
   if (v === 'gerente' || v === 'rh_complemento' || v === 'rh_rede' || v === 'todos') return v;
-  return 'todos';
+  return 'gerente';
 }
 
 export async function GET(req: Request) {

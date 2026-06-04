@@ -465,7 +465,7 @@ export async function calcularPendenciasSemana(
 
     const incluir =
       filtro === 'todos'
-        ? semLider || semRhRede
+        ? semLider || semRhComplemento
         : filtro === 'gerente'
           ? semLider
           : filtro === 'rh_complemento'
