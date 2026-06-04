@@ -167,6 +167,11 @@ export default function AdminDashboardPage() {
               Relatório de avaliações semanais da equipe
             </a>
           </li>
+          <li>
+            <a href="/admin/avaliacao-entre-pares" className="text-dourado-500 hover:underline">
+              Avaliação entre pares (troféus)
+            </a>
+          </li>
         </ul>
       </div>
     </div>

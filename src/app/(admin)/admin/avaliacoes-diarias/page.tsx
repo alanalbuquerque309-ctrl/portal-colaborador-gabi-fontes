@@ -118,6 +118,10 @@ export default function AdminAvaliacoesDiariasPage() {
             <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
               Relatório completo no portal →
             </Link>
+            {' · '}
+            <Link href="/admin/avaliacao-entre-pares" className="text-dourado-500 hover:underline">
+              Troféus entre pares →
+            </Link>
           </p>
         </div>
         <button
@@ -181,6 +185,13 @@ export default function AdminAvaliacoesDiariasPage() {
             className="rounded-lg bg-dourado-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
           >
             {carregando ? 'Carregando…' : 'Buscar'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPendentesAberto(true)}
+            className="rounded-lg border-2 border-amber-500 bg-amber-50 text-amber-950 px-4 py-2 text-sm font-semibold hover:bg-amber-100"
+          >
+            Pendentes da semana
           </button>
         </div>
 
