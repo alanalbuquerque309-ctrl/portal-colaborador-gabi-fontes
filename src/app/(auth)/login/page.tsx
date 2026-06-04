@@ -6,7 +6,7 @@ import { formatTelefoneBr, normalizeTelefoneLogin, telefoneLoginValido } from '@
 import { normalizeEmail } from '@/lib/password';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { salvarUltimoLogin } from '@/lib/portal-remember-login';
-import { getPortalSession, setPortalSession } from '@/lib/utils/session';
+import { getPortalSession, setPortalSession, clearPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 async function processarRespostaLogin(
@@ -47,12 +47,54 @@ function LoginContent() {
   const [loginPrimeiraSenha, setLoginPrimeiraSenha] = useState('');
 
   useEffect(() => {
-    const s = getPortalSession();
-    if (s?.colaboradorId && s.colaboradorId !== 'pending') {
-      router.replace('/portal');
-      return;
+    let cancelled = false;
+
+    async function verificarSessaoExistente() {
+      const s = getPortalSession();
+      if (!s?.colaboradorId || s.colaboradorId === 'pending') {
+        if (!cancelled) setVerificandoSessao(false);
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json();
+        if (cancelled) return;
+        if (data?.ok && data.colaborador) {
+          const c = data.colaborador as {
+            id?: string;
+            unidade_id?: string;
+            role?: string;
+            cpf_cadastrado?: boolean;
+            perfil_completo?: boolean;
+            onboarding_completo?: boolean;
+          };
+          if (c.cpf_cadastrado === false) {
+            router.replace('/completar-cpf');
+            return;
+          }
+          if (c.perfil_completo === false) {
+            router.replace('/portal/perfil?completar=1');
+            return;
+          }
+          if (c.onboarding_completo === false && c.id && c.unidade_id) {
+            router.replace(`/onboarding?colaborador_id=${c.id}&unidade_id=${c.unidade_id}`);
+            return;
+          }
+          router.replace('/portal');
+          return;
+        }
+        clearPortalSession();
+      } catch {
+        if (!cancelled) clearPortalSession();
+      }
+      if (!cancelled) setVerificandoSessao(false);
     }
-    setVerificandoSessao(false);
+
+    void verificarSessaoExistente();
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   const handleTrocarSenhaObrigatoria = async (

@@ -55,6 +55,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       if (
         d.ok &&
         d.colaborador &&
+        d.colaborador.perfil_completo === true &&
         d.colaborador.onboarding_completo === false &&
         d.colaborador.id &&
         d.colaborador.unidade_id
@@ -120,7 +121,10 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
             return;
           }
         }
-        if (!cancelled) router.replace('/login');
+        if (!cancelled) {
+          clearPortalSession();
+          router.replace('/login');
+        }
       })
       .catch(() => {
         if (!cancelled) setGateOk(true);
