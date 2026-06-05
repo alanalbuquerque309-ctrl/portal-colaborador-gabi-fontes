@@ -54,7 +54,6 @@ export default function AdminLayout({
     {
       titulo: 'Gestão',
       itens: [
-        { href: '/admin/destaque', label: 'Destaque' },
         { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
         { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
         { href: '/portal/equipe-chat', label: 'Chat equipe' },

@@ -122,7 +122,7 @@ Uso principal no telefone (líder na loja). Manter estes padrões ao tocar em ju
 | **RH limitado** | `role: rh` (ex.: Keila) | Só `ADMIN_NAV_RH` em `src/lib/admin-access.ts` |
 | **Edição mapa liderança** | Sócio, `admin` (Daniel), senha admin | `podeEditarLiderancaMapaCompleto` — **não** inclui gerente |
 
-**Menu RH (`ADMIN_NAV_RH`):** Dashboard, Colaboradores, Liderança por setor, Avisos, Destaque, Escalas, Inbox ajuda (`/portal/ajuda-inbox`).
+**Menu RH (`ADMIN_NAV_RH`):** Dashboard, Colaboradores, Liderança por setor, Avisos, Escalas, Inbox ajuda (`/portal/ajuda-inbox`).
 
 ### Sidebar — grupos e legibilidade (jun/2026)
 
@@ -134,7 +134,7 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 | **• Pessoas** | Colaboradores, Liderança por setor, Escalas |
 | **• Avaliações** | Avaliação de Equipe (semanal), Feedback liderança, Avaliação entre pares |
 | **• Comunicação** | Avisos, Sugestões, Eventos de manuais |
-| **• Gestão** | Destaque, Gorjeta (se permitido), Inbox ajuda, Chat equipe |
+| **• Gestão** | Gorjeta (se permitido), Inbox ajuda, Chat equipe |
 
 **Estilo dos títulos de grupo:** mesmo tamanho dos links (`text-sm md:text-base`), **sem** `text-[10px]` nem `uppercase`; prefixo **bolinha dourada (•)** para distinguir título de item. Links do menu com `text-sm md:text-base` explícito.
 
@@ -200,6 +200,8 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 | **Mural** (`/portal/mural`, preview na home) | Rankings **mensais cumulativos** (rede + por unidade) | `MuralRankingsMensais.tsx`, `MuralPreview.tsx`, lógica em `mural-ranking-unidade.ts` |
 
 - **Mobile mural/ranking:** nomes com `break-words` (sem `truncate`); fontes um degrau maiores; menu inferior enxuto (`Header.tsx`).
+
+**Legado removido:** tela Admin *Colaborador em Destaque* (`/admin/destaque`, `POST/GET /api/admin/destaque`) — destaque manual por título/descrição **não** alimentava mais a home após *Destaques da semana* automáticos. Tabela Supabase `destaque` (migration `008`) pode permanecer no banco sem UI; reconhecimento visível = semanal (`reconhecimento-semanal`) + mensal (`/api/portal/destaque` rankings).
 
 ## Home do portal (contrato UX — jun/2026)
 
@@ -379,6 +381,15 @@ npm run db:apply-036                        # tipo_escala
 ### Admin — menu lateral legível (jun/2026, `684fce2`)
 
 - Títulos de grupo (Visão geral, Pessoas, …) no **mesmo tamanho** dos itens; marcador **•** dourado; fim do `text-[10px]` ilegível.
+
+### Remoção destaque manual Admin (jun/2026)
+
+- Removidos `/admin/destaque`, `/api/admin/destaque` e item *Destaque* do menu (RH e Gestão).
+- Home e mural usam só reconhecimento **automático** (avaliações + troféus); `DestaqueSection` = *Destaques da semana*, não cadastro manual.
+
+### Admin — scroll menu mobile (jun/2026, `025b2f3`)
+
+- Sidebar rolável no celular; body bloqueado com menu aberto.
 
 ### Segurança (pré-produção já feita)
 

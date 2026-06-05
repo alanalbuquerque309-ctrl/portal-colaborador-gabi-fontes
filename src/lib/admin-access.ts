@@ -8,7 +8,6 @@ export const ADMIN_NAV_RH: readonly { href: string; label: string }[] = [
   { href: '/admin/colaboradores', label: 'Colaboradores' },
   { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
   { href: '/admin/avisos', label: 'Avisos' },
-  { href: '/admin/destaque', label: 'Destaque' },
   { href: '/admin/escalas', label: 'Escalas' },
   { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
 ];
