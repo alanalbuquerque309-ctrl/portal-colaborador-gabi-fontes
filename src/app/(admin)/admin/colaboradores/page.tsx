@@ -36,6 +36,7 @@ export default function ColaboradoresPage() {
   const [filtroAcesso, setFiltroAcesso] = useState('');
   const [filtroUnidade, setFiltroUnidade] = useState('');
   const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [resetando, setResetando] = useState<string | null>(null);
   const [concluindo, setConcluindo] = useState<string | null>(null);
   const [erroLista, setErroLista] = useState<string | null>(null);
   /** Total de linhas no Supabase (mesma consulta da API), para conferir ambiente. */
@@ -158,6 +159,34 @@ export default function ColaboradoresPage() {
       alert('Erro ao excluir.');
     } finally {
       setExcluindo(null);
+    }
+  };
+
+  const handleResetCadastro = async (id: string, nome: string) => {
+    if (
+      !confirm(
+        `Resetar cadastro de "${nome}"?\n\nApaga senha, onboarding e dados pessoais (endereço, data de nascimento, foto). Mantém CPF, nome, e-mail, telefone e acesso.\n\nA pessoa refaz o fluxo de primeiro acesso no próximo login.`
+      )
+    ) {
+      return;
+    }
+
+    setResetando(id);
+    try {
+      const res = await fetch(`/api/admin/colaboradores/reset-cadastro?id=${id}`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.ok) {
+        recarregar();
+      } else {
+        alert(data.erro || 'Erro ao resetar cadastro.');
+      }
+    } catch {
+      alert('Erro ao resetar cadastro.');
+    } finally {
+      setResetando(null);
     }
   };
 
@@ -305,10 +334,10 @@ export default function ColaboradoresPage() {
             Para alterar o acesso (ex.: administrador), use <strong>Editar perfil</strong> ao lado do nome.
           </p>
           <div className="rounded-xl border border-cream-300 overflow-x-auto shadow-sm">
-          <table className="w-full text-sm min-w-[980px] table-fixed">
+          <table className="w-full text-sm min-w-[920px] table-fixed">
             <thead className="bg-cream-200">
               <tr>
-                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[22%] align-bottom">
+                <th className="text-left px-3 py-3 text-coffee-base font-medium w-[26%] align-bottom">
                   <span className="block leading-tight">Nome</span>
                 </th>
                 <th className="text-left px-3 py-3 text-coffee-base font-medium w-[14%] align-bottom">
@@ -326,24 +355,42 @@ export default function ColaboradoresPage() {
                 <th className="text-left px-3 py-3 text-coffee-base font-medium w-[12%] align-bottom">
                   <span className="block leading-tight">Onboarding</span>
                 </th>
-                <th className="text-right px-3 py-3 text-coffee-base font-medium w-[10%] align-bottom">
-                  <span className="block leading-tight">Ações</span>
-                </th>
               </tr>
             </thead>
             <tbody>
               {colaboradoresFiltrados.map((c) => (
                 <tr key={c.id} className="border-t border-cream-300 hover:bg-cream-50">
                   <td className="px-3 py-3 align-top">
-                    <div className="flex flex-col gap-1.5 min-w-0">
-                      <span className="text-coffee-base font-medium break-words">{c.nome}</span>
-                      <Link
-                        href={`/admin/colaboradores/${c.id}/editar`}
-                        replace
-                        className="text-dourado-base hover:text-dourado-600 text-xs font-semibold underline underline-offset-2 w-fit"
-                      >
-                        Editar perfil
-                      </Link>
+                    <div className="flex items-start justify-between gap-2 min-w-0">
+                      <div className="min-w-0">
+                        <span className="text-coffee-base font-medium break-words block">{c.nome}</span>
+                        <Link
+                          href={`/admin/colaboradores/${c.id}/editar`}
+                          replace
+                          className="text-dourado-base hover:text-dourado-600 text-xs font-semibold underline underline-offset-2 w-fit mt-1 inline-block"
+                        >
+                          Editar perfil
+                        </Link>
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleResetCadastro(c.id, c.nome)}
+                          disabled={resetando === c.id || excluindo === c.id}
+                          className="text-amber-700 hover:text-amber-900 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+                          title="Zera senha, onboarding e perfil pessoal para primeiro acesso"
+                        >
+                          {resetando === c.id ? 'Resetando…' : 'Resetar cadastro'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleExcluir(c.id, c.nome)}
+                          disabled={excluindo === c.id || resetando === c.id}
+                          className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+                        >
+                          {excluindo === c.id ? 'Excluindo…' : 'Excluir'}
+                        </button>
+                      </div>
                     </div>
                   </td>
                   <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.setor || '-'}</td>
@@ -369,16 +416,6 @@ export default function ColaboradoresPage() {
                       </>
                     )}
                   </td>
-                  <td className="px-3 py-3 text-right align-top">
-                    <button
-                      type="button"
-                      onClick={() => handleExcluir(c.id, c.nome)}
-                      disabled={excluindo === c.id}
-                      className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
-                    >
-                      {excluindo === c.id ? 'Excluindo…' : 'Excluir'}
-                    </button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -388,7 +425,7 @@ export default function ColaboradoresPage() {
       )}
 
       <p className="mt-4 text-xs text-coffee-100">
-        Exclusão disponível apenas para sócios e administradores.
+        Resetar cadastro e excluir: apenas sócios e administradores. Reset apaga senha e refaz onboarding; mantém CPF e dados de cadastro RH.
       </p>
     </div>
   );

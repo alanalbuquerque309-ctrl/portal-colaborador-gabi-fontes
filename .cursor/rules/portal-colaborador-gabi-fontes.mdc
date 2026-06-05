@@ -387,6 +387,12 @@ npm run db:apply-036                        # tipo_escala
 - Removidos `/admin/destaque`, `/api/admin/destaque` e item *Destaque* do menu (RH e Gestão).
 - Home e mural usam só reconhecimento **automático** (avaliações + troféus); `DestaqueSection` = *Destaques da semana*, não cadastro manual.
 
+### Reset cadastro (primeiro acesso) no Admin
+
+- **UI:** `/admin/colaboradores` — botão **Resetar cadastro** na linha do nome (ao lado de **Excluir**), só gestão completa (`requireAdminFullApi`).
+- **API:** `POST /api/admin/colaboradores/reset-cadastro?id=<uuid>` — zera senha, onboarding e perfil pessoal (`data_nascimento`, `endereco`, `foto_url`); mantém CPF, nome, e-mail, telefone, role, unidade.
+- **Lib:** `payloadResetPrimeiroAcesso()` em `onboarding-reabrir.ts`. Script legado: `scripts/corrigir-acesso-daniele-socia.mjs`.
+
 ### Admin — scroll menu mobile (jun/2026, `025b2f3`)
 
 - Sidebar rolável no celular; body bloqueado com menu aberto.
