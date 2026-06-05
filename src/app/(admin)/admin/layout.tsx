@@ -20,22 +20,49 @@ export default function AdminLayout({
   const [podeVerGorjeta, setPodeVerGorjeta] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const navCompleto: { href: string; label: string; gorjeta?: boolean }[] = [
-    { href: '/admin/dashboard', label: 'Dashboard' },
-    { href: '/admin/colaboradores', label: 'Colaboradores' },
-    { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
-    { href: '/admin/avisos', label: 'Avisos' },
-    { href: '/admin/destaque', label: 'Destaque' },
-    { href: '/admin/escalas', label: 'Escalas' },
-    { href: '/admin/avaliacoes-diarias', label: 'Avaliação de Equipe (semanal)' },
-    { href: '/admin/avaliacao-entre-pares', label: 'Avaliação entre pares' },
-    { href: '/admin/avaliacoes-lideranca', label: 'Feedback liderança' },
-    { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
-    { href: '/admin/sugestoes', label: 'Sugestões' },
-    { href: '/admin/manual-eventos', label: 'Eventos de manuais' },
-    { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
-    { href: '/portal/equipe-chat', label: 'Chat equipe' },
+  type NavItemAdmin = { href: string; label: string; gorjeta?: boolean };
+
+  const navGrupos: { titulo: string; itens: NavItemAdmin[] }[] = [
+    {
+      titulo: 'Visão geral',
+      itens: [{ href: '/admin/dashboard', label: 'Dashboard' }],
+    },
+    {
+      titulo: 'Pessoas',
+      itens: [
+        { href: '/admin/colaboradores', label: 'Colaboradores' },
+        { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
+        { href: '/admin/escalas', label: 'Escalas' },
+      ],
+    },
+    {
+      titulo: 'Avaliações',
+      itens: [
+        { href: '/admin/avaliacoes-diarias', label: 'Avaliação de Equipe (semanal)' },
+        { href: '/admin/avaliacoes-lideranca', label: 'Feedback liderança' },
+        { href: '/admin/avaliacao-entre-pares', label: 'Avaliação entre pares' },
+      ],
+    },
+    {
+      titulo: 'Comunicação',
+      itens: [
+        { href: '/admin/avisos', label: 'Avisos' },
+        { href: '/admin/sugestoes', label: 'Sugestões' },
+        { href: '/admin/manual-eventos', label: 'Eventos de manuais' },
+      ],
+    },
+    {
+      titulo: 'Gestão',
+      itens: [
+        { href: '/admin/destaque', label: 'Destaque' },
+        { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
+        { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
+        { href: '/portal/equipe-chat', label: 'Chat equipe' },
+      ],
+    },
   ];
+
+  const navCompleto: NavItemAdmin[] = navGrupos.flatMap((g) => g.itens);
 
   useEffect(() => {
     const ac = new AbortController();
@@ -198,8 +225,29 @@ export default function AdminLayout({
             </svg>
           </button>
         </div>
-        <nav className="space-y-1">
-          {menuNav.map((item) => navLink(item.href, item.label))}
+        <nav className="space-y-4">
+          {acessoRh || menuNav.length <= 8
+            ? menuNav.map((item) => (
+                <div key={item.href}>{navLink(item.href, item.label)}</div>
+              ))
+            : navGrupos.map((grupo) => {
+                const itensVisiveis = grupo.itens.filter((item) =>
+                  menuNav.some((m) => m.href === item.href)
+                );
+                if (itensVisiveis.length === 0) return null;
+                return (
+                  <div key={grupo.titulo}>
+                    <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-cream-200/70">
+                      {grupo.titulo}
+                    </p>
+                    <div className="space-y-0.5">
+                      {itensVisiveis.map((item) => (
+                        <div key={item.href}>{navLink(item.href, item.label)}</div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
         </nav>
         <div className="mt-8 space-y-2 border-t border-white/20 pt-6">
           <Link

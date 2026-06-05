@@ -12,9 +12,19 @@ import {
   normalizePortalRole,
 } from '@/lib/roles';
 
+type NavItem = {
+  href: string;
+  label: string;
+  short: string;
+  icon: 'mural' | 'escala' | 'sugestoes' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia';
+};
+
 function navAtivo(pathname: string | null | undefined, href: string): boolean {
   const p = pathname ?? '';
   if (!p || !href) return false;
+  if (href === '/portal') {
+    return p === '/portal';
+  }
   if (href === '/portal/meu-manual') {
     return p === href || p.startsWith('/portal/manual');
   }
@@ -103,11 +113,13 @@ export function Header() {
   const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
+  const [perfilRole, setPerfilRole] = useState('colaborador');
 
   useEffect(() => {
     const s = getPortalSession();
     const r = normalizePortalRole(s?.role);
     const cid = s?.colaboradorId;
+    setPerfilRole(r);
     setPodeAdmin(r === 'socio' || r === 'admin');
     setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
     setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
@@ -179,6 +191,7 @@ export function Header() {
             ? String((data.colaborador as { id?: string }).id ?? '')
             : '';
           if (data.ok && roleApi) {
+            setPerfilRole(roleApi);
             setPodeAdmin(roleApi === 'socio' || roleApi === 'admin');
             setPodeGerenteAvaliador(roleApi === 'gerente' || roleApi === 'master');
             setPodeAvaliarEquipe(
@@ -217,118 +230,58 @@ export function Header() {
     };
   }, [pathname]);
 
-  const navItensInicio = [
-    navItensBase[0],
-    ...(mostrarMeuManual
-      ? [
-          {
-            href: '/portal/meu-manual' as const,
-            label: 'Meu manual',
-            short: 'Manual',
-            icon: 'meu-manual' as const,
-          },
-        ]
-      : []),
-    ...navItensBase.slice(1),
-  ];
+  const manualNav: NavItem[] = mostrarMeuManual
+    ? [{ href: '/portal/meu-manual', label: 'Meu manual', short: 'Manual', icon: 'meu-manual' }]
+    : [];
 
-  const navItens = [
-    ...navItensInicio,
-    ...(podeAvaliarEquipe
+  const isAdm = perfilRole === 'admin' || perfilRole === 'socio';
+  const isLider = perfilRole === 'gerente' || perfilRole === 'master';
+
+  const navMobile: NavItem[] = isAdm
+    ? [
+        { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
+        { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+        { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
+      ]
+    : isLider
       ? [
-          {
-            href: '/portal/avaliacao-master' as const,
-            label: 'Avaliação da equipe',
-            short: 'Avaliação',
-            icon: 'avaliacao' as const,
-          },
+          { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
+          ...(podeAvaliarEquipe
+            ? [{ href: '/portal/avaliacao-master', label: 'Avaliação da equipe', short: 'Avaliar', icon: 'avaliacao' as const }]
+            : []),
+          ...(podeGerenteAvaliador
+            ? [{ href: '/portal/gerente-equipe', label: 'Equipe no mês', short: 'Equipe', icon: 'desempenho' as const }]
+            : []),
+          { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' },
+          { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+          { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
         ]
-      : []),
-    ...(podeVisitaRh
-      ? [
-          {
-            href: '/portal/avaliacao-rh-visita' as const,
-            label: 'Visita RH',
-            short: 'Visita RH',
-            icon: 'avaliacao' as const,
-          },
-        ]
-      : []),
-    ...(podeGerenteAvaliador
-      ? [
-          {
-            href: '/portal/gerente-equipe' as const,
-            label: 'Equipe no mês',
-            short: 'Equipe',
-            icon: 'desempenho' as const,
-          },
-        ]
-      : []),
-    ...(podeVerMinhaLideranca
-      ? [
-          {
-            href: '/portal/minha-lideranca' as const,
-            label: 'Minha liderança',
-            short: 'Liderança',
-            icon: 'desempenho' as const,
-          },
-        ]
-      : []),
-    ...(podeVerDesempenho
-      ? [
-          {
-            href: '/portal/desempenho' as const,
-            label: 'Desempenho',
-            short: 'Desempenho',
-            icon: 'desempenho' as const,
-          },
-        ]
-      : []),
-    ...(podeAvaliarLideranca
-      ? [
-          {
-            href: '/portal/avaliacao-lideranca' as const,
-            label: 'Avaliar liderança',
-            short: 'Líder',
-            icon: 'avaliacao' as const,
-          },
-        ]
-      : []),
-    ...(podeRelatoriosAvaliacoes
-      ? [
-          {
-            href: '/portal/relatorios-avaliacoes' as const,
-            label: 'Relatórios avaliações',
-            short: 'Relat.',
-            icon: 'avaliacao' as const,
-          },
-          {
-            href: '/portal/relatorios-presenca' as const,
-            label: 'Uso do portal',
-            short: 'Presença',
-            icon: 'desempenho' as const,
-          },
-        ]
-      : []),
+      : [
+          { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
+          ...manualNav,
+          { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' },
+          ...(podeVerDesempenho
+            ? [{ href: '/portal/desempenho', label: 'Desempenho', short: 'Desempenho', icon: 'desempenho' as const }]
+            : []),
+          { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+          { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
+        ];
+
+  const navDesktop: NavItem[] = [
+    ...navMobile.filter((i) => i.href !== '/portal/perfil'),
+    { href: '/portal/sugestoes', label: 'Sugestões', short: 'Sugestões', icon: 'sugestoes' },
+    { href: '/portal/manuais', label: 'Manuais', short: 'Manuais', icon: 'manuais' },
     ...(podeVisualizarAjuda
       ? [
           {
-            href: '/portal/ajuda-inbox' as const,
-            label:
-              pendenciasAjuda > 0
-                ? `Inbox ajuda (${pendenciasAjuda})`
-                : 'Inbox ajuda',
+            href: '/portal/ajuda-inbox',
+            label: pendenciasAjuda > 0 ? `Inbox ajuda (${pendenciasAjuda})` : 'Inbox ajuda',
             short: 'Ajuda',
-            icon: 'sugestoes' as const,
-          },
-          {
-            href: '/portal/equipe-chat' as const,
-            label: 'Chat equipe',
-            short: 'Equipe',
             icon: 'sugestoes' as const,
           },
         ]
       : []),
+    { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
   ];
 
   const handleSair = () => {
@@ -340,7 +293,7 @@ export function Header() {
   };
 
   const iconePorHref: Record<string, string> = Object.fromEntries(
-    navItens.map((item) => [item.href, item.icon])
+    [...navMobile, ...navDesktop].map((item) => [item.href, item.icon])
   );
 
   return (
@@ -351,7 +304,7 @@ export function Header() {
             Cafeteria Gabi Fontes
           </Link>
           <nav className="hidden md:flex gap-6 text-cafeteria-700 items-center">
-            {navItens.map(({ href, label }) => {
+            {navDesktop.map(({ href, label }) => {
               const ativo = navAtivo(pathname, href);
               return (
                 <Link
@@ -387,7 +340,7 @@ export function Header() {
         aria-label="Navegação principal"
       >
         <div className="flex overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
-          {navItens.map(({ href, label, short }) => {
+          {navMobile.map(({ href, label, short }) => {
             const ativo = navAtivo(pathname, href);
             const iconKey = iconePorHref[href] ?? 'mural';
             return (
