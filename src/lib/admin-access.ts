@@ -25,6 +25,11 @@ export function isRoleAdminRh(role: string | null | undefined): boolean {
   return normalizePortalRole(role) === 'rh';
 }
 
+/** Portal + APIs: quem pode abrir /admin (completo ou RH limitado). */
+export function podeAcessarAdminPortal(role: string | null | undefined): boolean {
+  return isRoleAdminCompleto(role) || isRoleAdminRh(role);
+}
+
 export function resolveAdminNivel(
   role: string | null | undefined,
   senhaAdmin: boolean

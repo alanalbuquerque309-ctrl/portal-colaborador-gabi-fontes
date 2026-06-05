@@ -11,7 +11,7 @@ import {
   canVisualizarAjuda,
   normalizePortalRole,
 } from '@/lib/roles';
-import { isRoleAdminCompleto, isRoleAdminRh } from '@/lib/admin-access';
+import { podeAcessarAdminPortal } from '@/lib/admin-access';
 
 type NavItem = {
   href: string;
@@ -121,7 +121,7 @@ export function Header() {
 
     const aplicarRole = (r: string, cid?: string, unidadeId?: string) => {
       setPerfilRole(r);
-      setPodeAdmin(isRoleAdminCompleto(r) || isRoleAdminRh(r));
+      setPodeAdmin(podeAcessarAdminPortal(r));
       setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
       setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
       setPodeVerMinhaLideranca(r === 'gerente' || r === 'master' || r === 'admin');
@@ -223,7 +223,7 @@ export function Header() {
             : '';
           if (data.ok && roleApi) {
             setPerfilRole(roleApi);
-            setPodeAdmin(roleApi === 'socio' || roleApi === 'admin');
+            setPodeAdmin(podeAcessarAdminPortal(roleApi));
             setPodeGerenteAvaliador(roleApi === 'gerente' || roleApi === 'master');
             setPodeAvaliarEquipe(
               roleApi === 'gerente' ||

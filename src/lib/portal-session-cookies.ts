@@ -1,6 +1,7 @@
 import type { NextResponse } from 'next/server';
 
 import { normalizePortalRole } from '@/lib/roles';
+import { podeAcessarAdminPortal } from '@/lib/admin-access';
 
 import {
 
@@ -130,7 +131,7 @@ export function applyPortalSessionCookies(
 
 
 
-/** Sócios/admin/gerente/master: ao logar no portal, liberar Admin sem segunda senha. */
+/** Sócios/admin/gerente/master/RH: ao logar no portal, liberar Admin sem segunda senha. */
 
 export function applyAdminSessionCookie(
 
@@ -159,9 +160,7 @@ export function applyAdminSessionCookie(
 
 
 export function rolesComAcessoAdmin(role: string): boolean {
-
-  return role === 'socio' || role === 'admin' || role === 'master' || role === 'gerente';
-
+  return podeAcessarAdminPortal(role);
 }
 
 
