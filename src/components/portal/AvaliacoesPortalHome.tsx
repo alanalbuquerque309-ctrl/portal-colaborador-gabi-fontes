@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
-import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 
 function normalizarRole(raw: unknown): string {
@@ -12,18 +11,12 @@ function normalizarRole(raw: unknown): string {
   return t || 'colaborador';
 }
 
-function aplicarFlagsRole(
-  role: string,
-  setG: (v: boolean) => void,
-  setC: (v: boolean) => void,
-  setA: (v: boolean) => void
-) {
+function aplicarFlagsRole(role: string, setG: (v: boolean) => void, setC: (v: boolean) => void) {
   const isG = role === 'gerente' || role === 'master' || role === 'admin';
   const isA = role === 'admin' || role === 'socio';
   /** Colaborador explícito ou outro valor no banco: mostra atalho; a API restringe o conteúdo. */
   const isC = role === 'colaborador' || (!isG && !isA && role !== 'rh');
   setG(isG);
-  setA(isA);
   setC(isC);
 }
 
@@ -35,9 +28,7 @@ export function AvaliacoesPortalHome() {
   const [fase, setFase] = useState<'loading' | 'pronto'>('loading');
   const [mostrarGerente, setMostrarGerente] = useState(false);
   const [mostrarColaborador, setMostrarColaborador] = useState(false);
-  const [mostrarAdmin, setMostrarAdmin] = useState(false);
   const [mostrarMinhaLideranca, setMostrarMinhaLideranca] = useState(false);
-  const [mostrarRelatoriosSocio, setMostrarRelatoriosSocio] = useState(false);
   const [mostrarVisitaRh, setMostrarVisitaRh] = useState(false);
   const [alertaLiderancaSemanal, setAlertaLiderancaSemanal] = useState<string | null>(null);
   const [alertaGerenteSemanal, setAlertaGerenteSemanal] = useState<string | null>(null);
@@ -64,12 +55,11 @@ export function AvaliacoesPortalHome() {
         if (cancelado) return;
         if (data.ok && data.colaborador) {
           const nr = normalizarRole(data.colaborador.role);
-          aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador, setMostrarAdmin);
+          aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador);
           const podeEquipe =
             nr === 'gerente' || nr === 'master' || nr === 'admin' || data.pode_avaliacao_equipe === true;
           if (podeEquipe) setMostrarGerente(true);
           setMostrarMinhaLideranca(nr === 'gerente' || nr === 'master' || nr === 'admin');
-          setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
           setMostrarVisitaRh(data.pode_visita_rh === true);
           if (podeEquipe) {
             fetch(`/api/portal/avaliacao-master?data=${semanaAvaliacaoEquipePadraoISO()}`, { credentials: 'include', cache: 'no-store' })
@@ -115,9 +105,8 @@ export function AvaliacoesPortalHome() {
       const s = getPortalSession();
       if (s?.colaboradorId && s.colaboradorId !== 'pending') {
         const nr = normalizarRole(s.role);
-        aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador, setMostrarAdmin);
+        aplicarFlagsRole(nr, setMostrarGerente, setMostrarColaborador);
         setMostrarMinhaLideranca(nr === 'gerente' || nr === 'master' || nr === 'admin');
-        setMostrarRelatoriosSocio(podeVerRelatoriosAvaliacoesCompletos(nr));
       }
       finalizar();
     })();
@@ -138,14 +127,7 @@ export function AvaliacoesPortalHome() {
     );
   }
 
-  if (
-    !mostrarGerente &&
-    !mostrarColaborador &&
-    !mostrarAdmin &&
-    !mostrarRelatoriosSocio &&
-    !mostrarVisitaRh &&
-    !mostrarMinhaLideranca
-  ) {
+  if (!mostrarGerente && !mostrarColaborador && !mostrarVisitaRh && !mostrarMinhaLideranca) {
     return null;
   }
 
@@ -184,23 +166,6 @@ export function AvaliacoesPortalHome() {
           <div className="sm:col-span-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {alertaGerenteSemanal}
           </div>
-        )}
-        {mostrarRelatoriosSocio && (
-          <Link
-            href="/portal/relatorios-avaliacoes"
-            className="group rounded-2xl border-2 border-dourado-base/50 bg-gradient-to-br from-cream-50 to-white p-5 shadow-sm hover:border-dourado-base hover:shadow-md transition-all sm:col-span-2"
-          >
-            <p className="text-xs font-medium text-dourado-600 uppercase tracking-wider mb-2">Sócio</p>
-            <h3 className="font-display font-semibold text-cafeteria-900 text-lg group-hover:text-dourado-700">
-              Relatórios por filial
-            </h3>
-            <p className="text-sm text-cafeteria-600 mt-2">
-              Avaliações da equipe (semanais) e feedback sobre liderança, unidade a unidade, no mesmo lugar.
-            </p>
-            <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
-              Abrir visão completa →
-            </span>
-          </Link>
         )}
         {mostrarGerente && (
           <Link
@@ -286,23 +251,6 @@ export function AvaliacoesPortalHome() {
             </p>
             <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
               Abrir →
-            </span>
-          </Link>
-        )}
-        {mostrarAdmin && (
-          <Link
-            href="/admin/avaliacoes-diarias"
-            className="group rounded-2xl border-2 border-coffee-base/20 bg-cream-50 p-5 shadow-sm hover:border-dourado-base hover:shadow-md transition-all sm:col-span-2"
-          >
-            <p className="text-xs font-medium text-dourado-600 uppercase tracking-wider mb-2">Administrativo</p>
-            <h3 className="font-display font-semibold text-cafeteria-900 text-lg group-hover:text-dourado-700">
-              Relatório de avaliações semanais da equipe
-            </h3>
-            <p className="text-sm text-cafeteria-600 mt-2">
-              Visão consolidada no painel admin (período e unidade).
-            </p>
-            <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
-              Abrir no admin →
             </span>
           </Link>
         )}
