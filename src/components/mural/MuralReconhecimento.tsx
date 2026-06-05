@@ -3,78 +3,122 @@
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { MuralRankingUnidade } from '@/components/mural/MuralRankingUnidade';
-import { MuralRankingTrofeusPares } from '@/components/mural/MuralRankingTrofeusPares';
 import { AniversariantesReconhecimento } from '@/components/mural/AniversariantesReconhecimento';
 
-type Destaque = {
-  id: string;
-  titulo: string;
-  descricao: string;
-  colaborador_nome: string;
-  colaborador_foto: string | null;
-  unidade_nome?: string | null;
+type RankingAvaliacaoItem = {
+  posicao: number;
+  colaborador_id: string;
+  nome: string;
+  foto_url: string | null;
+  media: number;
+  semanas_avaliadas: number;
+  unidade_nome: string;
+  unidade_slug: string;
+  setor: string | null;
 };
 
-type TrofeuMural = {
-  id: string;
+type RankingPorUnidade = {
+  unidade_slug: string;
+  unidade_nome: string;
+  top: RankingAvaliacaoItem[];
+};
+
+type TrofeuRecebido = {
+  tipo: string;
+  titulo: string;
   emoji: string;
-  titulo: string;
-  destinatario_nome: string;
+  quantidade: number;
 };
 
-type RankingTrofeusPayload = {
-  grupo_rotulo: string;
-  mes_atual: { mes_referencia: string; top: Array<{
-    posicao: number;
-    colaborador_id: string;
-    nome: string;
-    foto_url: string | null;
-    total_trofeus: number;
-  }> };
-  mes_anterior: { mes_referencia: string; top: RankingTrofeusPayload['mes_atual']['top'] };
+type RankingTrofeuItem = {
+  posicao: number;
+  colaborador_id: string;
+  nome: string;
+  foto_url: string | null;
+  unidade_nome: string;
+  unidade_slug: string;
+  setor: string | null;
+  total_trofeus: number;
+  trofeus: TrofeuRecebido[];
 };
 
-type RankingUnidadePayload = {
-  grupo_rotulo: string;
-  mes_atual: { mes_referencia: string; top: Array<{
-    posicao: number;
-    colaborador_id: string;
-    nome: string;
-    foto_url: string | null;
-    media: number;
-    semanas_avaliadas: number;
-  }> };
-  mes_anterior: { mes_referencia: string; top: RankingUnidadePayload['mes_atual']['top'] };
-};
-
-async function fetchJsonSafe(url: string): Promise<Record<string, unknown> | null> {
-  try {
-    const res = await fetch(url, { credentials: 'include' });
-    const data = await res.json();
-    return data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
+function rotuloMes(mesRef: string): string {
+  const [y, m] = mesRef.split('-').map(Number);
+  if (!y || !m) return mesRef;
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
-function CardDestaque({ d, rotulo }: { d: Destaque; rotulo: string }) {
+function Avatar({ nome, foto }: { nome: string; foto: string | null }) {
+  if (foto) {
+    return (
+      <img src={foto} alt="" className="w-12 h-12 rounded-full object-cover border border-dourado-200 shrink-0" />
+    );
+  }
+  return (
+    <div className="w-12 h-12 rounded-full bg-dourado-100 flex items-center justify-center text-dourado-700 font-display text-lg shrink-0">
+      {nome?.charAt(0)?.toUpperCase() ?? '?'}
+    </div>
+  );
+}
+
+function MetaUnidadeSetor({ unidade, setor }: { unidade: string; setor: string | null }) {
+  const partes = [unidade, setor].filter(Boolean);
+  if (partes.length === 0) return null;
+  return <p className="text-xs text-coffee-100 mt-0.5">{partes.join(' · ')}</p>;
+}
+
+function CardRankingAvaliacao({ item }: { item: RankingAvaliacaoItem }) {
+  const medalhas = ['🥇', '🥈', '🥉'];
+  const emoji = medalhas[item.posicao - 1] ?? `${item.posicao}º`;
+
+  return (
+    <article className="rounded-xl border border-dourado-200 bg-white/90 p-4 flex items-center gap-3">
+      <span className="text-2xl shrink-0" aria-hidden>
+        {emoji}
+      </span>
+      <Avatar nome={item.nome} foto={item.foto_url} />
+      <div className="min-w-0 flex-1">
+        <h4 className="font-semibold text-coffee-base truncate">{item.nome}</h4>
+        <p className="text-sm font-medium text-dourado-700">Média {item.media.toFixed(2)}</p>
+        <MetaUnidadeSetor unidade={item.unidade_nome} setor={item.setor} />
+        <p className="text-xs text-coffee-100/80 mt-0.5">
+          {item.semanas_avaliadas} semana{item.semanas_avaliadas === 1 ? '' : 's'} avaliada
+          {item.semanas_avaliadas === 1 ? '' : 's'}
+        </p>
+      </div>
+    </article>
+  );
+}
+
+function LinhaRankingTrofeu({ item }: { item: RankingTrofeuItem }) {
   return (
     <article className="rounded-xl border border-dourado-200 bg-white/90 p-4">
-      <p className="text-xs font-medium text-dourado-600 uppercase tracking-wider mb-2">{rotulo}</p>
-      <div className="flex items-center gap-3">
-        {d.colaborador_foto ? (
-          <img src={d.colaborador_foto} alt="" className="w-14 h-14 rounded-full object-cover border border-dourado-200" />
-        ) : (
-          <div className="w-14 h-14 rounded-full bg-dourado-100 flex items-center justify-center text-dourado-700 font-display text-xl">
-            {d.colaborador_nome?.charAt(0)?.toUpperCase() ?? '?'}
-          </div>
-        )}
-        <div>
-          <h4 className="font-semibold text-coffee-base">{d.colaborador_nome}</h4>
-          <p className="text-xs text-dourado-700">{d.titulo}</p>
-          {d.descricao && <p className="text-xs text-coffee-100 mt-1">{d.descricao}</p>}
-          {d.unidade_nome && <p className="text-xs text-coffee-100/70 mt-0.5">{d.unidade_nome}</p>}
+      <div className="flex items-start gap-3">
+        <span className="text-sm font-bold text-dourado-700 w-8 shrink-0 pt-1">{item.posicao}º</span>
+        <Avatar nome={item.nome} foto={item.foto_url} />
+        <div className="min-w-0 flex-1">
+          <h4 className="font-semibold text-coffee-base">{item.nome}</h4>
+          <MetaUnidadeSetor unidade={item.unidade_nome} setor={item.setor} />
+          <p className="text-sm font-medium text-dourado-700 mt-1">
+            {item.total_trofeus} troféu{item.total_trofeus === 1 ? '' : 's'} no mês
+          </p>
+          {item.trofeus.length > 0 && (
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {item.trofeus.map((t) => (
+                <li
+                  key={`${item.colaborador_id}-${t.tipo}`}
+                  className="inline-flex items-center gap-1 rounded-lg bg-dourado-50 border border-dourado-200 px-2 py-1 text-xs text-coffee-base"
+                >
+                  <span aria-hidden>{t.emoji}</span>
+                  <span>
+                    {t.titulo}
+                    {t.quantidade > 1 ? ` ×${t.quantidade}` : ''}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </article>
@@ -85,14 +129,11 @@ type Props = { compacto?: boolean };
 
 export function MuralReconhecimento({ compacto = false }: Props) {
   const [loading, setLoading] = useState(true);
-  const [destaqueSemana, setDestaqueSemana] = useState<Destaque | null>(null);
-  const [destaquesSemanaUnidade, setDestaquesSemanaUnidade] = useState<Destaque[]>([]);
-  const [destaqueMes, setDestaqueMes] = useState<Destaque | null>(null);
-  const [destaquesMesUnidade, setDestaquesMesUnidade] = useState<Destaque[]>([]);
-  const [trofeus, setTrofeus] = useState<TrofeuMural[]>([]);
-  const [rankingUnidade, setRankingUnidade] = useState<RankingUnidadePayload | null>(null);
-  const [rankingTrofeus, setRankingTrofeus] = useState<RankingTrofeusPayload | null>(null);
-  const [meta, setMeta] = useState({ totalAvaliacoesSemana: 0, minMensal: 2, minSemanal: 1 });
+  const [mesRef, setMesRef] = useState('');
+  const [geralTop3, setGeralTop3] = useState<RankingAvaliacaoItem[]>([]);
+  const [porUnidade, setPorUnidade] = useState<RankingPorUnidade[]>([]);
+  const [trofeus, setTrofeus] = useState<RankingTrofeuItem[]>([]);
+  const [minSemanas, setMinSemanas] = useState(1);
 
   useEffect(() => {
     const session = getPortalSession();
@@ -101,42 +142,18 @@ export function MuralReconhecimento({ compacto = false }: Props) {
       return;
     }
 
-    void (async () => {
-      const [dest, trof] = await Promise.all([
-        fetchJsonSafe('/api/portal/destaque'),
-        fetchJsonSafe('/api/portal/trofeus-pares'),
-      ]);
-
-      if (dest?.ok === true) {
-        setDestaqueSemana((dest.destaque_semana_geral ?? null) as Destaque | null);
-        setDestaquesSemanaUnidade(
-          Array.isArray(dest.destaques_semana_unidade) ? (dest.destaques_semana_unidade as Destaque[]) : []
-        );
-        setDestaqueMes((dest.destaque_geral ?? dest.destaque ?? null) as Destaque | null);
-        setDestaquesMesUnidade(
-          Array.isArray(dest.destaques_unidade) ? (dest.destaques_unidade as Destaque[]) : []
-        );
-        setMeta({
-          totalAvaliacoesSemana: Number(dest.total_avaliacoes_semana ?? 0),
-          minMensal: Number(dest.min_semanas_ranking_mensal ?? 1),
-          minSemanal: Number(dest.min_semanas_ranking_semanal ?? 1),
-        });
-        const ru = dest.ranking_unidade as RankingUnidadePayload | undefined;
-        if (ru?.grupo_rotulo && ru.mes_atual && ru.mes_anterior) {
-          setRankingUnidade(ru);
-        }
-      }
-
-      if (trof?.ok === true && Array.isArray(trof.mural_unidade)) {
-        const lista = (trof.mural_unidade as TrofeuMural[]).filter((t) => t && t.id);
-        setTrofeus(lista.slice(0, compacto ? 5 : 20));
-      }
-      const rt = trof?.ranking_trofeus as RankingTrofeusPayload | undefined;
-      if (rt?.grupo_rotulo && rt.mes_atual && rt.mes_anterior) {
-        setRankingTrofeus(rt);
-      }
-    })().finally(() => setLoading(false));
-  }, [compacto]);
+    void fetch('/api/portal/destaque', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.ok !== true) return;
+        setMesRef(String(data.mes_referencia ?? ''));
+        setMinSemanas(Number(data.min_semanas_ranking_mensal ?? 1));
+        setGeralTop3(Array.isArray(data.ranking_geral_top3) ? data.ranking_geral_top3 : []);
+        setPorUnidade(Array.isArray(data.ranking_por_unidade) ? data.ranking_por_unidade : []);
+        setTrofeus(Array.isArray(data.ranking_trofeus) ? data.ranking_trofeus : []);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   if (loading) {
     return (
@@ -146,121 +163,72 @@ export function MuralReconhecimento({ compacto = false }: Props) {
     );
   }
 
-  const temRankingUnidade =
-    rankingUnidade &&
-    (rankingUnidade.mes_atual.top.length > 0 || rankingUnidade.mes_anterior.top.length > 0);
+  const temAvaliacoes = geralTop3.length > 0 || porUnidade.length > 0;
+  const temTrofeus = trofeus.length > 0;
+  const mesRotulo = mesRef ? rotuloMes(mesRef) : 'este mês';
 
-  const temRankingTrofeus =
-    rankingTrofeus &&
-    (rankingTrofeus.mes_atual.top.length > 0 || rankingTrofeus.mes_anterior.top.length > 0);
-
-  const temDestaque =
-    destaqueSemana ||
-    destaquesSemanaUnidade.length > 0 ||
-    destaqueMes ||
-    destaquesMesUnidade.length > 0 ||
-    trofeus.length > 0 ||
-    temRankingUnidade ||
-    temRankingTrofeus;
-
-  if (!temDestaque) {
+  if (!temAvaliacoes && !temTrofeus) {
     return (
       <div className="space-y-6">
-        <div className="rounded-xl border border-dourado-200 bg-cream-50 p-5 text-sm text-cafeteria-700 space-y-2">
-          <p>
-            Ainda não há destaques automáticos no mural. Eles aparecem quando a equipe recebe avaliações semanais
-            (destaque da semana com pelo menos {meta.minSemanal} registro) e, no mês, com pelo menos {meta.minMensal}{' '}
-            semanas por colaborador.
-          </p>
-          {meta.totalAvaliacoesSemana > 0 && (
-            <p className="text-cafeteria-600">
-              Esta semana já há {meta.totalAvaliacoesSemana} avaliação(ões) registrada(s).
-            </p>
-          )}
+        <div className="rounded-xl border border-dourado-200 bg-cream-50 p-5 text-sm text-cafeteria-700">
+          Ainda não há rankings no mural. Eles aparecem quando a equipe recebe avaliações semanais (mínimo de{' '}
+          {minSemanas} semana por colaborador no mês) ou troféus entre pares.
         </div>
-        {rankingTrofeus && (
-          <section>
-            <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Ranking troféus entre pares</h3>
-            <MuralRankingTrofeusPares
-              grupoRotulo={rankingTrofeus.grupo_rotulo}
-              mesAnterior={rankingTrofeus.mes_anterior}
-              mesAtual={rankingTrofeus.mes_atual}
-              compacto={compacto}
-            />
-          </section>
-        )}
         <AniversariantesReconhecimento />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {rankingUnidade && (
+    <div className="space-y-8">
+      {geralTop3.length > 0 && (
         <section>
-          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Melhores da unidade</h3>
-          <MuralRankingUnidade
-            grupoRotulo={rankingUnidade.grupo_rotulo}
-            mesAnterior={rankingUnidade.mes_anterior}
-            mesAtual={rankingUnidade.mes_atual}
-            compacto={compacto}
-          />
-        </section>
-      )}
-
-      {(destaqueSemana || destaquesSemanaUnidade.length > 0) && (
-        <section>
-          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Destaques da semana</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {destaqueSemana && <CardDestaque d={destaqueSemana} rotulo="Geral" />}
-            {destaquesSemanaUnidade.map((d) => (
-              <CardDestaque key={`ds-${d.id}`} d={d} rotulo={d.unidade_nome ?? 'Unidade'} />
+          <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">Top 3 da rede · {mesRotulo}</h3>
+          <p className="text-xs text-cafeteria-600 mb-3">
+            Melhores médias de avaliação da equipe em todas as unidades. Ranking do mês em andamento.
+          </p>
+          <div className="grid gap-3">
+            {geralTop3.map((item) => (
+              <CardRankingAvaliacao key={`geral-${item.colaborador_id}`} item={item} />
             ))}
           </div>
         </section>
       )}
 
-      {(destaqueMes || destaquesMesUnidade.length > 0) && (
-        <section>
-          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Destaques do mês</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {destaqueMes && <CardDestaque d={destaqueMes} rotulo="Geral" />}
-            {!compacto &&
-              destaquesMesUnidade.map((d) => (
-                <CardDestaque key={`dm-${d.id}`} d={d} rotulo={d.unidade_nome ?? 'Unidade'} />
-              ))}
+      {porUnidade.length > 0 && (
+        <section className="space-y-5">
+          <div>
+            <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">Top 3 por unidade · {mesRotulo}</h3>
+            <p className="text-xs text-cafeteria-600">
+              Melhores médias de cada loja/setor operacional, separados por unidade.
+            </p>
           </div>
+          {porUnidade.map((bloco) => (
+            <div key={bloco.unidade_slug}>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-dourado-700 mb-2">
+                {bloco.unidade_nome}
+              </h4>
+              <div className="grid gap-3">
+                {bloco.top.map((item) => (
+                  <CardRankingAvaliacao key={`${bloco.unidade_slug}-${item.colaborador_id}`} item={item} />
+                ))}
+              </div>
+            </div>
+          ))}
         </section>
       )}
 
-      {trofeus.length > 0 && (
+      {temTrofeus && (
         <section>
-          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Troféus entre pares (esta semana)</h3>
-          <ul className="space-y-2">
-            {trofeus.map((t, i) => (
-              <li
-                key={t.id || `trof-${i}`}
-                className="rounded-lg border border-dourado-200 bg-dourado-50/60 px-3 py-2 text-sm flex gap-2 items-start"
-              >
-                <span className="text-lg">{t.emoji}</span>
-                <span>
-                  <strong>{t.destinatario_nome}</strong> recebeu <strong>{t.titulo}</strong>
-                </span>
-              </li>
+          <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">Troféus entre pares · {mesRotulo}</h3>
+          <p className="text-xs text-cafeteria-600 mb-3">
+            Reconhecimentos enviados pelos colegas na semana. Lista completa do mês, ordenada por quantidade.
+          </p>
+          <div className="space-y-3">
+            {trofeus.map((item) => (
+              <LinhaRankingTrofeu key={`trof-${item.colaborador_id}`} item={item} />
             ))}
-          </ul>
-        </section>
-      )}
-
-      {rankingTrofeus && (
-        <section>
-          <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">Ranking troféus entre pares</h3>
-          <MuralRankingTrofeusPares
-            grupoRotulo={rankingTrofeus.grupo_rotulo}
-            mesAnterior={rankingTrofeus.mes_anterior}
-            mesAtual={rankingTrofeus.mes_atual}
-            compacto={compacto}
-          />
+          </div>
         </section>
       )}
 

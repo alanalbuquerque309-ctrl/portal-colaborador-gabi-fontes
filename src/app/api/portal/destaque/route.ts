@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { calcularDestaquesMural } from '@/lib/destaque-avaliacoes';
-import { calcularRankingsMuralDoColaborador } from '@/lib/mural-ranking-unidade';
-import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import {
+  calcularTop3GeralRede,
+  calcularTop3PorUnidadeRede,
+  mesAtualUTC,
+} from '@/lib/mural-ranking-unidade';
+import { calcularRankingTrofeusMesCompleto } from '@/lib/mural-ranking-trofeus-pares';
+import { AVALIACAO_RANKING_MIN_SEMANAS } from '@/lib/avaliacao-ranking';
 
 export const dynamic = 'force-dynamic';
 
-/** Destaque automático (semana + mês) e top 3 da unidade (mês anterior fixo + mês atual). */
+/** Rankings de avaliações (geral + por unidade) e troféus entre pares do mês. */
 export async function GET() {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
@@ -17,33 +21,25 @@ export async function GET() {
 
   try {
     const supabase = createAdminClient();
-    const semanaInicio = segundaSemanaSaoPaulo();
+    const atual = mesAtualUTC();
 
-    const { data: viewer, error: errViewer } = await supabase
-      .from('colaboradores')
-      .select('unidades(slug)')
-      .eq('id', colaboradorId)
-      .maybeSingle();
-
-    if (errViewer) {
-      return NextResponse.json({ ok: false, erro: errViewer.message }, { status: 500 });
-    }
-
-    const unidadeEmbed = viewer?.unidades as { slug?: string } | { slug?: string }[] | null | undefined;
-    const unidadeSlug = Array.isArray(unidadeEmbed)
-      ? unidadeEmbed[0]?.slug
-      : unidadeEmbed?.slug;
-
-    const [resultado, rankingUnidade] = await Promise.all([
-      calcularDestaquesMural(supabase, semanaInicio),
-      calcularRankingsMuralDoColaborador(supabase, unidadeSlug ? String(unidadeSlug) : null),
+    const [geral, porUnidade, trofeus] = await Promise.all([
+      calcularTop3GeralRede(supabase, { ano: atual.ano, mes: atual.mes }),
+      calcularTop3PorUnidadeRede(supabase, { ano: atual.ano, mes: atual.mes }),
+      calcularRankingTrofeusMesCompleto(supabase, { ano: atual.ano, mes: atual.mes }).catch(() => ({
+        mes_referencia: atual.mesRef,
+        ranking: [],
+      })),
     ]);
 
     return NextResponse.json(
       {
         ok: true,
-        ...resultado,
-        ranking_unidade: rankingUnidade,
+        mes_referencia: atual.mesRef,
+        min_semanas_ranking_mensal: AVALIACAO_RANKING_MIN_SEMANAS,
+        ranking_geral_top3: geral.top,
+        ranking_por_unidade: porUnidade.unidades,
+        ranking_trofeus: trofeus.ranking,
       },
       {
         headers: {

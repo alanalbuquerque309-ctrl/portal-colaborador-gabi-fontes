@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { PerguntaQuiz } from '@/content/onboarding-quizzes';
 
 const MSG_PRIMEIRO_ERRO = 'Resposta incorreta. Tente novamente.';
+const AVANCO_MS = 550;
 
 interface QuizOnboardingBlocoProps {
   perguntas: PerguntaQuiz[];
@@ -28,16 +29,38 @@ export function QuizOnboardingBloco({
   const [errosPorId, setErrosPorId] = useState<Record<string, number>>({});
   const [ultimoErroMsg, setUltimoErroMsg] = useState<string | null>(null);
   const [bloqueado, setBloqueado] = useState(false);
+  /** Destaque momentâneo da opção certa antes de avançar (evita “herdar” letra na próxima pergunta). */
+  const [opcaoCorretaPendente, setOpcaoCorretaPendente] = useState<string | null>(null);
+  const avancoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setRespostas({});
     setErrosPorId({});
     setUltimoErroMsg(null);
     setBloqueado(false);
+    setOpcaoCorretaPendente(null);
+    if (avancoTimerRef.current) {
+      clearTimeout(avancoTimerRef.current);
+      avancoTimerRef.current = null;
+    }
   }, [resetKey]);
+
+  useEffect(() => {
+    return () => {
+      if (avancoTimerRef.current) clearTimeout(avancoTimerRef.current);
+    };
+  }, []);
 
   const indiceAtual = perguntas.findIndex((p) => !respostas[p.id]);
   const perguntaAtual = indiceAtual >= 0 ? perguntas[indiceAtual] : null;
+
+  useEffect(() => {
+    setOpcaoCorretaPendente(null);
+    setUltimoErroMsg(null);
+    if (typeof document !== 'undefined') {
+      (document.activeElement as HTMLElement | null)?.blur?.();
+    }
+  }, [perguntaAtual?.id]);
 
   const todasCorretas =
     perguntas.length > 0 &&
@@ -47,14 +70,20 @@ export function QuizOnboardingBloco({
     });
 
   useEffect(() => {
-    onValidityChange(todasCorretas && !bloqueado);
-  }, [todasCorretas, bloqueado, onValidityChange]);
+    onValidityChange(todasCorretas && !bloqueado && !opcaoCorretaPendente);
+  }, [todasCorretas, bloqueado, opcaoCorretaPendente, onValidityChange]);
 
   const handleEscolha = async (perguntaId: string, opcaoId: string, correta: boolean) => {
-    if (bloqueado) return;
+    if (bloqueado || opcaoCorretaPendente) return;
     setUltimoErroMsg(null);
     if (correta) {
-      setRespostas((prev) => ({ ...prev, [perguntaId]: opcaoId }));
+      setOpcaoCorretaPendente(opcaoId);
+      if (avancoTimerRef.current) clearTimeout(avancoTimerRef.current);
+      avancoTimerRef.current = setTimeout(() => {
+        setRespostas((prev) => ({ ...prev, [perguntaId]: opcaoId }));
+        setOpcaoCorretaPendente(null);
+        avancoTimerRef.current = null;
+      }, AVANCO_MS);
       return;
     }
     const n = (errosPorId[perguntaId] || 0) + 1;
@@ -81,31 +110,49 @@ export function QuizOnboardingBloco({
     );
   }
 
+  const aguardandoAvanco = opcaoCorretaPendente !== null;
+  const numeroPergunta = indiceAtual >= 0 ? indiceAtual + 1 : perguntas.length;
+
   return (
     <div className="space-y-6">
       {perguntaAtual ? (
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-dourado-700">{perguntaAtual.tituloBloco}</p>
+        <div key={perguntaAtual.id} className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-dourado-700">
+              {perguntaAtual.tituloBloco}
+            </p>
+            <p className="text-xs font-medium text-coffee-100 tabular-nums">
+              Pergunta {numeroPergunta} de {perguntas.length}
+            </p>
+          </div>
           <h3 className="font-display font-semibold text-coffee-base text-lg leading-snug">
             {perguntaAtual.pergunta}
           </h3>
+          {aguardandoAvanco && (
+            <p className="text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              Resposta correta. Próxima pergunta em instantes…
+            </p>
+          )}
           <div className="flex flex-col gap-3">
-            {perguntaAtual.opcoes.map((opcao) => (
-              <button
-                key={opcao.id}
-                type="button"
-                disabled={bloqueado}
-                onClick={() => void handleEscolha(perguntaAtual.id, opcao.id, opcao.correta)}
-                className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm leading-relaxed ${
-                  respostas[perguntaAtual.id] === opcao.id
-                    ? 'border-dourado-base bg-dourado-50 text-coffee-base'
-                    : 'border-cream-300 bg-cream-100 text-coffee-base hover:border-dourado-200'
-                } ${bloqueado ? 'opacity-60 pointer-events-none' : ''}`}
-              >
-                <span className="font-semibold text-dourado-700 mr-2">{opcao.id.toUpperCase()})</span>
-                {opcao.texto}
-              </button>
-            ))}
+            {perguntaAtual.opcoes.map((opcao) => {
+              const selecionadaAgora = opcaoCorretaPendente === opcao.id;
+              return (
+                <button
+                  key={`${perguntaAtual.id}-${opcao.id}`}
+                  type="button"
+                  disabled={bloqueado || aguardandoAvanco}
+                  onClick={() => void handleEscolha(perguntaAtual.id, opcao.id, opcao.correta)}
+                  className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm leading-relaxed ${
+                    selecionadaAgora
+                      ? 'border-emerald-600 bg-emerald-50 text-coffee-base ring-2 ring-emerald-200'
+                      : 'border-cream-300 bg-cream-100 text-coffee-base hover:border-dourado-200'
+                  } ${bloqueado || aguardandoAvanco ? 'opacity-60 pointer-events-none' : ''}`}
+                >
+                  <span className="font-semibold text-dourado-700 mr-2">{opcao.id.toUpperCase()})</span>
+                  {opcao.texto}
+                </button>
+              );
+            })}
           </div>
         </div>
       ) : null}

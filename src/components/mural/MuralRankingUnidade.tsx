@@ -7,6 +7,9 @@ type RankingItem = {
   foto_url: string | null;
   media: number;
   semanas_avaliadas: number;
+  unidade_nome?: string;
+  unidade_slug?: string;
+  setor?: string | null;
 };
 
 function rotuloMes(mesRef: string): string {
@@ -53,6 +56,11 @@ function CardRanking({
         <p className="text-xs text-coffee-100">
           Média {item.media.toFixed(2)} · {item.semanas_avaliadas} semana(s) avaliada(s)
         </p>
+        {(item.unidade_nome || item.setor) && (
+          <p className="text-xs text-coffee-100/80 mt-0.5">
+            {[item.unidade_nome, item.setor].filter(Boolean).join(' · ')}
+          </p>
+        )}
       </div>
     </article>
   );

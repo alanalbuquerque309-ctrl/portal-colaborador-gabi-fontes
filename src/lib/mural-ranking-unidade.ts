@@ -16,6 +16,9 @@ export type RankingMuralItem = {
   foto_url: string | null;
   media: number;
   semanas_avaliadas: number;
+  unidade_nome: string;
+  unidade_slug: string;
+  setor: string | null;
 };
 
 function mesBoundsUTC(ano: number, mes: number): { ini: string; fim: string; mesRef: string } {
@@ -65,7 +68,7 @@ export async function calcularTop3GrupoMural(
 
   const { data: colaboradores, error: errCol } = await supabase
     .from('colaboradores')
-    .select('id, nome, foto_url, role')
+    .select('id, nome, foto_url, role, setor, unidade_id, unidades(nome, slug)')
     .in('unidade_id', unidadeIds)
     .eq('role', 'colaborador');
 
@@ -106,12 +109,16 @@ export async function calcularTop3GrupoMural(
 
   const scored = (colaboradores ?? []).map((c) => {
     const agg = mediaMensalColaborador(porId[String(c.id)] ?? []);
+    const unidade = Array.isArray(c.unidades) ? c.unidades[0] : c.unidades;
     return {
       id: String(c.id),
       nome: String(c.nome ?? ''),
       media: agg.media ?? 0,
       dias: agg.dias,
       foto_url: c.foto_url ? String(c.foto_url) : null,
+      setor: (c as { setor?: string | null }).setor ? String((c as { setor?: string | null }).setor) : null,
+      unidade_nome: unidade?.nome ? String(unidade.nome) : '',
+      unidade_slug: unidade?.slug ? String(unidade.slug) : '',
     };
   });
 
@@ -119,17 +126,22 @@ export async function calcularTop3GrupoMural(
     scored.map((s) => ({ id: s.id, nome: s.nome, media: s.media, dias: s.dias }))
   );
 
-  const fotoPorId = new Map(scored.map((s) => [s.id, s.foto_url]));
-  const diasPorId = new Map(scored.map((s) => [s.id, s.dias]));
+  const metaPorId = new Map(scored.map((s) => [s.id, s]));
 
-  const top: RankingMuralItem[] = topRaw.map((t, i) => ({
-    posicao: i + 1,
-    colaborador_id: t.id,
-    nome: t.nome,
-    foto_url: fotoPorId.get(t.id) ?? null,
-    media: t.media,
-    semanas_avaliadas: diasPorId.get(t.id) ?? 0,
-  }));
+  const top: RankingMuralItem[] = topRaw.map((t, i) => {
+    const meta = metaPorId.get(t.id);
+    return {
+      posicao: i + 1,
+      colaborador_id: t.id,
+      nome: t.nome,
+      foto_url: meta?.foto_url ?? null,
+      media: t.media,
+      semanas_avaliadas: meta?.dias ?? 0,
+      unidade_nome: meta?.unidade_nome ?? '',
+      unidade_slug: meta?.unidade_slug ?? '',
+      setor: meta?.setor ?? null,
+    };
+  });
 
   return { mes_referencia: mesRef, top };
 }
@@ -159,5 +171,60 @@ export async function calcularRankingsMuralDoColaborador(
     grupo_rotulo: rotuloGrupoMural(unidadeSlug),
     mes_atual: mesAtual,
     mes_anterior: mesAnterior,
+  };
+}
+
+async function listarUnidadesAtivas(
+  supabase: SupabaseClient
+): Promise<Array<{ id: string; slug: string; nome: string }>> {
+  const { data, error } = await supabase.from('unidades').select('id, slug, nome').order('nome');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((u) => ({
+    id: String(u.id),
+    slug: String(u.slug ?? ''),
+    nome: String(u.nome ?? ''),
+  }));
+}
+
+/** Top 3 da rede inteira (média mensal das avaliações semanais). */
+export async function calcularTop3GeralRede(
+  supabase: SupabaseClient,
+  opts: { ano: number; mes: number }
+): Promise<{ mes_referencia: string; top: RankingMuralItem[] }> {
+  const unidades = await listarUnidadesAtivas(supabase);
+  const slugs = unidades.map((u) => u.slug).filter(Boolean);
+  return calcularTop3GrupoMural(supabase, { unidadeSlugs: slugs, ano: opts.ano, mes: opts.mes });
+}
+
+export type RankingPorUnidadeBloco = {
+  unidade_slug: string;
+  unidade_nome: string;
+  top: RankingMuralItem[];
+};
+
+/** Top 3 de cada unidade separadamente (mesma regra de média mensal). */
+export async function calcularTop3PorUnidadeRede(
+  supabase: SupabaseClient,
+  opts: { ano: number; mes: number }
+): Promise<{ mes_referencia: string; unidades: RankingPorUnidadeBloco[] }> {
+  const unidades = await listarUnidadesAtivas(supabase);
+  const blocos = await Promise.all(
+    unidades.map(async (u) => {
+      const { top } = await calcularTop3GrupoMural(supabase, {
+        unidadeSlugs: [u.slug],
+        ano: opts.ano,
+        mes: opts.mes,
+      });
+      return {
+        unidade_slug: u.slug,
+        unidade_nome: u.nome,
+        top,
+      };
+    })
+  );
+  const mesRef = mesBoundsUTC(opts.ano, opts.mes).mesRef;
+  return {
+    mes_referencia: mesRef,
+    unidades: blocos.filter((b) => b.top.length > 0),
   };
 }

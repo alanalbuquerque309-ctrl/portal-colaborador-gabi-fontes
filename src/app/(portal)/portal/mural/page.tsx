@@ -8,8 +8,7 @@ export default function MuralPage() {
       <section>
         <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-3">Reconhecimento automático</h2>
         <p className="text-sm text-cafeteria-600 mb-4">
-          Top 3 da sua unidade (mês anterior fixo e mês atual em evolução), destaques semanais e troféus entre pares.
-          Em Mesquita entram também Fábricas e Administrativo.
+          Top 3 da rede, top 3 de cada unidade (média mensal das avaliações) e ranking completo de troféus entre pares.
         </p>
         <MuralReconhecimento />
       </section>

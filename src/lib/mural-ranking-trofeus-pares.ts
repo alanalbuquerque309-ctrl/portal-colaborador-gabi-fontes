@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { topTresComEmpateNoTerceiro, type ScoreMensal } from '@/lib/avaliacao-ranking';
 import { mesAnteriorUTC, mesAtualUTC } from '@/lib/mural-ranking-unidade';
 import { rotuloGrupoMural, slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
+import { metaTrofeuPar } from '@/lib/trofeus-pares';
 
 export type RankingTrofeuItem = {
   posicao: number;
@@ -124,4 +125,110 @@ export async function calcularRankingsTrofeusMuralDoColaborador(
     mes_atual: mesAtual,
     mes_anterior: mesAnterior,
   };
+}
+
+export type TrofeuRecebidoResumo = {
+  tipo: string;
+  titulo: string;
+  emoji: string;
+  quantidade: number;
+};
+
+export type RankingTrofeuDetalheItem = {
+  posicao: number;
+  colaborador_id: string;
+  nome: string;
+  foto_url: string | null;
+  unidade_nome: string;
+  unidade_slug: string;
+  setor: string | null;
+  total_trofeus: number;
+  trofeus: TrofeuRecebidoResumo[];
+};
+
+/** Ranking completo de troféus entre pares no mês (rede inteira, todos os premiados). */
+export async function calcularRankingTrofeusMesCompleto(
+  supabase: SupabaseClient,
+  opts: { ano: number; mes: number }
+): Promise<{ mes_referencia: string; ranking: RankingTrofeuDetalheItem[] }> {
+  const { ini, fim, mesRef } = mesBoundsUTC(opts.ano, opts.mes);
+
+  const { data: trofeus, error: errTrof } = await supabase
+    .from('trofeus_entre_pares')
+    .select('destinatario_id, tipo')
+    .gte('semana_inicio', ini)
+    .lte('semana_inicio', fim)
+    .limit(8000);
+
+  if (errTrof) throw new Error(errTrof.message);
+
+  const totalPorId = new Map<string, number>();
+  const tiposPorId = new Map<string, Map<string, number>>();
+
+  for (const row of trofeus ?? []) {
+    const id = String(row.destinatario_id ?? '');
+    const tipo = String(row.tipo ?? '');
+    if (!id) continue;
+    totalPorId.set(id, (totalPorId.get(id) ?? 0) + 1);
+    const porTipo = tiposPorId.get(id) ?? new Map<string, number>();
+    porTipo.set(tipo, (porTipo.get(tipo) ?? 0) + 1);
+    tiposPorId.set(id, porTipo);
+  }
+
+  if (totalPorId.size === 0) {
+    return { mes_referencia: mesRef, ranking: [] };
+  }
+
+  const ids = Array.from(totalPorId.keys());
+  const { data: colaboradores, error: errCol } = await supabase
+    .from('colaboradores')
+    .select('id, nome, foto_url, setor, unidades(nome, slug)')
+    .in('id', ids);
+
+  if (errCol) throw new Error(errCol.message);
+
+  const scored = (colaboradores ?? [])
+    .map((c) => {
+      const cid = String(c.id);
+      const unidade = Array.isArray(c.unidades) ? c.unidades[0] : c.unidades;
+      const porTipo = tiposPorId.get(cid) ?? new Map<string, number>();
+      const trofeusLista: TrofeuRecebidoResumo[] = Array.from(porTipo.entries())
+        .map(([tipo, quantidade]) => {
+          const meta = metaTrofeuPar(tipo);
+          return {
+            tipo,
+            titulo: meta?.titulo ?? tipo,
+            emoji: meta?.emoji ?? '🏅',
+            quantidade,
+          };
+        })
+        .sort((a, b) => b.quantidade - a.quantidade || a.titulo.localeCompare(b.titulo, 'pt-BR'));
+
+      return {
+        id: cid,
+        nome: String(c.nome ?? ''),
+        foto_url: c.foto_url ? String(c.foto_url) : null,
+        setor: (c as { setor?: string | null }).setor ? String((c as { setor?: string | null }).setor) : null,
+        unidade_nome: unidade?.nome ? String(unidade.nome) : '',
+        unidade_slug: unidade?.slug ? String(unidade.slug) : '',
+        total: totalPorId.get(cid) ?? 0,
+        trofeus: trofeusLista,
+      };
+    })
+    .filter((s) => s.total > 0)
+    .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  const ranking: RankingTrofeuDetalheItem[] = scored.map((s, i) => ({
+    posicao: i + 1,
+    colaborador_id: s.id,
+    nome: s.nome,
+    foto_url: s.foto_url,
+    unidade_nome: s.unidade_nome,
+    unidade_slug: s.unidade_slug,
+    setor: s.setor,
+    total_trofeus: s.total,
+    trofeus: s.trofeus,
+  }));
+
+  return { mes_referencia: mesRef, ranking };
 }
