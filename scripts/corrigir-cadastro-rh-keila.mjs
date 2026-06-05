@@ -1,4 +1,4 @@
-/** Ajusta Keila para setor RH (aparece na equipe do Daniel). */
+/** Ajusta Keila (RH) para role rh e setor RH — acesso admin limitado no portal. */
 import { readFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -15,10 +15,22 @@ for (const f of ['.env.local', '.env']) {
 }
 const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
+const { data: candidatos, error: errList } = await sb
+  .from('colaboradores')
+  .select('id, nome, setor, role')
+  .ilike('nome', '%keila%');
+
+if (errList) throw errList;
+if (!candidatos?.length) {
+  console.error('Nenhuma colaboradora Keila encontrada.');
+  process.exit(1);
+}
+
+const alvo = candidatos.find((c) => /keila/i.test(c.nome ?? '')) ?? candidatos[0];
 const { data, error } = await sb
   .from('colaboradores')
   .update({ setor: 'RH', role: 'rh' })
-  .ilike('nome', '%Keila Campos%')
+  .eq('id', alvo.id)
   .select('id, nome, setor, role');
 
 if (error) throw error;

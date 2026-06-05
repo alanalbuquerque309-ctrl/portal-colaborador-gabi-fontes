@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getPortalSession, clearPortalSession } from '@/lib/utils/session';
+import { getPortalSession, clearPortalSession, setPortalSession } from '@/lib/utils/session';
 import { manualPorSetor } from '@/lib/manual-por-setor';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 import {
@@ -11,6 +11,7 @@ import {
   canVisualizarAjuda,
   normalizePortalRole,
 } from '@/lib/roles';
+import { isRoleAdminCompleto, isRoleAdminRh } from '@/lib/admin-access';
 
 type NavItem = {
   href: string;
@@ -116,19 +117,49 @@ export function Header() {
   const [perfilRole, setPerfilRole] = useState('colaborador');
 
   useEffect(() => {
-    const s = getPortalSession();
-    const r = normalizePortalRole(s?.role);
-    const cid = s?.colaboradorId;
-    setPerfilRole(r);
-    setPodeAdmin(r === 'socio' || r === 'admin');
-    setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
-    setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
-    setPodeVerMinhaLideranca(r === 'gerente' || r === 'master' || r === 'admin');
-    setPodeVerDesempenho(r === 'colaborador');
-    setPodeAvaliarLideranca(r === 'colaborador' || r === 'admin' || r === 'rh');
-    setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(r));
-    setPodeResponderAjuda(canResponderAjudaFinal(cid, r));
-    setPodeVisualizarAjuda(canVisualizarAjuda(r, cid));
+    let cancelled = false;
+
+    const aplicarRole = (r: string, cid?: string, unidadeId?: string) => {
+      setPerfilRole(r);
+      setPodeAdmin(isRoleAdminCompleto(r) || isRoleAdminRh(r));
+      setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
+      setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
+      setPodeVerMinhaLideranca(r === 'gerente' || r === 'master' || r === 'admin');
+      setPodeVerDesempenho(r === 'colaborador');
+      setPodeAvaliarLideranca(r === 'colaborador' || r === 'admin' || r === 'rh');
+      setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(r));
+      setPodeResponderAjuda(canResponderAjudaFinal(cid, r));
+      setPodeVisualizarAjuda(canVisualizarAjuda(r, cid));
+    };
+
+    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
+      .then((res) => res.json())
+      .then((d: { ok?: boolean; colaborador?: { role?: string; id?: string; unidade_id?: string } }) => {
+        if (cancelled) return;
+        if (d?.ok && d.colaborador) {
+          const r = normalizePortalRole(d.colaborador.role);
+          const cid = d.colaborador.id;
+          const uid = d.colaborador.unidade_id;
+          if (cid && uid) {
+            setPortalSession(String(cid), String(uid), r);
+          }
+          aplicarRole(r, cid, uid);
+          return;
+        }
+        const s = getPortalSession();
+        const r = normalizePortalRole(s?.role);
+        aplicarRole(r, s?.colaboradorId, s?.unidadeId);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        const s = getPortalSession();
+        const r = normalizePortalRole(s?.role);
+        aplicarRole(r, s?.colaboradorId, s?.unidadeId);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   /** Contador no link Inbox ajuda: some sozinho quando a API já não tem pendentes (respondidos saem da lista). */
