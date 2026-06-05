@@ -56,6 +56,12 @@ export default function AvaliacaoRhVisitaPage() {
     if (autorizado === false) router.replace('/portal');
   }, [autorizado, router]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('pendentes') === '1') setFiltroPendentes(true);
+  }, []);
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);

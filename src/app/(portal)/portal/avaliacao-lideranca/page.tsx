@@ -49,6 +49,14 @@ export default function AvaliacaoLiderancaPage() {
   const [filtroPendentes, setFiltroPendentes] = useState(false);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('pendentes') === '1') setFiltroPendentes(true);
+    const abaParam = params.get('aba');
+    if (abaParam === 'pares' || abaParam === 'lideranca') setAba(abaParam);
+  }, []);
+
+  useEffect(() => {
     const s = getPortalSession();
     if (!s?.colaboradorId || s.colaboradorId === 'pending') {
       router.replace('/login');

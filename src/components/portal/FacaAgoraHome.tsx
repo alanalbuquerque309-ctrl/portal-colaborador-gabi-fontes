@@ -12,12 +12,23 @@ type Tarefa = {
   detalhe: string;
   href: string;
   urgente?: boolean;
+  acaoLabel?: string;
 };
 
 function normalizarRole(raw: unknown): string {
   if (typeof raw !== 'string') return 'colaborador';
   const t = raw.trim().toLowerCase();
   return t || 'colaborador';
+}
+
+function formatarNomes(nomes: string[], max = 3): string {
+  if (nomes.length === 0) return '';
+  if (nomes.length === 1) return nomes[0];
+  if (nomes.length === 2) return `${nomes[0]} e ${nomes[1]}`;
+  if (nomes.length <= max) {
+    return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
+  }
+  return `${nomes.slice(0, max).join(', ')} e mais ${nomes.length - max}`;
 }
 
 export function FacaAgoraHome() {
@@ -27,6 +38,7 @@ export function FacaAgoraHome() {
   useEffect(() => {
     let cancelado = false;
     const lembreteLider = lembreteAvaliacaoSemanaPassada();
+    const semanaRef = semanaAvaliacaoEquipePadraoISO();
 
     const montar = async () => {
       const lista: Tarefa[] = [];
@@ -62,6 +74,7 @@ export function FacaAgoraHome() {
               detalhe: 'Primeiro passo do dia — resposta anônima no resumo.',
               href: '#termometro-emocoes',
               urgente: true,
+              acaoLabel: 'Responder agora →',
             });
           }
 
@@ -69,24 +82,42 @@ export function FacaAgoraHome() {
             .then((r) => r.json())
             .catch(() => null);
           if (!cancelado && lid?.ok) {
-            const pendentes = Number(lid.pendentes_no_ultimo_dia ?? lid.pendentes ?? 0);
-            if (pendentes > 0 || lid.alerta_ultimo_dia === true) {
+            const avaliados = Array.isArray(lid.avaliados) ? lid.avaliados : [];
+            const lideresPendentes = avaliados.filter(
+              (a: { ja_avaliado_esta_semana?: boolean }) => a.ja_avaliado_esta_semana !== true
+            );
+            if (lideresPendentes.length > 0) {
+              const nomes = lideresPendentes.map((a: { nome?: string }) => a.nome ?? 'Líder').filter(Boolean);
               lista.push({
                 id: 'lideranca',
                 titulo: 'Avaliar liderança',
-                detalhe:
-                  pendentes > 0
-                    ? `${pendentes} avaliação${pendentes === 1 ? '' : 'ões'} pendente${pendentes === 1 ? '' : 's'}.`
-                    : 'Feedback sobre seus líderes nesta semana.',
-                href: '/portal/avaliacao-lideranca',
+                detalhe: `Falta${lideresPendentes.length === 1 ? '' : 'm'} avaliar: ${formatarNomes(nomes)}.`,
+                href: '/portal/avaliacao-lideranca?aba=lideranca&pendentes=1',
                 urgente: lid.alerta_ultimo_dia === true,
+                acaoLabel: 'Clique para ver →',
+              });
+            }
+          }
+
+          const trof = await fetch('/api/portal/trofeus-pares', { credentials: 'include', cache: 'no-store' })
+            .then((r) => r.json())
+            .catch(() => null);
+          if (!cancelado && trof?.ok) {
+            const creditos = Number(trof.creditos_restantes ?? 0);
+            if (creditos > 0) {
+              lista.push({
+                id: 'trofeus',
+                titulo: 'Enviar troféus entre pares',
+                detalhe: `Você ainda pode dar ${creditos} troféu${creditos === 1 ? '' : 's'} esta semana (Postura, Braço Direito, Eficiência).`,
+                href: '/portal/avaliacao-lideranca?aba=pares',
+                acaoLabel: 'Clique para ver →',
               });
             }
           }
         }
 
         if (podeEquipe && !isAdm) {
-          const d2 = await fetch(`/api/portal/avaliacao-master?data=${semanaAvaliacaoEquipePadraoISO()}`, {
+          const d2 = await fetch(`/api/portal/avaliacao-master?data=${semanaRef}`, {
             credentials: 'include',
             cache: 'no-store',
           })
@@ -95,26 +126,58 @@ export function FacaAgoraHome() {
 
           if (!cancelado && d2?.ok && Array.isArray(d2.equipe)) {
             const total = d2.equipe.length;
-            const pendentes = d2.equipe.filter((m: { avaliacao?: unknown }) => m.avaliacao == null).length;
+            const pendentesMembros = d2.equipe.filter((m: { avaliacao?: unknown }) => m.avaliacao == null);
+            const pendentes = pendentesMembros.length;
             if (total > 0 && pendentes > 0) {
+              const nomesPreview = pendentesMembros
+                .map((m: { nome?: string }) => m.nome ?? '')
+                .filter(Boolean)
+                .slice(0, 3);
+              const preview =
+                nomesPreview.length > 0
+                  ? ` Pendente${pendentes === 1 ? '' : 's'}: ${formatarNomes(nomesPreview, 3)}${pendentes > nomesPreview.length ? ` (+${pendentes - nomesPreview.length})` : ''}.`
+                  : '';
               lista.push({
                 id: 'equipe',
                 titulo: lembreteLider.titulo,
-                detalhe: `Faltam ${pendentes} de ${total} colaborador${total === 1 ? '' : 'es'} para concluir.`,
-                href: '/portal/avaliacao-master',
+                detalhe: `${pendentes} de ${total} avaliação${total === 1 ? '' : 'ões'} da equipe ainda não feita${pendentes === 1 ? '' : 's'}.${preview}`,
+                href: '/portal/avaliacao-master?pendentes=1',
                 urgente: true,
+                acaoLabel: 'Clique para ver →',
               });
             }
           }
         }
 
         if (data.pode_visita_rh === true) {
-          lista.push({
-            id: 'visita-rh',
-            titulo: 'Visita RH',
-            detalhe: 'Avaliação complementar na rede (quando aplicável).',
-            href: '/portal/avaliacao-rh-visita',
-          });
+          const rh = await fetch(`/api/portal/avaliacao-rh-visita?data=${semanaRef}`, {
+            credentials: 'include',
+            cache: 'no-store',
+          })
+            .then((r) => r.json())
+            .catch(() => null);
+
+          if (!cancelado && rh?.ok && Array.isArray(rh.equipe)) {
+            const pendentesMembros = rh.equipe.filter((m: { avaliacao?: unknown }) => m.avaliacao == null);
+            const pendentes = pendentesMembros.length;
+            if (pendentes > 0) {
+              const nomesPreview = pendentesMembros
+                .map((m: { nome?: string }) => m.nome ?? '')
+                .filter(Boolean)
+                .slice(0, 3);
+              const preview =
+                nomesPreview.length > 0
+                  ? ` Ex.: ${formatarNomes(nomesPreview, 3)}${pendentes > nomesPreview.length ? ` e mais ${pendentes - nomesPreview.length}` : ''}.`
+                  : '';
+              lista.push({
+                id: 'visita-rh',
+                titulo: 'Visita RH',
+                detalhe: `${pendentes} visita${pendentes === 1 ? '' : 's'} RH pendente${pendentes === 1 ? '' : 's'} na rede.${preview}`,
+                href: '/portal/avaliacao-rh-visita?pendentes=1',
+                acaoLabel: 'Clique para ver →',
+              });
+            }
+          }
         }
 
         if (podeVerRelatoriosAvaliacoesCompletos(nr)) {
@@ -128,6 +191,7 @@ export function FacaAgoraHome() {
               detalhe: 'Avaliações da semana ainda não concluídas — ver no Admin.',
               href: '/admin/avaliacoes-diarias',
               urgente: pend.resumo?.criticos > 0,
+              acaoLabel: 'Clique para ver →',
             });
           }
         }
@@ -138,15 +202,6 @@ export function FacaAgoraHome() {
             titulo: 'Painel Admin',
             detalhe: 'Avaliações, avisos, colaboradores e relatórios.',
             href: '/admin/dashboard',
-          });
-        }
-
-        if (nr === 'gerente' || nr === 'master') {
-          lista.push({
-            id: 'minha-lideranca',
-            titulo: 'Minha avaliação de liderança',
-            detalhe: 'Veja sua média e feedback de melhoria.',
-            href: '/portal/minha-lideranca',
           });
         }
       } catch {
@@ -167,7 +222,7 @@ export function FacaAgoraHome() {
       }
 
       if (!cancelado) {
-        setTarefas(lista.slice(0, 4));
+        setTarefas(lista.slice(0, 6));
         setFase('pronto');
       }
     };
@@ -210,7 +265,9 @@ export function FacaAgoraHome() {
             >
               <p className="text-base font-semibold text-cafeteria-900">{t.titulo}</p>
               <p className="text-sm text-cafeteria-600 mt-0.5">{t.detalhe}</p>
-              <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir →</span>
+              <span className="inline-block mt-2 text-sm font-medium text-dourado-base">
+                {t.acaoLabel ?? 'Abrir →'}
+              </span>
             </Link>
           </li>
         ))}
