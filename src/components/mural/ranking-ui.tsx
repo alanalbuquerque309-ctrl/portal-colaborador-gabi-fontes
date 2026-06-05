@@ -60,7 +60,7 @@ function Avatar({ nome, foto }: { nome: string; foto: string | null }) {
 function MetaUnidadeSetor({ unidade, setor }: { unidade: string; setor: string | null }) {
   const partes = [unidade, setor].filter(Boolean);
   if (partes.length === 0) return null;
-  return <p className="text-xs text-coffee-100 mt-0.5">{partes.join(' · ')}</p>;
+  return <p className="text-sm text-cafeteria-600 mt-0.5 leading-snug break-words">{partes.join(' · ')}</p>;
 }
 
 export function CardRankingAvaliacao({
@@ -74,22 +74,24 @@ export function CardRankingAvaliacao({
   const emoji = medalhas[item.posicao - 1] ?? `${item.posicao}º`;
 
   return (
-    <article className="rounded-xl border border-dourado-200 bg-white/90 p-4 flex items-center gap-3">
-      <span className="text-2xl shrink-0" aria-hidden>
-        {emoji}
-      </span>
-      <Avatar nome={item.nome} foto={item.foto_url} />
-      <div className="min-w-0 flex-1">
-        <h4 className="font-semibold text-coffee-base truncate">{item.nome}</h4>
-        <p className="text-sm font-medium text-dourado-700">
-          {modo === 'semanal' ? `Nota ${item.media.toFixed(2)}` : `Média ${item.media.toFixed(2)}`}
-        </p>
-        <MetaUnidadeSetor unidade={item.unidade_nome} setor={item.setor} />
-        {modo === 'mensal' && (
-          <p className="text-xs text-coffee-100/80 mt-0.5">
-            {item.semanas_avaliadas} semana{item.semanas_avaliadas === 1 ? '' : 's'} no mês
+    <article className="rounded-xl border border-dourado-200 bg-white/90 p-4">
+      <div className="flex items-start gap-3">
+        <span className="text-2xl shrink-0 leading-none pt-1" aria-hidden>
+          {emoji}
+        </span>
+        <Avatar nome={item.nome} foto={item.foto_url} />
+        <div className="min-w-0 flex-1">
+          <h4 className="font-semibold text-coffee-base text-base leading-snug break-words">{item.nome}</h4>
+          <p className="text-base font-medium text-dourado-700 mt-0.5">
+            {modo === 'semanal' ? `Nota ${item.media.toFixed(2)}` : `Média ${item.media.toFixed(2)}`}
           </p>
-        )}
+          <MetaUnidadeSetor unidade={item.unidade_nome} setor={item.setor} />
+          {modo === 'mensal' && (
+            <p className="text-sm text-cafeteria-600 mt-0.5">
+              {item.semanas_avaliadas} semana{item.semanas_avaliadas === 1 ? '' : 's'} no mês
+            </p>
+          )}
+        </div>
       </div>
     </article>
   );
@@ -108,9 +110,9 @@ export function LinhaRankingTrofeu({
         <span className="text-sm font-bold text-dourado-700 w-8 shrink-0 pt-1">{item.posicao}º</span>
         <Avatar nome={item.nome} foto={item.foto_url} />
         <div className="min-w-0 flex-1">
-          <h4 className="font-semibold text-coffee-base">{item.nome}</h4>
+          <h4 className="font-semibold text-coffee-base text-base leading-snug break-words">{item.nome}</h4>
           <MetaUnidadeSetor unidade={item.unidade_nome} setor={item.setor} />
-          <p className="text-sm font-medium text-dourado-700 mt-1">
+          <p className="text-base font-medium text-dourado-700 mt-1">
             {item.total_trofeus} troféu{item.total_trofeus === 1 ? '' : 's'}{' '}
             {periodo === 'semanal' ? 'nesta semana' : 'no mês'}
           </p>
@@ -119,7 +121,7 @@ export function LinhaRankingTrofeu({
               {item.trofeus.map((t) => (
                 <li
                   key={`${item.colaborador_id}-${t.tipo}`}
-                  className="inline-flex items-center gap-1 rounded-lg bg-dourado-50 border border-dourado-200 px-2 py-1 text-xs text-coffee-base"
+                  className="inline-flex items-center gap-1 rounded-lg bg-dourado-50 border border-dourado-200 px-2.5 py-1 text-sm text-coffee-base"
                 >
                   <span aria-hidden>{t.emoji}</span>
                   <span>
@@ -150,8 +152,8 @@ export function BlocoTop3Geral({
   if (itens.length === 0) return null;
   return (
     <section>
-      <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
-      <p className="text-xs text-cafeteria-600 mb-3">{subtitulo}</p>
+      <h3 className="text-base font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
+      <p className="text-sm text-cafeteria-600 mb-3 leading-relaxed">{subtitulo}</p>
       <div className="grid gap-3">
         {itens.map((item) => (
           <CardRankingAvaliacao key={`geral-${item.colaborador_id}`} item={item} modo={modo} />
@@ -176,12 +178,12 @@ export function BlocoTop3PorUnidade({
   return (
     <section className="space-y-5">
       <div>
-        <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
-        <p className="text-xs text-cafeteria-600">{subtitulo}</p>
+        <h3 className="text-base font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
+        <p className="text-sm text-cafeteria-600 leading-relaxed">{subtitulo}</p>
       </div>
       {blocos.map((bloco) => (
         <div key={bloco.unidade_slug}>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-dourado-700 mb-2">
+          <h4 className="text-sm font-semibold uppercase tracking-wide text-dourado-700 mb-2">
             {bloco.unidade_nome}
           </h4>
           <div className="grid gap-3">
@@ -213,8 +215,8 @@ export function BlocoRankingTrofeus({
   if (itens.length === 0) return null;
   return (
     <section>
-      <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
-      <p className="text-xs text-cafeteria-600 mb-3">{subtitulo}</p>
+      <h3 className="text-base font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
+      <p className="text-sm text-cafeteria-600 mb-3 leading-relaxed">{subtitulo}</p>
       <div className="space-y-3">
         {itens.map((item) => (
           <LinhaRankingTrofeu key={`trof-${item.colaborador_id}`} item={item} periodo={periodo} />

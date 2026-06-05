@@ -21,30 +21,32 @@ function CardRanking({ item, destaqueFixo }: { item: RankingItem; destaqueFixo?:
 
   return (
     <article
-      className={`rounded-xl border p-4 flex items-center gap-3 ${
+      className={`rounded-xl border p-4 ${
         destaqueFixo ? 'border-dourado-300 bg-dourado-50/80' : 'border-dourado-200 bg-white/90'
       }`}
     >
-      <span className="text-2xl shrink-0" aria-hidden>
-        {emoji}
-      </span>
-      {item.foto_url ? (
-        <img
-          src={item.foto_url}
-          alt=""
-          className="w-12 h-12 rounded-full object-cover border border-dourado-200"
-        />
-      ) : (
-        <div className="w-12 h-12 rounded-full bg-dourado-100 flex items-center justify-center text-dourado-700 font-display text-lg shrink-0">
-          {item.nome?.charAt(0)?.toUpperCase() ?? '?'}
+      <div className="flex items-start gap-3">
+        <span className="text-2xl shrink-0 leading-none pt-1" aria-hidden>
+          {emoji}
+        </span>
+        {item.foto_url ? (
+          <img
+            src={item.foto_url}
+            alt=""
+            className="w-12 h-12 rounded-full object-cover border border-dourado-200 shrink-0"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-dourado-100 flex items-center justify-center text-dourado-700 font-display text-lg shrink-0">
+            {item.nome?.charAt(0)?.toUpperCase() ?? '?'}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <h4 className="font-semibold text-coffee-base text-base leading-snug break-words">{item.nome}</h4>
+          <p className="text-base font-medium text-dourado-700 mt-0.5">
+            {item.total_trofeus} troféu{item.total_trofeus === 1 ? '' : 's'} recebido
+            {item.total_trofeus === 1 ? '' : 's'}
+          </p>
         </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <h4 className="font-semibold text-coffee-base truncate">{item.nome}</h4>
-        <p className="text-xs text-coffee-100">
-          {item.total_trofeus} troféu{item.total_trofeus === 1 ? '' : 's'} recebido
-          {item.total_trofeus === 1 ? '' : 's'}
-        </p>
       </div>
     </article>
   );

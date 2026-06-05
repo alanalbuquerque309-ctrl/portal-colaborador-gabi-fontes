@@ -93,8 +93,8 @@ export function AniversariantesReconhecimento() {
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <span className="font-medium text-coffee-base block truncate">{a.nome}</span>
-                <span className="text-xs text-coffee-100">
+                <span className="font-medium text-coffee-base text-base block leading-snug break-words">{a.nome}</span>
+                <span className="text-sm text-cafeteria-600">
                   {formatarDataAniversario(a.data_nascimento)}
                   {a.unidade_nome ? ` · ${a.unidade_nome}` : ''}
                 </span>

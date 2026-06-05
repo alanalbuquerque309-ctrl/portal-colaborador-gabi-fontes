@@ -56,8 +56,8 @@ export function MuralPreview() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">Destaques do mês (acumulado)</h3>
-        <p className="text-xs text-cafeteria-600 mb-3">
+        <h3 className="text-base font-semibold text-cafeteria-800 mb-1">Destaques do mês (acumulado)</h3>
+        <p className="text-sm text-cafeteria-600 mb-3 leading-relaxed">
           Médias das avaliações semanais somadas no mês. No final do mês ficam os 3 primeiros da rede e de cada
           unidade.
         </p>
