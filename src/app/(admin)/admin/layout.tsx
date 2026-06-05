@@ -126,6 +126,17 @@ export default function AdminLayout({
   }, [pathname]);
 
   useEffect(() => {
+    if (!sidebarOpen) return;
+    const mq = window.matchMedia('(max-width: 767px)');
+    if (!mq.matches) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [sidebarOpen]);
+
+  useEffect(() => {
     if (authorized !== true || !acessoRh || isLoginPage) return;
     if (!adminPathPermitidoRh(pathname)) {
       router.replace('/admin/dashboard');
@@ -202,12 +213,14 @@ export default function AdminLayout({
         className={`
           fixed md:relative inset-y-0 left-0 z-50
           w-64 md:w-56
-          bg-coffee-base text-cream-100 p-4 shrink-0
+          h-full max-h-[100dvh] md:max-h-none
+          flex flex-col
+          bg-coffee-base text-cream-100 shrink-0
           transform transition-transform duration-200 ease-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between p-4 pb-0 shrink-0">
           <div>
             <h2 className="font-display font-semibold text-lg">Admin</h2>
             {nivelLabel && (
@@ -225,63 +238,65 @@ export default function AdminLayout({
             </svg>
           </button>
         </div>
-        <nav className="space-y-4">
-          {acessoRh || menuNav.length <= 8
-            ? menuNav.map((item) => (
-                <div key={item.href}>{navLink(item.href, item.label)}</div>
-              ))
-            : navGrupos.map((grupo) => {
-                const itensVisiveis = grupo.itens.filter((item) =>
-                  menuNav.some((m) => m.href === item.href)
-                );
-                if (itensVisiveis.length === 0) return null;
-                return (
-                  <div key={grupo.titulo}>
-                    <p className="px-3 pt-2 pb-1 text-sm md:text-base font-semibold text-cream-100 flex items-center gap-1.5">
-                      <span className="text-dourado-base shrink-0 leading-none" aria-hidden="true">
-                        •
-                      </span>
-                      <span>{grupo.titulo}</span>
-                    </p>
-                    <div className="space-y-0.5">
-                      {itensVisiveis.map((item) => (
-                        <div key={item.href}>{navLink(item.href, item.label)}</div>
-                      ))}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pt-4">
+          <nav className="space-y-4">
+            {acessoRh || menuNav.length <= 8
+              ? menuNav.map((item) => (
+                  <div key={item.href}>{navLink(item.href, item.label)}</div>
+                ))
+              : navGrupos.map((grupo) => {
+                  const itensVisiveis = grupo.itens.filter((item) =>
+                    menuNav.some((m) => m.href === item.href)
+                  );
+                  if (itensVisiveis.length === 0) return null;
+                  return (
+                    <div key={grupo.titulo}>
+                      <p className="px-3 pt-2 pb-1 text-sm md:text-base font-semibold text-cream-100 flex items-center gap-1.5">
+                        <span className="text-dourado-base shrink-0 leading-none" aria-hidden="true">
+                          •
+                        </span>
+                        <span>{grupo.titulo}</span>
+                      </p>
+                      <div className="space-y-0.5">
+                        {itensVisiveis.map((item) => (
+                          <div key={item.href}>{navLink(item.href, item.label)}</div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-        </nav>
-        <div className="mt-8 space-y-2 border-t border-white/20 pt-6">
-          <Link
-            href="/portal"
-            className="block text-sm font-medium text-cream-100 hover:text-white"
-            onClick={(e) => {
-              e.preventDefault();
-              try {
-                sessionStorage.setItem('portal_skip_back_guard_once', '1');
-              } catch {
-                /* noop */
-              }
-              fetch('/api/admin/restaurar-portal', {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: '{}',
-              })
-                .catch(() => null)
-                .finally(() => {
-                  router.push('/portal');
-                });
-            }}
-          >
-            Voltar ao portal
-          </Link>
-          <form action="/api/admin/logout" method="POST">
-            <button type="submit" className="text-xs text-cream-200/90 hover:text-white underline-offset-2 hover:underline">
-              Encerrar sessão admin (senha)
-            </button>
-          </form>
+                  );
+                })}
+          </nav>
+          <div className="mt-8 space-y-2 border-t border-white/20 pt-6 pb-4">
+            <Link
+              href="/portal"
+              className="block text-sm font-medium text-cream-100 hover:text-white"
+              onClick={(e) => {
+                e.preventDefault();
+                try {
+                  sessionStorage.setItem('portal_skip_back_guard_once', '1');
+                } catch {
+                  /* noop */
+                }
+                fetch('/api/admin/restaurar-portal', {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: '{}',
+                })
+                  .catch(() => null)
+                  .finally(() => {
+                    router.push('/portal');
+                  });
+              }}
+            >
+              Voltar ao portal
+            </Link>
+            <form action="/api/admin/logout" method="POST">
+              <button type="submit" className="text-xs text-cream-200/90 hover:text-white underline-offset-2 hover:underline">
+                Encerrar sessão admin (senha)
+              </button>
+            </form>
+          </div>
         </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0">

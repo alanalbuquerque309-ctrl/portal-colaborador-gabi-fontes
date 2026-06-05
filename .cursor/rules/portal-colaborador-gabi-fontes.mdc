@@ -124,6 +124,24 @@ Uso principal no telefone (líder na loja). Manter estes padrões ao tocar em ju
 
 **Menu RH (`ADMIN_NAV_RH`):** Dashboard, Colaboradores, Liderança por setor, Avisos, Destaque, Escalas, Inbox ajuda (`/portal/ajuda-inbox`).
 
+### Sidebar — grupos e legibilidade (jun/2026)
+
+Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
+
+| Grupo (título) | Itens |
+|----------------|--------|
+| **• Visão geral** | Dashboard |
+| **• Pessoas** | Colaboradores, Liderança por setor, Escalas |
+| **• Avaliações** | Avaliação de Equipe (semanal), Feedback liderança, Avaliação entre pares |
+| **• Comunicação** | Avisos, Sugestões, Eventos de manuais |
+| **• Gestão** | Destaque, Gorjeta (se permitido), Inbox ajuda, Chat equipe |
+
+**Estilo dos títulos de grupo:** mesmo tamanho dos links (`text-sm md:text-base`), **sem** `text-[10px]` nem `uppercase`; prefixo **bolinha dourada (•)** para distinguir título de item. Links do menu com `text-sm md:text-base` explícito.
+
+**Mobile (menu ☰):** sidebar em coluna com `max-h-[100dvh]` e área interna `overflow-y-auto` + `overscroll-contain`; com menu aberto, `body { overflow: hidden }` no mobile para o scroll ir **só** no menu (Inbox ajuda, Chat equipe, Voltar ao portal, logout no fim da lista).
+
+**Página Avaliação de Equipe (admin):** título *Avaliação de Equipe (semanal)*; orientações em gaveta recolhível; filtros reorganizados; sem botão duplicado *Pendentes da semana* (`e4c261e`).
+
 - **Guard de rota:** `admin/layout.tsx` redireciona RH para `/admin/dashboard` se pathname não estiver em `adminPathPermitidoRh`.
 - **Badge:** `nivel_label` → "RH (acesso limitado)" no sidebar.
 - **Pré-requisito Keila:** cadastro com `role: rh` + sessão portal que passa em `isAdminAuthorized` (bridge admin).
@@ -173,6 +191,59 @@ Uso principal no telefone (líder na loja). Manter estes padrões ao tocar em ju
 - **Grupo Mesquita:** slugs `mesquita`, `fabrica`, `administrativo` compartilham o mesmo mural/ranking (`src/lib/mural-unidade-grupo.ts`).
 - **Ranking unidade:** top 3 **mês anterior** fixos + top 3 **mês corrente** em evolução (`src/lib/mural-ranking-unidade.ts`, `MuralRankingUnidade.tsx`, `GET /api/portal/destaque`).
 - **Troféus entre pares** alimentam mural da unidade.
+
+### Separação semanal (home) vs mensal (mural) — jun/2026
+
+| Onde | O quê | Componente / API |
+|------|--------|-------------------|
+| **Home** — bloco *Destaques da semana* | Reconhecimento **da semana corrente** (top 3 geral + expandir por unidade / troféus) | `ReconhecimentoSemanal.tsx` (`compacto`), `GET /api/portal/reconhecimento-semanal`, helpers em `ranking-ui.tsx` |
+| **Mural** (`/portal/mural`, preview na home) | Rankings **mensais cumulativos** (rede + por unidade) | `MuralRankingsMensais.tsx`, `MuralPreview.tsx`, lógica em `mural-ranking-unidade.ts` |
+
+- **Mobile mural/ranking:** nomes com `break-words` (sem `truncate`); fontes um degrau maiores; menu inferior enxuto (`Header.tsx`).
+
+## Home do portal (contrato UX — jun/2026)
+
+**Ordem fixa** em `src/app/(portal)/portal/page.tsx`:
+
+1. `EmocionalAlertasGestao` (só quem tem permissão)
+2. **`FacaAgoraHome`** — pendências acionáveis (some se vazio)
+3. **`DestaqueSection`** — título *Destaques da semana* + `ReconhecimentoSemanal compacto`
+4. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
+5. **Manuais oficiais** — `<details>` recolhido por padrão
+6. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
+7. **Mural** — preview mensal (`MuralPreview`)
+
+**Onboarding:** inalterado — `PortalLayout.tsx` continua obrigando CPF → perfil → vídeo/manual/quiz antes do portal.
+
+**Relatórios sócio/admin:** **não** expor atalhos na home; acesso via **Admin** ou rotas de relatório já existentes (`b2d0c5c`).
+
+### Faça agora (`FacaAgoraHome.tsx`)
+
+Bloco no topo; **só renderiza se houver pendências**; até **6 cards**; CTA padrão **«Clique para ver →»** (termômetro: *Responder agora →*).
+
+| Perfil | Cards (quando aplicável) | Destino |
+|--------|--------------------------|---------|
+| **Colaborador** | Termômetro do dia; **líderes pendentes** (nomes na copy); **troféus restantes** (até 3/semana) | `#termometro-emocoes`; `/portal/avaliacao-lideranca?aba=lideranca&pendentes=1`; `/portal/avaliacao-lideranca?aba=pares` |
+| **Gerente / master / `pode_avaliacao_equipe`** (não ADM rede) | Avaliação da equipe — contagem + preview de nomes | `/portal/avaliacao-master?pendentes=1` |
+| **`pode_visita_rh`** (Keila) | Visita RH — contagem real da API + preview | `/portal/avaliacao-rh-visita?pendentes=1` |
+| **ADM / sócio** (`podeVerRelatoriosAvaliacoesCompletos`) | Pendências na rede | `/admin/avaliacoes-diarias` |
+
+**APIs usadas na montagem:** `/api/portal/perfil`, `/api/portal/emocional`, `/api/portal/avaliacao-lideranca`, `/api/portal/trofeus-pares`, `/api/portal/avaliacao-master?data=`, `/api/portal/avaliacao-rh-visita?data=`, `/api/portal/avaliacoes-pendentes`.
+
+**Query params nas páginas de destino** (ler no mount via `URLSearchParams`):
+
+- `?pendentes=1` → `filtroPendentes=true` em `avaliacao-master`, `avaliacao-rh-visita`, aba liderança em `avaliacao-lideranca`
+- `?aba=pares` | `?aba=lideranca` → aba inicial em `avaliacao-lideranca`
+
+**Não** recolocar *Minha liderança* genérico no Faça agora — fica em *Mais atalhos* / menu.
+
+### Mais atalhos (`PortalAtalhosPerfil.tsx`)
+
+Gaveta recolhível com links secundários por perfil (desempenho, equipe no mês, minha liderança, visita RH, escalas, etc.) — complementa o Faça agora, não substitui.
+
+### Menu mobile portal (`Header.tsx`)
+
+Itens filtrados por perfil (colaborador / líder / ADM-RH); manter enxuto no rodapé mobile.
 
 ## Vídeo de boas-vindas
 
@@ -293,6 +364,22 @@ npm run db:apply-036                        # tipo_escala
 - Todos completam perfil (nome, e-mail, telefone, endereço, data nascimento) antes do portal; admissão opcional (RH depois).
 - Home: ranking mensal de troféus entre pares + bloco aniversariantes do mês (`MuralReconhecimento`, APIs `trofeus-pares`, `aniversariantes`).
 
+### Reorganização UX home + mural (jun/2026, `9e143e2` … `6db61c9`)
+
+- **Semanal vs mensal:** reconhecimento semanal na home (`ReconhecimentoSemanal`, API `reconhecimento-semanal`); rankings mensais no mural (`MuralRankingsMensais`).
+- **Home:** bloco *Faça agora* no topo; *Destaques da semana* compactos; gaveta *Mais atalhos*; manuais recolhidos; termômetro e mural abaixo.
+- **Removidos** atalhos de relatórios sócio/admin da home (`b2d0c5c`).
+- **Mobile mural:** nomes sem corte, fontes maiores, menu inferior enxuto (`6fab362`).
+
+### Faça agora individualizado (jun/2026, `3644a1d`)
+
+- Pendências com **contagem e nomes**; link **Clique para ver →** abre direto na avaliação filtrada (`?pendentes=1`, `?aba=pares|lideranca`).
+- Colaborador: líderes pendentes + troféus restantes; gerente: equipe; RH: visitas pendentes na rede.
+
+### Admin — menu lateral legível (jun/2026, `684fce2`)
+
+- Títulos de grupo (Visão geral, Pessoas, …) no **mesmo tamanho** dos itens; marcador **•** dourado; fim do `text-[10px]` ilegível.
+
 ### Segurança (pré-produção já feita)
 
 - Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
@@ -348,6 +435,10 @@ src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts
 src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, mural-unidade-grupo.ts, manual-por-setor.ts
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
+src/components/portal/FacaAgoraHome.tsx, PortalAtalhosPerfil.tsx
+src/components/destaque/DestaqueSection.tsx
+src/components/mural/ReconhecimentoSemanal.tsx, MuralRankingsMensais.tsx, MuralPreview.tsx, ranking-ui.tsx
+src/app/api/portal/reconhecimento-semanal/
 src/components/portal/AvaliacoesPortalHome.tsx, ManualPortalViewer.tsx, TrofeusParesPanel.tsx
 src/components/portal/avaliacao-master/StarRating.tsx, ColaboradorAvaliacaoCard.tsx, AvaliacaoSemanalChecklist.tsx
 src/components/portal/RelatorioAvaliacoesPorSetor.tsx
@@ -360,7 +451,7 @@ src/components/admin/AdminAvaliacoesEquipeAgrupado.tsx, AdminAvaliacaoIgnorarAca
 src/app/api/admin/avaliacoes-diarias/ignorar/
 src/lib/portal-login-response.ts, onboarding-reabrir.ts, mural-unidade-grupo.ts
 src/lib/video-boas-vindas.ts, config-lideranca-operacional.ts
-src/app/(portal)/portal/avaliacao-master/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
+src/app/(portal)/portal/page.tsx, avaliacao-master/, avaliacao-rh-visita/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
 src/app/api/admin/auth/, lideres-por-setor/, escalas/, colaboradores-para-escala/
 src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
