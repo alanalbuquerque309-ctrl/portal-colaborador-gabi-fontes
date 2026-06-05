@@ -31,6 +31,8 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 
 - **Auth portal:** cookies de sessão (`portal_colaborador_id`, `portal_unidade_id`, `portal_role`) + `GET /api/portal/perfil`; admin/sócio também via login portal ou restauração `POST /api/admin/restaurar-portal`.
 - **Gates:** `PortalLayout` redireciona para onboarding, completar CPF, completar perfil conforme flags do perfil.
+- **Ordem de gates (cadastro):** CPF → **perfil pessoal completo** (`perfil_completo`) → **onboarding** (`onboarding_completo`) → portal. Onboarding **só** após `perfil_completo === true` (evita loop perfil ↔ onboarding, `d0ea8a1`).
+- **Login:** `login/page.tsx` valida sessão via `GET /api/portal/perfil` antes de auto-redirect; limpa sessão inválida com `clearPortalSession()`.
 - **APIs sensíveis:** `/api/admin/*` com camadas de gate (`src/lib/admin-auth.ts`, `src/lib/admin-access.ts`):
   - `isAdminAuthorized` — qualquer admin (gestão completa, gerente ou **RH limitado**).
   - `requireAdminFullApi` — bloqueia RH (avaliações internas admin, sugestões, gorjeta, manual-eventos, alterar role, excluir colaborador, etc.).
@@ -82,6 +84,16 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 ### Sócio / relatórios
 
 - `/portal/relatorios-avaliacoes`, presença, etc. conforme `podeVerRelatoriosAvaliacoesCompletos`.
+
+### Pendentes da semana (modal admin + relatório portal)
+
+- **UI:** `AvaliacoesPendentesModal.tsx` — botão *Pendentes da semana* em `/admin/avaliacoes-diarias` e `/portal/relatorios-avaliacoes`.
+- **API:** `GET /api/admin/avaliacoes-pendentes`, `GET /api/portal/avaliacoes-pendentes` → `calcularPendenciasSemana` em `src/lib/avaliacao-pendentes-semana.ts`.
+- **Regra de lista (jun/2026, `260559a`):** incluir **somente** quem falta avaliação de **pelo menos um líder** e/ou **Visita RH** (elegível); **excluir** quem já tem líder **e** RH na semana.
+- **Filtro padrão:** `pendentes` (*Pendentes (líder ou RH)*); filtros secundários: `gerente`, `rh_complemento`, `rh_rede`.
+- **Semana de referência:** `resolverDataRefPendentes` — usa `semanaAvaliacaoEquipePadraoISO()` (semana passada); se vazia no banco e a semana atual tiver avaliações, escolhe a semana com dados (evita listar rede inteira por semana errada).
+- **Labels na lista:** líder só se falta líder; RH só se falta Visita RH.
+- **Diagnóstico:** `node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]`.
 
 ### Admin — tabela de avaliações (gestão completa)
 
@@ -186,6 +198,38 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 - **UI alerta:** uma linha por colaborador; botão **OK** individual (some só para quem clicou, só aquele nome).
 - **Privacidade copy:** resumo anônimo para o colaborador; lista com **nome** só para quem tem permissão de gestão.
 
+## Comunicação (sugestões, reclamações e suporte)
+
+**Foco mobile:** colaborador acessa tudo pelo item **Comunicação** na barra inferior (`Header.tsx`).
+
+### Hub `/portal/comunicacao` (jun/2026, `f72c779`)
+
+Página única que agrupa os canais de feedback e contato:
+
+| Bloco | Quem vê | Destino / comportamento |
+|-------|---------|-------------------------|
+| **Sugestões e reclamações** | Todos logados | Link → `/portal/sugestoes` (formulário existente) |
+| **Inbox ajuda** | Só quem passa em `canVisualizarAjuda` (**sócio**, **admin**, responsável dedicado por UUID; **RH** só se **não** houver UUID dedicado) | Link → `/portal/ajuda-inbox`; badge com pendentes no card e no menu |
+| **Falar com suporte (ADM/RH)** | Todos (envio); sócios/admin veem atalho de gestão acima | Chat embutido na própria página |
+
+- **Componentes:** `src/app/(portal)/portal/comunicacao/page.tsx`; painel reutilizável `src/components/ajuda/CanalAjudaPainel.tsx`.
+- **Botão flutuante «Preciso de ajuda»:** `BotaoAjuda.tsx` — **só desktop** (`hidden md:flex`); no celular o canal fica em **Comunicação** (evita duplicar FAB sobre a barra inferior).
+- **Desktop (header):** link único **Comunicação** substitui «Sugestões» e «Inbox ajuda» separados; sub-rotas (`/portal/sugestoes`, `/portal/ajuda-inbox`) mantêm item **Comunicação** ativo no menu (`navAtivo` em `Header.tsx`).
+
+### Caixa de sugestões e reclamações (`/portal/sugestoes`)
+
+- **Tipos:** `sugestao` | `reclamacao` (radio no formulário); opção **anônimo**.
+- **API:** `GET/POST /api/portal/sugestoes`; curtidas só em sugestões (`POST .../curtir`).
+- **Feed público na unidade:** só **sugestões** (reclamações não entram no mural de curtidas).
+- **Admin:** `/admin/sugestoes` — gestão completa; **reclamações** visíveis só para quem passa em `canViewReclamacoesAdmin` (sócio; **RH limitado não vê**).
+
+### Canal de ajuda (suporte ADM/RH)
+
+- **Colaborador:** envia mensagem via `POST /api/portal/ajuda-chat`; histórico + resposta na UI (`CanalAjudaPainel` / FAB desktop).
+- **Atendimento:** nome padrão `NEXT_PUBLIC_AJUDA_RESPONSAVEL_NOME` (ex.: Daniel); UUID dedicado `AJUDA_RESPONSAVEL_COLABORADOR_ID` / `NEXT_PUBLIC_*`.
+- **Inbox gestão:** `/portal/ajuda-inbox` — responder e filtrar pendentes; APIs `GET/PATCH /api/admin/ajuda-chat`.
+- **Permissões:** `canVisualizarAjuda`, `canResponderAjudaFinal`, `canExcluirMensagensAjuda` em `src/lib/roles.ts` — **não alterar** visibilidade do Inbox para sócios/admin sem pedido explícito do Alan.
+
 ## Mural e ranking
 
 - **Grupo Mesquita:** slugs `mesquita`, `fabrica`, `administrativo` compartilham o mesmo mural/ranking (`src/lib/mural-unidade-grupo.ts`).
@@ -245,7 +289,10 @@ Gaveta recolhível com links secundários por perfil (desempenho, equipe no mês
 
 ### Menu mobile portal (`Header.tsx`)
 
-Itens filtrados por perfil (colaborador / líder / ADM-RH); manter enxuto no rodapé mobile.
+- **Item fixo Comunicação** (`/portal/comunicacao`) em **todos** os perfis (colaborador, líder, sócio/admin) — ver secção **Comunicação** acima.
+- Demais itens filtrados por perfil (Início, escala, desempenho, mural, avaliar equipe, etc.); manter rodapé enxuto com scroll horizontal.
+- **Sócios/admin:** label *Comunicação (N)* no menu quando há pendentes no Inbox ajuda.
+- **Ativo:** rota Comunicação destacada também em `/portal/sugestoes` e `/portal/ajuda-inbox`.
 
 ## Vídeo de boas-vindas
 
@@ -271,6 +318,8 @@ npm run db:ignorar-avaliacoes-vinculo       # --confirmar; marca ignorada por no
 npm run db:avaliacao-direta                 # vínculos Gabriela/Keila/Daniel → alvos por nome
 npm run db:escalas-junho-2026 -- --confirmar   # gera escalas jun/2026 (DATABASE_URL)
 npm run db:apply-036                        # tipo_escala
+npm run db:diagnostico-avaliacoes           # contagens por semana (avaliacoes_diarias)
+node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/RH
 ```
 
 **APIs admin correlatas:** `POST /api/admin/zerar-avaliacoes-trofeus`, `POST /api/admin/reabrir-onboarding` (exigem gestão completa, não RH).
@@ -397,6 +446,21 @@ npm run db:apply-036                        # tipo_escala
 
 - Sidebar rolável no celular; body bloqueado com menu aberto.
 
+### Login — loop perfil × onboarding (jun/2026, `d0ea8a1`)
+
+- Colaboradores com perfil incompleto (ex.: sem endereço/data nascimento) deixavam de entrar no portal após senha ok.
+- **Correção:** `PortalLayout` só manda para onboarding se `perfil_completo === true`; login valida perfil antes de redirect e limpa sessão inválida.
+
+### Pendentes da semana — filtro correto (jun/2026, `260559a`, `8dc51d1`)
+
+- Modal deixava de listar a rede inteira por falta só de Visita RH ou por semana sem dados.
+- Filtro `pendentes`, exclusão de quem já tem líder+RH, resolução automática da semana com avaliações.
+
+### Comunicação no mobile (jun/2026, `f72c779`)
+
+- Hub `/portal/comunicacao`: sugestões/reclamações + suporte ADM/RH + Inbox ajuda (sócios/admin).
+- Menu inferior **Comunicação**; FAB ajuda apenas no desktop; `CanalAjudaPainel` compartilhado.
+
 ### Segurança (pré-produção já feita)
 
 - Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
@@ -452,6 +516,11 @@ src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts
 src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, mural-unidade-grupo.ts, manual-por-setor.ts
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
+src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
+src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/
+src/lib/avaliacao-pendentes-semana.ts
+src/components/admin/AvaliacoesPendentesModal.tsx
+src/app/api/admin/avaliacoes-pendentes/, api/portal/avaliacoes-pendentes/
 src/components/portal/FacaAgoraHome.tsx, PortalAtalhosPerfil.tsx
 src/components/destaque/DestaqueSection.tsx
 src/components/mural/ReconhecimentoSemanal.tsx, MuralRankingsMensais.tsx, MuralPreview.tsx, ranking-ui.tsx
@@ -468,12 +537,15 @@ src/components/admin/AdminAvaliacoesEquipeAgrupado.tsx, AdminAvaliacaoIgnorarAca
 src/app/api/admin/avaliacoes-diarias/ignorar/
 src/lib/portal-login-response.ts, onboarding-reabrir.ts, mural-unidade-grupo.ts
 src/lib/video-boas-vindas.ts, config-lideranca-operacional.ts
-src/app/(portal)/portal/page.tsx, avaliacao-master/, avaliacao-rh-visita/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
+src/app/(portal)/portal/page.tsx, comunicacao/, avaliacao-master/, avaliacao-rh-visita/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
+src/app/(auth)/login/page.tsx
+src/app/api/portal/sugestoes/, ajuda-chat/
 src/app/api/admin/auth/, lideres-por-setor/, escalas/, colaboradores-para-escala/
 src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
+scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
 scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs
 scripts/aplicar-migrations-038-039.mjs, aplicar-migration-040.mjs, ignorar-avaliacoes-vinculo-incorreto.mjs
 APLIQUE_040_SQL_EDITOR.sql
