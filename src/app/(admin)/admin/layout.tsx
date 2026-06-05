@@ -27,7 +27,7 @@ export default function AdminLayout({
     { href: '/admin/avisos', label: 'Avisos' },
     { href: '/admin/destaque', label: 'Destaque' },
     { href: '/admin/escalas', label: 'Escalas' },
-    { href: '/admin/avaliacoes-diarias', label: 'Avaliações equipe (semanal)' },
+    { href: '/admin/avaliacoes-diarias', label: 'Avaliação de Equipe (semanal)' },
     { href: '/admin/avaliacao-entre-pares', label: 'Avaliação entre pares' },
     { href: '/admin/avaliacoes-lideranca', label: 'Feedback liderança' },
     { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },

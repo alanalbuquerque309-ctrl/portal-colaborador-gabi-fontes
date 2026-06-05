@@ -43,6 +43,7 @@ export default function AdminAvaliacoesDiariasPage() {
   const [podeVerDetalhe, setPodeVerDetalhe] = useState(false);
   const [gavetaId, setGavetaId] = useState<string | null>(null);
   const [pendentesAberto, setPendentesAberto] = useState(false);
+  const [infoAberta, setInfoAberta] = useState(false);
 
   useEffect(() => {
     fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
@@ -90,75 +91,88 @@ export default function AdminAvaliacoesDiariasPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 flex-1">
-          <Link href="/admin/dashboard" className="text-sm text-dourado-500 hover:underline">
-            ← Dashboard
-          </Link>
-          <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">
-            Avaliações semanais (equipe)
-          </h1>
-          <p className="text-sm text-coffee-100 mt-1">
-            Avaliações semanais que os líderes fizeram da equipe. Falta injustificada aparece com média{' '}
-            <strong>0,00</strong>; repasse ao outro líder aparece como <strong>Outro líder</strong>.
-            {podeVerDetalhe ? (
-              <>
-                {' '}
-                Clique na <strong>média</strong> (chip ou tabela) para ver cada critério (sócio / administrador).
-                {' '}
-                Use <strong>Ignorar avaliação</strong> quando o vínculo estava errado: some da média e do ranking, o registro permanece.
-              </>
-            ) : null}
-          </p>
-          <p className="text-sm mt-2">
-            <Link href="/admin/avaliacoes-lideranca" className="text-dourado-500 hover:underline">
-              Ver feedback dos colaboradores sobre a liderança →
-            </Link>
-            {' · '}
-            <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
-              Relatório completo no portal →
-            </Link>
-            {' · '}
-            <Link href="/admin/avaliacao-entre-pares" className="text-dourado-500 hover:underline">
-              Troféus entre pares →
-            </Link>
-          </p>
-        </div>
+      <div className="mb-6">
+        <Link href="/admin/dashboard" className="text-sm text-dourado-500 hover:underline">
+          ← Dashboard
+        </Link>
+        <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">
+          Avaliação de Equipe (semanal)
+        </h1>
         <button
           type="button"
-          onClick={() => setPendentesAberto(true)}
-          className="shrink-0 w-full sm:w-auto rounded-xl border-2 border-amber-500 bg-amber-50 text-amber-950 px-4 py-2.5 text-sm font-semibold hover:bg-amber-100 shadow-sm"
+          onClick={() => setInfoAberta((v) => !v)}
+          aria-expanded={infoAberta}
+          className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-dourado-600 hover:text-dourado-500"
         >
-          Pendentes da semana
+          <svg
+            className={`w-4 h-4 shrink-0 transition-transform ${infoAberta ? 'rotate-180' : ''}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+              clipRule="evenodd"
+            />
+          </svg>
+          {infoAberta ? 'Ocultar orientações' : 'Como funciona'}
         </button>
+        {infoAberta && (
+          <div className="mt-3 rounded-xl border border-cream-300 bg-cream-50/80 p-4 text-sm text-coffee-base leading-relaxed space-y-3">
+            <p>
+              Avaliações semanais que os líderes fizeram da equipe. Falta injustificada aparece com média{' '}
+              <strong>0,00</strong>; repasse ao outro líder aparece como <strong>Outro líder</strong>.
+              {podeVerDetalhe ? (
+                <>
+                  {' '}
+                  Clique na <strong>média</strong> para ver cada critério (sócio / administrador). Use{' '}
+                  <strong>Ignorar avaliação</strong> quando o vínculo estava errado: some da média e do ranking, o
+                  registro permanece.
+                </>
+              ) : null}
+            </p>
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:gap-x-4">
+              <Link href="/admin/avaliacoes-lideranca" className="text-dourado-500 hover:underline">
+                Feedback sobre liderança →
+              </Link>
+              <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
+                Relatório completo no portal →
+              </Link>
+              <Link href="/admin/avaliacao-entre-pares" className="text-dourado-500 hover:underline">
+                Troféus entre pares →
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm space-y-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-medium text-coffee-base mb-1">Início</label>
+            <label className="block text-sm font-medium text-coffee-base mb-1">Início</label>
             <input
               type="date"
               value={inicio}
               onChange={(e) => setInicio(e.target.value)}
-              className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm"
+              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-coffee-base mb-1">Fim</label>
+            <label className="block text-sm font-medium text-coffee-base mb-1">Fim</label>
             <input
               type="date"
               value={fim}
               onChange={(e) => setFim(e.target.value)}
-              className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm"
+              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base text-sm"
             />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-coffee-base mb-1">Unidade (opcional)</label>
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium text-coffee-base mb-1">Unidade (opcional)</label>
             <select
               value={unidadeSlug}
               onChange={(e) => setUnidadeSlug(e.target.value)}
-              className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm min-w-[180px]"
+              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base text-sm"
             >
               <option value="">Todas</option>
               {UNIDADES_CADASTRO.map((u) => (
@@ -168,39 +182,44 @@ export default function AdminAvaliacoesDiariasPage() {
               ))}
             </select>
           </div>
-          <div className="min-w-[200px] flex-1">
-            <label className="block text-xs font-medium text-coffee-base mb-1">Buscar nome, setor ou avaliador</label>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1">
+            <label className="block text-sm font-medium text-coffee-base mb-1">Buscar nome, setor ou avaliador</label>
             <input
               type="search"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Ex.: Cleverton, Estoque…"
-              className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm"
+              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base text-sm"
             />
           </div>
-          <button
-            type="button"
-            onClick={() => void buscar()}
-            disabled={carregando}
-            className="rounded-lg bg-dourado-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
-          >
-            {carregando ? 'Carregando…' : 'Buscar'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPendentesAberto(true)}
-            className="rounded-lg border-2 border-amber-500 bg-amber-50 text-amber-950 px-4 py-2 text-sm font-semibold hover:bg-amber-100"
-          >
-            Pendentes da semana
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0">
+            <button
+              type="button"
+              onClick={() => void buscar()}
+              disabled={carregando}
+              className="w-full sm:w-auto rounded-lg bg-dourado-base text-cream-100 px-5 py-2.5 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
+            >
+              {carregando ? 'Carregando…' : 'Buscar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendentesAberto(true)}
+              className="w-full sm:w-auto rounded-lg border-2 border-amber-500 bg-amber-50 text-amber-950 px-5 py-2.5 text-sm font-semibold hover:bg-amber-100"
+            >
+              Pendentes da semana
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center pt-1 border-t border-cream-200">
-          <span className="text-xs font-medium text-coffee-base mr-1">Visualização:</span>
+        <div className="flex flex-wrap gap-2 items-center pt-3 border-t border-cream-200">
+          <span className="text-sm font-medium text-coffee-base mr-1">Visualização:</span>
           <button
             type="button"
             onClick={() => setModo('agrupado')}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
+            className={`rounded-full px-4 py-1.5 text-sm font-medium ${
               modo === 'agrupado'
                 ? 'bg-dourado-base text-cream-100'
                 : 'bg-cream-100 text-coffee-base hover:bg-cream-200'
@@ -211,7 +230,7 @@ export default function AdminAvaliacoesDiariasPage() {
           <button
             type="button"
             onClick={() => setModo('detalhada')}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
+            className={`rounded-full px-4 py-1.5 text-sm font-medium ${
               modo === 'detalhada'
                 ? 'bg-dourado-base text-cream-100'
                 : 'bg-cream-100 text-coffee-base hover:bg-cream-200'
