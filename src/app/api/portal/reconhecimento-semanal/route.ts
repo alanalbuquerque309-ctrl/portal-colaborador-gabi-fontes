@@ -2,16 +2,15 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
-  calcularTop3GeralRede,
-  calcularTop3PorUnidadeRede,
-  mesAtualUTC,
+  calcularTop3GeralSemana,
+  calcularTop3PorUnidadeSemana,
 } from '@/lib/mural-ranking-unidade';
-import { calcularRankingTrofeusMesCompleto } from '@/lib/mural-ranking-trofeus-pares';
-import { AVALIACAO_RANKING_MIN_SEMANAS } from '@/lib/avaliacao-ranking';
+import { calcularRankingTrofeusSemanaCompleto } from '@/lib/mural-ranking-trofeus-pares';
+import { segundaSemanaSaoPaulo, rotuloSemanaSaoPaulo } from '@/lib/semana-brasil';
 
 export const dynamic = 'force-dynamic';
 
-/** Rankings mensais cumulativos (média das semanas do mês + troféus do mês). */
+/** Top 3 da semana (rede + por unidade) e troféus entre pares da semana. */
 export async function GET() {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
@@ -21,13 +20,13 @@ export async function GET() {
 
   try {
     const supabase = createAdminClient();
-    const atual = mesAtualUTC();
+    const semanaInicio = segundaSemanaSaoPaulo();
 
     const [geral, porUnidade, trofeus] = await Promise.all([
-      calcularTop3GeralRede(supabase, { ano: atual.ano, mes: atual.mes }),
-      calcularTop3PorUnidadeRede(supabase, { ano: atual.ano, mes: atual.mes }),
-      calcularRankingTrofeusMesCompleto(supabase, { ano: atual.ano, mes: atual.mes }).catch(() => ({
-        mes_referencia: atual.mesRef,
+      calcularTop3GeralSemana(supabase, semanaInicio),
+      calcularTop3PorUnidadeSemana(supabase, semanaInicio),
+      calcularRankingTrofeusSemanaCompleto(supabase, semanaInicio).catch(() => ({
+        semana_inicio: semanaInicio,
         ranking: [],
       })),
     ]);
@@ -35,17 +34,13 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: true,
-        mes_referencia: atual.mesRef,
-        min_semanas_ranking_mensal: AVALIACAO_RANKING_MIN_SEMANAS,
+        semana_inicio: semanaInicio,
+        semana_rotulo: rotuloSemanaSaoPaulo(semanaInicio),
         ranking_geral_top3: geral.top,
         ranking_por_unidade: porUnidade.unidades,
         ranking_trofeus: trofeus.ranking,
       },
-      {
-        headers: {
-          'Cache-Control': 'no-store, max-age=0',
-        },
-      }
+      { headers: { 'Cache-Control': 'no-store, max-age=0' } }
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

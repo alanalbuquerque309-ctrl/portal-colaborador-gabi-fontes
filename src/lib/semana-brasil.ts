@@ -32,6 +32,18 @@ export function domingoSemanaSaoPaulo(ref: Date = new Date()): string {
   return `${ys}-${ms}-${ds}`;
 }
 
+/** Rótulo legível da semana (segunda a domingo) a partir da segunda YYYY-MM-DD. */
+export function rotuloSemanaSaoPaulo(semanaInicio: string): string {
+  const [y, m, d] = semanaInicio.split('-').map((x) => parseInt(x, 10));
+  if (!y || !m || !d) return semanaInicio;
+  const ini = new Date(Date.UTC(y, m - 1, d));
+  const fim = new Date(ini);
+  fim.setUTCDate(fim.getUTCDate() + 6);
+  const fmt = (dt: Date) =>
+    dt.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return `${fmt(ini)} a ${fmt(fim)}`;
+}
+
 /** `true` quando hoje é domingo em America/Sao_Paulo. */
 export function hojeEhDomingoSaoPaulo(ref: Date = new Date()): boolean {
   const fmt = new Intl.DateTimeFormat('en-CA', {

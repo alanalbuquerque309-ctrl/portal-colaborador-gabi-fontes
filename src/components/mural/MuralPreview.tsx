@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { MuralReconhecimento } from '@/components/mural/MuralReconhecimento';
+import { MuralRankingsMensais } from '@/components/mural/MuralRankingsMensais';
 
 interface Aviso {
   id: string;
@@ -55,7 +55,14 @@ export function MuralPreview() {
 
   return (
     <div className="space-y-6">
-      <MuralReconhecimento compacto />
+      <div>
+        <h3 className="text-sm font-semibold text-cafeteria-800 mb-1">Destaques do mês (acumulado)</h3>
+        <p className="text-xs text-cafeteria-600 mb-3">
+          Médias das avaliações semanais somadas no mês. No final do mês ficam os 3 primeiros da rede e de cada
+          unidade.
+        </p>
+        <MuralRankingsMensais />
+      </div>
       {avisos.length > 0 ? (
         <div className="space-y-3">
           <h3 className="text-sm font-semibold text-cafeteria-800">Últimos avisos</h3>

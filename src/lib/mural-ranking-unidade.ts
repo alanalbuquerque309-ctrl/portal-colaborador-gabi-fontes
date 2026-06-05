@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   agruparMediasPorColaborador,
+  AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL,
   inicioDataReferenciaRanking,
   mediaMensalColaborador,
   topTresComEmpateNoTerceiro,
@@ -225,6 +226,137 @@ export async function calcularTop3PorUnidadeRede(
   const mesRef = mesBoundsUTC(opts.ano, opts.mes).mesRef;
   return {
     mes_referencia: mesRef,
+    unidades: blocos.filter((b) => b.top.length > 0),
+  };
+}
+
+/** Top 3 de um grupo de unidades na semana (`data_referencia` = segunda). */
+export async function calcularTop3GrupoSemana(
+  supabase: SupabaseClient,
+  opts: { unidadeSlugs: string[]; semanaInicio: string }
+): Promise<{ semana_inicio: string; top: RankingMuralItem[] }> {
+  const semanaInicio = opts.semanaInicio;
+  const unidadeIds = await idsUnidadesPorSlugs(supabase, opts.unidadeSlugs);
+  if (unidadeIds.length === 0) {
+    return { semana_inicio: semanaInicio, top: [] };
+  }
+
+  const refMin = inicioDataReferenciaRanking(semanaInicio);
+
+  const { data: colaboradores, error: errCol } = await supabase
+    .from('colaboradores')
+    .select('id, nome, foto_url, role, setor, unidade_id, unidades(nome, slug)')
+    .in('unidade_id', unidadeIds)
+    .eq('role', 'colaborador');
+
+  if (errCol) throw new Error(errCol.message);
+
+  const ids = (colaboradores ?? []).map((c) => String(c.id));
+  if (ids.length === 0) {
+    return { semana_inicio: semanaInicio, top: [] };
+  }
+
+  const { data: linhas, error: errLin } = await supabase
+    .from('avaliacoes_diarias')
+    .select('colaborador_id, avaliador_id, data_referencia, media_dia, created_at')
+    .in('colaborador_id', ids)
+    .eq('data_referencia', semanaInicio)
+    .gte('data_referencia', refMin)
+    .not('media_dia', 'is', null)
+    .limit(2000);
+
+  if (errLin) throw new Error(errLin.message);
+
+  const linhasMapeadas = filtrarAvaliacoesParaMedia(
+    (linhas ?? []).map((row) => ({
+      colaborador_id: String(row.colaborador_id),
+      avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
+      data_referencia: String(row.data_referencia),
+      media_dia: row.media_dia as number | null,
+      created_at: row.created_at != null ? String(row.created_at) : null,
+      ignorada: (row as { ignorada?: boolean }).ignorada,
+    }))
+  );
+
+  if (linhasMapeadas.length === 0) {
+    return { semana_inicio: semanaInicio, top: [] };
+  }
+
+  const ctx = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
+  const porId = agruparMediasPorColaborador(linhasMapeadas, ids, semanaInicio, ctx);
+
+  const scored = (colaboradores ?? [])
+    .map((c) => {
+      const agg = mediaMensalColaborador(porId[String(c.id)] ?? []);
+      const unidade = Array.isArray(c.unidades) ? c.unidades[0] : c.unidades;
+      return {
+        id: String(c.id),
+        nome: String(c.nome ?? ''),
+        media: agg.media ?? 0,
+        dias: agg.dias,
+        foto_url: c.foto_url ? String(c.foto_url) : null,
+        setor: (c as { setor?: string | null }).setor ? String((c as { setor?: string | null }).setor) : null,
+        unidade_nome: unidade?.nome ? String(unidade.nome) : '',
+        unidade_slug: unidade?.slug ? String(unidade.slug) : '',
+      };
+    })
+    .filter((s) => s.dias >= AVALIACAO_RANKING_MIN_SEMANAS_SEMANAL);
+
+  const topRaw = topTresComEmpateNoTerceiro(
+    scored.map((s) => ({ id: s.id, nome: s.nome, media: s.media, dias: s.dias }))
+  );
+
+  const metaPorId = new Map(scored.map((s) => [s.id, s]));
+
+  const top: RankingMuralItem[] = topRaw.map((t, i) => {
+    const meta = metaPorId.get(t.id);
+    return {
+      posicao: i + 1,
+      colaborador_id: t.id,
+      nome: t.nome,
+      foto_url: meta?.foto_url ?? null,
+      media: t.media,
+      semanas_avaliadas: meta?.dias ?? 0,
+      unidade_nome: meta?.unidade_nome ?? '',
+      unidade_slug: meta?.unidade_slug ?? '',
+      setor: meta?.setor ?? null,
+    };
+  });
+
+  return { semana_inicio: semanaInicio, top };
+}
+
+/** Top 3 da rede na semana corrente. */
+export async function calcularTop3GeralSemana(
+  supabase: SupabaseClient,
+  semanaInicio: string
+): Promise<{ semana_inicio: string; top: RankingMuralItem[] }> {
+  const unidades = await listarUnidadesAtivas(supabase);
+  const slugs = unidades.map((u) => u.slug).filter(Boolean);
+  return calcularTop3GrupoSemana(supabase, { unidadeSlugs: slugs, semanaInicio });
+}
+
+/** Top 3 de cada unidade na semana corrente. */
+export async function calcularTop3PorUnidadeSemana(
+  supabase: SupabaseClient,
+  semanaInicio: string
+): Promise<{ semana_inicio: string; unidades: RankingPorUnidadeBloco[] }> {
+  const unidades = await listarUnidadesAtivas(supabase);
+  const blocos = await Promise.all(
+    unidades.map(async (u) => {
+      const { top } = await calcularTop3GrupoSemana(supabase, {
+        unidadeSlugs: [u.slug],
+        semanaInicio,
+      });
+      return {
+        unidade_slug: u.slug,
+        unidade_nome: u.nome,
+        top,
+      };
+    })
+  );
+  return {
+    semana_inicio: semanaInicio,
     unidades: blocos.filter((b) => b.top.length > 0),
   };
 }
