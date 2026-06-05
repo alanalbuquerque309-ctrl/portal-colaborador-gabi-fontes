@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import {
@@ -85,15 +86,25 @@ export function LoginForm({
   };
 
   return (
-    <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
-      <h1 className="mb-2 text-2xl font-display font-semibold text-cafeteria-800">
+    <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl border border-cream-200">
+      <div className="mb-6 flex justify-center">
+        <Image
+          src="/logo-gabi-fontes.png"
+          alt="Gabi Fontes — Cafeteria & Doceria"
+          width={220}
+          height={158}
+          className="h-auto w-full max-w-[220px] object-contain"
+          priority
+        />
+      </div>
+      <h1 className="mb-2 text-2xl font-display font-semibold text-cafeteria-800 text-center">
         {trocarObrigatoria
           ? 'Defina sua nova senha'
           : primeiraSenha
             ? 'Crie sua senha'
             : 'Portal do Colaborador'}
       </h1>
-      <p className="mb-6 text-sm text-cafeteria-600">
+      <p className="mb-6 text-sm text-cafeteria-600 text-center">
         {trocarObrigatoria
           ? 'Por segurança, troque a senha padrão (123456) por uma senha só sua: 6 números.'
           : primeiraSenha

@@ -7,7 +7,7 @@ import { normalizeEmail } from '@/lib/password';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { salvarUltimoLogin } from '@/lib/portal-remember-login';
 import { getPortalSession, setPortalSession, clearPortalSession } from '@/lib/utils/session';
-import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { LogoCarregando } from '@/components/ui/LogoCarregando';
 
 async function processarRespostaLogin(
   data: Record<string, unknown>,
@@ -239,15 +239,11 @@ function LoginContent() {
   };
 
   if (verificandoSessao) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-cream-100">
-        <XicaraCarregando size="lg" label="Verificando sessão…" />
-      </div>
-    );
+    return <LogoCarregando fullscreen label="Verificando sessão…" />;
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-cream-100 px-4 py-8">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white px-4 py-8">
       <LoginForm
         onSubmit={handleLogin}
         onTrocarSenhaObrigatoria={handleTrocarSenhaObrigatoria}
@@ -280,9 +276,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-cream-100">
-          <XicaraCarregando size="lg" label="Carregando…" />
-        </div>
+        <LogoCarregando fullscreen label="Carregando…" />
       }
     >
       <LoginContent />

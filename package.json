@@ -23,7 +23,8 @@
     "db:limpar-avaliacoes-antigas": "node scripts/limpar-avaliacoes-semanas-antigas.mjs --confirmar",
     "db:diagnostico-avaliacoes": "node scripts/diagnostico-avaliacoes-semana.mjs",
     "db:reabrir-onboarding": "node scripts/reabrir-onboarding-todos.mjs --confirmar",
-    "upload:video-boas-vindas": "node scripts/upload-video-boas-vindas.mjs"
+    "upload:video-boas-vindas": "node scripts/upload-video-boas-vindas.mjs",
+    "icones:pwa": "node scripts/gerar-icones-pwa.mjs public/branding/logo-gabi-fontes-dourada.png"
   },
   "dependencies": {
     "@ducanh2912/next-pwa": "^10.2.9",

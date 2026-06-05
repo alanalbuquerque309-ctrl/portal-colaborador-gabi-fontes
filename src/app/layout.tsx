@@ -30,7 +30,14 @@ export const metadata: Metadata = {
   title: 'Portal do Colaborador | Gabi Fontes',
   description: 'Cultura e Comunicação Interna - Gabi Fontes',
   manifest: '/manifest.json',
-  icons: { apple: '/icon-192.png' },
+  icons: {
+    icon: [
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -51,7 +58,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: '#F9F7F2',
+  themeColor: '#FFFFFF',
 };
 
 export default function RootLayout({
