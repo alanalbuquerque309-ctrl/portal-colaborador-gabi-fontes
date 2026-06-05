@@ -179,7 +179,7 @@ export default function AdminLayout({
     return (
       <Link
         href={href}
-        className={`block px-3 py-2 rounded-lg ${
+        className={`block px-3 py-2 rounded-lg text-sm md:text-base ${
           active ? 'bg-dourado-base/30 text-cream-100' : 'hover:bg-white/10'
         }`}
       >
@@ -237,8 +237,11 @@ export default function AdminLayout({
                 if (itensVisiveis.length === 0) return null;
                 return (
                   <div key={grupo.titulo}>
-                    <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-cream-200/70">
-                      {grupo.titulo}
+                    <p className="px-3 pt-2 pb-1 text-sm md:text-base font-semibold text-cream-100 flex items-center gap-1.5">
+                      <span className="text-dourado-base shrink-0 leading-none" aria-hidden="true">
+                        •
+                      </span>
+                      <span>{grupo.titulo}</span>
                     </p>
                     <div className="space-y-0.5">
                       {itensVisiveis.map((item) => (
