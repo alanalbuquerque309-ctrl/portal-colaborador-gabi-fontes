@@ -17,7 +17,7 @@ type NavItem = {
   href: string;
   label: string;
   short: string;
-  icon: 'mural' | 'escala' | 'sugestoes' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia';
+  icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia';
 };
 
 function navAtivo(pathname: string | null | undefined, href: string): boolean {
@@ -29,18 +29,24 @@ function navAtivo(pathname: string | null | undefined, href: string): boolean {
   if (href === '/portal/meu-manual') {
     return p === href || p.startsWith('/portal/manual');
   }
+  if (href === '/portal/comunicacao') {
+    return (
+      p === '/portal/comunicacao' ||
+      p === '/portal/sugestoes' ||
+      p.startsWith('/portal/ajuda')
+    );
+  }
   if (p === href) return true;
   const base = href.split('?')[0]?.split('#')[0] ?? href;
   return p.startsWith(`${base}/`);
 }
 
-const navItensBase = [
-  { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' as const },
-  { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' as const },
-  { href: '/portal/sugestoes', label: 'Sugestões', short: 'Sugestões', icon: 'sugestoes' as const },
-  { href: '/portal/manuais', label: 'Manuais', short: 'Manuais', icon: 'manuais' as const },
-  { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' as const },
-];
+const itemComunicacao: NavItem = {
+  href: '/portal/comunicacao',
+  label: 'Comunicação',
+  short: 'Comunicação',
+  icon: 'comunicacao',
+};
 
 function NavIcon({ type }: { type: string }) {
   const base = 'w-5 h-5 shrink-0';
@@ -64,9 +70,15 @@ function NavIcon({ type }: { type: string }) {
         </svg>
       );
     case 'sugestoes':
+    case 'comunicacao':
       return (
         <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
         </svg>
       );
     case 'perfil':
@@ -272,6 +284,7 @@ export function Header() {
     ? [
         { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
         { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+        itemComunicacao,
         { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
       ]
     : isLider
@@ -285,6 +298,7 @@ export function Header() {
             : []),
           { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' },
           { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+          itemComunicacao,
           { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
         ]
       : [
@@ -295,23 +309,14 @@ export function Header() {
             ? [{ href: '/portal/desempenho', label: 'Desempenho', short: 'Desempenho', icon: 'desempenho' as const }]
             : []),
           { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+          itemComunicacao,
           { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
         ];
 
   const navDesktop: NavItem[] = [
-    ...navMobile.filter((i) => i.href !== '/portal/perfil'),
-    { href: '/portal/sugestoes', label: 'Sugestões', short: 'Sugestões', icon: 'sugestoes' },
+    ...navMobile.filter((i) => i.href !== '/portal/perfil' && i.href !== '/portal/comunicacao'),
+    itemComunicacao,
     { href: '/portal/manuais', label: 'Manuais', short: 'Manuais', icon: 'manuais' },
-    ...(podeVisualizarAjuda
-      ? [
-          {
-            href: '/portal/ajuda-inbox',
-            label: pendenciasAjuda > 0 ? `Inbox ajuda (${pendenciasAjuda})` : 'Inbox ajuda',
-            short: 'Ajuda',
-            icon: 'sugestoes' as const,
-          },
-        ]
-      : []),
     { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
   ];
 
@@ -337,13 +342,17 @@ export function Header() {
           <nav className="hidden md:flex gap-6 text-cafeteria-700 items-center">
             {navDesktop.map(({ href, label }) => {
               const ativo = navAtivo(pathname, href);
+              const labelExibir =
+                href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0
+                  ? `Comunicação (${pendenciasAjuda})`
+                  : label;
               return (
                 <Link
                   key={href}
                   href={href}
                   className={`hover:text-cafeteria-900 ${ativo ? 'font-semibold text-cafeteria-800' : ''}`}
                 >
-                  {label}
+                  {labelExibir}
                 </Link>
               );
             })}
@@ -374,6 +383,10 @@ export function Header() {
           {navMobile.map(({ href, label, short }) => {
             const ativo = navAtivo(pathname, href);
             const iconKey = iconePorHref[href] ?? 'mural';
+            const shortExibir =
+              href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0
+                ? `Comunic. (${pendenciasAjuda})`
+                : short;
             return (
               <Link
                 key={href}
@@ -386,7 +399,7 @@ export function Header() {
               >
                 <NavIcon type={iconKey} />
                 <span className="text-[13px] mt-1 max-w-[72px] text-center leading-tight whitespace-normal">
-                  {short}
+                  {shortExibir}
                 </span>
               </Link>
             );
