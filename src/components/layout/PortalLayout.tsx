@@ -13,6 +13,7 @@ import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 import { fotoObrigatoriaPortal } from '@/lib/perfil-completo';
 import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
 import { AniversarioBalaoPortal } from '@/components/aniversario/AniversarioBalaoPortal';
+import { PortalPwaRefresh } from '@/components/portal/PortalPwaRefresh';
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -212,6 +213,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-cream-100">
       <Header />
       <PortalPresenceHeartbeat />
+      <PortalPwaRefresh />
       <PortalOnlineStrip />
       <main className="max-w-6xl mx-auto px-4 py-8 pb-[max(6rem,calc(5rem+env(safe-area-inset-bottom,0px)))] md:pb-8">
         {children}

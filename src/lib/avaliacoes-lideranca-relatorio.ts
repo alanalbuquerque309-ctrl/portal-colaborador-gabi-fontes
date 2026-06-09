@@ -93,40 +93,67 @@ export async function listarAvaliacoesLiderancaRelatorio(
   opts: {
     viewerColaboradorId: string;
     viewerRole: string;
+    viewerNome?: string | null;
     unidadeSlug?: string | null;
     inicio?: string | null;
     fim?: string | null;
     limite?: number;
   }
-): Promise<{ itens: LinhaLiderancaRelatorio[]; nota: string; auditoria_socio: boolean; erro?: string }> {
+): Promise<{
+  itens: LinhaLiderancaRelatorio[];
+  nota: string;
+  auditoria_socio: boolean;
+  viewer_role: string;
+  erro?: string;
+}> {
   const role = normalizePortalRole(opts.viewerRole);
   const limite = Math.min(5000, Math.max(50, opts.limite ?? 2000));
   const inicio = opts.inicio?.trim() || null;
   const fim = opts.fim?.trim() || null;
-  const auditoriaSocio = podeAuditarAutorAvaliacaoLideranca(role);
 
+  let viewerNome = opts.viewerNome?.trim() || null;
   let unidadeIdFilter: string | null = null;
-  if (relatorioRestringeUnidade(role)) {
+
+  if (opts.viewerColaboradorId && opts.viewerColaboradorId !== 'admin-panel') {
     const { data: eu } = await supabase
       .from('colaboradores')
-      .select('unidade_id')
+      .select('unidade_id, nome')
       .eq('id', opts.viewerColaboradorId)
       .maybeSingle();
-    unidadeIdFilter = eu?.unidade_id ? String(eu.unidade_id) : null;
-  } else if (opts.unidadeSlug) {
+    if (!viewerNome && eu?.nome) viewerNome = String(eu.nome);
+    if (relatorioRestringeUnidade(role)) {
+      unidadeIdFilter = eu?.unidade_id ? String(eu.unidade_id) : null;
+    }
+  }
+
+  const auditoriaSocio = podeAuditarAutorAvaliacaoLideranca(
+    role,
+    opts.viewerColaboradorId,
+    viewerNome
+  );
+
+  if (!unidadeIdFilter && opts.unidadeSlug) {
     const { data: u } = await supabase
       .from('unidades')
       .select('id')
       .eq('slug', opts.unidadeSlug)
       .maybeSingle();
     if (!u?.id) {
-      return { itens: [], nota: '', auditoria_socio: auditoriaSocio, erro: 'Unidade não encontrada' };
+      return {
+        itens: [],
+        nota: '',
+        auditoria_socio: auditoriaSocio,
+        viewer_role: role,
+        erro: 'Unidade não encontrada',
+      };
     }
     unidadeIdFilter = String(u.id);
   }
 
   const { rows, error } = await fetchRows(supabase, { unidadeIdFilter, inicio, fim, limite });
-  if (error) return { itens: [], nota: '', auditoria_socio: auditoriaSocio, erro: error };
+  if (error) {
+    return { itens: [], nota: '', auditoria_socio: auditoriaSocio, viewer_role: role, erro: error };
+  }
 
   const uids = Array.from(new Set(rows.map((r) => r.unidade_id as string).filter(Boolean)));
   let unidadeMeta: Record<string, { nome: string; slug: string }> = {};
@@ -210,5 +237,5 @@ export async function listarAvaliacoesLiderancaRelatorio(
     ? 'Visão exclusiva de sócio: aparece quem avaliou cada líder — com ou sem «de forma anônima». Ninguém mais no portal vê estes nomes.'
     : 'Feedback dos colaboradores sobre a liderança. Avaliador anônimo nesta visão. Filtro por semana de referência (segunda-feira).';
 
-  return { itens, nota, auditoria_socio: auditoriaSocio };
+  return { itens, nota, auditoria_socio: auditoriaSocio, viewer_role: role };
 }

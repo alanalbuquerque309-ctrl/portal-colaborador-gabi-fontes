@@ -1,6 +1,7 @@
 const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
+  cacheId: 'portal-gabi-fontes-v3-audit',
   /** Junta estas regras às predefinições do plugin (ordem: primeiro /api/admin = rede direta). */
   extendDefaultRuntimeCaching: true,
   workboxOptions: {

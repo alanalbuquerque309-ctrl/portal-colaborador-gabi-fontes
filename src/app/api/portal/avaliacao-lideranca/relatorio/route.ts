@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('role')
+      .select('role, nome')
       .eq('id', colaboradorId)
       .single();
 
@@ -35,6 +35,7 @@ export async function GET(req: Request) {
     }
 
     const role = normalizePortalRole((eu as { role?: string }).role);
+    const viewerNome = String((eu as { nome?: string }).nome ?? '');
     if (!podeVerRelatoriosAvaliacoesCompletos(role)) {
       return NextResponse.json(
         {
@@ -45,23 +46,33 @@ export async function GET(req: Request) {
       );
     }
 
-    const { itens, nota, auditoria_socio, erro } = await listarAvaliacoesLiderancaRelatorio(supabase, {
-      viewerColaboradorId: colaboradorId,
-      viewerRole: role,
-      unidadeSlug,
-      inicio,
-      fim,
-      limite,
-    });
+    const { itens, nota, auditoria_socio, viewer_role, erro } = await listarAvaliacoesLiderancaRelatorio(
+      supabase,
+      {
+        viewerColaboradorId: colaboradorId,
+        viewerRole: role,
+        viewerNome,
+        unidadeSlug,
+        inicio,
+        fim,
+        limite,
+      }
+    );
 
     if (erro) {
       const status = erro === 'Unidade não encontrada' ? 400 : 500;
       return NextResponse.json({ ok: false, erro }, { status });
     }
 
-    return NextResponse.json({ ok: true, nota, auditoria_socio, itens, total: itens.length }, {
-      headers: { 'Cache-Control': 'no-store, max-age=0' },
-    });
+    return NextResponse.json(
+      { ok: true, nota, auditoria_socio, viewer_role, itens, total: itens.length },
+      {
+        headers: {
+          'Cache-Control': 'private, no-store, max-age=0',
+          Vary: 'Cookie',
+        },
+      }
+    );
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminFullApi } from '@/lib/admin-auth';
 import { listarAvaliacoesLiderancaRelatorio } from '@/lib/avaliacoes-lideranca-relatorio';
@@ -18,15 +19,36 @@ export async function GET(req: Request) {
 
   try {
     const supabase = createAdminClient();
+    const cookieStore = await cookies();
+    const portalColaboradorId = cookieStore.get('portal_colaborador_id')?.value ?? '';
     const viewerRole = auth.ctx.kind === 'portal' ? auth.ctx.role : 'admin';
-    const { itens, nota, auditoria_socio, erro } = await listarAvaliacoesLiderancaRelatorio(supabase, {
-      viewerColaboradorId: 'admin-panel',
-      viewerRole,
-      unidadeSlug,
-      inicio,
-      fim,
-      limite,
-    });
+    const viewerColaboradorId =
+      auth.ctx.kind === 'portal' && portalColaboradorId && portalColaboradorId !== 'pending'
+        ? portalColaboradorId
+        : 'admin-panel';
+
+    let viewerNome: string | null = null;
+    if (viewerColaboradorId !== 'admin-panel') {
+      const { data: eu } = await supabase
+        .from('colaboradores')
+        .select('nome')
+        .eq('id', viewerColaboradorId)
+        .maybeSingle();
+      viewerNome = eu?.nome ? String(eu.nome) : null;
+    }
+
+    const { itens, nota, auditoria_socio, viewer_role, erro } = await listarAvaliacoesLiderancaRelatorio(
+      supabase,
+      {
+        viewerColaboradorId,
+        viewerRole,
+        viewerNome,
+        unidadeSlug,
+        inicio,
+        fim,
+        limite,
+      }
+    );
 
     if (erro) {
       const status = erro === 'Unidade não encontrada' ? 400 : 500;
@@ -39,6 +61,7 @@ export async function GET(req: Request) {
         nota ||
         'Todas as notas e justificativas sobre gerência/administrativo. Avaliador anônimo nesta visão.',
       auditoria_socio,
+      viewer_role,
       itens,
       total: itens.length,
     });

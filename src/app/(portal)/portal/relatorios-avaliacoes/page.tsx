@@ -47,6 +47,7 @@ export default function RelatoriosAvaliacoesPage() {
   const [liderancaGlobal, setLiderancaGlobal] = useState<LinhaLiderRelatorio[]>([]);
   const [notaLider, setNotaLider] = useState('');
   const [auditoriaSocioLider, setAuditoriaSocioLider] = useState(false);
+  const [viewerRoleLider, setViewerRoleLider] = useState('');
   const [erroLideranca, setErroLideranca] = useState('');
   const [filtroFilial, setFiltroFilial] = useState('');
   const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigemEquipe>('todos');
@@ -89,7 +90,7 @@ export default function RelatoriosAvaliacoesPage() {
 
     try {
       const qEquipe = new URLSearchParams({ inicio, fim, limite: '3000' });
-      const qLider = new URLSearchParams({ inicio, fim, limite: '3000' });
+      const qLider = new URLSearchParams({ inicio, fim, limite: '3000', _: String(Date.now()) });
 
       const [resEquipe, resLider] = await Promise.all([
         fetch(`/api/portal/relatorios-avaliacoes-diarias?${qEquipe}`, {
@@ -99,6 +100,7 @@ export default function RelatoriosAvaliacoesPage() {
         fetch(`/api/portal/avaliacao-lideranca/relatorio?${qLider}`, {
           credentials: 'include',
           cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
         }),
       ]);
 
@@ -116,9 +118,11 @@ export default function RelatoriosAvaliacoesPage() {
         setLiderancaGlobal(dataLider.itens as LinhaLiderRelatorio[]);
         if (dataLider.nota) setNotaLider(String(dataLider.nota));
         setAuditoriaSocioLider(dataLider.auditoria_socio === true);
+        setViewerRoleLider(String(dataLider.viewer_role ?? ''));
       } else {
         setLiderancaGlobal([]);
         setAuditoriaSocioLider(false);
+        setViewerRoleLider('');
         setErroLideranca(dataLider.erro || 'Erro ao carregar feedback sobre liderança.');
       }
     } catch {
@@ -381,6 +385,12 @@ export default function RelatoriosAvaliacoesPage() {
               }`}
             >
               {notaLider}
+            </p>
+          )}
+          {!auditoriaSocioLider && liderancaGlobal.length > 0 && viewerRoleLider && (
+            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Identificação dos avaliadores desligada para o perfil «{viewerRoleLider}». Só sócios veem quem
+              avaliou. Se você é sócio, saia e entre de novo; se persistir, avise o suporte.
             </p>
           )}
           {erroLideranca && (
