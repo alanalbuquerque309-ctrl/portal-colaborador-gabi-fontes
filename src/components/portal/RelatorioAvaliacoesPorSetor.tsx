@@ -132,7 +132,13 @@ function TabelaLiderancaDesktop({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
               className={`border-t border-cafeteria-100 ${linhaTemNotaBaixa(row) ? 'bg-amber-50/60' : ''}`}
             >
               <td className="px-2 py-2 whitespace-nowrap">{row.semana_inicio}</td>
-              <td className="px-2 py-2 text-cafeteria-600 max-w-[140px] break-words">{row.avaliador_label}</td>
+              <td
+                className={`px-2 py-2 max-w-[180px] break-words ${
+                  row.avaliador_anonimo ? 'text-amber-950 font-medium' : 'text-cafeteria-600'
+                }`}
+              >
+                {row.avaliador_label}
+              </td>
               <td className="px-2 py-2 text-center font-medium">{row.media.toFixed(2)}</td>
               {PILARES_LIDERANCA.map((p) => (
                 <td key={p.key} className="px-2 py-2 text-center font-medium">

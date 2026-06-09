@@ -33,6 +33,12 @@ export type LinhaLiderancaRelatorio = {
 
 type RowLider = Record<string, unknown>;
 
+/** Rótulo de auditoria sócio: identifica quem avaliou e se marcou anônimo. */
+function labelAvaliadorSocio(nome: string, anonimo: boolean): string {
+  const n = nome.trim() || 'Colaborador';
+  return anonimo ? `${n} avaliou, de forma anônima` : `${n} avaliou`;
+}
+
 function mapNotas(r: RowLider) {
   const nExemplo = Number(r.n_exemplo ?? r.n_organizacao ?? 3);
   const nComunicacao = Number(r.n_comunicacao ?? r.n_fala_escuta ?? 3);
@@ -165,7 +171,7 @@ export async function listarAvaliacoesLiderancaRelatorio(
 
     if (auditoriaSocio) {
       const nomeAutor = avaliadorMeta?.nome?.trim() || 'Colaborador';
-      avaliador_label = marcadoAnonimo ? `${nomeAutor} · enviado como anônimo` : nomeAutor;
+      avaliador_label = labelAvaliadorSocio(nomeAutor, marcadoAnonimo);
       avaliador_id_out = avaliadorId;
       avaliador_anonimo = marcadoAnonimo;
       avaliador_setor = avaliadorMeta?.setor ?? null;
@@ -201,7 +207,7 @@ export async function listarAvaliacoesLiderancaRelatorio(
   });
 
   const nota = auditoriaSocio
-    ? 'Visão exclusiva de sócio: você vê quem avaliou cada líder, inclusive quem respondeu como anônimo. Ninguém mais no portal tem acesso a esta identificação.'
+    ? 'Visão exclusiva de sócio: aparece quem avaliou cada líder — com ou sem «de forma anônima». Ninguém mais no portal vê estes nomes.'
     : 'Feedback dos colaboradores sobre a liderança. Avaliador anônimo nesta visão. Filtro por semana de referência (segunda-feira).';
 
   return { itens, nota, auditoria_socio: auditoriaSocio };
