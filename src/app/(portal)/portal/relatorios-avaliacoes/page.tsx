@@ -48,6 +48,7 @@ export default function RelatoriosAvaliacoesPage() {
   const [notaLider, setNotaLider] = useState('');
   const [auditoriaSocioLider, setAuditoriaSocioLider] = useState(false);
   const [viewerRoleLider, setViewerRoleLider] = useState('');
+  const [viewerNomeLider, setViewerNomeLider] = useState('');
   const [erroLideranca, setErroLideranca] = useState('');
   const [filtroFilial, setFiltroFilial] = useState('');
   const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigemEquipe>('todos');
@@ -124,10 +125,12 @@ export default function RelatoriosAvaliacoesPage() {
         if (dataLider.nota) setNotaLider(String(dataLider.nota));
         setAuditoriaSocioLider(dataLider.auditoria_socio === true);
         setViewerRoleLider(String(dataLider.viewer_role ?? ''));
+        setViewerNomeLider(String(dataLider.viewer_nome ?? ''));
       } else {
         setLiderancaGlobal([]);
         setAuditoriaSocioLider(false);
         setViewerRoleLider('');
+        setViewerNomeLider('');
         setErroLideranca(dataLider.erro || 'Erro ao carregar feedback sobre liderança.');
       }
     } catch {
@@ -350,6 +353,12 @@ export default function RelatoriosAvaliacoesPage() {
 
       {aba === 'lideranca' && (
         <section className="rounded-xl border border-cafeteria-200 bg-white shadow-sm p-4 space-y-4">
+          {viewerNomeLider && (
+            <p className="text-xs text-cafeteria-600 bg-cream-50 border border-cafeteria-100 rounded-lg px-3 py-2">
+              Sessão: <strong>{viewerNomeLider}</strong> (perfil «{viewerRoleLider || '?'}»)
+              {auditoriaSocioLider ? ' · auditoria ativa' : ' · sem auditoria de nomes'}
+            </p>
+          )}
           <div>
             <h2 className="text-lg font-display font-semibold text-cafeteria-900">
               Feedback sobre liderança

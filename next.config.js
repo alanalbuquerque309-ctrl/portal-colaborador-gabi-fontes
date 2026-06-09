@@ -1,7 +1,7 @@
 const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
   disable: process.env.NODE_ENV === 'development',
-  cacheId: 'portal-gabi-fontes-v4-relatorio-post',
+  cacheId: 'portal-gabi-fontes-v6-audit-cpf',
   extendDefaultRuntimeCaching: false,
   workboxOptions: {
     navigateFallbackDenylist: [/^\/admin/, /^\/api\//, /^\/portal/],

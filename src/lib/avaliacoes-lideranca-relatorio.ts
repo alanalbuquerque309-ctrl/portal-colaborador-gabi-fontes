@@ -1,8 +1,8 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
 import {
-  podeAuditarAutorAvaliacaoLideranca,
   relatorioRestringeUnidade,
 } from '@/lib/avaliacoes-relatorio-access';
+import { viewerTemAuditoriaLideranca, normalizarCpfAuditoria } from '@/lib/auditoria-lideranca-viewer';
 import { normalizePortalRole } from '@/lib/roles';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -94,6 +94,8 @@ export async function listarAvaliacoesLiderancaRelatorio(
     viewerColaboradorId: string;
     viewerRole: string;
     viewerNome?: string | null;
+    viewerCpf?: string | null;
+    viewerRoleCookie?: string | null;
     unidadeSlug?: string | null;
     inicio?: string | null;
     fim?: string | null;
@@ -112,25 +114,31 @@ export async function listarAvaliacoesLiderancaRelatorio(
   const fim = opts.fim?.trim() || null;
 
   let viewerNome = opts.viewerNome?.trim() || null;
+  let viewerCpf = normalizarCpfAuditoria(opts.viewerCpf) || null;
   let unidadeIdFilter: string | null = null;
 
   if (opts.viewerColaboradorId && opts.viewerColaboradorId !== 'admin-panel') {
     const { data: eu } = await supabase
       .from('colaboradores')
-      .select('unidade_id, nome')
+      .select('unidade_id, nome, cpf')
       .eq('id', opts.viewerColaboradorId)
       .maybeSingle();
     if (!viewerNome && eu?.nome) viewerNome = String(eu.nome);
+    if (!viewerCpf && (eu as { cpf?: string | null })?.cpf) {
+      viewerCpf = normalizarCpfAuditoria((eu as { cpf?: string | null }).cpf) || null;
+    }
     if (relatorioRestringeUnidade(role)) {
       unidadeIdFilter = eu?.unidade_id ? String(eu.unidade_id) : null;
     }
   }
 
-  const auditoriaSocio = podeAuditarAutorAvaliacaoLideranca(
-    role,
-    opts.viewerColaboradorId,
-    viewerNome
-  );
+  const auditoriaSocio = viewerTemAuditoriaLideranca({
+    colaboradorId: opts.viewerColaboradorId,
+    roleDb: role,
+    roleCookie: opts.viewerRoleCookie,
+    nome: viewerNome,
+    cpf: viewerCpf,
+  });
 
   if (!unidadeIdFilter && opts.unidadeSlug) {
     const { data: u } = await supabase

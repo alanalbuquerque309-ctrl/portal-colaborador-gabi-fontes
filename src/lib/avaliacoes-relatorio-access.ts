@@ -1,24 +1,6 @@
 /** Relatórios consolidados (equipe + feedback sobre liderança). */
-import { nomeCoincide } from '@/lib/avaliacao-direta';
-import { canResponderAjudaPorId, normalizePortalRole } from '@/lib/roles';
-
-/** Sócios de negócio — IDs fixos (cadastro Supabase). */
-const AUDITORIA_LIDERANCA_IDS_FIXOS = new Set([
-  '78db7f2d-8ee9-4124-aad9-fa688983d995', // Alan Albuquerque
-]);
-
-/** Sócios de negócio (fallback se role no cadastro estiver admin). */
-const SOCIOS_NEGOCIO_NOMES = ['Alan Albuquerque', 'Alan', 'Gabriela Fontes', 'Gabriela'];
-
-function idsAuditoriaLiderancaEnv(): string[] {
-  const raw = (
-    process.env.PORTAL_AUDITORIA_LIDERANCA_IDS ||
-    process.env.NEXT_PUBLIC_PORTAL_AUDITORIA_LIDERANCA_IDS ||
-    ''
-  ).trim();
-  if (!raw) return [];
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
-}
+import { viewerTemAuditoriaLideranca } from '@/lib/auditoria-lideranca-viewer';
+import { normalizePortalRole } from '@/lib/roles';
 
 export function podeVerRelatoriosAvaliacoesCompletos(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
@@ -26,37 +8,34 @@ export function podeVerRelatoriosAvaliacoesCompletos(role: string | null | undef
 }
 
 /**
- * Auditoria exclusiva sócios: identidade real de quem avaliou a liderança,
- * inclusive avaliações marcadas como anônimas para o líder.
- * Daniel (canal ajuda) e demais perfis veem «Colaborador (anônimo)».
+ * Auditoria exclusiva sócios: identidade real de quem avaliou a liderança.
+ * @deprecated Preferir `viewerTemAuditoriaLideranca`.
  */
 export function podeAuditarAutorAvaliacaoLideranca(
   role: string | null | undefined,
   colaboradorId?: string | null,
-  nome?: string | null
+  nome?: string | null,
+  cpf?: string | null,
+  roleCookie?: string | null
 ): boolean {
-  const r = normalizePortalRole(role);
-  if (r === 'socio') return true;
-
-  const id = String(colaboradorId ?? '').trim();
-  if (id && (AUDITORIA_LIDERANCA_IDS_FIXOS.has(id) || idsAuditoriaLiderancaEnv().includes(id))) {
-    return true;
-  }
-
-  if (canResponderAjudaPorId(colaboradorId)) return false;
-
-  const n = String(nome ?? '').trim();
-  if (n && SOCIOS_NEGOCIO_NOMES.some((padrao) => nomeCoincide(n, padrao))) return true;
-  return false;
+  return viewerTemAuditoriaLideranca({
+    colaboradorId,
+    roleDb: role,
+    roleCookie,
+    nome,
+    cpf,
+  });
 }
 
-/** @deprecated Preferir `podeAuditarAutorAvaliacaoLideranca`. */
+/** @deprecated Preferir `viewerTemAuditoriaLideranca`. */
 export function podeVerAutorAvaliacaoLideranca(
   role: string | null | undefined,
   colaboradorId?: string | null,
-  nome?: string | null
+  nome?: string | null,
+  cpf?: string | null,
+  roleCookie?: string | null
 ): boolean {
-  return podeAuditarAutorAvaliacaoLideranca(role, colaboradorId, nome);
+  return podeAuditarAutorAvaliacaoLideranca(role, colaboradorId, nome, cpf, roleCookie);
 }
 
 /** Gerente vê só a própria unidade; demais perfis autorizados veem todas as filiais. */

@@ -28,13 +28,18 @@ export async function GET(req: Request) {
         : 'admin-panel';
 
     let viewerNome: string | null = null;
+    let viewerCpf: string | null = null;
+    const cookieRole = cookieStore.get('portal_role')?.value ?? null;
     if (viewerColaboradorId !== 'admin-panel') {
       const { data: eu } = await supabase
         .from('colaboradores')
-        .select('nome')
+        .select('nome, cpf')
         .eq('id', viewerColaboradorId)
         .maybeSingle();
       viewerNome = eu?.nome ? String(eu.nome) : null;
+      viewerCpf = (eu as { cpf?: string | null })?.cpf
+        ? String((eu as { cpf?: string | null }).cpf)
+        : null;
     }
 
     const { itens, nota, auditoria_socio, viewer_role, erro } = await listarAvaliacoesLiderancaRelatorio(
@@ -43,6 +48,8 @@ export async function GET(req: Request) {
         viewerColaboradorId,
         viewerRole,
         viewerNome,
+        viewerCpf,
+        viewerRoleCookie: cookieRole,
         unidadeSlug,
         inicio,
         fim,

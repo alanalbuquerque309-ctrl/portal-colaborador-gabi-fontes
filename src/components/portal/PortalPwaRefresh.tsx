@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-const SW_VERSION = 'portal-v4-relatorio-post';
+const SW_VERSION = 'portal-v6-audit-cpf';
 
 /**
  * Após deploy, força service worker novo no PWA instalado (celular).

@@ -30,9 +30,10 @@ async function responderRelatorioLideranca(query: RelatorioQuery) {
 
   try {
     const supabase = createAdminClient();
+    const cookieRole = cookieStore.get('portal_role')?.value ?? null;
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('role, nome')
+      .select('role, nome, cpf')
       .eq('id', colaboradorId)
       .single();
 
@@ -42,6 +43,7 @@ async function responderRelatorioLideranca(query: RelatorioQuery) {
 
     const role = normalizePortalRole((eu as { role?: string }).role);
     const viewerNome = String((eu as { nome?: string }).nome ?? '');
+    const viewerCpf = String((eu as { cpf?: string | null }).cpf ?? '');
     if (!podeVerRelatoriosAvaliacoesCompletos(role)) {
       return NextResponse.json(
         {
@@ -58,6 +60,8 @@ async function responderRelatorioLideranca(query: RelatorioQuery) {
         viewerColaboradorId: colaboradorId,
         viewerRole: role,
         viewerNome,
+        viewerCpf,
+        viewerRoleCookie: cookieRole,
         unidadeSlug: query.unidadeSlug,
         inicio: query.inicio,
         fim: query.fim,
@@ -77,6 +81,7 @@ async function responderRelatorioLideranca(query: RelatorioQuery) {
         auditoria_socio,
         viewer_role,
         viewer_nome: viewerNome,
+        viewer_cpf_mascara: viewerCpf ? `***${viewerCpf.slice(-4)}` : '',
         itens,
         total: itens.length,
         api: 'relatorio-lideranca-v2-post',
