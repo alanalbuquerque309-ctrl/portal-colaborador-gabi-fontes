@@ -6,6 +6,12 @@ import {
 } from '@/lib/config-lideranca-operacional';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { normalizePortalRole } from '@/lib/roles';
+import {
+  deveExcluirSetorDaListaCompletaUnidade,
+  isSetorLideradoNaFabrica,
+  resolverUnidadeIdFabrica,
+  resolverUnidadeIdsGrupoMesquita,
+} from '@/lib/setores-fabrica-lideranca';
 
 function normalizarTextoOrg(value: string | null | undefined): string {
   return String(value ?? '')
@@ -93,6 +99,11 @@ export async function listarLideresConfigPorUnidadeSetor(
 
   const setorTrim = String(setor ?? '').trim();
   const setorEspecifico = setorTrim && isSetorValido(setorTrim);
+  const setorFabrica = setorEspecifico && isSetorLideradoNaFabrica(setorTrim);
+
+  const unidadeIdLideranca = setorFabrica
+    ? (await resolverUnidadeIdFabrica(supabase)) ?? unidadeId
+    : unidadeId;
 
   let porSetor: { lider_id: string }[] | null = [];
   let errSetor: { message: string } | null = null;
@@ -100,19 +111,25 @@ export async function listarLideresConfigPorUnidadeSetor(
     const res = await supabase
       .from('lideres_por_setor')
       .select('lider_id')
-      .eq('unidade_id', unidadeId)
+      .eq('unidade_id', unidadeIdLideranca)
       .eq('setor', setorTrim)
       .eq('ativo', true);
     porSetor = res.data;
     errSetor = res.error;
   }
 
-  const { data: porUnidade, error: errUnidade } = await supabase
-    .from('lideres_por_setor')
-    .select('lider_id')
-    .eq('unidade_id', unidadeId)
-    .eq('setor', SETOR_TODOS_NA_UNIDADE)
-    .eq('ativo', true);
+  let porUnidade: { lider_id: string }[] | null = [];
+  let errUnidade: { message: string } | null = null;
+  if (!setorFabrica) {
+    const res = await supabase
+      .from('lideres_por_setor')
+      .select('lider_id')
+      .eq('unidade_id', unidadeId)
+      .eq('setor', SETOR_TODOS_NA_UNIDADE)
+      .eq('ativo', true);
+    porUnidade = res.data;
+    errUnidade = res.error;
+  }
 
   const error = errSetor ?? errUnidade;
   if (error) {
@@ -165,6 +182,52 @@ export async function listarColaboradoresPorUnidadeSetor(
   const setorCfg = setor.trim();
   if (setorCfg !== SETOR_TODOS_NA_UNIDADE && !isSetorValido(setorCfg)) return [];
 
+  const filtrarMembro = (c: Record<string, unknown>) => {
+    const id = String(c.id);
+    if (excluirId && id === excluirId) return false;
+    const role = (c as { role?: string }).role;
+    const setorCol = (c as { setor?: string | null }).setor;
+    const r = normalizePortalRole(role);
+    if (r === 'colaborador') return true;
+    const setorTrim = String(setorCol ?? '').trim();
+    return (
+      (r === 'gerente' || r === 'admin') &&
+      (SETORES_AVALIACAO_EQUIPE_BACKOFFICE as readonly string[]).includes(setorTrim)
+    );
+  };
+
+  const mapearMembro = (c: Record<string, unknown>) => ({
+    id: String(c.id),
+    nome: String(c.nome ?? ''),
+    role: (c as { role?: string | null }).role ?? null,
+    cargo: (c as { cargo?: string | null }).cargo ?? null,
+    setor: (c as { setor?: string | null }).setor ?? null,
+    onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
+    operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
+  });
+
+  if (setorCfg !== SETOR_TODOS_NA_UNIDADE && isSetorLideradoNaFabrica(setorCfg)) {
+    const grupoIds = await resolverUnidadeIdsGrupoMesquita(supabase);
+    if (grupoIds.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('colaboradores')
+      .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
+      .in('unidade_id', grupoIds)
+      .eq('setor', setorCfg)
+      .order('nome');
+
+    if (error) throw new Error(error.message);
+    return (data ?? []).filter(filtrarMembro).map(mapearMembro);
+  }
+
+  const { data: unidadeRow } = await supabase
+    .from('unidades')
+    .select('slug')
+    .eq('id', unidadeId)
+    .maybeSingle();
+  const unidadeSlug = unidadeRow?.slug ? String(unidadeRow.slug) : null;
+
   let query = supabase
     .from('colaboradores')
     .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
@@ -180,25 +243,12 @@ export async function listarColaboradoresPorUnidadeSetor(
 
   return (data ?? [])
     .filter((c) => {
-      const id = String(c.id);
-      if (excluirId && id === excluirId) return false;
-      const role = (c as { role?: string }).role;
-      const setor = (c as { setor?: string | null }).setor;
-      const r = normalizePortalRole(role);
-      if (r === 'colaborador') return true;
-      const setorTrim = String(setor ?? '').trim();
-      return (
-        (r === 'gerente' || r === 'admin') &&
-        (SETORES_AVALIACAO_EQUIPE_BACKOFFICE as readonly string[]).includes(setorTrim)
-      );
+      if (!filtrarMembro(c as Record<string, unknown>)) return false;
+      if (setorCfg === SETOR_TODOS_NA_UNIDADE) {
+        const setorCol = (c as { setor?: string | null }).setor;
+        if (deveExcluirSetorDaListaCompletaUnidade(unidadeSlug, setorCol)) return false;
+      }
+      return true;
     })
-    .map((c) => ({
-      id: String(c.id),
-      nome: String(c.nome ?? ''),
-      role: (c as { role?: string | null }).role ?? null,
-      cargo: (c as { cargo?: string | null }).cargo ?? null,
-      setor: (c as { setor?: string | null }).setor ?? null,
-      onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
-      operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
-    }));
+    .map((c) => mapearMembro(c as Record<string, unknown>));
 }

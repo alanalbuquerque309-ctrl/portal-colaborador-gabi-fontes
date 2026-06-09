@@ -17,7 +17,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 | Stack | Next.js 14 (App Router), React 18, Tailwind, Supabase (Postgres + Storage), Vercel |
 | Dev local | `npm run dev` → porta **3001** |
 | Produção | https://portal-colaborador-gabi-fontes.vercel.app |
-| Git remoto | repositório `portal-colaborador-gabi-fontes`, branch `main` (deploy Vercel automático) |
+| Git remoto | **`portal-colaborador-gabi-fontes`** (repo **nesta pasta**, não na raiz `ISA AI/`), branch `main` → deploy Vercel |
 | Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `040_` e seguintes) |
 | Docs operacionais | `BACKUP_RESTORE.md`, `SECURITY_ROADMAP.md` (backlog segurança, não duplicar aqui em detalhe) |
 
@@ -49,6 +49,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 - **Obrigatório:** uma avaliação por colaborador da equipe **por semana**; após salvar, **uma correção** via botão **Editar** (ícone ✏️ no checklist ou no card); depois só leitura (`edicao_utilizada`, migration `038`).
 - **Equipe Nova Iguaçu:** gerentes no mapa operacional (`config-lideranca-operacional.ts` — Nathália, Cristina); lista também via `resolver-unidades-equipe-avaliacao.ts` se `lideres_por_setor` ainda não estiver aplicado.
 - **Joyce (temporário):** também avalia Nova Iguaçu via `config-avaliacao-unidade-extra.ts` (remover regra quando não precisar).
+- **Fábrica de doces / preparos:** líderes Sabrina+Henrique (doces) e Joyce+Silvia (preparos) na unidade `fabrica`. Setores da fábrica **não** entram na lista `*` de Mesquita; equipe do setor busca no grupo Mesquita+fábrica+adm (`setores-fabrica-lideranca.ts`).
 - **API:** `POST` primeiro envio; `PATCH /api/portal/avaliacao-master` com `avaliacao_id` para edição única.
 - **Campos:** assiduidade; se presente, notas 1–5 (vestimenta, pontualidade, trabalho em equipe, desempenho); nota ≤3 exige justificativa.
 - **Novatos:** pode avaliar com cadastro portal pendente ou em adaptação; **Marcar como apto na função** quando aplicável.
@@ -197,6 +198,19 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 - **API:** `GET /api/portal/emocional-alertas` (lista do dia, filtra já vistos); `POST` marca visto por alvo (`emocional_alertas_vistos`, migration **`037_emocional_alertas_vistos.sql`**).
 - **UI alerta:** uma linha por colaborador; botão **OK** individual (some só para quem clicou, só aquele nome).
 - **Privacidade copy:** resumo anônimo para o colaborador; lista com **nome** só para quem tem permissão de gestão.
+
+## Balão de aniversário (1.º acesso do dia)
+
+- **Ordem:** termômetro (colaborador) → balão de aniversário, **se houver** aniversariante(s) **hoje** (dia/mês civil BR).
+- **Componentes:** `AniversarioBalaoPortal.tsx` em `PortalLayout.tsx` (z-68); faixa fixa `AniversarioFaixaHoje.tsx` após parabenizar ou OK.
+- **Colega:** balão com foto, confetes leves (`prefers-reduced-motion`), **Mandar parabéns para [primeiro nome]** ou **OK** (dispensa o resto do dia).
+- **Aniversariante:** mensagem de carinho + contador de parabéns recebidos hoje.
+- **Vários aniversariantes:** um por vez (carrossel); faixa lista todos.
+- **API:** `GET /api/portal/aniversario-hoje`; `POST .../parabens`; `POST .../dispensar`.
+- **Persistência:** `aniversario_dia_acao` (migration **`041_aniversario_dia_acao.sql`**).
+- **Preview (jun/2026):** só **Alan** e **Gabriela Fontes** veem até aprovação; depois `ANIVERSARIO_BALAO_REDE_ATIVO=true` na Vercel.
+  - Env: `ANIVERSARIO_BALAO_PREVIEW=true` (default); `ANIVERSARIO_BALAO_REDE_ATIVO=false`; opcional `ANIVERSARIO_BALAO_PREVIEW_IDS=uuid,uuid`.
+  - Match por nome em `src/lib/aniversario-balao-access.ts` (`nomeCoincide`).
 
 ## Comunicação (sugestões, reclamações e suporte)
 
@@ -502,7 +516,7 @@ Ordem sugerida lá: hardening GitHub/Vercel/Supabase → rate limit + anti-enume
 
 ## Como trabalhar (agente)
 
-1. Alterações **só** nesta árvore; deploy = push `main` → Vercel (não usar `isa_start`/`isa_stop`).
+1. Alterações **só** nesta árvore; deploy = **`git push origin main`** **neste repo** → Vercel (não usar `isa_start`/`isa_stop`; não commitar portal pelo git da raiz `ISA AI/` — ver `.cursor/rules/portal-git-monorepo-separacao.mdc` no monorepo).
 2. Migrations: adicionar SQL numerado em `supabase/migrations/` + script `db:apply-*` se o projeto já usa esse padrão.
 3. Após mudança em auth, onboarding gate ou contrato de API usado pelo app: testar `npm run build` e fluxo login + onboarding em preview.
 4. Vídeo/mp4 grande: **nunca** commitar; usar `upload:video-boas-vindas`.

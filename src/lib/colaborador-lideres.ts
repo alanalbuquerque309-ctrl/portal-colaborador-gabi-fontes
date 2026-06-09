@@ -11,6 +11,7 @@ import {
   listarEquipeAvaliacaoDireta,
 } from '@/lib/avaliacao-direta';
 import { resolverUnidadesListaCompletaEquipeAvaliacao } from '@/lib/resolver-unidades-equipe-avaliacao';
+import { deveExcluirSetorDaListaCompletaUnidade } from '@/lib/setores-fabrica-lideranca';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -134,8 +135,21 @@ export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
+  const { data: unidadeRow } = await supabase
+    .from('unidades')
+    .select('slug')
+    .eq('id', unidadeId)
+    .maybeSingle();
+  const unidadeSlug = unidadeRow?.slug ? String(unidadeRow.slug) : null;
+
   return (data ?? [])
-    .filter((c) => normalizePortalRole((c as { role?: string }).role) === 'colaborador')
+    .filter((c) => {
+      if (normalizePortalRole((c as { role?: string }).role) !== 'colaborador') return false;
+      if (deveExcluirSetorDaListaCompletaUnidade(unidadeSlug, (c as { setor?: string | null }).setor)) {
+        return false;
+      }
+      return true;
+    })
     .map((c) => ({
       id: String(c.id),
       nome: String(c.nome ?? ''),

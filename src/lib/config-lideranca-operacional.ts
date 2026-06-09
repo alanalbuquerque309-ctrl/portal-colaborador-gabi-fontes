@@ -154,7 +154,7 @@ export const REGRAS_LIDERANCA_OPERACIONAL: RegraLiderancaOperacional[] = [
 
     setor: 'Fábrica de doces',
 
-    lideres_nomes: ['Sabrina', 'Henrique'],
+    lideres_nomes: ['Sabrina', 'Henrique', 'Luís Henrique', 'Luis Henrique'],
 
   },
 

@@ -1,5 +1,7 @@
 # Deploy — Portal do Colaborador Gabi Fontes
 
+> **Git:** este projeto é um repo **separado** da pasta raiz `ISA AI/`. Commit, push e Vercel = **sempre aqui** (`portal-colaborador-gabi-fontes`, branch `main`). O Commit & Push do Cursor na raiz `ISA AI` **não** publica o portal.
+
 ## O que já está pronto
 
 - Build passando
