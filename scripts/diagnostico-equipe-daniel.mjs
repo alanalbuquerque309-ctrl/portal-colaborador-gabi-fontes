@@ -96,11 +96,12 @@ async function main() {
     }
   }
 
-  const daniel = (todos ?? []).find(
-    (c) =>
-      nomeMatch(c.nome, 'Daniel Martins') ||
-      (nomeMatch(c.nome, 'Daniel') && ['admin', 'socio', 'gerente', 'master'].includes(norm(c.role)))
-  );
+  const daniel =
+    (todos ?? []).find((c) => nomeMatch(c.nome, 'Daniel Brito Martins')) ??
+    (todos ?? []).find((c) => nomeMatch(c.nome, 'Daniel Martins') && norm(c.role) === 'admin') ??
+    (todos ?? []).find(
+      (c) => nomeMatch(c.nome, 'Daniel') && ['admin', 'gerente', 'master'].includes(norm(c.role))
+    );
   if (!daniel) {
     console.error('\nDaniel não encontrado.');
     process.exit(1);

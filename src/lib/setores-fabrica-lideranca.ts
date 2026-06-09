@@ -1,4 +1,7 @@
-import { REGRAS_LIDERANCA_OPERACIONAL } from '@/lib/config-lideranca-operacional';
+import {
+  REGRAS_LIDERANCA_OPERACIONAL,
+  SETORES_LIDERANCA_DANIEL_TRANSVERSAL,
+} from '@/lib/config-lideranca-operacional';
 import { MURAL_GRUPO_MESQUITA_SLUGS } from '@/lib/mural-unidade-grupo';
 import type { createAdminClient } from '@/lib/supabase/admin';
 
@@ -9,6 +12,12 @@ export const SETORES_LIDERANCA_NA_FABRICA = REGRAS_LIDERANCA_OPERACIONAL.filter(
   (r): r is Extract<(typeof REGRAS_LIDERANCA_OPERACIONAL)[number], { tipo: 'unidade_setor' }> =>
     r.tipo === 'unidade_setor' && r.unidade_slug === 'fabrica'
 ).map((r) => r.setor);
+
+export function isSetorLiderancaDanielTransversal(setor: string | null | undefined): boolean {
+  const s = String(setor ?? '').trim();
+  if (!s) return false;
+  return (SETORES_LIDERANCA_DANIEL_TRANSVERSAL as readonly string[]).includes(s);
+}
 
 export function isSetorLideradoNaFabrica(setor: string | null | undefined): boolean {
   const s = String(setor ?? '').trim();
@@ -44,4 +53,11 @@ export async function resolverUnidadeIdsGrupoMesquita(supabase: SupabaseAdmin): 
 
 export async function resolverUnidadeIdFabrica(supabase: SupabaseAdmin): Promise<string | null> {
   return resolverUnidadeIdPorSlug(supabase, 'fabrica');
+}
+
+/** Todas as unidades cadastradas (CD/Estoque/etc. podem estar em Administrativo). */
+export async function resolverTodasUnidadeIds(supabase: SupabaseAdmin): Promise<string[]> {
+  const { data, error } = await supabase.from('unidades').select('id');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => String(r.id)).filter(Boolean);
 }

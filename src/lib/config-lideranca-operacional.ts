@@ -168,7 +168,7 @@ export const REGRAS_LIDERANCA_OPERACIONAL: RegraLiderancaOperacional[] = [
 
       setor,
 
-      lideres_nomes: [LIDER_TRANSVERSAL_CD_NOME],
+      lideres_nomes: [LIDER_TRANSVERSAL_CD_NOME, 'Daniel Brito Martins', 'Daniel Brito', 'Daniel'],
 
     })
 
@@ -180,7 +180,7 @@ export const REGRAS_LIDERANCA_OPERACIONAL: RegraLiderancaOperacional[] = [
 
     unidade_slug: 'administrativo',
 
-    lideres_nomes: [LIDER_TRANSVERSAL_CD_NOME],
+    lideres_nomes: [LIDER_TRANSVERSAL_CD_NOME, 'Daniel Brito Martins', 'Daniel Brito', 'Daniel'],
 
   },
 

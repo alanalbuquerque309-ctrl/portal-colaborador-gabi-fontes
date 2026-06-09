@@ -15,6 +15,7 @@
     "db:apply-036": "node scripts/aplicar-migration-036.mjs",
     "db:apply-039": "node scripts/aplicar-migration-039.mjs",
     "db:apply-040": "node scripts/aplicar-migration-040.mjs",
+    "db:apply-041": "node scripts/aplicar-migration-041.mjs",
     "db:ignorar-avaliacoes-vinculo": "node scripts/ignorar-avaliacoes-vinculo-incorreto.mjs --confirmar",
     "db:apply-migrations-avaliacao": "node scripts/aplicar-migrations-038-039.mjs",
     "db:avaliacao-direta": "node scripts/aplicar-vinculos-avaliacao-direta.mjs",

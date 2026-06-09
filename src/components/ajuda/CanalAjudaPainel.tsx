@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   canExcluirMensagensAjuda,
   normalizePortalRole,
 } from '@/lib/roles';
 
 const POLL_MS = 8000;
+const NOVO_TOPICO_ID = '__novo__';
 
 type MensagemAjuda = {
   id: string;
@@ -28,6 +29,22 @@ type Props = {
   onClose?: () => void;
 };
 
+function fmtDataCurta(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+}
+
+function rotuloTopico(item: MensagemAjuda, modoGestor: boolean): string {
+  const texto = item.mensagem.trim().replace(/\s+/g, ' ');
+  const preview = texto.length > 52 ? `${texto.slice(0, 52)}…` : texto;
+  if (modoGestor) {
+    const nome = item.colaborador_nome?.trim() || 'Colaborador';
+    return `${nome}: ${preview}`;
+  }
+  return preview || 'Mensagem';
+}
+
 export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
   const [modoGestorAjuda, setModoGestorAjuda] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -37,6 +54,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
   const [chatIndisponivel, setChatIndisponivel] = useState(false);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [perfilOk, setPerfilOk] = useState(false);
+  const [topicoAtivo, setTopicoAtivo] = useState<string>(NOVO_TOPICO_ID);
 
   useEffect(() => {
     let cancel = false;
@@ -131,6 +149,20 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
     };
   }, [perfilOk, carregar]);
 
+  useEffect(() => {
+    if (topicoAtivo === NOVO_TOPICO_ID) return;
+    if (!itens.some((i) => i.id === topicoAtivo)) {
+      if (itens.length > 0) setTopicoAtivo(itens[itens.length - 1].id);
+      else if (!modoGestorAjuda) setTopicoAtivo(NOVO_TOPICO_ID);
+      else setTopicoAtivo('');
+    }
+  }, [itens, topicoAtivo, modoGestorAjuda]);
+
+  const itemAtivo = useMemo(
+    () => itens.find((i) => i.id === topicoAtivo) ?? null,
+    [itens, topicoAtivo]
+  );
+
   const apagar = async (id: string) => {
     if (
       !window.confirm(
@@ -175,6 +207,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
       }
       setTexto('');
       await carregar(true);
+      setTopicoAtivo(NOVO_TOPICO_ID);
     } catch {
       setErro('Erro de conexão ao enviar.');
     }
@@ -182,8 +215,10 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
 
   const shellClass =
     variant === 'modal'
-      ? 'rounded-xl bg-white border border-dourado-200 shadow-xl p-4 max-h-[min(85vh,520px)] flex flex-col'
+      ? 'rounded-xl bg-white border border-dourado-200 shadow-xl p-4 max-h-[min(85vh,560px)] flex flex-col'
       : 'rounded-2xl border border-cafeteria-200 bg-white p-4 sm:p-5 flex flex-col';
+
+  const mostrarFormulario = !modoGestorAjuda && (topicoAtivo === NOVO_TOPICO_ID || itens.length === 0);
 
   return (
     <div className={shellClass}>
@@ -207,66 +242,128 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
           </>
         )}
       </p>
-      <div className="rounded-lg border border-cream-300 bg-cream-50 p-2 min-h-[160px] max-h-[280px] overflow-y-auto space-y-2 shrink">
-        {loading && <p className="text-xs text-coffee-100">Carregando conversa…</p>}
-        {!loading && itens.length === 0 && (
-          <p className="text-xs text-coffee-100">
-            {modoGestorAjuda ? 'Nenhuma mensagem registrada.' : 'Sem mensagens ainda. Escreva abaixo para iniciar.'}
+
+      <div className="grid md:grid-cols-[minmax(148px,220px)_1fr] gap-3 flex-1 min-h-0">
+        <aside className="rounded-lg border border-cream-300 bg-cream-50 flex flex-col min-h-[200px] md:min-h-0 md:max-h-[min(52vh,420px)]">
+          <p className="px-3 py-2 text-xs font-semibold text-coffee-base border-b border-cream-200 shrink-0">
+            Histórico de atividades
           </p>
-        )}
-        {!loading &&
-          itens.map((item) => (
-            <div key={item.id} className="space-y-1 rounded-md border border-cream-200/80 bg-white/90 p-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] text-coffee-100 font-medium mb-0.5">
-                    {modoGestorAjuda ? `${item.colaborador_nome ?? 'Colaborador'} · mensagem` : 'Você'}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+            {loading && <p className="text-xs text-coffee-100 px-1">Carregando…</p>}
+            {!modoGestorAjuda && (
+              <button
+                type="button"
+                onClick={() => setTopicoAtivo(NOVO_TOPICO_ID)}
+                className={`w-full text-left rounded-lg px-3 py-2 text-sm ${
+                  topicoAtivo === NOVO_TOPICO_ID
+                    ? 'bg-dourado-base/15 text-coffee-base font-medium'
+                    : 'hover:bg-white text-coffee-base'
+                }`}
+              >
+                + Nova mensagem
+              </button>
+            )}
+            {!loading && itens.length === 0 && modoGestorAjuda && (
+              <p className="text-xs text-coffee-100 px-1">Nenhuma atividade registrada.</p>
+            )}
+            {itens.map((item) => {
+              const ativo = topicoAtivo === item.id;
+              const pendente = !item.resposta;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setTopicoAtivo(item.id)}
+                  className={`w-full text-left rounded-lg px-3 py-2 text-sm ${
+                    ativo ? 'bg-dourado-base/15 text-coffee-base' : 'hover:bg-white text-coffee-base'
+                  }`}
+                >
+                  <span className="block font-medium leading-snug break-words">
+                    {rotuloTopico(item, modoGestorAjuda)}
+                  </span>
+                  <span className="flex items-center gap-2 mt-1 text-[10px] text-coffee-100">
+                    <span>{fmtDataCurta(item.created_at)}</span>
+                    {pendente && (
+                      <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-amber-900 font-medium">
+                        Aguardando
+                      </span>
+                    )}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </aside>
+
+        <section className="rounded-lg border border-cream-300 bg-cream-50/60 flex flex-col min-h-[240px] md:min-h-0 md:max-h-[min(52vh,420px)]">
+          {mostrarFormulario ? (
+            <div className="p-3 flex flex-col flex-1">
+              <p className="text-sm font-medium text-coffee-base mb-2">Nova mensagem para ADM/RH</p>
+              <textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                className="flex-1 w-full rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base min-h-[120px]"
+                rows={4}
+                placeholder="Escreva sua mensagem para ADM/RH..."
+                disabled={chatIndisponivel}
+              />
+              <button
+                type="button"
+                onClick={() => void enviar()}
+                disabled={chatIndisponivel || texto.trim().length < 3}
+                className="mt-3 w-full rounded-lg bg-dourado-base px-4 py-3 text-sm font-medium text-cream-100 hover:bg-dourado-400 disabled:opacity-50 min-h-[44px]"
+              >
+                {chatIndisponivel ? 'Canal em ativação' : 'Enviar mensagem'}
+              </button>
+            </div>
+          ) : itemAtivo ? (
+            <div className="p-3 flex flex-col flex-1 overflow-y-auto">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-coffee-100 font-medium">
+                    {modoGestorAjuda
+                      ? `${itemAtivo.colaborador_nome ?? 'Colaborador'} · ${fmtDataCurta(itemAtivo.created_at)}`
+                      : `Você · ${fmtDataCurta(itemAtivo.created_at)}`}
                   </p>
-                  <p className="text-xs text-coffee-base break-words">{item.mensagem}</p>
+                  <p className="text-sm text-coffee-base mt-2 break-words whitespace-pre-wrap leading-relaxed">
+                    {itemAtivo.mensagem}
+                  </p>
                 </div>
                 {modoGestorAjuda && (
                   <button
                     type="button"
-                    onClick={() => void apagar(item.id)}
-                    disabled={excluindoId === item.id}
-                    className="shrink-0 rounded border border-red-200 px-2 py-0.5 text-[10px] font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    onClick={() => void apagar(itemAtivo.id)}
+                    disabled={excluindoId === itemAtivo.id}
+                    className="shrink-0 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
                   >
-                    {excluindoId === item.id ? '…' : 'Apagar'}
+                    {excluindoId === itemAtivo.id ? '…' : 'Apagar'}
                   </button>
                 )}
               </div>
-              {item.resposta && (
-                <div className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1">
-                  <p className="text-[11px] text-emerald-800 font-medium">
-                    {item.respondido_por_nome ? `${item.respondido_por_nome} (atendimento)` : 'Atendimento'}
+              {itemAtivo.resposta ? (
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 mt-auto">
+                  <p className="text-xs text-emerald-800 font-medium">
+                    {itemAtivo.respondido_por_nome
+                      ? `${itemAtivo.respondido_por_nome} (atendimento)`
+                      : 'Atendimento'}
+                    {itemAtivo.respondido_em ? ` · ${fmtDataCurta(itemAtivo.respondido_em)}` : ''}
                   </p>
-                  <p className="text-xs text-emerald-900">{item.resposta}</p>
+                  <p className="text-sm text-emerald-900 mt-1 break-words whitespace-pre-wrap">{itemAtivo.resposta}</p>
                 </div>
+              ) : (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-auto">
+                  Aguardando resposta do atendimento.
+                </p>
               )}
             </div>
-          ))}
+          ) : (
+            <p className="p-4 text-sm text-coffee-100">Selecione uma atividade à esquerda.</p>
+          )}
+        </section>
       </div>
-      {!modoGestorAjuda && (
-        <textarea
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          className="mt-3 w-full rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base shrink-0 min-h-[88px]"
-          rows={3}
-          placeholder="Escreva sua mensagem para ADM/RH..."
-          disabled={chatIndisponivel}
-        />
-      )}
+
       {erro && <p className="mt-2 text-xs text-red-600">{erro}</p>}
-      {!modoGestorAjuda && (
-        <button
-          type="button"
-          onClick={() => void enviar()}
-          disabled={chatIndisponivel || texto.trim().length < 3}
-          className="mt-2 w-full rounded-lg bg-dourado-base px-4 py-3 text-sm font-medium text-cream-100 hover:bg-dourado-400 shrink-0 disabled:opacity-50 min-h-[44px]"
-        >
-          {chatIndisponivel ? 'Canal em ativação' : 'Enviar mensagem'}
-        </button>
-      )}
+
       {variant === 'modal' && onClose && (
         <button
           type="button"

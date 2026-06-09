@@ -9,8 +9,10 @@ import { normalizePortalRole } from '@/lib/roles';
 import {
   deveExcluirSetorDaListaCompletaUnidade,
   isSetorLideradoNaFabrica,
+  isSetorLiderancaDanielTransversal,
   resolverUnidadeIdFabrica,
   resolverUnidadeIdsGrupoMesquita,
+  resolverTodasUnidadeIds,
 } from '@/lib/setores-fabrica-lideranca';
 
 function normalizarTextoOrg(value: string | null | undefined): string {
@@ -214,6 +216,21 @@ export async function listarColaboradoresPorUnidadeSetor(
       .from('colaboradores')
       .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
       .in('unidade_id', grupoIds)
+      .eq('setor', setorCfg)
+      .order('nome');
+
+    if (error) throw new Error(error.message);
+    return (data ?? []).filter(filtrarMembro).map(mapearMembro);
+  }
+
+  if (setorCfg !== SETOR_TODOS_NA_UNIDADE && isSetorLiderancaDanielTransversal(setorCfg)) {
+    const todasIds = await resolverTodasUnidadeIds(supabase);
+    if (todasIds.length === 0) return [];
+
+    const { data, error } = await supabase
+      .from('colaboradores')
+      .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
+      .in('unidade_id', todasIds)
       .eq('setor', setorCfg)
       .order('nome');
 

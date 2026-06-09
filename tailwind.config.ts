@@ -67,9 +67,19 @@ const config: Config = {
           '85%': { transform: 'translateY(100%) scaleY(0.95)' },
           '100%': { transform: 'translateY(100%) scaleY(0)' },
         },
+        'aniversario-confetti': {
+          '0%': { transform: 'translateY(0) rotate(0deg)', opacity: '0.9' },
+          '100%': { transform: 'translateY(220px) rotate(540deg)', opacity: '0' },
+        },
+        'aniversario-balao-in': {
+          '0%': { transform: 'translateY(24px) scale(0.96)', opacity: '0' },
+          '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
+        },
       },
       animation: {
         'xicara-encher': 'xicara-encher 2s ease-in-out infinite',
+        'aniversario-confetti': 'aniversario-confetti 2.2s ease-out infinite',
+        'aniversario-balao-in': 'aniversario-balao-in 0.35s ease-out forwards',
       },
     },
   },
