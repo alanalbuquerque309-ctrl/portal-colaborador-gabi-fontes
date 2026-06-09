@@ -9,6 +9,7 @@ import { CompletarFotoPerfilBanner } from '@/components/portal/CompletarFotoPerf
 import { EscolherFotoPerfil } from '@/components/portal/EscolherFotoPerfil';
 import { formatTelefoneBr } from '@/lib/telefone';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
+import { fotoObrigatoriaPortal } from '@/lib/perfil-completo';
 
 function PerfilPageContent() {
   const router = useRouter();
@@ -27,6 +28,7 @@ function PerfilPageContent() {
     perfil_completo?: boolean;
     foto_cadastrada?: boolean;
     onboarding_completo?: boolean;
+    role?: string;
     unidade_id?: string;
     unidades?: { nome: string };
   } | null>(null);
@@ -52,7 +54,7 @@ function PerfilPageContent() {
 
   useEffect(() => {
     if (!session?.colaboradorId) return;
-    fetch('/api/portal/perfil', { credentials: 'include' })
+    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && data.colaborador) {
@@ -64,6 +66,10 @@ function PerfilPageContent() {
             email: String(data.colaborador.email ?? ''),
             data_nascimento: String(data.colaborador.data_nascimento ?? ''),
           });
+          if (fotoObrigatoria && !fotoObrigatoriaPortal(data.colaborador.role)) {
+            router.replace('/portal/perfil');
+            return;
+          }
           if (
             fotoObrigatoria &&
             data.colaborador.foto_cadastrada &&
@@ -119,7 +125,11 @@ function PerfilPageContent() {
         const cid = session?.colaboradorId ?? '';
         if (!colaborador?.onboarding_completo && cid && uid) {
           router.replace(urlOnboardingColaborador(cid, uid));
-        } else if (!colaborador?.foto_cadastrada && !colaborador?.foto_url) {
+        } else if (
+          fotoObrigatoriaPortal(colaborador?.role) &&
+          !colaborador?.foto_cadastrada &&
+          !colaborador?.foto_url
+        ) {
           router.replace('/portal/perfil?foto=1');
         } else {
           router.replace('/portal');
@@ -142,13 +152,14 @@ function PerfilPageContent() {
     );
   }
 
-  const mostrarFormulario = completarObrigatorio || !fotoObrigatoria;
+  const fotoGateAtivo = fotoObrigatoria && fotoObrigatoriaPortal(colaborador?.role);
+  const mostrarFormulario = completarObrigatorio || !fotoGateAtivo;
 
   return (
-    <div className={`max-w-lg mx-auto ${completarObrigatorio || fotoObrigatoria ? 'pb-8' : ''}`}>
+    <div className={`max-w-lg mx-auto ${completarObrigatorio || fotoGateAtivo ? 'pb-8' : ''}`}>
       {completarObrigatorio ? (
         <CompletarCadastroPessoalBanner />
-      ) : fotoObrigatoria ? (
+      ) : fotoGateAtivo ? (
         <CompletarFotoPerfilBanner />
       ) : (
         <h1 className="text-2xl font-display font-semibold text-coffee-base mb-6">Meu perfil</h1>
@@ -156,18 +167,18 @@ function PerfilPageContent() {
 
       <div
         className={`rounded-2xl bg-white border shadow-xl p-6 ${
-          completarObrigatorio || fotoObrigatoria
+          completarObrigatorio || fotoGateAtivo
             ? 'border-dourado-base/60 ring-2 ring-dourado-base/20'
             : 'border-dourado-200'
         }`}
       >
-        {(fotoObrigatoria || !completarObrigatorio) && (
+        {(fotoGateAtivo || !completarObrigatorio) && (
           <div className="mb-6 pb-6 border-b border-cream-200">
             <EscolherFotoPerfil
               nome={colaborador?.nome ?? form.nome}
               fotoUrl={colaborador?.foto_url}
               onFotoEnviada={handleFotoEnviada}
-              variant={fotoObrigatoria ? 'modal' : 'perfil'}
+              variant={fotoGateAtivo ? 'modal' : 'perfil'}
             />
           </div>
         )}
@@ -257,7 +268,7 @@ function PerfilPageContent() {
           </form>
         )}
 
-        {fotoObrigatoria && colaborador?.foto_cadastrada && (
+        {fotoGateAtivo && colaborador?.foto_cadastrada && (
           <button
             type="button"
             onClick={() => router.replace('/portal')}

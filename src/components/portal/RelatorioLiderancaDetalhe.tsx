@@ -9,6 +9,7 @@ import {
   notaBaixa,
   notasDaLinha,
   pilarMaisFracoLinha,
+  mostraAutorRealAvaliacaoLider,
 } from '@/lib/lideranca-relatorio-ui';
 
 export function MediaBadgeLider({ media }: { media: number }) {
@@ -49,6 +50,7 @@ export function PilaresNotasGrid({ row }: { row: LinhaLiderRelatorio }) {
 export function CardAvaliacaoLideranca({ row }: { row: LinhaLiderRelatorio }) {
   const fraco = pilarMaisFracoLinha(row);
   const alerta = linhaTemAlerta(row);
+  const autorVisivel = mostraAutorRealAvaliacaoLider(row);
 
   return (
     <article
@@ -62,7 +64,7 @@ export function CardAvaliacaoLideranca({ row }: { row: LinhaLiderRelatorio }) {
             {formatarSemanaLider(row.semana_inicio)}
           </p>
           <p className="text-xs sm:text-sm text-cafeteria-600 mt-0.5 break-words">
-            {row.avaliador_id ? (
+            {autorVisivel ? (
               <>
                 <strong
                   className={row.avaliador_anonimo ? 'text-amber-950' : 'text-cafeteria-900'}

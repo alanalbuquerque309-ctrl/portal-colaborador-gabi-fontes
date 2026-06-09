@@ -18,6 +18,12 @@ const withPWA = require('@ducanh2912/next-pwa').default({
           request.method === 'GET' && url.pathname.startsWith('/api/admin'),
         handler: 'NetworkOnly',
       },
+      /** APIs do portal (perfil, relatórios): nunca cache — evita mobile PWA com dados anonimizados antigos */
+      {
+        urlPattern: ({ request, url }) =>
+          request.method === 'GET' && url.pathname.startsWith('/api/portal'),
+        handler: 'NetworkOnly',
+      },
       /** HTML dos manuais no iframe: evita SW servir resposta errada/vazia em produção */
       {
         urlPattern: ({ request, url }) =>

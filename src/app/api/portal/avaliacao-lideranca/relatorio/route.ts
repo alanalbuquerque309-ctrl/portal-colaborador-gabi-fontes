@@ -59,7 +59,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, erro }, { status });
     }
 
-    return NextResponse.json({ ok: true, nota, auditoria_socio, itens, total: itens.length });
+    return NextResponse.json({ ok: true, nota, auditoria_socio, itens, total: itens.length }, {
+      headers: { 'Cache-Control': 'no-store, max-age=0' },
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

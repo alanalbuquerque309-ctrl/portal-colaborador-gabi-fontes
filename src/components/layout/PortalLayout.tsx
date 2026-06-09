@@ -10,6 +10,7 @@ import { normalizePortalRole } from '@/lib/roles';
 import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast';
 import { PortalOnlineStrip, PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
+import { fotoObrigatoriaPortal } from '@/lib/perfil-completo';
 import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
 import { AniversarioBalaoPortal } from '@/components/aniversario/AniversarioBalaoPortal';
 
@@ -65,12 +66,13 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         router.replace(urlOnboardingColaborador(d.colaborador.id, d.colaborador.unidade_id));
         return;
       }
+      const role = normalizePortalRole(d?.colaborador?.role ?? 'colaborador');
       const onboardingOk =
-        normalizePortalRole(d?.colaborador?.role ?? 'colaborador') !== 'colaborador' ||
-        d.colaborador?.onboarding_completo === true;
+        role !== 'colaborador' || d.colaborador?.onboarding_completo === true;
       if (
         d.ok &&
         d.colaborador &&
+        fotoObrigatoriaPortal(role) &&
         d.colaborador.perfil_completo === true &&
         onboardingOk &&
         d.colaborador.foto_cadastrada === false &&
@@ -79,7 +81,6 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         router.replace('/portal/perfil?foto=1');
         return;
       }
-      const role = normalizePortalRole(d?.colaborador?.role ?? 'colaborador');
       setPerfilRole(role);
       if (d.ok && role === 'colaborador' && d.colaborador?.perfil_completo === true && d.colaborador?.foto_cadastrada === true) {
         fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' })

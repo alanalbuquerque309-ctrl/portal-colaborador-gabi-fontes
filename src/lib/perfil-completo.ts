@@ -1,3 +1,5 @@
+import { normalizePortalRole } from '@/lib/roles';
+
 /** Campos pessoais obrigatórios para liberar o portal (data_admissao fica com RH). */
 export type PerfilPessoalFields = {
   nome?: string | null;
@@ -10,6 +12,11 @@ export type PerfilPessoalFields = {
 
 export function temFotoPerfil(fotoUrl: string | null | undefined): boolean {
   return Boolean(String(fotoUrl ?? '').trim());
+}
+
+/** Foto obrigatória só para colaboradores de chão de loja; liderança/sócio não entram no gate. */
+export function fotoObrigatoriaPortal(role: string | null | undefined): boolean {
+  return normalizePortalRole(role) === 'colaborador';
 }
 
 export function isPerfilPessoalCompleto(row: PerfilPessoalFields): boolean {

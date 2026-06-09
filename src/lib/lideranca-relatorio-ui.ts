@@ -119,3 +119,12 @@ export function filtrarLinhasLideranca(
     return hay.includes(q);
   });
 }
+
+/** Sócio vê rótulo «Nome avaliou…»; demais perfis veem «Colaborador (anônimo)». */
+export function mostraAutorRealAvaliacaoLider(
+  row: Pick<LinhaLiderRelatorio, 'avaliador_label' | 'avaliador_id' | 'avaliador_anonimo'>
+): boolean {
+  if (row.avaliador_anonimo !== undefined) return true;
+  if (String(row.avaliador_id ?? '').trim()) return true;
+  return /\bavaliou\b/i.test(String(row.avaliador_label ?? ''));
+}
