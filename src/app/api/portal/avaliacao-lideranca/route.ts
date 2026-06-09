@@ -3,11 +3,13 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { domingoSemanaSaoPaulo, hojeEhDomingoSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { normalizePortalRole } from '@/lib/roles';
-import { listarEquipeDoLider, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
+import {
+  listarEquipeParaAvaliacaoSemanal,
+  listarLideresDoColaborador,
+} from '@/lib/colaborador-lideres';
 import { colaboradorDeveAvaliarAdministradorEmpresa } from '@/lib/lideres-por-setor';
 
 const DIMENSOES = ['n_exemplo', 'n_comunicacao', 'n_suporte', 'n_justica', 'n_clima'] as const;
-const CARGOS_SUBORDINADOS_ADMIN = ['estoque', 'motorista', 'aux administrativo', 'auxiliar administrativo', 'aux adminstrativo'] as const;
 type PapelAvaliacao = 'lider_direto' | 'rh_global' | 'admin_global' | 'subordinado_admin';
 type AvaliadoRegra = { id: string; nome: string; role: string; papel: PapelAvaliacao };
 
@@ -44,12 +46,6 @@ function normalizeText(value: string | null | undefined): string {
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '');
-}
-
-function cargoElegivelParaAvaliacaoAdmin(cargo: string | null | undefined): boolean {
-  const c = normalizeText(cargo);
-  if (!c) return false;
-  return CARGOS_SUBORDINADOS_ADMIN.some((permitido) => c.includes(permitido));
 }
 
 function extrairUnidadeSlug(eu: unknown): string | null {
@@ -153,10 +149,9 @@ async function carregarSubordinadosDoAdmin(
   adminId: string,
   unidadeId: string | null
 ): Promise<AvaliadoRegra[]> {
-  const equipe = await listarEquipeDoLider(supabase, adminId, unidadeId);
+  const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, adminId, unidadeId ?? '');
   return equipe
     .filter((c) => normalizePortalRole(c.role) === 'colaborador')
-    .filter((c) => cargoElegivelParaAvaliacaoAdmin((c as { cargo?: string | null }).cargo))
     .map((c) => ({
       id: String(c.id),
       nome: String(c.nome ?? ''),

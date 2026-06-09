@@ -167,14 +167,21 @@ export default function AvaliacaoLiderancaPage() {
         {perfilRole === 'admin' && (
           <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm md:text-base text-sky-950 space-y-1">
             <p>
-              <strong>Quem te avaliou?</strong> Isso não aparece nesta tela. Abra o menu{' '}
+              <strong>Avaliação semanal da equipe</strong> (assiduidade, vestimenta, estrelas): use{' '}
+              <Link href="/portal/avaliacao-master" className="text-dourado-base font-medium underline">
+                Avaliação da equipe
+              </Link>{' '}
+              no menu.
+            </p>
+            <p>
+              <strong>Quem te avaliou?</strong> Abra{' '}
               <Link href="/portal/minha-lideranca" className="text-dourado-base font-medium underline">
                 Minha liderança
               </Link>{' '}
-              para ver médias anônimas da equipe.
+              para ver médias anônimas.
             </p>
             <p className="text-sky-900/90">
-              Nesta lista entram só os cargos que você deve avaliar. Quem já foi avaliado continua visível com a
+              Nesta tela você dá feedback de liderança (1 a 5) aos subordinados do mapa. Quem já foi avaliado continua visível com a
               etiqueta <strong>Avaliado</strong> (desabilitado). Se faltar alguém, toque em{' '}
               <strong>Mostrar todos</strong> no checklist.
             </p>

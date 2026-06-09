@@ -204,8 +204,13 @@ export default function AvaliacaoMasterPage() {
         <div className="rounded-xl border border-dourado-base/40 bg-dourado-50/50 p-6 text-cafeteria-800">
           <p className="font-medium">Nenhum colaborador na sua equipe</p>
           <p className="text-sm mt-2 text-cafeteria-700">
-            Peça ao administrador para definir o campo <strong>Líderes diretos</strong> nos perfis que você
-            avalia (mesma unidade). Seu usuário precisa ter função <strong>Gerente</strong>, <strong>Master</strong> ou <strong>Administrador</strong>.
+            Confira se está logado como <strong>Daniel Brito Martins</strong> (administrador). Toque em{' '}
+            <strong>Atualizar lista</strong>. Se continuar vazio, no Admin peça para aplicar o mapa em{' '}
+            <strong>Liderança por setor</strong>.
+          </p>
+          <p className="text-sm mt-2 text-cafeteria-600">
+            A tela <strong>Avaliar liderança</strong> é outro fluxo (feedback 1–5 sobre chefia). A avaliação
+            semanal da equipe (presença, estrelas) fica aqui.
           </p>
         </div>
       ) : (

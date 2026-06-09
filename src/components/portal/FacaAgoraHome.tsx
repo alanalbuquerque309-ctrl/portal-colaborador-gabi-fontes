@@ -116,7 +116,7 @@ export function FacaAgoraHome() {
           }
         }
 
-        if (podeEquipe && !isAdm) {
+        if (podeEquipe && (nr === 'gerente' || nr === 'master' || nr === 'admin')) {
           const d2 = await fetch(`/api/portal/avaliacao-master?data=${semanaRef}`, {
             credentials: 'include',
             cache: 'no-store',

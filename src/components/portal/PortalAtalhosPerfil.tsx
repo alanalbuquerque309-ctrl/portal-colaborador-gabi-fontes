@@ -33,6 +33,13 @@ export function PortalAtalhosPerfil() {
           });
         }
         if (nr === 'gerente' || nr === 'master' || nr === 'admin') {
+          if (nr === 'admin') {
+            lista.push({
+              href: '/portal/avaliacao-master',
+              titulo: 'Avaliação da equipe',
+              descricao: 'Notas semanais (assiduidade, vestimenta, desempenho).',
+            });
+          }
           lista.push({
             href: '/portal/gerente-equipe',
             titulo: 'Equipe no mês',

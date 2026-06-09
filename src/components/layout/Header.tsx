@@ -283,6 +283,9 @@ export function Header() {
   const navMobile: NavItem[] = isAdm
     ? [
         { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
+        ...(perfilRole === 'admin' && podeAvaliarEquipe
+          ? [{ href: '/portal/avaliacao-master', label: 'Avaliação da equipe', short: 'Avaliar', icon: 'avaliacao' as const }]
+          : []),
         { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
         itemComunicacao,
         { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
