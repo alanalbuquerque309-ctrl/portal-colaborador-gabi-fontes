@@ -8,6 +8,7 @@ interface Aniversariante {
   id: string;
   nome: string;
   data_nascimento: string | null;
+  aniversario_label?: string;
   foto_url?: string | null;
   unidade_nome: string;
 }
@@ -84,12 +85,7 @@ export function MuralFamilia() {
           <div className="flex-1 min-w-0">
             <span className="font-display font-semibold text-coffee-base block">{a.nome}</span>
             <span className="text-coffee-100 text-sm">
-              {a.data_nascimento
-                ? new Date(a.data_nascimento).toLocaleDateString('pt-BR', {
-                    day: 'numeric',
-                    month: 'long',
-                  })
-                : ''}
+              {a.aniversario_label || a.data_nascimento || ''}
               {a.unidade_nome ? ` · ${a.unidade_nome}` : ''}
             </span>
           </div>

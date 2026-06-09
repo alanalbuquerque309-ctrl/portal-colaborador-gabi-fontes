@@ -76,6 +76,7 @@ export default function EditarColaboradorPage() {
     telefone: '',
     endereco: '',
     dataAdmissao: '',
+    dataNascimento: '',
     cargo: '',
     setor: '',
     role: 'colaborador',
@@ -166,6 +167,7 @@ export default function EditarColaboradorPage() {
           telefone: c.telefone != null ? String(c.telefone) : '',
           endereco: c.endereco != null ? String(c.endereco) : '',
           dataAdmissao: formatDateForInput(c.data_admissao as string | undefined),
+          dataNascimento: formatDateForInput(c.data_nascimento as string | undefined),
           cargo: c.cargo != null ? String(c.cargo) : '',
           setor: c.setor != null ? String(c.setor) : '',
           role: roleNormalizado || 'colaborador',
@@ -200,6 +202,7 @@ export default function EditarColaboradorPage() {
       telefone: form.telefone.trim() || null,
       endereco: form.endereco.trim() || null,
       data_admissao: form.dataAdmissao ? form.dataAdmissao : null,
+      data_nascimento: form.dataNascimento ? form.dataNascimento : null,
       cargo: form.cargo.trim() || null,
       setor: form.setor.trim() || null,
       role: form.role,
@@ -348,8 +351,23 @@ export default function EditarColaboradorPage() {
           />
         </div>
         <div>
+          <label htmlFor="dataNascimento" className="block text-sm font-medium text-coffee-base mb-1">
+            Data de nascimento (aniversário)
+          </label>
+          <input
+            id="dataNascimento"
+            type="date"
+            value={form.dataNascimento}
+            onChange={(e) => setForm((f) => ({ ...f, dataNascimento: e.target.value }))}
+            className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
+          />
+          <p className="text-xs text-coffee-100 mt-1">
+            Aparece no mural de aniversariantes. Não confundir com a data de admissão.
+          </p>
+        </div>
+        <div>
           <label htmlFor="dataAdmissao" className="block text-sm font-medium text-coffee-base mb-1">
-            Data de Admissão
+            Data de admissão (RH)
           </label>
           <input
             id="dataAdmissao"

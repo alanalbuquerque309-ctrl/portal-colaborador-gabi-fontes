@@ -265,7 +265,7 @@ function PerfilPageContent() {
               className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
             />
             <p className="text-xs text-coffee-100/80 mt-1">
-              Alimenta o mural de aniversariantes do mês (somente dia e mês são exibidos).
+              Aniversário no mural (só dia e mês). Não é a data de admissão — essa fica com o RH no cadastro admin.
             </p>
           </div>
           <div>

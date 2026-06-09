@@ -92,7 +92,7 @@ export async function POST(req: Request) {
 
   let body: {
     nome?: string; cpf?: string; email?: string; telefone?: string;
-    endereco?: string; data_admissao?: string; cargo?: string; setor?: string | null;
+    endereco?: string; data_admissao?: string; data_nascimento?: string; cargo?: string; setor?: string | null;
     unidade_id?: string; unidade_slug?: string; role?: string;
   };
   try {
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, erro: 'Corpo inválido' }, { status: 400 });
   }
 
-  const { nome, cpf, email, telefone, endereco, data_admissao, cargo, setor, unidade_id, unidade_slug, role } = body;
+  const { nome, cpf, email, telefone, endereco, data_admissao, data_nascimento, cargo, setor, unidade_id, unidade_slug, role } = body;
   const roleFinal =
     role && (ROLES_CADASTRO as readonly string[]).includes(role) ? role : 'colaborador';
   if (setor !== undefined && setor !== null && String(setor).trim() && !isSetorValido(String(setor))) {
@@ -121,6 +121,18 @@ export async function POST(req: Request) {
         ok: false,
         erro:
           'Celular com DDD é obrigatório para o login no portal (10 ou 11 dígitos). Verifique o número informado.',
+      },
+      { status: 400 }
+    );
+  }
+
+  const admIso = data_admissao?.trim()?.slice(0, 10) ?? '';
+  const nascIso = data_nascimento?.trim()?.slice(0, 10) ?? '';
+  if (admIso && nascIso && admIso === nascIso) {
+    return NextResponse.json(
+      {
+        ok: false,
+        erro: 'Data de nascimento não pode ser igual à data de admissão. Corrija no cadastro.',
       },
       { status: 400 }
     );
@@ -192,6 +204,7 @@ export async function POST(req: Request) {
     }
     if (endereco?.trim()) payload.endereco = endereco.trim();
     if (data_admissao?.trim()) payload.data_admissao = data_admissao.trim();
+    if (data_nascimento?.trim()) payload.data_nascimento = data_nascimento.trim();
     if (cargo?.trim()) payload.cargo = cargo.trim();
     if (setor !== undefined) {
       const s = setor === null || setor === '' ? null : String(setor).trim();

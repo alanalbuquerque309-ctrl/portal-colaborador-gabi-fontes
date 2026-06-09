@@ -71,7 +71,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     const { data, error } = await supabase
       .from('colaboradores')
       .select(
-        'id, nome, cpf, email, telefone, endereco, data_admissao, cargo, setor, onboarding_completo, role, unidade_id, lider_id, unidades(slug, nome)'
+        'id, nome, cpf, email, telefone, endereco, data_nascimento, data_admissao, cargo, setor, onboarding_completo, role, unidade_id, lider_id, unidades(slug, nome)'
       )
       .eq('id', id)
       .single();
@@ -115,6 +115,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     telefone?: string | null;
     endereco?: string | null;
     data_admissao?: string | null;
+    data_nascimento?: string | null;
     cargo?: string | null;
     setor?: string | null;
     unidade_id?: string;
@@ -172,6 +173,30 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
     if (body.endereco !== undefined) payload.endereco = body.endereco?.trim() || null;
     if (body.data_admissao !== undefined) payload.data_admissao = body.data_admissao?.trim() || null;
+    if (body.data_nascimento !== undefined) payload.data_nascimento = body.data_nascimento?.trim() || null;
+
+    if (body.data_nascimento !== undefined || body.data_admissao !== undefined) {
+      const { data: atual } = await supabase
+        .from('colaboradores')
+        .select('data_nascimento, data_admissao')
+        .eq('id', id)
+        .maybeSingle();
+      const admFinal = String(
+        body.data_admissao !== undefined ? body.data_admissao?.trim() || '' : (atual?.data_admissao ?? '')
+      ).slice(0, 10);
+      const nascFinal = String(
+        body.data_nascimento !== undefined ? body.data_nascimento?.trim() || '' : (atual?.data_nascimento ?? '')
+      ).slice(0, 10);
+      if (admFinal && nascFinal && admFinal === nascFinal) {
+        return NextResponse.json(
+          {
+            ok: false,
+            erro: 'Data de nascimento não pode ser igual à data de admissão. Corrija no cadastro.',
+          },
+          { status: 400 }
+        );
+      }
+    }
     if (body.cargo !== undefined) payload.cargo = body.cargo?.trim() || null;
 
     if (body.setor !== undefined) {

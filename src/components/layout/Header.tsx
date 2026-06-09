@@ -48,6 +48,13 @@ const itemComunicacao: NavItem = {
   icon: 'comunicacao',
 };
 
+const itemAniversariantes: NavItem = {
+  href: '/portal/aniversariantes',
+  label: 'Aniversários',
+  short: 'Aniv.',
+  icon: 'familia',
+};
+
 function NavIcon({ type }: { type: string }) {
   const base = 'w-5 h-5 shrink-0';
   switch (type) {
@@ -287,6 +294,7 @@ export function Header() {
           ? [{ href: '/portal/avaliacao-master', label: 'Avaliação da equipe', short: 'Avaliar', icon: 'avaliacao' as const }]
           : []),
         { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+        itemAniversariantes,
         itemComunicacao,
         { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
       ]
@@ -301,6 +309,7 @@ export function Header() {
             : []),
           { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' },
           { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+          itemAniversariantes,
           itemComunicacao,
           { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
         ]
@@ -312,6 +321,7 @@ export function Header() {
             ? [{ href: '/portal/desempenho', label: 'Desempenho', short: 'Desempenho', icon: 'desempenho' as const }]
             : []),
           { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
+          itemAniversariantes,
           itemComunicacao,
           { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
         ];

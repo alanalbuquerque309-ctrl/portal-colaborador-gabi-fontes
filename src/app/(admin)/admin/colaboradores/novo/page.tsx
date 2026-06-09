@@ -31,6 +31,7 @@ export default function NovoColaboradorPage() {
     telefone: '',
     endereco: '',
     dataAdmissao: '',
+    dataNascimento: '',
     cargo: '',
     setor: '',
     role: 'colaborador',
@@ -53,6 +54,7 @@ export default function NovoColaboradorPage() {
       telefone: form.telefone.trim() || undefined,
       endereco: form.endereco.trim() || undefined,
       data_admissao: form.dataAdmissao ? formatDateForInput(form.dataAdmissao) : undefined,
+      data_nascimento: form.dataNascimento ? formatDateForInput(form.dataNascimento) : undefined,
       cargo: form.cargo.trim() || undefined,
       setor: form.setor.trim() || undefined,
       role: form.role,
@@ -161,7 +163,25 @@ export default function NovoColaboradorPage() {
           />
         </div>
         <div>
-          <label htmlFor="dataAdmissao" className="block text-sm font-medium text-coffee-base mb-1">Data de Admissão</label>
+          <label htmlFor="dataNascimento" className="block text-sm font-medium text-coffee-base mb-1">
+            Data de nascimento (aniversário)
+          </label>
+          <input
+            id="dataNascimento"
+            name="dataNascimento"
+            type="date"
+            value={form.dataNascimento}
+            onChange={(e) => setForm((f) => ({ ...f, dataNascimento: e.target.value }))}
+            className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
+          />
+          <p className="text-xs text-coffee-100 mt-1">
+            Alimenta o mural de aniversariantes. Não use a data de admissão aqui.
+          </p>
+        </div>
+        <div>
+          <label htmlFor="dataAdmissao" className="block text-sm font-medium text-coffee-base mb-1">
+            Data de admissão (RH)
+          </label>
           <input
             id="dataAdmissao"
             name="dataAdmissao"

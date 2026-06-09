@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
@@ -8,30 +9,24 @@ type Aniversariante = {
   id: string;
   nome: string;
   data_nascimento: string | null;
+  aniversario_label?: string;
   foto_url?: string | null;
   unidade_nome: string;
+  possivel_conflito_admissao?: boolean;
 };
 
-function diaDoMes(dataIso: string | null): number {
-  if (!dataIso) return 32;
-  return new Date(dataIso).getDate();
-}
-
-function formatarDataAniversario(dataIso: string | null): string {
-  if (!dataIso) return '';
-  return new Date(dataIso).toLocaleDateString('pt-BR', {
-    day: 'numeric',
-    month: 'long',
-  });
-}
-
 function rotuloMesAtual(): string {
-  return new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  return new Date().toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'America/Sao_Paulo',
+  });
 }
 
 export function AniversariantesReconhecimento() {
   const [aniversariantes, setAniversariantes] = useState<Aniversariante[]>([]);
   const [loading, setLoading] = useState(true);
+  const [conflitos, setConflitos] = useState(0);
 
   useEffect(() => {
     const session = getPortalSession();
@@ -44,12 +39,9 @@ export function AniversariantesReconhecimento() {
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && Array.isArray(data.aniversariantes)) {
-          const ordenados = [...(data.aniversariantes as Aniversariante[])].sort(
-            (a, b) =>
-              diaDoMes(a.data_nascimento) - diaDoMes(b.data_nascimento) ||
-              a.nome.localeCompare(b.nome, 'pt-BR')
-          );
-          setAniversariantes(ordenados);
+          const lista = data.aniversariantes as Aniversariante[];
+          setAniversariantes(lista);
+          setConflitos(lista.filter((a) => a.possivel_conflito_admissao).length);
         }
       })
       .finally(() => setLoading(false));
@@ -68,9 +60,14 @@ export function AniversariantesReconhecimento() {
       <h3 className="text-sm font-semibold text-cafeteria-800 mb-3">
         Aniversariantes de {rotuloMesAtual()}
       </h3>
+      {conflitos > 0 && (
+        <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3">
+          {conflitos} cadastro(s) com data de nascimento igual à admissão — peça ao RH para corrigir no Admin.
+        </p>
+      )}
       {aniversariantes.length === 0 ? (
         <p className="text-sm text-cafeteria-600 rounded-xl border border-dourado-200 bg-cream-50 p-4">
-          Nenhum aniversariante neste mês. Parabéns a todos da família Gabi Fontes!
+          Nenhum aniversariante neste mês com data de nascimento cadastrada.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -93,15 +90,25 @@ export function AniversariantesReconhecimento() {
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <span className="font-medium text-coffee-base text-base block leading-snug break-words">{a.nome}</span>
+                <span className="font-medium text-coffee-base text-base block leading-snug break-words">
+                  {a.nome}
+                </span>
                 <span className="text-sm text-cafeteria-600">
-                  {formatarDataAniversario(a.data_nascimento)}
+                  {a.aniversario_label || a.data_nascimento}
                   {a.unidade_nome ? ` · ${a.unidade_nome}` : ''}
+                  {a.possivel_conflito_admissao ? ' · revisar cadastro' : ''}
                 </span>
               </div>
             </li>
           ))}
         </ul>
+      )}
+      {aniversariantes.length > 0 && (
+        <p className="text-sm text-center pt-3">
+          <Link href="/portal/aniversariantes" className="text-dourado-base hover:underline font-medium">
+            Ver página completa de aniversários
+          </Link>
+        </p>
       )}
     </section>
   );
