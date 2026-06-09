@@ -6,10 +6,18 @@ export function podeVerRelatoriosAvaliacoesCompletos(role: string | null | undef
   return r === 'socio' || r === 'admin' || r === 'master' || r === 'gerente';
 }
 
-/** Exibe nome de quem avaliou (auditoria interna). */
+/**
+ * Auditoria exclusiva sócios: identidade real de quem avaliou a liderança,
+ * inclusive avaliações marcadas como anônimas para o líder.
+ * Admin, master e gerente veem apenas «Colaborador (anônimo)».
+ */
+export function podeAuditarAutorAvaliacaoLideranca(role: string | null | undefined): boolean {
+  return normalizePortalRole(role) === 'socio';
+}
+
+/** @deprecated Preferir `podeAuditarAutorAvaliacaoLideranca`. */
 export function podeVerAutorAvaliacaoLideranca(role: string | null | undefined): boolean {
-  const r = normalizePortalRole(role);
-  return r === 'socio' || r === 'admin' || r === 'master';
+  return podeAuditarAutorAvaliacaoLideranca(role);
 }
 
 /** Gerente vê só a própria unidade; demais perfis autorizados veem todas as filiais. */

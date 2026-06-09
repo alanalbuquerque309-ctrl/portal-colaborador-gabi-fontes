@@ -62,8 +62,14 @@ export function CardAvaliacaoLideranca({ row }: { row: LinhaLiderRelatorio }) {
             {formatarSemanaLider(row.semana_inicio)}
           </p>
           <p className="text-xs sm:text-sm text-cafeteria-600 mt-0.5 break-words">
-            Avaliado por: {row.avaliador_label}
+            Avaliado por: <strong className="text-cafeteria-900">{row.avaliador_label}</strong>
+            {row.avaliador_setor ? ` · ${row.avaliador_setor}` : ''}
           </p>
+          {row.avaliador_anonimo && (
+            <p className="text-xs font-medium text-amber-900 mt-1">
+              Resposta anônima para o líder — identidade visível só para sócios.
+            </p>
+          )}
           {alerta && (
             <p className="text-xs font-medium text-amber-900 mt-1.5">
               Ponto mais fraco: {fraco.label} ({fraco.nota})

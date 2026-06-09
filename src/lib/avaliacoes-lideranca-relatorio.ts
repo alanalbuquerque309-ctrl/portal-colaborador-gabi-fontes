@@ -1,6 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
 import {
-  podeVerAutorAvaliacaoLideranca,
+  podeAuditarAutorAvaliacaoLideranca,
   relatorioRestringeUnidade,
 } from '@/lib/avaliacoes-relatorio-access';
 import { normalizePortalRole } from '@/lib/roles';
@@ -19,6 +19,9 @@ export type LinhaLiderancaRelatorio = {
   avaliado_id: string;
   avaliador_label: string;
   avaliador_id: string;
+  /** Preenchido só na resposta para sócios (auditoria). */
+  avaliador_anonimo?: boolean;
+  avaliador_setor?: string | null;
   n_exemplo: number;
   n_comunicacao: number;
   n_suporte: number;
@@ -89,12 +92,12 @@ export async function listarAvaliacoesLiderancaRelatorio(
     fim?: string | null;
     limite?: number;
   }
-): Promise<{ itens: LinhaLiderancaRelatorio[]; nota: string; erro?: string }> {
+): Promise<{ itens: LinhaLiderancaRelatorio[]; nota: string; auditoria_socio: boolean; erro?: string }> {
   const role = normalizePortalRole(opts.viewerRole);
   const limite = Math.min(5000, Math.max(50, opts.limite ?? 2000));
   const inicio = opts.inicio?.trim() || null;
   const fim = opts.fim?.trim() || null;
-  const verAutor = podeVerAutorAvaliacaoLideranca(role);
+  const auditoriaSocio = podeAuditarAutorAvaliacaoLideranca(role);
 
   let unidadeIdFilter: string | null = null;
   if (relatorioRestringeUnidade(role)) {
@@ -110,12 +113,14 @@ export async function listarAvaliacoesLiderancaRelatorio(
       .select('id')
       .eq('slug', opts.unidadeSlug)
       .maybeSingle();
-    if (!u?.id) return { itens: [], nota: '', erro: 'Unidade não encontrada' };
+    if (!u?.id) {
+      return { itens: [], nota: '', auditoria_socio: auditoriaSocio, erro: 'Unidade não encontrada' };
+    }
     unidadeIdFilter = String(u.id);
   }
 
   const { rows, error } = await fetchRows(supabase, { unidadeIdFilter, inicio, fim, limite });
-  if (error) return { itens: [], nota: '', erro: error };
+  if (error) return { itens: [], nota: '', auditoria_socio: auditoriaSocio, erro: error };
 
   const uids = Array.from(new Set(rows.map((r) => r.unidade_id as string).filter(Boolean)));
   let unidadeMeta: Record<string, { nome: string; slug: string }> = {};
@@ -150,6 +155,27 @@ export async function listarAvaliacoesLiderancaRelatorio(
     const avaliadoId = String(r.avaliado_id ?? '');
     const avaliadorId = String(r.avaliador_id ?? '');
     const avaliadoMeta = metaPorId[avaliadoId];
+    const avaliadorMeta = metaPorId[avaliadorId];
+    const marcadoAnonimo = r.anonimo === true || r.anonimo === 'true';
+
+    let avaliador_label: string;
+    let avaliador_id_out: string;
+    let avaliador_anonimo: boolean | undefined;
+    let avaliador_setor: string | null | undefined;
+
+    if (auditoriaSocio) {
+      const nomeAutor = avaliadorMeta?.nome?.trim() || 'Colaborador';
+      avaliador_label = marcadoAnonimo ? `${nomeAutor} · enviado como anônimo` : nomeAutor;
+      avaliador_id_out = avaliadorId;
+      avaliador_anonimo = marcadoAnonimo;
+      avaliador_setor = avaliadorMeta?.setor ?? null;
+    } else {
+      avaliador_label = 'Colaborador (anônimo)';
+      avaliador_id_out = '';
+      avaliador_anonimo = undefined;
+      avaliador_setor = undefined;
+    }
+
     return {
       id: String(r.id),
       unidade_id: uid,
@@ -160,10 +186,10 @@ export async function listarAvaliacoesLiderancaRelatorio(
       avaliado_nome: avaliadoMeta?.nome ?? '—',
       avaliado_setor: avaliadoMeta?.setor ?? null,
       avaliado_id: avaliadoId,
-      avaliador_label: verAutor
-        ? metaPorId[avaliadorId]?.nome ?? 'Colaborador'
-        : 'Colaborador (anônimo)',
-      avaliador_id: avaliadorId,
+      avaliador_label,
+      avaliador_id: avaliador_id_out,
+      avaliador_anonimo,
+      avaliador_setor,
       n_exemplo: nExemplo,
       n_comunicacao: nComunicacao,
       n_suporte: nSuporte,
@@ -174,9 +200,9 @@ export async function listarAvaliacoesLiderancaRelatorio(
     };
   });
 
-  const nota = verAutor
-    ? 'Feedback dos colaboradores sobre a liderança. Nome de quem avaliou visível para auditoria (sócio/admin/master). Filtro por semana de referência (segunda-feira).'
+  const nota = auditoriaSocio
+    ? 'Visão exclusiva de sócio: você vê quem avaliou cada líder, inclusive quem respondeu como anônimo. Ninguém mais no portal tem acesso a esta identificação.'
     : 'Feedback dos colaboradores sobre a liderança. Avaliador anônimo nesta visão. Filtro por semana de referência (segunda-feira).';
 
-  return { itens, nota };
+  return { itens, nota, auditoria_socio: auditoriaSocio };
 }

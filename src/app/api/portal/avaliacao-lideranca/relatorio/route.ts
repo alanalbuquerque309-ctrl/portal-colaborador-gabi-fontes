@@ -45,7 +45,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const { itens, nota, erro } = await listarAvaliacoesLiderancaRelatorio(supabase, {
+    const { itens, nota, auditoria_socio, erro } = await listarAvaliacoesLiderancaRelatorio(supabase, {
       viewerColaboradorId: colaboradorId,
       viewerRole: role,
       unidadeSlug,
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, erro }, { status });
     }
 
-    return NextResponse.json({ ok: true, nota, itens, total: itens.length });
+    return NextResponse.json({ ok: true, nota, auditoria_socio, itens, total: itens.length });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

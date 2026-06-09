@@ -40,6 +40,9 @@ export type LinhaLiderRelatorio = {
   avaliado_setor?: string | null;
   filial_nome?: string;
   avaliador_label: string;
+  avaliador_id?: string;
+  avaliador_anonimo?: boolean;
+  avaliador_setor?: string | null;
   n_exemplo: number;
   n_comunicacao: number;
   n_suporte: number;

@@ -18,9 +18,10 @@ export async function GET(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { itens, nota, erro } = await listarAvaliacoesLiderancaRelatorio(supabase, {
+    const viewerRole = auth.ctx.kind === 'portal' ? auth.ctx.role : 'admin';
+    const { itens, nota, auditoria_socio, erro } = await listarAvaliacoesLiderancaRelatorio(supabase, {
       viewerColaboradorId: 'admin-panel',
-      viewerRole: 'admin',
+      viewerRole,
       unidadeSlug,
       inicio,
       fim,
@@ -36,7 +37,8 @@ export async function GET(req: Request) {
       ok: true,
       nota:
         nota ||
-        'Todas as notas e justificativas sobre gerência/administrativo. Autor de cada avaliação visível.',
+        'Todas as notas e justificativas sobre gerência/administrativo. Avaliador anônimo nesta visão.',
+      auditoria_socio,
       itens,
       total: itens.length,
     });

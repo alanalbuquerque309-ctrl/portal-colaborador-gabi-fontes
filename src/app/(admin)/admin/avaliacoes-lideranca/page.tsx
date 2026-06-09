@@ -26,6 +26,7 @@ export default function AdminAvaliacoesLiderancaPage() {
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [nota, setNota] = useState('');
+  const [auditoriaSocio, setAuditoriaSocio] = useState(false);
   const [linhas, setLinhas] = useState<LinhaLiderRelatorio[]>([]);
   const [busca, setBusca] = useState('');
   const [somenteNotaBaixa, setSomenteNotaBaixa] = useState(false);
@@ -45,6 +46,7 @@ export default function AdminAvaliacoesLiderancaPage() {
       }
       setLinhas(Array.isArray(data.itens) ? (data.itens as LinhaLiderRelatorio[]) : []);
       if (data.nota) setNota(String(data.nota));
+      setAuditoriaSocio(data.auditoria_socio === true);
     } catch {
       setErro('Erro de conexão.');
       setLinhas([]);
@@ -66,10 +68,10 @@ export default function AdminAvaliacoesLiderancaPage() {
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">
           Feedback sobre a liderança
         </h1>
-        <p className="text-sm text-coffee-100 mt-1">
-          Todas as notas e justificativas que os colaboradores deram sobre gerentes e administrativo.
-          Filtro por <strong>semana de referência</strong> (segunda-feira). Autor visível para auditoria.
-        </p>
+          <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
+            Todas as notas e justificativas que os colaboradores deram sobre gerentes e administrativo.
+            Filtro por <strong>semana de referência</strong> (segunda-feira).
+          </p>
         <p className="text-sm mt-2">
           <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
             Ver também no portal (equipe + liderança por filial) →
@@ -126,7 +128,13 @@ export default function AdminAvaliacoesLiderancaPage() {
           </button>
         </div>
         {erro && <p className="text-sm text-red-600">{erro}</p>}
-        {nota && <p className="text-xs text-coffee-100">{nota}</p>}
+        {nota && (
+          <p
+            className={`text-xs ${auditoriaSocio ? 'text-amber-950 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2' : 'text-coffee-100'}`}
+          >
+            {nota}
+          </p>
+        )}
         <p className="text-xs text-coffee-100">
           Total no período: <strong>{linhas.length}</strong> registro(s)
         </p>

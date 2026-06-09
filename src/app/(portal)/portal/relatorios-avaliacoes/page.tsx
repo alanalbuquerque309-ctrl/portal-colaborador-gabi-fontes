@@ -46,6 +46,7 @@ export default function RelatoriosAvaliacoesPage() {
   const [equipeErro, setEquipeErro] = useState('');
   const [liderancaGlobal, setLiderancaGlobal] = useState<LinhaLiderRelatorio[]>([]);
   const [notaLider, setNotaLider] = useState('');
+  const [auditoriaSocioLider, setAuditoriaSocioLider] = useState(false);
   const [erroLideranca, setErroLideranca] = useState('');
   const [filtroFilial, setFiltroFilial] = useState('');
   const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigemEquipe>('todos');
@@ -114,8 +115,10 @@ export default function RelatoriosAvaliacoesPage() {
       if (dataLider.ok && Array.isArray(dataLider.itens)) {
         setLiderancaGlobal(dataLider.itens as LinhaLiderRelatorio[]);
         if (dataLider.nota) setNotaLider(String(dataLider.nota));
+        setAuditoriaSocioLider(dataLider.auditoria_socio === true);
       } else {
         setLiderancaGlobal([]);
+        setAuditoriaSocioLider(false);
         setErroLideranca(dataLider.erro || 'Erro ao carregar feedback sobre liderança.');
       }
     } catch {
@@ -342,7 +345,7 @@ export default function RelatoriosAvaliacoesPage() {
             <h2 className="text-lg font-display font-semibold text-cafeteria-900">
               Feedback sobre liderança
             </h2>
-            <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
+          <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
               Toque no líder para ver cada semana. Notas ≤3 aparecem em destaque; o pilar mais fraco fica
               indicado no card.
             </p>
@@ -369,7 +372,17 @@ export default function RelatoriosAvaliacoesPage() {
             </button>
           </div>
 
-          {notaLider && <p className="text-sm text-cafeteria-600">{notaLider}</p>}
+          {notaLider && (
+            <p
+              className={`text-sm rounded-lg px-3 py-2 ${
+                auditoriaSocioLider
+                  ? 'text-amber-950 bg-amber-50 border border-amber-200'
+                  : 'text-cafeteria-600'
+              }`}
+            >
+              {notaLider}
+            </p>
+          )}
           {erroLideranca && (
             <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{erroLideranca}</p>
           )}
