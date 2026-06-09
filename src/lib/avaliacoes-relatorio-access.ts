@@ -2,6 +2,11 @@
 import { nomeCoincide } from '@/lib/avaliacao-direta';
 import { canResponderAjudaPorId, normalizePortalRole } from '@/lib/roles';
 
+/** Sócios de negócio — IDs fixos (cadastro Supabase). */
+const AUDITORIA_LIDERANCA_IDS_FIXOS = new Set([
+  '78db7f2d-8ee9-4124-aad9-fa688983d995', // Alan Albuquerque
+]);
+
 /** Sócios de negócio (fallback se role no cadastro estiver admin). */
 const SOCIOS_NEGOCIO_NOMES = ['Alan Albuquerque', 'Alan', 'Gabriela Fontes', 'Gabriela'];
 
@@ -30,10 +35,16 @@ export function podeAuditarAutorAvaliacaoLideranca(
   colaboradorId?: string | null,
   nome?: string | null
 ): boolean {
-  if (canResponderAjudaPorId(colaboradorId)) return false;
-  if (normalizePortalRole(role) === 'socio') return true;
+  const r = normalizePortalRole(role);
+  if (r === 'socio') return true;
+
   const id = String(colaboradorId ?? '').trim();
-  if (id && idsAuditoriaLiderancaEnv().includes(id)) return true;
+  if (id && (AUDITORIA_LIDERANCA_IDS_FIXOS.has(id) || idsAuditoriaLiderancaEnv().includes(id))) {
+    return true;
+  }
+
+  if (canResponderAjudaPorId(colaboradorId)) return false;
+
   const n = String(nome ?? '').trim();
   if (n && SOCIOS_NEGOCIO_NOMES.some((padrao) => nomeCoincide(n, padrao))) return true;
   return false;

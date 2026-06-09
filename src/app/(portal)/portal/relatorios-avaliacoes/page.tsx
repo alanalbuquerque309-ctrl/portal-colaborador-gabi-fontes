@@ -89,18 +89,23 @@ export default function RelatoriosAvaliacoesPage() {
     setNotaLider('');
 
     try {
-      const qEquipe = new URLSearchParams({ inicio, fim, limite: '3000' });
-      const qLider = new URLSearchParams({ inicio, fim, limite: '3000', _: String(Date.now()) });
+      const qEquipe = new URLSearchParams({ inicio, fim, limite: '3000', _: String(Date.now()) });
 
       const [resEquipe, resLider] = await Promise.all([
         fetch(`/api/portal/relatorios-avaliacoes-diarias?${qEquipe}`, {
           credentials: 'include',
           cache: 'no-store',
         }),
-        fetch(`/api/portal/avaliacao-lideranca/relatorio?${qLider}`, {
+        fetch('/api/portal/avaliacao-lideranca/relatorio', {
+          method: 'POST',
           credentials: 'include',
           cache: 'no-store',
-          headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+          body: JSON.stringify({ inicio, fim, limite: 3000 }),
         }),
       ]);
 
@@ -387,10 +392,15 @@ export default function RelatoriosAvaliacoesPage() {
               {notaLider}
             </p>
           )}
-          {!auditoriaSocioLider && liderancaGlobal.length > 0 && viewerRoleLider && (
+          {auditoriaSocioLider && (
+            <p className="text-xs font-medium text-emerald-900 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              Modo sócio ativo: você vê quem avaliou cada líder (inclusive anônimos).
+            </p>
+          )}
+          {!auditoriaSocioLider && liderancaGlobal.length > 0 && (
             <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              Identificação dos avaliadores desligada para o perfil «{viewerRoleLider}». Só sócios veem quem
-              avaliou. Se você é sócio, saia e entre de novo; se persistir, avise o suporte.
+              Modo anônimo (perfil «{viewerRoleLider || '?'}»). Só sócios veem os nomes. Saia e entre com a conta
+              de sócio.
             </p>
           )}
           {erroLideranca && (

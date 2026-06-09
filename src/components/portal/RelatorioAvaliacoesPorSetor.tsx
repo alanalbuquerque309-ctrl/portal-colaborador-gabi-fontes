@@ -156,7 +156,16 @@ function TabelaLiderancaDesktop({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
   );
 }
 
-function ListaAvaliacoesLider({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
+function ListaAvaliacoesLider({ linhas, mobileOnly }: { linhas: LinhaLiderRelatorio[]; mobileOnly?: boolean }) {
+  if (mobileOnly) {
+    return (
+      <div className="space-y-3">
+        {linhas.map((row) => (
+          <CardAvaliacaoLideranca key={row.id} row={row} />
+        ))}
+      </div>
+    );
+  }
   return (
     <>
       <TabelaLiderancaColaborador linhas={linhas} />
@@ -353,7 +362,7 @@ export function RelatorioLiderancaPorLider({
 
             {aberto && (
               <div className="border-t border-cafeteria-100 px-4 py-3 bg-cream-50/40 space-y-4">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                <div className="hidden md:grid grid-cols-2 sm:grid-cols-5 gap-2">
                   {PILARES_LIDERANCA.map((p) => {
                     const nota = mediasP[p.key];
                     return (
@@ -367,9 +376,17 @@ export function RelatorioLiderancaPorLider({
                     );
                   })}
                 </div>
-                <ListaAvaliacoesLider
-                  linhas={[...regs].sort((a, b) => b.semana_inicio.localeCompare(a.semana_inicio))}
-                />
+                <div className="md:hidden">
+                  <ListaAvaliacoesLider
+                    mobileOnly
+                    linhas={[...regs].sort((a, b) => b.semana_inicio.localeCompare(a.semana_inicio))}
+                  />
+                </div>
+                <div className="hidden md:block">
+                  <ListaAvaliacoesLider
+                    linhas={[...regs].sort((a, b) => b.semana_inicio.localeCompare(a.semana_inicio))}
+                  />
+                </div>
               </div>
             )}
           </li>
