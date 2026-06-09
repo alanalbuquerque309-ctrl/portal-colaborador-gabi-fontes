@@ -11,6 +11,7 @@ import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast
 import { PortalOnlineStrip, PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
+import { AniversarioBalaoPortal } from '@/components/aniversario/AniversarioBalaoPortal';
 
 export function PortalLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -201,6 +202,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       </main>
       <BotaoAjuda />
       <ManualEventosToast />
+      <AniversarioBalaoPortal ativo={gateOk} />
       {perfilRole === 'colaborador' && abrirEmocionalObrigatorio && (
         <div className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-[1px] flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-2xl border border-dourado-200 bg-white p-5 shadow-2xl">
