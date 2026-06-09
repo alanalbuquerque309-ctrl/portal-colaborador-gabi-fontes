@@ -27,6 +27,8 @@ export default function AdminAvaliacoesLiderancaPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [nota, setNota] = useState('');
   const [linhas, setLinhas] = useState<LinhaLiderRelatorio[]>([]);
+  const [busca, setBusca] = useState('');
+  const [somenteNotaBaixa, setSomenteNotaBaixa] = useState(false);
 
   const buscar = useCallback(async () => {
     setCarregando(true);
@@ -128,6 +130,26 @@ export default function AdminAvaliacoesLiderancaPage() {
         <p className="text-xs text-coffee-100">
           Total no período: <strong>{linhas.length}</strong> registro(s)
         </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <input
+            type="search"
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar líder…"
+            className="flex-1 min-w-[160px] rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base"
+          />
+          <button
+            type="button"
+            onClick={() => setSomenteNotaBaixa((v) => !v)}
+            className={`rounded-lg border px-3 py-2 text-sm font-medium ${
+              somenteNotaBaixa
+                ? 'border-amber-600 bg-amber-50 text-amber-950'
+                : 'border-cream-300 text-coffee-base hover:bg-cream-50'
+            }`}
+          >
+            {somenteNotaBaixa ? 'Só notas baixas ✓' : 'Só notas baixas (≤3)'}
+          </button>
+        </div>
       </div>
 
       {carregando && linhas.length === 0 ? (
@@ -135,7 +157,7 @@ export default function AdminAvaliacoesLiderancaPage() {
           <XicaraCarregando size="md" label="Carregando feedback…" />
         </div>
       ) : (
-        <RelatorioLiderancaPorLider linhas={linhas} />
+        <RelatorioLiderancaPorLider linhas={linhas} busca={busca} somenteNotaBaixa={somenteNotaBaixa} />
       )}
     </div>
   );

@@ -50,6 +50,8 @@ export default function RelatoriosAvaliacoesPage() {
   const [filtroFilial, setFiltroFilial] = useState('');
   const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigemEquipe>('todos');
   const [busca, setBusca] = useState('');
+  const [buscaLider, setBuscaLider] = useState('');
+  const [somenteNotaBaixaLider, setSomenteNotaBaixaLider] = useState(false);
   const [modoEquipe, setModoEquipe] = useState<ModoEquipe>('semana');
   const [pendentesAberto, setPendentesAberto] = useState(false);
 
@@ -340,10 +342,33 @@ export default function RelatoriosAvaliacoesPage() {
             <h2 className="text-lg font-display font-semibold text-cafeteria-900">
               Feedback sobre liderança
             </h2>
-            <p className="text-xs text-cafeteria-500 mt-1">
-              O que os colaboradores responderam sobre cada líder no período.
+            <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
+              Toque no líder para ver cada semana. Notas ≤3 aparecem em destaque; o pilar mais fraco fica
+              indicado no card.
             </p>
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            <input
+              type="search"
+              value={buscaLider}
+              onChange={(e) => setBuscaLider(e.target.value)}
+              placeholder="Buscar líder por nome…"
+              className="flex-1 min-w-[160px] rounded-lg border border-cafeteria-200 px-3 py-2.5 text-base text-cafeteria-900"
+            />
+            <button
+              type="button"
+              onClick={() => setSomenteNotaBaixaLider((v) => !v)}
+              className={`rounded-lg border px-3 py-2.5 text-sm font-medium min-h-[44px] ${
+                somenteNotaBaixaLider
+                  ? 'border-amber-500 bg-amber-50 text-amber-950'
+                  : 'border-cafeteria-200 text-cafeteria-700 hover:bg-cafeteria-50'
+              }`}
+            >
+              {somenteNotaBaixaLider ? 'Só notas baixas ✓' : 'Só notas baixas (≤3)'}
+            </button>
+          </div>
+
           {notaLider && <p className="text-sm text-cafeteria-600">{notaLider}</p>}
           {erroLideranca && (
             <p className="text-sm text-amber-800 bg-amber-50 rounded-lg px-3 py-2">{erroLideranca}</p>
@@ -351,7 +376,11 @@ export default function RelatoriosAvaliacoesPage() {
           {carregando && liderancaGlobal.length === 0 ? (
             <XicaraCarregando size="md" label="Carregando…" />
           ) : (
-            <RelatorioLiderancaPorLider linhas={liderancaGlobal} />
+            <RelatorioLiderancaPorLider
+              linhas={liderancaGlobal}
+              busca={buscaLider}
+              somenteNotaBaixa={somenteNotaBaixaLider}
+            />
           )}
         </section>
       )}

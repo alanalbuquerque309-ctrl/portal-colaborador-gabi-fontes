@@ -20,7 +20,8 @@ export function CompletarCadastroPessoalBanner() {
               </h2>
               <p className="text-sm text-cafeteria-700 mt-2 leading-relaxed">
                 Antes de usar o portal, confirme ou preencha{' '}
-                <strong>nome, e-mail, telefone, endereço e data de nascimento</strong>. A{' '}
+                <strong>nome, e-mail, telefone, endereço e data de nascimento</strong>. Depois você
+                precisará <strong>colocar sua foto no perfil</strong>. A{' '}
                 <strong>data de admissão</strong> pode ser registrada depois pelo RH, caso você não saiba; os demais campos são
                 obrigatórios agora.
               </p>

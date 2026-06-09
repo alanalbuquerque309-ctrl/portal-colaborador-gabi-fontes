@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { PILARES_LIDERANCA, classeNota, labelPilarInterno, notaBaixa } from '@/lib/lideranca-relatorio-ui';
 
 type HistoricoSemana = {
   semana_inicio: string;
@@ -44,6 +45,54 @@ type ApiData = {
   historico_semanas?: HistoricoSemana[];
   nota_privacidade?: string;
 };
+
+function BarraPilar({ label, nota }: { label: string; nota: number }) {
+  const pct = Math.min(100, Math.max(0, (nota / 5) * 100));
+  const alerta = notaBaixa(nota);
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className={`font-medium ${alerta ? 'text-amber-900' : 'text-cafeteria-800'}`}>{label}</span>
+        <span className={`tabular-nums font-semibold ${alerta ? 'text-amber-900' : 'text-cafeteria-900'}`}>
+          {nota.toFixed(2)}
+        </span>
+      </div>
+      <div className="h-2.5 rounded-full bg-cafeteria-100 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${alerta ? 'bg-amber-500' : 'bg-dourado-base'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function PilaresHistoricoSemana({ medias }: { medias: HistoricoSemana['medias'] }) {
+  const itens = [
+    { label: 'Exemplo', nota: medias.exemplo },
+    { label: 'Comunicação', nota: medias.comunicacao },
+    { label: 'Suporte', nota: medias.suporte },
+    { label: 'Justiça', nota: medias.justica },
+    { label: 'Clima', nota: medias.clima },
+  ];
+  const pior = itens.reduce((a, b) => (b.nota < a.nota ? b : a));
+
+  return (
+    <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+      {itens.map((item) => (
+        <div
+          key={item.label}
+          className={`rounded-lg border px-2 py-1.5 text-xs ${classeNota(Math.round(item.nota))} ${
+            item.label === pior.label && notaBaixa(item.nota) ? 'ring-2 ring-amber-400/70' : ''
+          }`}
+        >
+          <p>{item.label}</p>
+          <p className="text-base font-bold tabular-nums">{item.nota.toFixed(1)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function mesAtualInput(): string {
   const d = new Date();
@@ -182,26 +231,28 @@ export default function MinhaLiderancaPage() {
       ) : (
         <>
           <section className="rounded-xl border border-cafeteria-200 bg-white p-5">
-            <h2 className="font-display text-lg text-cafeteria-900 mb-3">Média do mês</h2>
-            <div className="grid gap-2 sm:grid-cols-2 text-sm md:text-base">
-              <p>
-                Exemplo e postura: <strong>{dados.medias.exemplo.toFixed(2)}</strong>
+            <h2 className="font-display text-lg text-cafeteria-900 mb-3">Média do mês por pilar</h2>
+            {feedback && notaBaixa(feedback.notaMaisBaixa) && (
+              <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                Ponto a reforçar: <strong>{labelPilarInterno(feedback.pilarMaisFraco)}</strong> (nota mais baixa{' '}
+                {feedback.notaMaisBaixa.toFixed(2)}).
               </p>
-              <p>
-                Clareza na comunicação: <strong>{dados.medias.comunicacao.toFixed(2)}</strong>
-              </p>
-              <p>
-                Apoio e suporte técnico: <strong>{dados.medias.suporte.toFixed(2)}</strong>
-              </p>
-              <p>
-                Justiça e feedback: <strong>{dados.medias.justica.toFixed(2)}</strong>
-              </p>
-              <p>
-                Clima e inteligência emocional: <strong>{dados.medias.clima.toFixed(2)}</strong>
-              </p>
-              <p>
-                Média geral: <strong>{feedback.mediaGeral.toFixed(2)}</strong>
-              </p>
+            )}
+            <div className="space-y-4">
+              {PILARES_LIDERANCA.map((p) => {
+                const keyMap: Record<string, keyof NonNullable<ApiData['medias']>> = {
+                  n_exemplo: 'exemplo',
+                  n_comunicacao: 'comunicacao',
+                  n_suporte: 'suporte',
+                  n_justica: 'justica',
+                  n_clima: 'clima',
+                };
+                const val = dados.medias![keyMap[p.key]];
+                return <BarraPilar key={p.key} label={p.label} nota={val} />;
+              })}
+              <div className="pt-2 border-t border-cafeteria-100">
+                <BarraPilar label="Média geral" nota={feedback.mediaGeral} />
+              </div>
             </div>
           </section>
 
@@ -237,13 +288,18 @@ export default function MinhaLiderancaPage() {
             {historico.map((h) => (
               <li
                 key={h.semana_inicio}
-                className="rounded-lg border border-cafeteria-100 bg-cafeteria-50/80 px-3 py-3 text-sm md:text-base"
+                className={`rounded-lg border px-3 py-3 text-sm md:text-base ${
+                  notaBaixa(h.medias.mediaGeral)
+                    ? 'border-amber-200 bg-amber-50/50'
+                    : 'border-cafeteria-100 bg-cafeteria-50/80'
+                }`}
               >
                 <p className="font-medium text-cafeteria-900">{h.semana_label}</p>
                 <p className="text-cafeteria-600 mt-0.5">
                   {h.respostas} resposta{h.respostas === 1 ? '' : 's'} · média geral{' '}
                   <strong>{h.medias.mediaGeral.toFixed(2)}</strong>
                 </p>
+                <PilaresHistoricoSemana medias={h.medias} />
               </li>
             ))}
           </ul>

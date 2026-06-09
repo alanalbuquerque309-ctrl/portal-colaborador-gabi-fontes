@@ -246,81 +246,35 @@ export default function AvaliacaoLiderancaPage() {
           </div>
 
           {aba === 'lideranca' ? (
-            <>
-              {avaliados.length > 0 && (
-                <AvaliacaoSemanalChecklist
-                  titulo="Checklist da semana"
-                  itens={avaliados.map((a) => ({
-                    id: a.id,
-                    nome: a.nome,
-                    concluido: a.ja_avaliado_esta_semana,
-                    subtitulo: `${a.papel_label ?? 'Referência'} · ${a.role_label ?? a.role}`,
-                  }))}
-                  filtroPendentes={filtroPendentes}
-                  onToggleFiltro={() => setFiltroPendentes((v) => !v)}
-                  onIrPara={(id) => {
-                    setSelecionado(id);
-                    setNotas({
-                      n_exemplo: 3,
-                      n_comunicacao: 3,
-                      n_suporte: 3,
-                      n_justica: 3,
-                      n_clima: 3,
-                    });
-                    setJustificativaNotaBaixa('');
-                  }}
-                />
-              )}
-            <section className="rounded-xl border border-cafeteria-200 bg-white p-4 shadow-sm">
-              <h2 className="font-display text-lg text-cafeteria-900 mb-3">Quem avaliar</h2>
-              {avaliados.length === 0 ? (
-                <p className="text-sm text-cafeteria-600">
-                  Sua lista de avaliação está vazia. Verifique com o administrativo se o líder direto está definido.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {(filtroPendentes ? avaliados.filter((a) => !a.ja_avaliado_esta_semana) : avaliados).map((a) => (
-                    <li key={a.id}>
-                      <button
-                        type="button"
-                        disabled={a.ja_avaliado_esta_semana}
-                        onClick={() => {
-                          setSelecionado(a.id);
-                          setNotas({
-                            n_exemplo: 3,
-                            n_comunicacao: 3,
-                            n_suporte: 3,
-                            n_justica: 3,
-                            n_clima: 3,
-                          });
-                          setJustificativaNotaBaixa('');
-                        }}
-                        className={`w-full text-left rounded-lg border px-3 py-2 text-sm transition ${
-                          a.ja_avaliado_esta_semana
-                            ? 'border-cafeteria-100 bg-cafeteria-50 text-cafeteria-400 cursor-not-allowed'
-                            : selecionado === a.id
-                              ? 'border-dourado-base bg-dourado-50 text-cafeteria-900'
-                              : 'border-cafeteria-200 hover:border-dourado-base/50'
-                        }`}
-                      >
-                        <span className="font-medium flex items-center gap-2 flex-wrap">
-                          {a.nome}
-                          {a.ja_avaliado_esta_semana ? (
-                            <span className="text-xs rounded-full bg-green-100 text-green-800 px-2 py-0.5">Avaliado</span>
-                          ) : (
-                            <span className="text-xs rounded-full bg-amber-100 text-amber-900 px-2 py-0.5">Pendente</span>
-                          )}
-                        </span>
-                        <span className="block text-sm text-cafeteria-600 mt-0.5">
-                          {a.papel_label ?? 'Referência'} · {a.role_label ?? a.role}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            </>
+            avaliados.length > 0 ? (
+              <AvaliacaoSemanalChecklist
+                titulo="Quem avaliar esta semana"
+                itens={avaliados.map((a) => ({
+                  id: a.id,
+                  nome: a.nome,
+                  concluido: a.ja_avaliado_esta_semana,
+                  subtitulo: `${a.papel_label ?? 'Referência'} · ${a.role_label ?? a.role}`,
+                }))}
+                filtroPendentes={filtroPendentes}
+                onToggleFiltro={() => setFiltroPendentes((v) => !v)}
+                selecionadoId={selecionado}
+                onIrPara={(id) => {
+                  setSelecionado(id);
+                  setNotas({
+                    n_exemplo: 3,
+                    n_comunicacao: 3,
+                    n_suporte: 3,
+                    n_justica: 3,
+                    n_clima: 3,
+                  });
+                  setJustificativaNotaBaixa('');
+                }}
+              />
+            ) : (
+              <p className="text-sm text-cafeteria-600 rounded-xl border border-cafeteria-200 bg-white p-4">
+                Sua lista de avaliação está vazia. Verifique com o administrativo se o líder direto está definido.
+              </p>
+            )
           ) : (
             <section className="rounded-xl border border-cafeteria-200 bg-white p-4 shadow-sm">
               <h2 className="font-display text-lg text-cafeteria-900 mb-2">Reconhecimento entre pares</h2>
@@ -330,7 +284,15 @@ export default function AvaliacaoLiderancaPage() {
 
           {selecionado && aba === 'lideranca' && (
             <section className="rounded-xl border border-dourado-base/40 bg-cream-50/80 p-5 space-y-4">
-              <h2 className="font-display text-lg text-cafeteria-900">Notas</h2>
+              <div>
+                <h2 className="font-display text-lg text-cafeteria-900">Notas</h2>
+                <p className="text-sm text-cafeteria-600 mt-1">
+                  Avaliando:{' '}
+                  <strong className="text-cafeteria-900 break-words">
+                    {avaliados.find((a) => a.id === selecionado)?.nome ?? '—'}
+                  </strong>
+                </p>
+              </div>
               {KEYS.map((k) => (
                 <div key={k}>
                   <label className="block text-sm font-medium text-cafeteria-800 mb-1">

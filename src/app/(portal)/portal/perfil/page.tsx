@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { CompletarCadastroPessoalBanner } from '@/components/portal/CompletarCadastroPessoalBanner';
+import { CompletarFotoPerfilBanner } from '@/components/portal/CompletarFotoPerfilBanner';
+import { EscolherFotoPerfil } from '@/components/portal/EscolherFotoPerfil';
 import { formatTelefoneBr } from '@/lib/telefone';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 
@@ -12,6 +14,7 @@ function PerfilPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const completarObrigatorio = searchParams.get('completar') === '1';
+  const fotoObrigatoria = searchParams.get('foto') === '1';
   const [session, setSession] = useState<ReturnType<typeof getPortalSession>>(null);
   const [colaborador, setColaborador] = useState<{
     nome: string;
@@ -22,6 +25,7 @@ function PerfilPageContent() {
     cargo: string | null;
     foto_url: string | null;
     perfil_completo?: boolean;
+    foto_cadastrada?: boolean;
     onboarding_completo?: boolean;
     unidade_id?: string;
     unidades?: { nome: string };
@@ -33,7 +37,6 @@ function PerfilPageContent() {
     email: '',
     data_nascimento: '',
   });
-  const [enviando, setEnviando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
   const [okMsg, setOkMsg] = useState('');
@@ -61,43 +64,22 @@ function PerfilPageContent() {
             email: String(data.colaborador.email ?? ''),
             data_nascimento: String(data.colaborador.data_nascimento ?? ''),
           });
+          if (
+            fotoObrigatoria &&
+            data.colaborador.foto_cadastrada &&
+            !completarObrigatorio
+          ) {
+            router.replace('/portal');
+          }
         }
       });
-  }, [session?.colaboradorId]);
+  }, [session?.colaboradorId, fotoObrigatoria, completarObrigatorio, router]);
 
-  const handleFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (completarObrigatorio) return;
-    const file = e.target.files?.[0];
-    if (!file || !session?.colaboradorId) return;
-    if (!file.type.startsWith('image/')) {
-      setErro('Selecione uma imagem (JPG, PNG ou WebP).');
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setErro('A imagem deve ter no máximo 5 MB.');
-      return;
-    }
-    setErro('');
-    setEnviando(true);
-    try {
-      const formData = new FormData();
-      formData.append('foto', file);
-      const res = await fetch('/api/portal/perfil/foto', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.ok && data.foto_url) {
-        setColaborador((c) => (c ? { ...c, foto_url: data.foto_url } : null));
-      } else {
-        setErro(data.erro || 'Erro ao enviar foto.');
-      }
-    } catch {
-      setErro('Erro de conexão.');
-    } finally {
-      setEnviando(false);
-      e.target.value = '';
+  const handleFotoEnviada = (url: string) => {
+    setColaborador((c) => (c ? { ...c, foto_url: url, foto_cadastrada: true } : null));
+    setOkMsg('Foto salva! Redirecionando…');
+    if (fotoObrigatoria && !completarObrigatorio) {
+      window.setTimeout(() => router.replace('/portal'), 800);
     }
   };
 
@@ -137,6 +119,8 @@ function PerfilPageContent() {
         const cid = session?.colaboradorId ?? '';
         if (!colaborador?.onboarding_completo && cid && uid) {
           router.replace(urlOnboardingColaborador(cid, uid));
+        } else if (!colaborador?.foto_cadastrada && !colaborador?.foto_url) {
+          router.replace('/portal/perfil?foto=1');
         } else {
           router.replace('/portal');
         }
@@ -158,136 +142,130 @@ function PerfilPageContent() {
     );
   }
 
+  const mostrarFormulario = completarObrigatorio || !fotoObrigatoria;
+
   return (
-    <div className={`max-w-lg mx-auto ${completarObrigatorio ? 'pb-8' : ''}`}>
+    <div className={`max-w-lg mx-auto ${completarObrigatorio || fotoObrigatoria ? 'pb-8' : ''}`}>
       {completarObrigatorio ? (
         <CompletarCadastroPessoalBanner />
+      ) : fotoObrigatoria ? (
+        <CompletarFotoPerfilBanner />
       ) : (
         <h1 className="text-2xl font-display font-semibold text-coffee-base mb-6">Meu perfil</h1>
       )}
 
       <div
         className={`rounded-2xl bg-white border shadow-xl p-6 ${
-          completarObrigatorio ? 'border-dourado-base/60 ring-2 ring-dourado-base/20' : 'border-dourado-200'
+          completarObrigatorio || fotoObrigatoria
+            ? 'border-dourado-base/60 ring-2 ring-dourado-base/20'
+            : 'border-dourado-200'
         }`}
       >
-        {!completarObrigatorio && (
-          <div className="flex flex-col items-center mb-6">
-            <div className="relative">
-              {colaborador?.foto_url ? (
-                <img
-                  src={colaborador.foto_url}
-                  alt="Sua foto"
-                  className="w-32 h-32 rounded-full object-cover border-2 border-dourado-200"
-                />
-              ) : (
-                <div className="w-32 h-32 rounded-full bg-cream-200 flex items-center justify-center border-2 border-cream-300">
-                  <span className="text-4xl text-coffee-200 font-display">
-                    {colaborador?.nome?.charAt(0)?.toUpperCase() ?? '?'}
-                  </span>
-                </div>
-              )}
-              <label className="absolute bottom-0 right-0 cursor-pointer rounded-full bg-dourado-base p-2 text-cream-100 hover:bg-dourado-400 transition-colors">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFoto}
-                  disabled={enviando}
-                  className="sr-only"
-                />
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </label>
-            </div>
-            <p className="text-xs text-coffee-100 mt-2">
-              {enviando ? 'Enviando…' : 'Toque no ícone para trocar a foto'}
-            </p>
+        {(fotoObrigatoria || !completarObrigatorio) && (
+          <div className="mb-6 pb-6 border-b border-cream-200">
+            <EscolherFotoPerfil
+              nome={colaborador?.nome ?? form.nome}
+              fotoUrl={colaborador?.foto_url}
+              onFotoEnviada={handleFotoEnviada}
+              variant={fotoObrigatoria ? 'modal' : 'perfil'}
+            />
           </div>
         )}
 
         {erro && <p className="text-red-600 text-sm mb-3">{erro}</p>}
         {okMsg && <p className="text-green-700 text-sm mb-3">{okMsg}</p>}
 
-        <form onSubmit={handleSalvarPerfil} className="space-y-3 text-sm">
-          <div>
-            <label className="text-coffee-100 font-medium block mb-1">Nome completo *</label>
-            <input
-              required
-              value={form.nome}
-              onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
-              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
-            />
-          </div>
-          <div>
-            <label className="text-coffee-100 font-medium block mb-1">E-mail *</label>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
-            />
-            <p className="text-xs text-coffee-100/80 mt-1">Usado para login e confirmações no portal.</p>
-          </div>
-          <div>
-            <label className="text-coffee-100 font-medium block mb-1">Celular *</label>
-            <input
-              required
-              inputMode="tel"
-              autoComplete="tel"
-              value={form.telefone}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, telefone: formatTelefoneBr(e.target.value) }))
-              }
-              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
-            />
-            <p className="text-xs text-coffee-100/80 mt-1">Usado para login. Se alterar, entre com o novo número.</p>
-          </div>
-          <div>
-            <label className="text-coffee-100 font-medium block mb-1">Endereço *</label>
-            <input
-              required
-              value={form.endereco}
-              onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))}
-              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
-            />
-          </div>
-          <div>
-            <label className="text-coffee-100 font-medium block mb-1">Data de nascimento *</label>
-            <input
-              type="date"
-              required
-              value={form.data_nascimento}
-              onChange={(e) => setForm((f) => ({ ...f, data_nascimento: e.target.value }))}
-              className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
-            />
-            <p className="text-xs text-coffee-100/80 mt-1">
-              Aniversário no mural (só dia e mês). Não é a data de admissão — essa fica com o RH no cadastro admin.
-            </p>
-          </div>
-          <div>
-            <span className="text-coffee-100 font-medium">Cargo:</span>{' '}
-            <span className="text-coffee-base">{colaborador?.cargo ?? '—'}</span>
-          </div>
-          <div>
-            <span className="text-coffee-100 font-medium">Unidade:</span>{' '}
-            <span className="text-coffee-base">{colaborador?.unidades?.nome ?? '—'}</span>
-          </div>
+        {mostrarFormulario && (
+          <form onSubmit={handleSalvarPerfil} className="space-y-3 text-sm">
+            <div>
+              <label className="text-coffee-100 font-medium block mb-1">Nome completo *</label>
+              <input
+                required
+                value={form.nome}
+                onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
+              />
+            </div>
+            <div>
+              <label className="text-coffee-100 font-medium block mb-1">E-mail *</label>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
+              />
+              <p className="text-xs text-coffee-100/80 mt-1">Usado para login e confirmações no portal.</p>
+            </div>
+            <div>
+              <label className="text-coffee-100 font-medium block mb-1">Celular *</label>
+              <input
+                required
+                inputMode="tel"
+                autoComplete="tel"
+                value={form.telefone}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, telefone: formatTelefoneBr(e.target.value) }))
+                }
+                className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
+              />
+              <p className="text-xs text-coffee-100/80 mt-1">Usado para login. Se alterar, entre com o novo número.</p>
+            </div>
+            <div>
+              <label className="text-coffee-100 font-medium block mb-1">Endereço *</label>
+              <input
+                required
+                value={form.endereco}
+                onChange={(e) => setForm((f) => ({ ...f, endereco: e.target.value }))}
+                className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
+              />
+            </div>
+            <div>
+              <label className="text-coffee-100 font-medium block mb-1">Data de nascimento *</label>
+              <input
+                type="date"
+                required
+                value={form.data_nascimento}
+                onChange={(e) => setForm((f) => ({ ...f, data_nascimento: e.target.value }))}
+                className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base min-h-[44px]"
+              />
+              <p className="text-xs text-coffee-100/80 mt-1">
+                Aniversário no mural (só dia e mês). Não é a data de admissão — essa fica com o RH no cadastro
+                admin.
+              </p>
+            </div>
+            <div>
+              <span className="text-coffee-100 font-medium">Cargo:</span>{' '}
+              <span className="text-coffee-base">{colaborador?.cargo ?? '—'}</span>
+            </div>
+            <div>
+              <span className="text-coffee-100 font-medium">Unidade:</span>{' '}
+              <span className="text-coffee-base">{colaborador?.unidades?.nome ?? '—'}</span>
+            </div>
+            <button
+              type="submit"
+              disabled={salvando}
+              className="w-full rounded-xl bg-dourado-base px-4 py-3 text-cream-100 font-semibold hover:bg-dourado-400 disabled:opacity-50 min-h-[48px] mt-2"
+            >
+              {salvando
+                ? 'Salvando…'
+                : completarObrigatorio
+                  ? 'Salvar e continuar no portal'
+                  : 'Salvar perfil'}
+            </button>
+          </form>
+        )}
+
+        {fotoObrigatoria && colaborador?.foto_cadastrada && (
           <button
-            type="submit"
-            disabled={salvando}
-            className="w-full rounded-xl bg-dourado-base px-4 py-3 text-cream-100 font-semibold hover:bg-dourado-400 disabled:opacity-50 min-h-[48px] mt-2"
+            type="button"
+            onClick={() => router.replace('/portal')}
+            className="w-full mt-4 rounded-xl border border-dourado-base px-4 py-3 text-dourado-800 font-semibold hover:bg-dourado-50 min-h-[48px]"
           >
-            {salvando
-              ? 'Salvando…'
-              : completarObrigatorio
-                ? 'Salvar e continuar no portal'
-                : 'Salvar perfil'}
+            Continuar no portal
           </button>
-        </form>
+        )}
       </div>
     </div>
   );

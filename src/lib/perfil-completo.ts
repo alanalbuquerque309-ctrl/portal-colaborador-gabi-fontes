@@ -5,7 +5,12 @@ export type PerfilPessoalFields = {
   telefone?: string | null;
   email?: string | null;
   data_nascimento?: string | null;
+  foto_url?: string | null;
 };
+
+export function temFotoPerfil(fotoUrl: string | null | undefined): boolean {
+  return Boolean(String(fotoUrl ?? '').trim());
+}
 
 export function isPerfilPessoalCompleto(row: PerfilPessoalFields): boolean {
   return Boolean(
@@ -17,6 +22,11 @@ export function isPerfilPessoalCompleto(row: PerfilPessoalFields): boolean {
   );
 }
 
+/** Texto + foto — uso futuro; hoje a foto tem gate próprio após onboarding. */
+export function isCadastroPortalCompleto(row: PerfilPessoalFields): boolean {
+  return isPerfilPessoalCompleto(row) && temFotoPerfil(row.foto_url);
+}
+
 export function camposPerfilPessoalFaltando(row: PerfilPessoalFields): string[] {
   const faltando: string[] = [];
   if (!String(row.nome ?? '').trim()) faltando.push('nome');
@@ -24,5 +34,6 @@ export function camposPerfilPessoalFaltando(row: PerfilPessoalFields): string[] 
   if (!String(row.telefone ?? '').trim()) faltando.push('telefone');
   if (!String(row.endereco ?? '').trim()) faltando.push('endereço');
   if (!String(row.data_nascimento ?? '').trim()) faltando.push('data de nascimento');
+  if (!temFotoPerfil(row.foto_url)) faltando.push('foto de perfil');
   return faltando;
 }

@@ -14,7 +14,7 @@ import { PORTAL_COOKIE_SESSAO_LONGA } from '@/lib/portal-login-persist';
 
 import { refreshPortalRoleCookie } from '@/lib/portal-session-cookies';
 
-import { isPerfilPessoalCompleto } from '@/lib/perfil-completo';
+import { isPerfilPessoalCompleto, temFotoPerfil } from '@/lib/perfil-completo';
 
 import { normalizeEmail } from '@/lib/password';
 
@@ -128,6 +128,8 @@ export async function GET() {
 
     });
 
+    const fotoCadastrada = temFotoPerfil((data as { foto_url?: string | null }).foto_url);
+
 
 
     const response = NextResponse.json({
@@ -155,6 +157,8 @@ export async function GET() {
         data_nascimento: formatDateForInput((data as { data_nascimento?: string | null }).data_nascimento),
 
         perfil_completo: perfilCompleto,
+
+        foto_cadastrada: fotoCadastrada,
 
         cpf_cadastrado: cpfCadastrado,
 

@@ -1,7 +1,17 @@
 'use client';
 
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { agruparPorSetorEColaborador } from '@/lib/relatorio-avaliacoes-agrupar';
+import {
+  filtrarLinhasLideranca,
+  linhaTemNotaBaixa,
+  mediasPilaresGrupo,
+  pilarMaisFracoGrupo,
+  classeMedia,
+  PILARES_LIDERANCA,
+} from '@/lib/lideranca-relatorio-ui';
+import { CardAvaliacaoLideranca, MediaBadgeLider } from '@/components/portal/RelatorioLiderancaDetalhe';
 
 export type LinhaDiariaRelatorio = {
   id: string;
@@ -87,38 +97,62 @@ function TabelaDiariasColaborador({ linhas }: { linhas: LinhaDiariaRelatorio[] }
 
 function TabelaLiderancaColaborador({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-cafeteria-100 bg-cream-50/50">
+    <div className="space-y-3 md:hidden">
+      {linhas.map((row) => (
+        <CardAvaliacaoLideranca key={row.id} row={row} />
+      ))}
+    </div>
+  );
+}
+
+function TabelaLiderancaDesktop({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
+  return (
+    <div className="hidden md:block overflow-x-auto rounded-lg border border-cafeteria-100 bg-cream-50/50">
       <table className="min-w-full text-sm text-left">
         <thead className="bg-cafeteria-50 text-cafeteria-800 text-xs">
           <tr>
             <th className="px-2 py-2">Semana</th>
             <th className="px-2 py-2">Quem avaliou</th>
             <th className="px-2 py-2 text-center">Média</th>
-            <th className="px-2 py-2 text-center">Exemplo</th>
-            <th className="px-2 py-2 text-center">Comunic.</th>
-            <th className="px-2 py-2 text-center">Suporte</th>
-            <th className="px-2 py-2 text-center">Justiça</th>
-            <th className="px-2 py-2 text-center">Clima</th>
+            {PILARES_LIDERANCA.map((p) => (
+              <th key={p.key} className="px-2 py-2 text-center">
+                {p.short}
+              </th>
+            ))}
             <th className="px-2 py-2">Justificativa</th>
           </tr>
         </thead>
         <tbody>
           {linhas.map((row) => (
-            <tr key={row.id} className="border-t border-cafeteria-100">
+            <tr
+              key={row.id}
+              className={`border-t border-cafeteria-100 ${linhaTemNotaBaixa(row) ? 'bg-amber-50/60' : ''}`}
+            >
               <td className="px-2 py-2 whitespace-nowrap">{row.semana_inicio}</td>
-              <td className="px-2 py-2 text-cafeteria-600">{row.avaliador_label}</td>
+              <td className="px-2 py-2 text-cafeteria-600 max-w-[140px] break-words">{row.avaliador_label}</td>
               <td className="px-2 py-2 text-center font-medium">{row.media.toFixed(2)}</td>
-              <td className="px-2 py-2 text-center">{row.n_exemplo}</td>
-              <td className="px-2 py-2 text-center">{row.n_comunicacao}</td>
-              <td className="px-2 py-2 text-center">{row.n_suporte}</td>
-              <td className="px-2 py-2 text-center">{row.n_justica}</td>
-              <td className="px-2 py-2 text-center">{row.n_clima}</td>
-              <td className="px-2 py-2 text-cafeteria-600 max-w-xs">{row.justificativa_nota_baixa || '—'}</td>
+              {PILARES_LIDERANCA.map((p) => (
+                <td key={p.key} className="px-2 py-2 text-center font-medium">
+                  {row[p.key]}
+                </td>
+              ))}
+              <td className="px-2 py-2 text-cafeteria-600 max-w-xs whitespace-pre-wrap break-words align-top">
+                {row.justificativa_nota_baixa || '—'}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
+  );
+}
+
+function ListaAvaliacoesLider({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
+  return (
+    <>
+      <TabelaLiderancaColaborador linhas={linhas} />
+      <TabelaLiderancaDesktop linhas={linhas} />
+    </>
   );
 }
 
@@ -190,54 +224,148 @@ export function RelatorioLiderancaPorSetor({ linhas }: { linhas: LinhaLiderRelat
       grupos={grupos}
       vazio="Nenhum registro no período."
       renderColaborador={(_nome, regs) => (
-        <TabelaLiderancaColaborador linhas={regs as LinhaLiderRelatorio[]} />
+        <ListaAvaliacoesLider linhas={regs as LinhaLiderRelatorio[]} />
       )}
     />
   );
 }
 
 /** Agrupa pelo líder avaliado (nome), com setor e filial no cabeçalho. */
-export function RelatorioLiderancaPorLider({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
-  if (linhas.length === 0) {
-    return <p className="text-sm text-cafeteria-500 py-4 text-center">Nenhum registro no período.</p>;
-  }
+export function RelatorioLiderancaPorLider({
+  linhas,
+  busca = '',
+  somenteNotaBaixa = false,
+  ordenarPioresPrimeiro = true,
+}: {
+  linhas: LinhaLiderRelatorio[];
+  busca?: string;
+  somenteNotaBaixa?: boolean;
+  ordenarPioresPrimeiro?: boolean;
+}) {
+  const [abertos, setAbertos] = useState<Set<string>>(new Set());
 
-  const porLider = new Map<string, LinhaLiderRelatorio[]>();
-  for (const l of linhas) {
-    const nome = String(l.avaliado_nome ?? '').trim() || '—';
-    if (!porLider.has(nome)) porLider.set(nome, []);
-    porLider.get(nome)!.push(l);
-  }
+  const filtradas = useMemo(
+    () => filtrarLinhasLideranca(linhas, busca, somenteNotaBaixa),
+    [linhas, busca, somenteNotaBaixa]
+  );
 
-  const lideres = Array.from(porLider.entries()).sort(([a], [b]) => a.localeCompare(b, 'pt-BR'));
+  const lideres = useMemo(() => {
+    const porLider = new Map<string, LinhaLiderRelatorio[]>();
+    for (const l of filtradas) {
+      const nome = String(l.avaliado_nome ?? '').trim() || '—';
+      if (!porLider.has(nome)) porLider.set(nome, []);
+      porLider.get(nome)!.push(l);
+    }
+
+    const entries = Array.from(porLider.entries()).map(([nome, regs]) => {
+      const mediaGeral = regs.reduce((s, r) => s + r.media, 0) / Math.max(1, regs.length);
+      const qtdBaixas = regs.filter(linhaTemNotaBaixa).length;
+      const fraco = pilarMaisFracoGrupo(regs);
+      return { nome, regs, mediaGeral, qtdBaixas, fraco };
+    });
+
+    entries.sort((a, b) => {
+      if (ordenarPioresPrimeiro) {
+        if (a.mediaGeral !== b.mediaGeral) return a.mediaGeral - b.mediaGeral;
+        if (a.qtdBaixas !== b.qtdBaixas) return b.qtdBaixas - a.qtdBaixas;
+      }
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+
+    return entries;
+  }, [filtradas, ordenarPioresPrimeiro]);
+
+  const toggle = (nome: string) => {
+    setAbertos((prev) => {
+      const next = new Set(prev);
+      if (next.has(nome)) next.delete(nome);
+      else next.add(nome);
+      return next;
+    });
+  };
+
+  if (filtradas.length === 0) {
+    return (
+      <p className="text-sm text-cafeteria-500 py-8 text-center">
+        Nenhum registro no período com estes filtros.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {lideres.map(([nome, regs]) => {
+    <ul className="space-y-2 list-none p-0 m-0">
+      {lideres.map(({ nome, regs, mediaGeral, qtdBaixas, fraco }) => {
         const setor = regs[0]?.avaliado_setor?.trim() || 'Sem setor definido';
         const filiais = Array.from(
           new Set(regs.map((r) => r.filial_nome?.trim()).filter(Boolean) as string[])
         );
-        const mediaGeral =
-          regs.reduce((s, r) => s + r.media, 0) / Math.max(1, regs.length);
+        const aberto = abertos.has(nome);
+        const mediasP = mediasPilaresGrupo(regs);
+        const precisaAtencao = mediaGeral <= 3.5 || qtdBaixas > 0;
+
         return (
-          <div
+          <li
             key={nome}
-            className="rounded-lg border border-cafeteria-200 bg-cream-50/30 p-4"
+            className={`rounded-xl border overflow-hidden shadow-sm ${
+              precisaAtencao ? 'border-amber-300 bg-amber-50/20' : 'border-cafeteria-200 bg-white'
+            }`}
           >
-            <div className="border-b border-dourado-200/60 pb-2 mb-4">
-              <h4 className="text-base font-semibold text-cafeteria-900">{nome}</h4>
-              <p className="text-xs text-cafeteria-500 mt-1">
-                Setor: {setor}
-                {filiais.length > 0 ? ` · Filial: ${filiais.join(', ')}` : ''}
-                {' · '}
-                {regs.length} avaliação(ões) · média {mediaGeral.toFixed(2)}
-              </p>
-            </div>
-            <TabelaLiderancaColaborador linhas={regs} />
-          </div>
+            <button
+              type="button"
+              onClick={() => toggle(nome)}
+              className="w-full text-left px-4 py-3.5 flex flex-wrap items-start justify-between gap-3 hover:bg-cream-50/80 min-h-[44px]"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold text-base text-cafeteria-900 leading-snug break-words">{nome}</p>
+                <p className="text-xs sm:text-sm text-cafeteria-600 mt-1 leading-relaxed">
+                  {setor}
+                  {filiais.length > 0 ? ` · ${filiais.join(', ')}` : ''}
+                </p>
+                <p className="text-xs text-cafeteria-500 mt-1">
+                  {regs.length} avaliação{regs.length === 1 ? '' : 'ões'}
+                  {qtdBaixas > 0 ? (
+                    <span className="text-amber-800 font-medium">
+                      {' '}
+                      · {qtdBaixas} com nota ≤3
+                    </span>
+                  ) : null}
+                </p>
+                {fraco && precisaAtencao && (
+                  <p className="text-xs font-medium text-amber-900 mt-1.5">
+                    Melhorar: {fraco.label} (média {fraco.nota.toFixed(2)} no período)
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <MediaBadgeLider media={mediaGeral} />
+                <span className="text-xs text-cafeteria-500">{aberto ? 'Fechar ▲' : 'Ver detalhes ▼'}</span>
+              </div>
+            </button>
+
+            {aberto && (
+              <div className="border-t border-cafeteria-100 px-4 py-3 bg-cream-50/40 space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  {PILARES_LIDERANCA.map((p) => {
+                    const nota = mediasP[p.key];
+                    return (
+                      <div
+                        key={p.key}
+                        className={`rounded-lg border px-2 py-2 text-center text-xs ${classeMedia(nota)}`}
+                      >
+                        <p className="leading-snug">{p.short}</p>
+                        <p className="text-base font-bold tabular-nums mt-0.5">{nota.toFixed(2)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                <ListaAvaliacoesLider
+                  linhas={[...regs].sort((a, b) => b.semana_inicio.localeCompare(a.semana_inicio))}
+                />
+              </div>
+            )}
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

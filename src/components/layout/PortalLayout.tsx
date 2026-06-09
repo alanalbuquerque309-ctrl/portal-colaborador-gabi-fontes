@@ -35,6 +35,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         cpf_cadastrado?: boolean;
         perfil_completo?: boolean;
         onboarding_completo?: boolean;
+        foto_cadastrada?: boolean;
         id?: string;
         unidade_id?: string;
       };
@@ -64,9 +65,23 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         router.replace(urlOnboardingColaborador(d.colaborador.id, d.colaborador.unidade_id));
         return;
       }
+      const onboardingOk =
+        normalizePortalRole(d?.colaborador?.role ?? 'colaborador') !== 'colaborador' ||
+        d.colaborador?.onboarding_completo === true;
+      if (
+        d.ok &&
+        d.colaborador &&
+        d.colaborador.perfil_completo === true &&
+        onboardingOk &&
+        d.colaborador.foto_cadastrada === false &&
+        pathname !== '/portal/perfil'
+      ) {
+        router.replace('/portal/perfil?foto=1');
+        return;
+      }
       const role = normalizePortalRole(d?.colaborador?.role ?? 'colaborador');
       setPerfilRole(role);
-      if (d.ok && role === 'colaborador' && d.colaborador?.perfil_completo === true) {
+      if (d.ok && role === 'colaborador' && d.colaborador?.perfil_completo === true && d.colaborador?.foto_cadastrada === true) {
         fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' })
           .then((r) => r.json())
           .then((emo) => {

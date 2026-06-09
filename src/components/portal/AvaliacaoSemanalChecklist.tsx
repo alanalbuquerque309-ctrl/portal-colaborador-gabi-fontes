@@ -9,6 +9,7 @@ type Props = {
   onEditar?: (id: string) => void;
   filtroPendentes: boolean;
   onToggleFiltro: () => void;
+  selecionadoId?: string | null;
 };
 
 export function AvaliacaoSemanalChecklist({
@@ -18,6 +19,7 @@ export function AvaliacaoSemanalChecklist({
   onEditar,
   filtroPendentes,
   onToggleFiltro,
+  selecionadoId = null,
 }: Props) {
   const concluidos = itens.filter((i) => i.concluido).length;
   const pendentes = itens.length - concluidos;
@@ -50,22 +52,25 @@ export function AvaliacaoSemanalChecklist({
       {visiveis.length === 0 ? (
         <p className="text-sm text-green-700">Nenhum pendente nesta semana.</p>
       ) : (
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="grid gap-2 grid-cols-1">
           {visiveis.map((m) => (
             <li key={`check-${m.id}`}>
               <div
-                className={`flex items-stretch gap-1 rounded-lg border text-sm ${
-                  m.concluido
-                    ? 'border-green-200 bg-green-50 text-green-900'
-                    : 'border-amber-200 bg-amber-50 text-amber-900'
+                className={`flex items-stretch gap-1 rounded-lg border text-sm md:text-base ${
+                  selecionadoId === m.id
+                    ? 'border-dourado-base ring-2 ring-dourado-base/30 bg-dourado-50'
+                    : m.concluido
+                      ? 'border-green-200 bg-green-50 text-green-900'
+                      : 'border-amber-200 bg-amber-50 text-amber-900'
                 }`}
               >
                 <button
                   type="button"
                   onClick={() => onIrPara(m.id)}
-                  className="flex-1 text-left px-3 py-2 min-w-0"
+                  disabled={m.concluido}
+                  className="flex-1 text-left px-3 py-3 min-w-0 disabled:cursor-not-allowed"
                 >
-                  <span className="font-medium">
+                  <span className="font-semibold text-base leading-snug break-words block">
                     {m.concluido ? '✅' : '⬜'} {m.nome}
                   </span>
                   {m.subtitulo ? (
