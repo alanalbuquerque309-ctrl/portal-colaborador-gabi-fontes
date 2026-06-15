@@ -355,17 +355,20 @@ export function Header() {
           <nav className="hidden md:flex gap-6 text-cafeteria-700 items-center">
             {navDesktop.map(({ href, label }) => {
               const ativo = navAtivo(pathname, href);
-              const labelExibir =
-                href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0
-                  ? `Comunicação (${pendenciasAjuda})`
-                  : label;
+              const alertaAjuda =
+                href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`hover:text-cafeteria-900 ${ativo ? 'font-semibold text-cafeteria-800' : ''}`}
+                  className={`relative hover:text-cafeteria-900 ${ativo ? 'font-semibold text-cafeteria-800' : ''}`}
                 >
-                  {labelExibir}
+                  {label}
+                  {alertaAjuda && (
+                    <span className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold items-center justify-center align-middle animate-pulse">
+                      {pendenciasAjuda > 99 ? '99+' : pendenciasAjuda}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -396,23 +399,28 @@ export function Header() {
           {navMobile.map(({ href, label, short }) => {
             const ativo = navAtivo(pathname, href);
             const iconKey = iconePorHref[href] ?? 'mural';
-            const shortExibir =
-              href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0
-                ? `Comunic. (${pendenciasAjuda})`
-                : short;
+            const alertaAjuda =
+              href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={ativo ? 'page' : undefined}
-                aria-label={label}
+                aria-label={alertaAjuda ? `${label}: ${pendenciasAjuda} sem resposta` : label}
                 className={`flex flex-col items-center justify-center py-2.5 px-1 min-w-[58px] shrink-0 min-h-[52px] ${
                   ativo ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
                 }`}
               >
-                <NavIcon type={iconKey} />
+                <span className="relative">
+                  <NavIcon type={iconKey} />
+                  {alertaAjuda && (
+                    <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                      {pendenciasAjuda > 9 ? '9+' : pendenciasAjuda}
+                    </span>
+                  )}
+                </span>
                 <span className="text-[13px] mt-1 max-w-[72px] text-center leading-tight whitespace-normal">
-                  {shortExibir}
+                  {short}
                 </span>
               </Link>
             );

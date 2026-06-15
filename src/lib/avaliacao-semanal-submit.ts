@@ -5,7 +5,11 @@ import {
   type NotasCriterios,
 } from '@/lib/avaliacao-diaria';
 import { notaCriterioValida } from '@/lib/avaliacao-notas';
-import { assiduidadeParaBanco, JUSTIFICATIVA_FORA_PLANTAO } from '@/lib/avaliacao-semanal-shared';
+import {
+  assiduidadeParaBanco,
+  JUSTIFICATIVA_FERIAS,
+  JUSTIFICATIVA_FORA_PLANTAO,
+} from '@/lib/avaliacao-semanal-shared';
 
 export type BodyAvaliacaoSemanal = {
   data_referencia?: string;
@@ -31,7 +35,17 @@ export function isAssiduidadeSemanal(s: string): s is AssiduidadeTipo {
 }
 
 function assiduidadePermitidaNovoEnvio(s: string): s is AssiduidadeTipo {
-  return s === 'presente' || s === 'fora_plantao' || s === 'falta_injustificada';
+  return (
+    s === 'presente' ||
+    s === 'fora_plantao' ||
+    s === 'ferias' ||
+    s === 'falta_injustificada'
+  );
+}
+
+/** Semana sem nota: fora do plantão e férias não exigem critérios nem justificativa. */
+function assiduidadeSemNota(s: AssiduidadeTipo): boolean {
+  return s === 'fora_plantao' || s === 'ferias';
 }
 
 export function sanitizeJustificativaSemanal(value: unknown): string {
@@ -70,10 +84,14 @@ export function validarBodyAvaliacaoSemanal(
   };
 
   const { media, notasPersistidas } = calcularMediaDia(assidRaw, notasEntrada);
-  const temNotaBaixa =
-    assidRaw !== 'fora_plantao' && temNotaBaixaEquipe(assidRaw, notasPersistidas);
+  const semNota = assiduidadeSemNota(assidRaw);
+  const temNotaBaixa = !semNota && temNotaBaixaEquipe(assidRaw, notasPersistidas);
   const justificativaFinal =
-    assidRaw === 'fora_plantao' ? JUSTIFICATIVA_FORA_PLANTAO : justificativaNotaBaixa;
+    assidRaw === 'fora_plantao'
+      ? JUSTIFICATIVA_FORA_PLANTAO
+      : assidRaw === 'ferias'
+        ? JUSTIFICATIVA_FERIAS
+        : justificativaNotaBaixa;
 
   if (temNotaBaixa && justificativaFinal.length < 10) {
     return {
@@ -124,7 +142,13 @@ export function validarBodyAvaliacaoSemanal(
       nota_proatividade: notasPersistidas.proatividade,
       media_dia: media,
       justificativa_nota_baixa:
-        assidRaw === 'fora_plantao' ? JUSTIFICATIVA_FORA_PLANTAO : temNotaBaixa ? justificativaFinal : null,
+        assidRaw === 'fora_plantao'
+          ? JUSTIFICATIVA_FORA_PLANTAO
+          : assidRaw === 'ferias'
+            ? JUSTIFICATIVA_FERIAS
+            : temNotaBaixa
+              ? justificativaFinal
+              : null,
     },
   };
 }

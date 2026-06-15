@@ -30,6 +30,20 @@ export async function GET(req: Request) {
     const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
 
     const ids = equipe.map((c) => c.id);
+
+    const unidadePorColab: Record<string, string> = {};
+    if (ids.length > 0) {
+      const { data: cols } = await supabase
+        .from('colaboradores')
+        .select('id, unidades(nome)')
+        .in('id', ids);
+      for (const c of cols ?? []) {
+        const un = (c as { unidades?: { nome?: string } | { nome?: string }[] | null }).unidades;
+        const u = Array.isArray(un) ? un[0] : un;
+        if (u?.nome) unidadePorColab[String((c as { id: string }).id)] = String(u.nome);
+      }
+    }
+
     let avaliacoesPorColab: Record<string, Record<string, unknown>> = {};
 
     if (ids.length > 0) {
@@ -58,6 +72,7 @@ export async function GET(req: Request) {
       data_referencia: dataRef,
       equipe: equipe.map((c) => ({
         ...c,
+        unidade_nome: unidadePorColab[c.id] ?? null,
         avaliacao: avaliacoesPorColab[c.id] ?? null,
       })),
     });

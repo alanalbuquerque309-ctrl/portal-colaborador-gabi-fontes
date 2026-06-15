@@ -28,6 +28,7 @@ type Props = {
   nome: string;
   cargo: string | null;
   setor: string | null;
+  unidade?: string | null;
   dataReferencia: string;
   /** Intervalo legível (ex.: 26 mai a 1 jun 2026) — usado no botão fora do plantão. */
   semanaLabel?: string;
@@ -45,12 +46,14 @@ type Props = {
   permiteEdicaoUnica?: boolean;
   /** Gerente de loja: botão «fora do plantão». Visita RH não usa. */
   mostrarForaPlantao?: boolean;
+  /** Botão «de férias» (semana sem nota, fora da média). */
+  mostrarFerias?: boolean;
 };
 
 function normalizarAssiduidadeForm(row: NonNullable<AvaliacaoServidor>): AssiduidadeTipo {
   const a = row.assiduidade;
   if (assiduidadeLegacySemanalRemovida(a)) return 'presente';
-  if (a === 'fora_plantao' || a === 'falta_injustificada') return a;
+  if (a === 'fora_plantao' || a === 'falta_injustificada' || a === 'ferias') return a;
   return 'presente';
 }
 
@@ -80,6 +83,7 @@ export function ColaboradorAvaliacaoCard({
   nome,
   cargo,
   setor,
+  unidade,
   dataReferencia,
   semanaLabel,
   avaliacaoInicial,
@@ -92,8 +96,10 @@ export function ColaboradorAvaliacaoCard({
   onModoEdicaoChange,
   permiteEdicaoUnica = true,
   mostrarForaPlantao = true,
+  mostrarFerias = true,
 }: Props) {
   const [modoEdicao, setModoEdicao] = useState(false);
+  const [avaliando, setAvaliando] = useState(false);
   const edicaoUtilizada = avaliacaoInicial?.edicao_utilizada === true;
   const podeEditarAvaliacao =
     permiteEdicaoUnica && avaliacaoInicial != null && !edicaoUtilizada && !!avaliacaoInicial.id;
@@ -140,6 +146,7 @@ export function ColaboradorAvaliacaoCard({
     setD(inicial.d);
     setPr(inicial.pr);
     setJustificativaNotaBaixa(avaliacaoInicial?.justificativa_nota_baixa ?? '');
+    setAvaliando(false);
     setMsg(null);
     setErro(null);
   }, [avaliacaoInicial?.justificativa_nota_baixa, inicial.assiduidade, inicial.legado, inicial.v, inicial.p, inicial.e, inicial.d, inicial.pr]);
@@ -151,6 +158,7 @@ export function ColaboradorAvaliacaoCard({
   useEffect(() => {
     if (forcarEdicao && podeEditarAvaliacao) {
       setModoEdicao(true);
+      setAvaliando(true);
       onModoEdicaoChange?.(true);
     }
   }, [forcarEdicao, podeEditarAvaliacao, onModoEdicaoChange]);
@@ -158,6 +166,7 @@ export function ColaboradorAvaliacaoCard({
   const iniciarEdicao = () => {
     if (!podeEditarAvaliacao) return;
     setModoEdicao(true);
+    setAvaliando(true);
     onModoEdicaoChange?.(true);
     setMsg(null);
     setErro(null);
@@ -165,6 +174,7 @@ export function ColaboradorAvaliacaoCard({
 
   const cancelarEdicao = () => {
     setModoEdicao(false);
+    setAvaliando(false);
     onModoEdicaoChange?.(false);
     setAssiduidade(inicial.assiduidade);
     setRegistroLegado(inicial.legado);
@@ -180,7 +190,13 @@ export function ColaboradorAvaliacaoCard({
 
   const injustificada = assiduidade === 'falta_injustificada';
   const foraPlantao = assiduidade === 'fora_plantao';
-  const estrelasDesabilitadas = somenteLeitura || injustificada || foraPlantao;
+  const ferias = assiduidade === 'ferias';
+  const semNota = foraPlantao || ferias;
+  const estrelasDesabilitadas = somenteLeitura || injustificada || semNota;
+  /** Linha enxuta com 3 ações antes de abrir as estrelas. */
+  const acoesCompactas = !somenteLeitura && !semNota && !avaliando;
+  /** Bloco de notas: leitura do que foi salvo, ou edição ao tocar em Avaliar. */
+  const mostrarNotas = !semNota && (somenteLeitura || avaliando);
   const temNotaBaixa = temNotaBaixaEquipe(assiduidade, {
     vestimenta: v,
     pontualidade: p,
@@ -297,6 +313,57 @@ export function ColaboradorAvaliacaoCard({
     }
   };
 
+  const marcarFerias = async () => {
+    if (somenteLeitura) return;
+    if (
+      !window.confirm(
+        `${nome} está de férias na semana ${semanaLabel ?? 'selecionada'}?\n\nA semana não recebe nota e não entra na média do colaborador.`
+      )
+    ) {
+      return;
+    }
+    setAssiduidade('ferias');
+    setV(null);
+    setP(null);
+    setE(null);
+    setD(null);
+    setPr(null);
+    setJustificativaNotaBaixa('');
+    setErro(null);
+    setMsg(null);
+    setSalvando(true);
+    try {
+      const payload = {
+        data_referencia: dataReferencia,
+        colaborador_id: colaboradorId,
+        assiduidade: 'ferias' as const,
+        nota_vestimenta: null,
+        nota_pontualidade: null,
+        nota_trabalho_equipe: null,
+        nota_desempenho_tarefas: null,
+        nota_proatividade: null,
+        justificativa_nota_baixa: '',
+      };
+      const res = await fetch(postUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível registrar.');
+        return;
+      }
+      setMsg('Registrado: de férias nesta semana.');
+      onSalvo();
+    } catch {
+      setErro('Erro de conexão.');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   const salvar = async () => {
     if (somenteLeitura) return;
     setErro(null);
@@ -386,6 +453,10 @@ export function ColaboradorAvaliacaoCard({
             <span className="text-sm font-medium rounded-full bg-violet-100 text-violet-900 px-2.5 py-0.5">
               Outro líder
             </span>
+          ) : ferias ? (
+            <span className="text-sm font-medium rounded-full bg-sky-100 text-sky-900 px-2.5 py-0.5">
+              Férias
+            </span>
           ) : (
             <span className="text-xs sm:text-sm font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">
               Avaliado
@@ -394,34 +465,56 @@ export function ColaboradorAvaliacaoCard({
         ) : (
           <span className="text-xs sm:text-sm font-medium rounded-full bg-amber-100 text-amber-900 px-2.5 py-0.5">Pendente</span>
         )}
-        <p className="text-sm text-cafeteria-600">
-          {[cargo, setor].filter(Boolean).join(' · ') || '—'}
+        <p className="text-sm text-cafeteria-600 w-full">
+          {[cargo, setor, unidade].filter(Boolean).join(' · ') || '—'}
         </p>
       </div>
 
       <div className="p-4 space-y-5">
-        {mostrarForaPlantao && !somenteLeitura && !foraPlantao && (
-          <div className="rounded-lg border-2 border-violet-300 bg-violet-50/90 p-3 space-y-2">
-            <p className="text-sm text-violet-950">
-              <strong>Semana {semanaLabel ?? 'em avaliação'}:</strong> marque só se{' '}
-              <strong>não trabalhou com você nessa semana</strong>. O outro gerente avalia com notas.
-            </p>
+        {acoesCompactas && (
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={salvando}
-              onClick={() => void marcarForaPlantao()}
-              className="w-full sm:w-auto rounded-lg bg-violet-700 text-white text-sm font-semibold px-4 py-3 min-h-[48px] hover:bg-violet-800 disabled:opacity-50"
+              onClick={() => {
+                setAvaliando(true);
+                setMsg(null);
+                setErro(null);
+              }}
+              className="flex-1 min-w-[7.5rem] rounded-lg bg-cafeteria-700 text-cream-50 text-sm font-semibold px-3 py-2.5 min-h-[44px] hover:bg-cafeteria-800 disabled:opacity-50"
             >
-              {salvando ? 'Salvando…' : 'Não estava no meu plantão nessa semana'}
+              Avaliar
             </button>
+            {mostrarForaPlantao && (
+              <button
+                type="button"
+                disabled={salvando}
+                onClick={() => void marcarForaPlantao()}
+                className="flex-1 min-w-[7.5rem] rounded-lg border border-violet-400 bg-violet-50 text-violet-900 text-sm font-semibold px-3 py-2.5 min-h-[44px] hover:bg-violet-100 disabled:opacity-50"
+                title="Não trabalhou com você nesta semana — o outro líder avalia"
+              >
+                Outro plantão
+              </button>
+            )}
+            {mostrarFerias && (
+              <button
+                type="button"
+                disabled={salvando}
+                onClick={() => void marcarFerias()}
+                className="flex-1 min-w-[7.5rem] rounded-lg border border-sky-400 bg-sky-50 text-sky-900 text-sm font-semibold px-3 py-2.5 min-h-[44px] hover:bg-sky-100 disabled:opacity-50"
+                title="De férias nesta semana — fora da média"
+              >
+                Férias
+              </button>
+            )}
           </div>
         )}
-        {cadastroPortalPendente && (
+        {cadastroPortalPendente && !acoesCompactas && (
           <p className="text-sm text-cafeteria-800 bg-cafeteria-50 border border-cafeteria-200 rounded-lg px-3 py-2">
             Cadastro no portal ainda não concluído. Você pode avaliar a operação da semana normalmente.
           </p>
         )}
-        {!apto && !somenteLeitura && (
+        {!apto && !somenteLeitura && !acoesCompactas && (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
             <p className="text-sm text-sky-950 flex-1 min-w-[200px]">
               Quando estiver 100% apto para trabalhar sem acompanhamento constante, registre abaixo.
@@ -436,7 +529,7 @@ export function ColaboradorAvaliacaoCard({
             </button>
           </div>
         )}
-        {somenteLeitura && !modoEdicao && (
+        {somenteLeitura && !modoEdicao && !ferias && (
           <p className="text-sm text-cafeteria-800 bg-dourado-50 border border-dourado-200 rounded-lg px-3 py-2">
             <strong>{foraPlantao ? 'Repasse ao outro líder' : 'Avaliação enviada'}</strong>
             {foraPlantao
@@ -459,7 +552,7 @@ export function ColaboradorAvaliacaoCard({
             alterar de novo.
           </p>
         )}
-        {!foraPlantao && (
+        {mostrarNotas && (
           <>
             {!somenteLeitura && (
               <label className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/60 px-3 py-3 cursor-pointer">
@@ -532,7 +625,13 @@ export function ColaboradorAvaliacaoCard({
           </p>
         )}
 
-        {!foraPlantao && (temNotaBaixa || avaliacaoInicial?.justificativa_nota_baixa) && (
+        {ferias && somenteLeitura && (
+          <p className="text-sm text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
+            Colaborador <strong>de férias</strong> nesta semana. Sem nota e fora da média.
+          </p>
+        )}
+
+        {mostrarNotas && (temNotaBaixa || avaliacaoInicial?.justificativa_nota_baixa) && (
           <div>
             <label className="block text-sm font-medium text-cafeteria-800 mb-1">
               Justificativa da nota baixa
@@ -559,7 +658,7 @@ export function ColaboradorAvaliacaoCard({
           </div>
         )}
 
-        {!foraPlantao && (
+        {mostrarNotas && (
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-cafeteria-100">
             <p className="text-sm text-cafeteria-700">
               Média da semana{somenteLeitura ? '' : ' (prévia)'}:{' '}
@@ -586,6 +685,19 @@ export function ColaboradorAvaliacaoCard({
                     className="rounded-lg border border-cafeteria-300 px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-cafeteria-50 disabled:opacity-50"
                   >
                     Cancelar
+                  </button>
+                ) : avaliando ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAvaliando(false);
+                      setMsg(null);
+                      setErro(null);
+                    }}
+                    disabled={salvando}
+                    className="rounded-lg border border-cafeteria-300 px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-cafeteria-50 disabled:opacity-50"
+                  >
+                    Voltar
                   </button>
                 ) : null}
                 <button

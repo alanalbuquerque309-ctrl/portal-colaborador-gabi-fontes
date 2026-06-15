@@ -13,16 +13,18 @@ export type AssiduidadeTipo =
   | 'folga'
   | 'outra_escala'
   | 'fora_plantao'
+  | 'ferias'
   | 'falta_justificada'
   | 'falta_injustificada';
 
-/** Semana sem média numérica (fora do plantão ou registos legados de folga/escala). */
+/** Semana sem média numérica (férias, fora do plantão ou registos legados de folga/escala). */
 export function assiduidadeIsentaSemana(a: AssiduidadeTipo | string): boolean {
   return (
     a === 'falta_justificada' ||
     a === 'folga' ||
     a === 'outra_escala' ||
-    a === 'fora_plantao'
+    a === 'fora_plantao' ||
+    a === 'ferias'
   );
 }
 
@@ -35,6 +37,7 @@ export const ASSIDUIDADES_SEMANAL_ATIVAS: AssiduidadeTipo[] = [
   'presente',
   'falta_injustificada',
   'fora_plantao',
+  'ferias',
 ];
 
 export type NotasCriterios = {
@@ -146,6 +149,7 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
   faltaInjustificada: boolean;
   isenta: boolean;
   foraPlantao: boolean;
+  ferias: boolean;
   legado: boolean;
 } {
   const just = String(l.justificativa_nota_baixa ?? '').trim();
@@ -160,6 +164,19 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
       faltaInjustificada: true,
       isenta: false,
       foraPlantao: false,
+      ferias: false,
+      legado: false,
+    };
+  }
+
+  if (a === 'ferias') {
+    return {
+      mediaLabel: 'Férias',
+      justificativaLabel: 'Colaborador de férias nesta semana — não entra na média.',
+      faltaInjustificada: false,
+      isenta: true,
+      foraPlantao: false,
+      ferias: true,
       legado: false,
     };
   }
@@ -171,6 +188,7 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
       faltaInjustificada: false,
       isenta: false,
       foraPlantao: true,
+      ferias: false,
       legado: false,
     };
   }
@@ -182,6 +200,7 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
       faltaInjustificada: false,
       isenta: false,
       foraPlantao: false,
+      ferias: false,
       legado: true,
     };
   }
@@ -192,6 +211,7 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
     faltaInjustificada: false,
     isenta: false,
     foraPlantao: false,
+    ferias: false,
     legado: false,
   };
 }
@@ -226,6 +246,16 @@ export function detalharItensNotaAvaliacaoAdmin(l: {
       { label: 'Trabalho em equipe', nota: '0', destaque: 'zero' },
       { label: 'Desempenho de tarefas', nota: '0', destaque: 'zero' },
       { label: 'Proatividade e iniciativa', nota: '0', destaque: 'zero' },
+    ];
+  }
+
+  if (a === 'ferias') {
+    return [
+      {
+        label: 'Férias',
+        nota: 'De férias nesta semana — não entra na média',
+        destaque: 'isento',
+      },
     ];
   }
 

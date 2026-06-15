@@ -19,6 +19,7 @@ type MembroEquipe = {
   nome: string;
   cargo: string | null;
   setor: string | null;
+  unidade_nome?: string | null;
   onboarding_completo?: boolean;
   operacao_apto?: boolean;
   avaliacao: AvaliacaoServidor;
@@ -40,6 +41,7 @@ export default function AvaliacaoMasterPage() {
     isRoleGerenteAvaliadorPortal(session.role);
   const avaliadosNaSemana = equipe.filter((m) => m.avaliacao != null).length;
   const pendentesNaSemana = Math.max(0, equipe.length - avaliadosNaSemana);
+  const naoAtivaramPortal = equipe.filter((m) => m.onboarding_completo === false);
   const intervaloSemana = formatarIntervaloSemanaPtBR(dataRef);
   const lembretePadrao = lembreteAvaliacaoSemanaPassada();
   const exibindoSemanaPassada = dataRef === semanaAvaliacaoEquipePadraoISO();
@@ -198,6 +200,30 @@ export default function AvaliacaoMasterPage() {
 
       {erro && <p className="text-red-600 text-sm">{erro}</p>}
 
+      {!carregando && naoAtivaramPortal.length > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-semibold text-amber-900">
+            {naoAtivaramPortal.length === 1
+              ? '1 colaborador ainda não ativou o portal'
+              : `${naoAtivaramPortal.length} colaboradores ainda não ativaram o portal`}
+          </p>
+          <p className="text-xs text-amber-800 mt-0.5">
+            Avise para fazerem o primeiro acesso (login e cadastro). Você pode avaliar normalmente.
+          </p>
+          <ul className="mt-2 flex flex-wrap gap-1.5 list-none p-0 m-0">
+            {naoAtivaramPortal.map((m) => (
+              <li
+                key={m.id}
+                className="rounded-full bg-white border border-amber-300 px-2.5 py-1 text-xs font-medium text-amber-950"
+              >
+                {m.nome}
+                {m.setor ? <span className="text-amber-700"> · {m.setor}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {carregando ? (
         <p className="text-cafeteria-600">Carregando equipe…</p>
       ) : equipe.length === 0 ? (
@@ -222,6 +248,7 @@ export default function AvaliacaoMasterPage() {
                 nome={m.nome}
                 cargo={m.cargo}
                 setor={m.setor}
+                unidade={m.unidade_nome}
                 dataReferencia={dataRef}
                 semanaLabel={intervaloSemana}
                 avaliacaoInicial={m.avaliacao}

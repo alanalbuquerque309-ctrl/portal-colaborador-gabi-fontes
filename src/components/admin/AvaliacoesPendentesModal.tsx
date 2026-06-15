@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana';
 
@@ -46,6 +46,29 @@ export function AvaliacoesPendentesModal({
   const [intervalo, setIntervalo] = useState('');
   const [resumo, setResumo] = useState({ sem_lider: 0, sem_rh_complemento: 0, sem_rh_rede: 0, criticos: 0 });
   const [itens, setItens] = useState<ItemPendenciaSemana[]>([]);
+  const [filtroLider, setFiltroLider] = useState('');
+
+  /** Quantos colaboradores cada líder ainda não avaliou (para ir direto ao líder). */
+  const porLider = useMemo(() => {
+    const mapa = new Map<string, number>();
+    for (const item of itens) {
+      for (const r of item.responsaveis_lider) {
+        if (r.status !== 'pendente') continue;
+        const nome = r.lider_nome.trim() || '—';
+        mapa.set(nome, (mapa.get(nome) ?? 0) + 1);
+      }
+    }
+    return Array.from(mapa.entries())
+      .map(([nome, total]) => ({ nome, total }))
+      .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [itens]);
+
+  const itensVisiveis = useMemo(() => {
+    if (!filtroLider) return itens;
+    return itens.filter((item) =>
+      item.responsaveis_lider.some((r) => r.status === 'pendente' && r.lider_nome.trim() === filtroLider)
+    );
+  }, [itens, filtroLider]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -66,6 +89,7 @@ export function AvaliacoesPendentesModal({
       if (data.data_referencia) setDataRef(String(data.data_referencia));
       setResumo(data.resumo ?? { sem_lider: 0, sem_rh_complemento: 0, sem_rh_rede: 0, criticos: 0 });
       setItens(Array.isArray(data.itens) ? data.itens : []);
+      setFiltroLider('');
     } catch {
       setErro('Erro de conexão.');
       setItens([]);
@@ -182,17 +206,50 @@ export function AvaliacoesPendentesModal({
               </button>
             ))}
           </div>
+
+          {porLider.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-900 mb-1.5">
+                Líderes que não avaliaram (toque para focar)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {filtroLider && (
+                  <button
+                    type="button"
+                    onClick={() => setFiltroLider('')}
+                    className="rounded-full px-2.5 py-1 text-xs font-medium bg-coffee-base text-cream-100"
+                  >
+                    × Todos
+                  </button>
+                )}
+                {porLider.map((l) => (
+                  <button
+                    key={l.nome}
+                    type="button"
+                    onClick={() => setFiltroLider((cur) => (cur === l.nome ? '' : l.nome))}
+                    className={`rounded-full px-2.5 py-1 text-xs font-medium border ${
+                      filtroLider === l.nome
+                        ? 'bg-amber-600 text-white border-amber-600'
+                        : 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100'
+                    }`}
+                  >
+                    {l.nome.split(/\s+/)[0]} · {l.total}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto px-4 py-3">
           {erro && <p className="text-sm text-red-600 mb-2">{erro}</p>}
           {carregando && itens.length === 0 ? (
             <p className="text-sm text-coffee-100 text-center py-8">Carregando…</p>
-          ) : itens.length === 0 ? (
+          ) : itensVisiveis.length === 0 ? (
             <p className="text-sm text-green-700 text-center py-8">Nenhuma pendência neste filtro.</p>
           ) : (
             <ul className="space-y-2 list-none m-0 p-0">
-              {itens.map((item) => (
+              {itensVisiveis.map((item) => (
                 <li
                   key={item.colaborador_id}
                   className={`rounded-lg border px-3 py-2.5 text-sm ${

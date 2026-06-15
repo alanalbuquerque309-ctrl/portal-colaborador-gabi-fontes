@@ -4,10 +4,15 @@ import type { AssiduidadeTipo } from '@/lib/avaliacao-diaria';
 export const JUSTIFICATIVA_FORA_PLANTAO =
   'Fora do plantão deste líder (outro líder avalia nesta semana).';
 
+/** Marcador de férias (assiduidade no banco = falta_justificada → média isenta/null). */
+export const JUSTIFICATIVA_FERIAS = 'Colaborador de férias nesta semana (não entra na média).';
+
 export function assiduidadeParaBanco(
   s: AssiduidadeTipo
 ): 'presente' | 'falta_justificada' | 'falta_injustificada' {
-  if (s === 'folga' || s === 'outra_escala' || s === 'fora_plantao') return 'falta_justificada';
+  if (s === 'folga' || s === 'outra_escala' || s === 'fora_plantao' || s === 'ferias') {
+    return 'falta_justificada';
+  }
   return s;
 }
 
@@ -19,6 +24,7 @@ export function assiduidadeDoBanco(
   const s = String(stored ?? '').trim();
   const j = String(justificativa ?? '').trim();
   if (s === 'falta_justificada' && j === JUSTIFICATIVA_FORA_PLANTAO) return 'fora_plantao';
+  if (s === 'falta_justificada' && j === JUSTIFICATIVA_FERIAS) return 'ferias';
   if (s === 'presente' || s === 'falta_injustificada' || s === 'falta_justificada') return s;
   return 'presente';
 }
@@ -28,6 +34,13 @@ export function ehForaPlantaoAvaliacao(
   justificativa?: string | null
 ): boolean {
   return assiduidadeDoBanco(stored, justificativa) === 'fora_plantao';
+}
+
+export function ehFeriasAvaliacao(
+  stored: string | null | undefined,
+  justificativa?: string | null
+): boolean {
+  return assiduidadeDoBanco(stored, justificativa) === 'ferias';
 }
 
 export function isDateIsoAvaliacao(s: string): boolean {
