@@ -13,6 +13,12 @@ import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { normalizePortalRole } from '@/lib/roles';
 import {
+  paridadeNoMes,
+  rotuloParidade,
+  mesDeDataIso,
+  type ParidadePlantao,
+} from '@/lib/plantao-12x36';
+import {
   formatarIntervaloSemanaPtBR,
   hojeInicioSemanaISO,
   inicioSemanaSegundaFeiraLocal,
@@ -36,6 +42,8 @@ export type ResponsavelLider = {
   lider_nome: string;
   papel: PapelAvaliadorEsperado;
   status: StatusResponsavelLider;
+  /** Plantão 12x36 da função neste mês (par/ímpar), quando configurado. */
+  paridade?: ParidadePlantao | null;
 };
 
 export type ItemPendenciaSemana = {
@@ -88,6 +96,8 @@ type AvaliadorEsperado = {
   lider_id: string;
   lider_nome: string;
   papel: PapelAvaliadorEsperado;
+  paridadeBase?: string | null;
+  paridadeMesRef?: string | null;
 };
 
 function avaliacaoFechaSemanaLider(row: AvaliacaoRow, rhIds: Set<string>): boolean {
@@ -126,6 +136,10 @@ function inferirPapel(
   return 'lider_setor';
 }
 
+function nomeComParidade(r: ResponsavelLider): string {
+  return r.paridade ? `${r.lider_nome} (${rotuloParidade(r.paridade)})` : r.lider_nome;
+}
+
 function montarLabelResponsavel(responsaveis: ResponsavelLider[]): { label: string; critico: boolean } {
   const pendentes = responsaveis.filter((r) => r.status === 'pendente');
   const fora = responsaveis.filter((r) => r.status === 'marcou_fora_plantao');
@@ -137,47 +151,71 @@ function montarLabelResponsavel(responsaveis: ResponsavelLider[]): { label: stri
     if (fora.length > 0) {
       const quem = fora.map((f) => f.lider_nome.split(/\s+/)[0]).join(', ');
       return {
-        label: `${pendentes[0].lider_nome} (${quem} marcou fora do plantão)`,
+        label: `${nomeComParidade(pendentes[0])} (${quem} marcou fora do plantão)`,
         critico: false,
       };
     }
-    return { label: pendentes[0].lider_nome, critico: false };
+    return { label: nomeComParidade(pendentes[0]), critico: false };
   }
   if (pendentes.length > 1) {
-    const nomes = pendentes.map((p) => p.lider_nome.split(/\s+/)[0]).join(' ou ');
+    const nomes = pendentes
+      .map((p) => (p.paridade ? `${p.lider_nome.split(/\s+/)[0]} (${rotuloParidade(p.paridade)})` : p.lider_nome.split(/\s+/)[0]))
+      .join(' ou ');
     return { label: `${nomes} (plantão 12x36)`, critico: false };
   }
   return { label: '—', critico: false };
 }
 
+type ParidadeFonte = { base: string | null; mesRef: string | null };
+
 async function buildGerentesPorUnidade(
   supabase: SupabaseAdmin
-): Promise<Map<string, Set<string>>> {
+): Promise<{
+  gerentesPorUnidade: Map<string, Set<string>>;
+  paridadePorLider: Map<string, ParidadeFonte>;
+}> {
   const out = new Map<string, Set<string>>();
-  const { data, error } = await supabase
-    .from('lideres_por_setor')
-    .select('unidade_id, lider_id')
-    .eq('setor', SETOR_TODOS_NA_UNIDADE)
-    .eq('ativo', true);
-  if (error) {
-    if (/lideres_por_setor|does not exist/i.test(error.message)) return out;
-    throw new Error(error.message);
+  const paridadePorLider = new Map<string, ParidadeFonte>();
+
+  const selPar = 'unidade_id, lider_id, plantao_paridade, plantao_paridade_mes_ref';
+  const selBase = 'unidade_id, lider_id';
+  const run = (sel: string) =>
+    supabase
+      .from('lideres_por_setor')
+      .select(sel)
+      .eq('setor', SETOR_TODOS_NA_UNIDADE)
+      .eq('ativo', true);
+
+  let res = await run(selPar);
+  if (res.error && /plantao_paridade|column .* does not exist/i.test(res.error.message)) {
+    res = await run(selBase);
   }
-  for (const row of data ?? []) {
+  if (res.error) {
+    if (/lideres_por_setor|does not exist/i.test(res.error.message)) {
+      return { gerentesPorUnidade: out, paridadePorLider };
+    }
+    throw new Error(res.error.message);
+  }
+
+  for (const row of (res.data ?? []) as unknown as Record<string, unknown>[]) {
     const uid = String(row.unidade_id ?? '');
     const lid = String(row.lider_id ?? '');
     if (!uid || !lid) continue;
     if (!out.has(uid)) out.set(uid, new Set());
     out.get(uid)!.add(lid);
+    paridadePorLider.set(lid, {
+      base: row.plantao_paridade != null ? String(row.plantao_paridade) : null,
+      mesRef: row.plantao_paridade_mes_ref != null ? String(row.plantao_paridade_mes_ref) : null,
+    });
   }
-  return out;
+  return { gerentesPorUnidade: out, paridadePorLider };
 }
 
 async function buildMapaAvaliadoresEsperados(
   supabase: SupabaseAdmin
 ): Promise<Map<string, AvaliadorEsperado[]>> {
   const mapaDirect = await buildMapaAvaliacaoDireta(supabase);
-  const gerentesPorUnidade = await buildGerentesPorUnidade(supabase);
+  const { gerentesPorUnidade, paridadePorLider } = await buildGerentesPorUnidade(supabase);
 
   const { data: lpsRows, error: lpsErr } = await supabase
     .from('lideres_por_setor')
@@ -220,10 +258,13 @@ async function buildMapaAvaliadoresEsperados(
       const uidColab = colabUnidade.get(cid) ?? unidadeId;
       const gerentes = gerentesPorUnidade.get(uidColab) ?? new Set<string>();
 
+      const parFonte = paridadePorLider.get(String(lider.id));
       porColaborador.get(cid)!.set(String(lider.id), {
         lider_id: String(lider.id),
         lider_nome: String(lider.nome ?? ''),
         papel: inferirPapel(cid, String(lider.id), gerentes, mapaDirect.avaliadoresPorAlvo),
+        paridadeBase: parFonte?.base ?? null,
+        paridadeMesRef: parFonte?.mesRef ?? null,
       });
     }
   }
@@ -474,8 +515,11 @@ export async function calcularPendenciasSemana(
     );
 
     const responsaveis: ResponsavelLider[] = esperados.map((e) => ({
-      ...e,
+      lider_id: e.lider_id,
+      lider_nome: e.lider_nome,
+      papel: e.papel,
       status: statusResponsavel(e.lider_id, rows, rhIds),
+      paridade: paridadeNoMes(e.paridadeBase, e.paridadeMesRef, mesDeDataIso(dataRef)),
     }));
 
     const { label: responsavel_lider_label, critico } = montarLabelResponsavel(responsaveis);
