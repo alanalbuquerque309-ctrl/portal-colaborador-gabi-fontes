@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO, SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
+import { paridadeNoMes, rotuloParidade } from '@/lib/plantao-12x36';
 
 type Linha = {
   id: string;
@@ -14,6 +15,8 @@ type Linha = {
   lider_id: string;
   lider_nome: string;
   ativo: boolean;
+  plantao_paridade?: string | null;
+  plantao_paridade_mes_ref?: string | null;
 };
 
 type UnidadeResumo = {
@@ -43,7 +46,27 @@ export default function LideresPorSetorPage() {
   const [tabelaExiste, setTabelaExiste] = useState<boolean | null>(null);
   const [sqlMigration, setSqlMigration] = useState<string | null>(null);
   const [copiadoSql, setCopiadoSql] = useState(false);
+  const [copiado042, setCopiado042] = useState(false);
   const [linhaSalvando, setLinhaSalvando] = useState<string | null>(null);
+
+  const copiarSql042 = async () => {
+    setCopiado042(false);
+    try {
+      const res = await fetch('/api/admin/lideres-por-setor/migration-sql?arquivo=042', {
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!data.ok || !data.sql) {
+        setErro(data.erro || 'Não foi possível carregar o SQL da migration 042.');
+        return;
+      }
+      await navigator.clipboard.writeText(String(data.sql));
+      setCopiado042(true);
+      setTimeout(() => setCopiado042(false), 4000);
+    } catch {
+      setErro('Não foi possível copiar. Abra supabase/migrations/042_plantao_12x36_paridade.sql.');
+    }
+  };
 
   useEffect(() => {
     void (async () => {
@@ -189,7 +212,10 @@ export default function LideresPorSetorPage() {
     }
   };
 
-  const patchLinha = async (id: string, patch: { lider_id?: string; setor?: string }) => {
+  const patchLinha = async (
+    id: string,
+    patch: { lider_id?: string; setor?: string; plantao_paridade?: string | null }
+  ) => {
     setLinhaSalvando(id);
     setErro(null);
     try {
@@ -283,45 +309,69 @@ export default function LideresPorSetorPage() {
     UNIDADES_CADASTRO.find((u) => u.slug === unidadeSlug)?.label ??
     unidadeSlug;
 
-  const renderLinha = (l: Linha) => (
-    <li
-      key={l.id}
-      className="flex flex-wrap items-center justify-between gap-2 text-sm border-b border-cream-100 pb-2 last:border-0"
-    >
-      {editando ? (
-        <div className="flex flex-wrap gap-2 items-center flex-1 min-w-[200px]">
-          <select
-            value={l.lider_id}
-            disabled={linhaSalvando === l.id}
-            onChange={(e) => void patchLinha(l.id, { lider_id: e.target.value })}
-            className="rounded-lg border border-cream-300 px-2 py-1 text-sm flex-1 min-w-[180px]"
-          >
-            {candidatos.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nome}
-                {c.setor ? ` (${c.setor})` : ''}
-              </option>
-            ))}
-            {!candidatos.some((c) => c.id === l.lider_id) && (
-              <option value={l.lider_id}>{l.lider_nome || l.lider_id}</option>
+  const renderLinha = (l: Linha) => {
+    const ehUnidadeToda = l.setor === SETOR_TODOS_NA_UNIDADE;
+    const paridadeMes = paridadeNoMes(l.plantao_paridade, l.plantao_paridade_mes_ref);
+    return (
+      <li
+        key={l.id}
+        className="flex flex-wrap items-center justify-between gap-2 text-sm border-b border-cream-100 pb-2 last:border-0"
+      >
+        {editando ? (
+          <div className="flex flex-wrap gap-2 items-center flex-1 min-w-[200px]">
+            <select
+              value={l.lider_id}
+              disabled={linhaSalvando === l.id}
+              onChange={(e) => void patchLinha(l.id, { lider_id: e.target.value })}
+              className="rounded-lg border border-cream-300 px-2 py-1 text-sm flex-1 min-w-[180px]"
+            >
+              {candidatos.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                  {c.setor ? ` (${c.setor})` : ''}
+                </option>
+              ))}
+              {!candidatos.some((c) => c.id === l.lider_id) && (
+                <option value={l.lider_id}>{l.lider_nome || l.lider_id}</option>
+              )}
+            </select>
+            {ehUnidadeToda && (
+              <select
+                value={l.plantao_paridade ?? ''}
+                disabled={linhaSalvando === l.id}
+                onChange={(e) => void patchLinha(l.id, { plantao_paridade: e.target.value })}
+                className="rounded-lg border border-cream-300 px-2 py-1 text-sm"
+                title="Plantão 12x36 desta função no mês base; inverte sozinho a cada mês"
+              >
+                <option value="">Plantão: —</option>
+                <option value="impar">Plantão: dias ímpares</option>
+                <option value="par">Plantão: dias pares</option>
+              </select>
             )}
-          </select>
-          {linhaSalvando === l.id && <span className="text-xs text-coffee-100">Salvando…</span>}
-        </div>
-      ) : (
-        <span className="text-coffee-base font-medium">{l.lider_nome || l.lider_id}</span>
-      )}
-      {editando && (
-        <button
-          type="button"
-          onClick={() => void remover(l.id)}
-          className="text-red-600 hover:underline text-xs shrink-0"
-        >
-          Remover
-        </button>
-      )}
-    </li>
-  );
+            {linhaSalvando === l.id && <span className="text-xs text-coffee-100">Salvando…</span>}
+          </div>
+        ) : (
+          <span className="text-coffee-base font-medium">
+            {l.lider_nome || l.lider_id}
+            {ehUnidadeToda && paridadeMes && (
+              <span className="ml-2 rounded-full bg-dourado-50 border border-dourado-200 px-2 py-0.5 text-xs font-medium text-coffee-base">
+                Este mês: {rotuloParidade(paridadeMes)}
+              </span>
+            )}
+          </span>
+        )}
+        {editando && (
+          <button
+            type="button"
+            onClick={() => void remover(l.id)}
+            className="text-red-600 hover:underline text-xs shrink-0"
+          >
+            Remover
+          </button>
+        )}
+      </li>
+    );
+  };
 
   return (
     <div>
@@ -513,7 +563,25 @@ export default function LideresPorSetorPage() {
         <div className="space-y-4">
           {lideresUnidadeToda.length > 0 && (
             <section className="rounded-xl border border-dourado-300 bg-dourado-50/30 p-4 shadow-sm">
-              <h3 className="font-display font-semibold text-coffee-base">Toda a unidade</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="font-display font-semibold text-coffee-base">Toda a unidade</h3>
+                {editando && (
+                  <button
+                    type="button"
+                    onClick={() => void copiarSql042()}
+                    className="rounded-lg border border-dourado-400 text-coffee-base px-2.5 py-1 text-xs font-medium hover:bg-cream-50"
+                    title="Aplique no Supabase para guardar o plantão por função (migration 042)"
+                  >
+                    {copiado042 ? 'SQL 042 copiado' : 'Copiar SQL plantão (042)'}
+                  </button>
+                )}
+              </div>
+              {editando && (
+                <p className="text-xs text-coffee-100 mt-1">
+                  Plantão 12x36: marque a paridade da <strong>função</strong> (dias pares/ímpares) deste mês.
+                  O sistema inverte sozinho a cada mês; ao trocar o líder, a configuração permanece.
+                </p>
+              )}
               <ul className="mt-2 space-y-2">{lideresUnidadeToda.map(renderLinha)}</ul>
             </section>
           )}

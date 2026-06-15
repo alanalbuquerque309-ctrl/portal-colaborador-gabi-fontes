@@ -5,6 +5,32 @@ import { isSetorValido, SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/co
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { sincronizarVinculosUnidadeSetor } from '@/lib/sincronizar-vinculos-lideranca';
+import { ehParidadePlantao, mesAtualOperacao } from '@/lib/plantao-12x36';
+
+const SEL_LIDERES_PARIDADE =
+  'id, unidade_id, setor, lider_id, ativo, plantao_paridade, plantao_paridade_mes_ref, unidades(nome, slug)';
+const SEL_LIDERES_BASE = 'id, unidade_id, setor, lider_id, ativo, unidades(nome, slug)';
+
+/** Select com colunas de paridade; cai para o select base se a migration 042 ainda não foi aplicada. */
+async function fetchLideres(
+  build: (sel: string) => PromiseLike<{ data: unknown; error: unknown }>
+): Promise<{ data: Record<string, unknown>[]; error: { message: string } | null }> {
+  const norm = (e: unknown): { message: string } | null => {
+    if (!e) return null;
+    if (typeof e === 'object' && 'message' in e) {
+      return { message: String((e as { message: unknown }).message) };
+    }
+    return { message: 'Erro ao consultar lideres_por_setor' };
+  };
+
+  let res = await build(SEL_LIDERES_PARIDADE);
+  let error = norm(res.error);
+  if (error && /plantao_paridade|column .* does not exist/i.test(error.message)) {
+    res = await build(SEL_LIDERES_BASE);
+    error = norm(res.error);
+  }
+  return { data: (res.data as Record<string, unknown>[] | null) ?? [], error };
+}
 
 function setorConfigValido(setor: string): boolean {
   return setor === SETOR_TODOS_NA_UNIDADE || isSetorValido(setor);
@@ -30,6 +56,9 @@ function mapLinhas(
       lider_id: String(r.lider_id),
       lider_nome: nomePorId[String(r.lider_id)] ?? '',
       ativo: r.ativo === true,
+      plantao_paridade: ehParidadePlantao(r.plantao_paridade as string) ? (r.plantao_paridade as string) : null,
+      plantao_paridade_mes_ref:
+        r.plantao_paridade_mes_ref != null ? String(r.plantao_paridade_mes_ref) : null,
     };
   });
 }
@@ -58,10 +87,9 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
 
     if (todas) {
-      const { data, error } = await supabase
-        .from('lideres_por_setor')
-        .select('id, unidade_id, setor, lider_id, ativo, unidades(nome, slug)')
-        .eq('ativo', true);
+      const { data, error } = await fetchLideres((sel) =>
+        supabase.from('lideres_por_setor').select(sel).eq('ativo', true)
+      );
 
       if (error) {
         if (/lideres_por_setor|does not exist/i.test(error.message)) {
@@ -138,11 +166,13 @@ export async function GET(req: Request) {
       );
     }
 
-    const { data, error } = await supabase
-      .from('lideres_por_setor')
-      .select('id, unidade_id, setor, lider_id, ativo, unidades(nome, slug)')
-      .eq('unidade_id', uid)
-      .order('setor', { ascending: true });
+    const { data, error } = await fetchLideres((sel) =>
+      supabase
+        .from('lideres_por_setor')
+        .select(sel)
+        .eq('unidade_id', uid)
+        .order('setor', { ascending: true })
+    );
 
     if (error) {
       if (/lideres_por_setor|does not exist/i.test(error.message)) {
@@ -269,7 +299,7 @@ export async function PATCH(req: Request) {
   const auth = await requireAdminLiderancaMapaApi();
   if (!auth.ok) return auth.response;
 
-  let body: { id?: string; lider_id?: string; setor?: string };
+  let body: { id?: string; lider_id?: string; setor?: string; plantao_paridade?: string | null };
   try {
     body = await req.json();
   } catch {
@@ -318,15 +348,30 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Líder deve ser da mesma unidade.' }, { status: 400 });
     }
 
-    const { error } = await supabase
-      .from('lideres_por_setor')
-      .update({
-        setor: setorNovo,
-        lider_id: liderNovo,
-        ativo: true,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
+    const updateBase = {
+      setor: setorNovo,
+      lider_id: liderNovo,
+      ativo: true,
+      updated_at: new Date().toISOString(),
+    };
+
+    let avisoParidade: string | undefined;
+    let updateObj: Record<string, unknown> = { ...updateBase };
+    if (body.plantao_paridade !== undefined) {
+      const p = String(body.plantao_paridade ?? '').trim();
+      const paridade = ehParidadePlantao(p) ? p : null;
+      updateObj = {
+        ...updateBase,
+        plantao_paridade: paridade,
+        plantao_paridade_mes_ref: paridade ? mesAtualOperacao() : null,
+      };
+    }
+
+    let { error } = await supabase.from('lideres_por_setor').update(updateObj).eq('id', id);
+    if (error && /plantao_paridade|column .* does not exist/i.test(error.message)) {
+      avisoParidade = 'Plantão não salvo: aplique a migration 042 no Supabase.';
+      ({ error } = await supabase.from('lideres_por_setor').update(updateBase).eq('id', id));
+    }
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
 
@@ -338,6 +383,7 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      aviso: avisoParidade,
       colaboradores_sincronizados: syncAntigo.sincronizados + syncNovo.sincronizados,
     });
   } catch (e) {
