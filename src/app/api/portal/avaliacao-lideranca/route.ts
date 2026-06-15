@@ -273,7 +273,8 @@ export async function POST(req: Request) {
   }
 
   const avaliadoId = typeof body.avaliado_id === 'string' ? body.avaliado_id.trim() : '';
-  const anonimo = true;
+  // Colaborador escolhe; padrão anônimo. O avaliador_id é sempre gravado (auditoria de sócio).
+  const anonimo = body.anonimo !== false;
   const notas: Record<string, number> = {};
   for (const k of DIMENSOES) {
     const p = parseNota(body[k]);

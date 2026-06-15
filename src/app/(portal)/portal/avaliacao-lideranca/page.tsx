@@ -46,6 +46,7 @@ export default function AvaliacaoLiderancaPage() {
   const [enviando, setEnviando] = useState(false);
   const [perfilRole, setPerfilRole] = useState<string>('colaborador');
   const [justificativaNotaBaixa, setJustificativaNotaBaixa] = useState('');
+  const [anonimo, setAnonimo] = useState(true);
   const [filtroPendentes, setFiltroPendentes] = useState(false);
 
   useEffect(() => {
@@ -118,6 +119,7 @@ export default function AvaliacaoLiderancaPage() {
         body: JSON.stringify({
           avaliado_id: selecionado,
           ...notas,
+          anonimo,
           justificativa_nota_baixa: temNotaBaixa ? justificativaNotaBaixa.trim() : '',
         }),
       });
@@ -268,6 +270,7 @@ export default function AvaliacaoLiderancaPage() {
                     n_clima: 3,
                   });
                   setJustificativaNotaBaixa('');
+                  setAnonimo(true);
                 }}
               />
             ) : (
@@ -334,8 +337,24 @@ export default function AvaliacaoLiderancaPage() {
                 </div>
               )}
 
-              <p className="text-sm rounded-md bg-cafeteria-100 px-3 py-2 text-cafeteria-700 leading-relaxed">
-                Sua identidade não é exibida para o líder avaliado. Esta avaliação é sempre anônima.
+              <label className="flex items-start gap-3 rounded-lg border border-cafeteria-200 bg-white px-3 py-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={anonimo}
+                  onChange={(e) => setAnonimo(e.target.checked)}
+                  className="mt-1 accent-dourado-base"
+                />
+                <span className="text-sm text-cafeteria-800 leading-relaxed">
+                  <strong>Avaliar de forma anônima</strong>
+                  <span className="block text-cafeteria-600 mt-0.5">
+                    {anonimo
+                      ? 'Seu líder não vê seu nome nesta avaliação.'
+                      : 'Você será identificado para o seu líder nesta avaliação.'}
+                  </span>
+                </span>
+              </label>
+              <p className="text-xs text-cafeteria-500 leading-relaxed">
+                Anônimo significa que seu nome não aparece <strong>para o líder nem para os colegas</strong>.
               </p>
 
               <div className="flex flex-wrap gap-2">
