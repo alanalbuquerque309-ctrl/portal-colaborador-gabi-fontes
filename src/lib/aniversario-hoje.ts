@@ -15,6 +15,7 @@ export type AniversarianteHoje = {
 
 export type EstadoAniversarioHoje = {
   ok: true;
+  colaborador_id: string;
   pode_ver_feature: boolean;
   preview_ativo: boolean;
   rede_ativa: boolean;
@@ -93,6 +94,7 @@ export async function carregarEstadoAniversarioHoje(
 
   const baseVazio: EstadoAniversarioHoje = {
     ok: true,
+    colaborador_id: colaboradorId,
     pode_ver_feature: podeVer,
     preview_ativo: previewAtivo,
     rede_ativa: redeAtiva,
@@ -172,14 +174,9 @@ export async function carregarEstadoAniversarioHoje(
   const mostrarBalaoAniversariante = souAniversariante && !jaDispensou && pendentesIds.length === 0;
   const mostrarBalao = temConteudo && (mostrarBalaoColega || mostrarBalaoAniversariante);
 
-  const mostrarFaixaFinal =
-    temConteudo &&
-    !souAniversariante &&
-    outrosHoje.length > 0 &&
-    (jaDispensou || parabenizouAlgum);
-
   return {
     ok: true,
+    colaborador_id: colaboradorId,
     pode_ver_feature: true,
     preview_ativo: previewAtivo,
     rede_ativa: redeAtiva,
@@ -191,7 +188,7 @@ export async function carregarEstadoAniversarioHoje(
     parabenizados_ids: parabenizadosIds,
     pendentes_ids: pendentesIds,
     mostrar_balao: mostrarBalao,
-    mostrar_faixa: mostrarFaixaFinal,
+    mostrar_faixa: false,
     parabenizou_algum: parabenizouAlgum,
   };
 }

@@ -24,6 +24,8 @@ type Props = {
   aberto: boolean;
   souAniversariante: boolean;
   alvo: AniversarianteHoje | null;
+  colegasHoje: AniversarianteHoje[];
+  parabenizadosIds: string[];
   meusParabensCount: number;
   totalPendentes: number;
   indiceAtual: number;
@@ -34,10 +36,50 @@ type Props = {
   onDispensar: () => void;
 };
 
+function ListaColegasComParabens({
+  colegas,
+  parabenizadosIds,
+  alvoAtualId,
+}: {
+  colegas: AniversarianteHoje[];
+  parabenizadosIds: string[];
+  alvoAtualId: string | null;
+}) {
+  if (colegas.length <= 1) return null;
+
+  return (
+    <ul className="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1.5" aria-label="Aniversariantes de hoje">
+      {colegas.map((c) => {
+        const jaParabenizou = parabenizadosIds.includes(c.id);
+        const ehAtual = c.id === alvoAtualId;
+        return (
+          <li
+            key={c.id}
+            className={`inline-flex items-center gap-1 text-sm ${
+              ehAtual ? 'font-semibold text-coffee-base' : 'text-coffee-100'
+            }`}
+          >
+            {jaParabenizou ? (
+              <span className="text-green-600 font-bold leading-none" title="Parabéns enviado" aria-label="Parabéns enviado">
+                ✓
+              </span>
+            ) : (
+              <span className="w-3 shrink-0" aria-hidden />
+            )}
+            <span>{c.primeiro_nome}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 export function AniversarioBalaoModal({
   aberto,
   souAniversariante,
   alvo,
+  colegasHoje,
+  parabenizadosIds,
   meusParabensCount,
   totalPendentes,
   indiceAtual,
@@ -96,6 +138,11 @@ export function AniversarioBalaoModal({
                 {indiceAtual + 1} de {totalPendentes} aniversariantes de hoje
               </p>
             )}
+            <ListaColegasComParabens
+              colegas={colegasHoje}
+              parabenizadosIds={parabenizadosIds}
+              alvoAtualId={alvo.id}
+            />
             <div className="mt-5 flex flex-col gap-2">
               <button
                 type="button"

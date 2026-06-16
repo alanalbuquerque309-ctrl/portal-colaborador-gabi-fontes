@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
 import { adminPathPermitidoRh } from '@/lib/admin-access';
 
 export default function AdminLayout({
@@ -311,7 +312,12 @@ export default function AdminLayout({
             </svg>
           </button>
         </header>
-        <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-6 overflow-auto">
+          <div className="max-w-6xl mx-auto space-y-4">
+            <EmocionalAlertasGestao />
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

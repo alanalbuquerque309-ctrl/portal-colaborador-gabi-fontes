@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EstadoAniversarioHoje } from '@/lib/aniversario-hoje';
 import { AniversarioBalaoModal } from './AniversarioBalaoModal';
-import { AniversarioFaixaHoje } from './AniversarioFaixaHoje';
 
 type Props = {
   /** Carregar estado quando o portal estiver liberado (independente do termômetro). */
@@ -42,6 +41,11 @@ export function AniversarioBalaoPortal({ ativo }: Props) {
     if (!estado) return [];
     const ids = new Set(estado.pendentes_ids);
     return estado.aniversariantes.filter((a) => ids.has(a.id));
+  }, [estado]);
+
+  const colegasParaParabenizar = useMemo(() => {
+    if (!estado) return [];
+    return estado.aniversariantes.filter((a) => a.id !== estado.colaborador_id);
   }, [estado]);
 
   useEffect(() => {
@@ -95,29 +99,22 @@ export function AniversarioBalaoPortal({ ativo }: Props) {
   if (estado.aniversariantes.length === 0) return null;
 
   const mostrarModal = estado.mostrar_balao;
-  const mostrarFaixa = estado.mostrar_faixa && !mostrarModal;
 
   return (
-    <>
-      <AniversarioBalaoModal
-        aberto={mostrarModal}
-        souAniversariante={estado.sou_aniversariante && estado.pendentes_ids.length === 0}
-        alvo={estado.sou_aniversariante && pendentes.length === 0 ? null : alvoColega}
-        meusParabensCount={estado.meus_parabens_count}
-        totalPendentes={pendentes.length}
-        indiceAtual={Math.min(indicePendente, Math.max(0, pendentes.length - 1))}
-        enviando={enviando}
-        previewAtivo={estado.preview_ativo}
-        redeAtiva={estado.rede_ativa}
-        onParabens={enviarParabens}
-        onDispensar={dispensar}
-      />
-      {mostrarFaixa && (
-        <AniversarioFaixaHoje
-          aniversariantes={estado.aniversariantes}
-          parabenizouAlgum={estado.parabenizou_algum}
-        />
-      )}
-    </>
+    <AniversarioBalaoModal
+      aberto={mostrarModal}
+      souAniversariante={estado.sou_aniversariante && estado.pendentes_ids.length === 0}
+      alvo={estado.sou_aniversariante && pendentes.length === 0 ? null : alvoColega}
+      colegasHoje={colegasParaParabenizar}
+      parabenizadosIds={estado.parabenizados_ids}
+      meusParabensCount={estado.meus_parabens_count}
+      totalPendentes={pendentes.length}
+      indiceAtual={Math.min(indicePendente, Math.max(0, pendentes.length - 1))}
+      enviando={enviando}
+      previewAtivo={estado.preview_ativo}
+      redeAtiva={estado.rede_ativa}
+      onParabens={enviarParabens}
+      onDispensar={dispensar}
+    />
   );
 }

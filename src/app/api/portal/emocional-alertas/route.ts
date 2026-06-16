@@ -4,18 +4,40 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
 import { canVisualizarAlertasEmocional } from '@/lib/emocional-alertas-access';
 import { EMOCOES_ALERTA_GESTAO, metaEmocao } from '@/lib/emocional-opcoes';
+import { dataCivilBr } from '@/lib/data-civil-br';
 
-function hojeLocalIso(): string {
-  return new Date().toISOString().slice(0, 10);
+async function resolverRoleGestorEmocional(
+  colaboradorId: string,
+  cookieRole: string | null | undefined
+): Promise<string> {
+  const cookieNorm = normalizePortalRole(cookieRole);
+  const cookieRaw = String(cookieRole ?? '').trim();
+  if (cookieRaw && cookieNorm !== 'colaborador') return cookieNorm;
+
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from('colaboradores')
+      .select('role')
+      .eq('id', colaboradorId)
+      .maybeSingle();
+    if (data?.role) return normalizePortalRole((data as { role?: string }).role);
+  } catch {
+    /* fallback cookie */
+  }
+  return cookieNorm;
 }
 
 async function authGestorEmocional() {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
-  const role = normalizePortalRole(cookieStore.get('portal_role')?.value);
   if (!colaboradorId || colaboradorId === 'pending') {
     return { erro: NextResponse.json({ ok: false, erro: 'Faça login no portal' }, { status: 401 }) };
   }
+  const role = await resolverRoleGestorEmocional(
+    colaboradorId,
+    cookieStore.get('portal_role')?.value
+  );
   if (!canVisualizarAlertasEmocional(role, colaboradorId)) {
     return { erro: NextResponse.json({ ok: false, erro: 'Sem permissão' }, { status: 403 }) };
   }
@@ -28,7 +50,7 @@ export async function GET() {
   if ('erro' in auth && auth.erro) return auth.erro;
   const { colaboradorId } = auth as { colaboradorId: string };
 
-  const hoje = hojeLocalIso();
+  const hoje = dataCivilBr();
 
   try {
     const supabase = createAdminClient();
@@ -94,7 +116,7 @@ export async function POST(req: Request) {
   if ('erro' in auth && auth.erro) return auth.erro;
   const { colaboradorId: viewerId } = auth as { colaboradorId: string };
 
-  const hoje = hojeLocalIso();
+  const hoje = dataCivilBr();
   let body: { colaborador_ids?: string[] } = {};
   try {
     body = await req.json();
