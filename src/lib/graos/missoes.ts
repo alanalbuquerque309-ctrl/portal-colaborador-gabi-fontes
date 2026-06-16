@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { GRAOS_MISSAO, GRAOS_MAX_SEMANA, type GraosMissaoId } from '@/lib/graos/constants';
+import { GRAOS_MISSAO, GRAOS_MAX_SEMANA, GRAOS_SUGESTAO_MAX_SEMANA, type GraosMissaoId } from '@/lib/graos/constants';
 import { calcularElegibilidadeSemana } from '@/lib/graos/elegibilidade';
 import {
   creditarMissaoGraos,
@@ -240,10 +240,10 @@ export async function montarMissoesUi(
       'sugestao_semana',
       'Enviar sugestão',
       GRAOS_MISSAO.sugestao_semana,
-      GRAOS_MISSAO.sugestao_semana,
+      GRAOS_SUGESTAO_MAX_SEMANA,
       refKeyGraos(colaboradorId, 'sugestao_semana', semanaInicio),
       '/portal/sugestoes',
-      null
+      '+7 se a gestão destacar: gostamos, vamos analisar'
     ),
     {
       ...mk(

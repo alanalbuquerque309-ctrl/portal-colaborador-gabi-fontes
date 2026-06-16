@@ -88,7 +88,7 @@ async function processarColaboradorSemana(ctx, c, semana) {
   if (nLid > 0) await upsert('lideranca_semana', 10, `${cid}:lideranca_semana:${semana}`, 'Liderança (backfill)');
 
   const nSug = await ctx.countSugestao(cid, semana);
-  if (nSug > 0) await upsert('sugestao_semana', 10, `${cid}:sugestao_semana:${semana}`, 'Sugestão (backfill)');
+  if (nSug > 0) await upsert('sugestao_semana', 3, `${cid}:sugestao_semana:${semana}`, 'Sugestão (backfill)');
 
   const nTrof = await ctx.countTrofeus(cid, semana);
   const gt = nTrof <= 0 ? 0 : nTrof === 1 ? 1 : nTrof === 2 ? 2 : 5;

@@ -18,7 +18,7 @@ export async function GET() {
 
     const { data: minhasRaw, error: errMinhas } = await supabase
       .from('sugestoes_reclamacoes')
-      .select('id, tipo, texto, anonimo, created_at, visualizado_em, curtidas')
+      .select('id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas')
       .eq('colaborador_id', colaboradorId)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -34,6 +34,7 @@ export async function GET() {
       anonimo: r.anonimo === true,
       created_at: r.created_at,
       visualizado_em: r.visualizado_em ?? null,
+      graos_destaque_em: r.graos_destaque_em ?? null,
       curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
     }));
 
@@ -158,7 +159,7 @@ export async function POST(req: Request) {
     const { data, error } = await supabase
       .from('sugestoes_reclamacoes')
       .insert({
-        colaborador_id: anonimo ? null : colaboradorId,
+        colaborador_id: colaboradorId,
         tipo,
         texto,
         anonimo,

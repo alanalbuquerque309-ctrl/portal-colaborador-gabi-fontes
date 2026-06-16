@@ -12,6 +12,7 @@ interface MinhaMsg {
   anonimo: boolean;
   created_at: string;
   visualizado_em: string | null;
+  graos_destaque_em: string | null;
   curtidas: number;
 }
 
@@ -31,7 +32,10 @@ interface ReclamacaoFeedItem {
   autor: string;
 }
 
-function mensagemAcolhimento(tipo: string, visualizado: boolean): string | null {
+function mensagemAcolhimento(tipo: string, visualizado: boolean, destaqueGraos: boolean): string | null {
+  if (destaqueGraos) {
+    return 'Gostamos da sua sugestão — vamos analisar com carinho.';
+  }
   if (!visualizado) return null;
   if (tipo === 'sugestao') {
     return 'Obrigado pela ideia. Já vimos sua sugestão e estamos em análise.';
@@ -197,6 +201,12 @@ export default function SugestoesPage() {
             </div>
           </div>
 
+          {tipo === 'sugestao' && (
+            <p className="text-sm text-coffee-100 mb-2">
+              Envio vale 3 Grãos na semana. Se a gestão destacar a ideia («gostamos, vamos analisar»), mais 7 Grãos.
+            </p>
+          )}
+
           <div>
             <label htmlFor="texto" className="block text-sm font-medium text-coffee-base mb-1">
               Sua mensagem *
@@ -247,7 +257,8 @@ export default function SugestoesPage() {
           <ul className="space-y-3">
             {minhas.map((m) => {
               const visto = !!m.visualizado_em;
-              const extra = mensagemAcolhimento(m.tipo, visto);
+              const destaque = !!m.graos_destaque_em;
+              const extra = mensagemAcolhimento(m.tipo, visto, destaque);
               return (
                 <li
                   key={m.id}

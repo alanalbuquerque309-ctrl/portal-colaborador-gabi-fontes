@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
 
 interface Item {
   id: string;
@@ -10,6 +11,7 @@ interface Item {
   anonimo: boolean;
   created_at: string;
   visualizado_em: string | null;
+  graos_destaque_em: string | null;
   curtidas: number;
   autor: string;
   unidade: string;
@@ -20,19 +22,35 @@ export default function SugestoesPage() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<string>('');
   const [marcando, setMarcando] = useState<string | null>(null);
+  const [destacando, setDestacando] = useState<string | null>(null);
   const [podeReclamacoes, setPodeReclamacoes] = useState(true);
+  const [podeDestacarGraos, setPodeDestacarGraos] = useState(false);
+  const [pendentesAnalise, setPendentesAnalise] = useState(0);
 
   useEffect(() => {
     fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((data: { ok?: boolean; podeVerReclamacoes?: boolean }) => {
+      .then((data: { ok?: boolean; podeVerReclamacoes?: boolean; podeVerBonificacao?: boolean }) => {
         if (data.ok && data.podeVerReclamacoes === false) {
           setPodeReclamacoes(false);
           setFiltro((f) => (f === 'reclamacao' ? '' : f));
         }
+        if (data.ok && data.podeVerBonificacao === true) {
+          setPodeDestacarGraos(true);
+        }
       })
       .catch(() => {});
   }, []);
+
+  const carregarPendentes = () => {
+    if (!podeDestacarGraos) return;
+    fetch('/api/admin/sugestoes/pendentes', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; pendentes?: number }) => {
+        if (d.ok) setPendentesAnalise(Math.max(0, Number(d.pendentes ?? 0)));
+      })
+      .catch(() => {});
+  };
 
   const carregar = () => {
     setLoading(true);
@@ -41,9 +59,15 @@ export default function SugestoesPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.ok && data.itens) setItens(data.itens);
+        if (data.ok && data.pode_destacar_graos === true) setPodeDestacarGraos(true);
       })
       .finally(() => setLoading(false));
+    carregarPendentes();
   };
+
+  useEffect(() => {
+    carregarPendentes();
+  }, [podeDestacarGraos]);
 
   useEffect(() => {
     carregar();
@@ -63,9 +87,50 @@ export default function SugestoesPage() {
         setItens((prev) =>
           prev.map((i) => (i.id === id ? { ...i, visualizado_em: new Date().toISOString() } : i))
         );
+        emitSugestoesAtualizado();
+        carregarPendentes();
       }
     } finally {
       setMarcando(null);
+    }
+  };
+
+  const destacarGraos = async (id: string) => {
+    if (
+      !window.confirm(
+        'Destacar esta sugestão?\n\nO colaborador recebe +7 Grãos (além dos 3 do envio) e verá: «Gostamos — vamos analisar».'
+      )
+    ) {
+      return;
+    }
+    setDestacando(id);
+    try {
+      const res = await fetch(`/api/admin/sugestoes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ destaque_graos: true }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setItens((prev) =>
+          prev.map((i) =>
+            i.id === id
+              ? {
+                  ...i,
+                  graos_destaque_em: new Date().toISOString(),
+                  visualizado_em: i.visualizado_em ?? new Date().toISOString(),
+                }
+              : i
+          )
+        );
+        emitSugestoesAtualizado();
+        carregarPendentes();
+      } else {
+        alert(data.erro || 'Não foi possível destacar.');
+      }
+    } finally {
+      setDestacando(null);
     }
   };
 
@@ -82,6 +147,11 @@ export default function SugestoesPage() {
               equipe administrativa).
             </p>
           )}
+          {podeDestacarGraos && (
+            <p className="text-sm text-coffee-100 mt-1 max-w-xl">
+              Sugestões: envio dá 3 Grãos ao colaborador. Use «Gostamos — vamos analisar» para +7 Grãos extras.
+            </p>
+          )}
         </div>
         <select
           value={filtro}
@@ -93,6 +163,13 @@ export default function SugestoesPage() {
           {podeReclamacoes ? <option value="reclamacao">Reclamações</option> : null}
         </select>
       </div>
+
+      {podeDestacarGraos && pendentesAnalise > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <strong>{pendentesAnalise}</strong> sugestão{pendentesAnalise === 1 ? '' : 'ões'} aguardando análise.
+          Marque como visto ou use «Gostamos — vamos analisar» quando fizer sentido.
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-8">
@@ -129,6 +206,21 @@ export default function SugestoesPage() {
                       {i.curtidas} curtida{i.curtidas === 1 ? '' : 's'}
                     </span>
                   )}
+                  {i.tipo === 'sugestao' && i.graos_destaque_em ? (
+                    <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">
+                      Gostamos — vamos analisar (+7 Grãos)
+                    </span>
+                  ) : null}
+                  {i.tipo === 'sugestao' && podeDestacarGraos && !i.graos_destaque_em ? (
+                    <button
+                      type="button"
+                      onClick={() => void destacarGraos(i.id)}
+                      disabled={destacando === i.id}
+                      className="text-xs rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-1 text-emerald-900 hover:bg-emerald-100 disabled:opacity-50 font-medium"
+                    >
+                      {destacando === i.id ? '…' : 'Gostamos — vamos analisar (+7 Grãos)'}
+                    </button>
+                  ) : null}
                   {!i.visualizado_em ? (
                     <button
                       type="button"

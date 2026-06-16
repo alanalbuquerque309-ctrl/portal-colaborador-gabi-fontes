@@ -5,15 +5,20 @@ export const GRAOS_MISSAO = {
   login_semana: 5,
   aviso_semana: 5,
   lideranca_semana: 10,
-  sugestao_semana: 10,
+  sugestao_semana: 3,
+  sugestao_destaque_bonus: 7,
   quinta: 5,
 } as const;
+
+/** Máximo na missão sugestão (envio + destaque da gestão). */
+export const GRAOS_SUGESTAO_MAX_SEMANA =
+  GRAOS_MISSAO.sugestao_semana + GRAOS_MISSAO.sugestao_destaque_bonus;
 
 export const GRAOS_MAX_SEMANA =
   GRAOS_MISSAO.login_semana +
   GRAOS_MISSAO.aviso_semana +
   GRAOS_MISSAO.lideranca_semana +
-  GRAOS_MISSAO.sugestao_semana +
+  GRAOS_SUGESTAO_MAX_SEMANA +
   GRAOS_MISSAO.quinta +
   5; /* troféus máx. */
 
@@ -23,6 +28,7 @@ export type GraosMissaoId =
   | 'lideranca_semana'
   | 'trofeu_semana'
   | 'sugestao_semana'
+  | 'sugestao_destaque'
   | 'quinta'
   | 'onboarding';
 

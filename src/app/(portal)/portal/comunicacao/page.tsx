@@ -6,12 +6,16 @@ import { useRouter } from 'next/navigation';
 import { CanalAjudaPainel, NOME_ATENDIMENTO_AJUDA } from '@/components/ajuda/CanalAjudaPainel';
 import { getPortalSession } from '@/lib/utils/session';
 import { canVisualizarAjuda, normalizePortalRole } from '@/lib/roles';
+import { podeVerBonificacaoInterna } from '@/lib/bonificacao-access';
 import { AJUDA_CHAT_ATUALIZADO, emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
+import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 
 export default function ComunicacaoPage() {
   const router = useRouter();
   const [podeInboxAjuda, setPodeInboxAjuda] = useState(false);
   const [pendenciasInbox, setPendenciasInbox] = useState(0);
+  const [podeGestaoSugestoes, setPodeGestaoSugestoes] = useState(false);
+  const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
 
   useEffect(() => {
     const s = getPortalSession();
@@ -35,6 +39,19 @@ export default function ComunicacaoPage() {
         .catch(() => {});
     };
 
+    const carregarSugestoesPendentes = () => {
+      fetch(`/api/admin/sugestoes/pendentes?_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+        .then((r) => r.json())
+        .then((d: { ok?: boolean; pendentes?: number }) => {
+          if (cancel || d.ok !== true) return;
+          setSugestoesPendentes(Math.max(0, Number(d.pendentes ?? 0)));
+        })
+        .catch(() => {});
+    };
+
     fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((data: { ok?: boolean; colaborador?: { id?: string; role?: string | null } }) => {
@@ -43,15 +60,19 @@ export default function ComunicacaoPage() {
         const cid = String(data.colaborador.id ?? '');
         const pode = canVisualizarAjuda(role, cid);
         setPodeInboxAjuda(pode);
-        if (!pode) return;
-        carregarPendencias();
+        const gestaoSug = podeVerBonificacaoInterna(role);
+        setPodeGestaoSugestoes(gestaoSug);
+        if (pode) carregarPendencias();
+        if (gestaoSug) carregarSugestoesPendentes();
       })
       .catch(() => {});
 
     window.addEventListener(AJUDA_CHAT_ATUALIZADO, carregarPendencias);
+    window.addEventListener(SUGESTOES_ATUALIZADO, carregarSugestoesPendentes);
     return () => {
       cancel = true;
       window.removeEventListener(AJUDA_CHAT_ATUALIZADO, carregarPendencias);
+      window.removeEventListener(SUGESTOES_ATUALIZADO, carregarSugestoesPendentes);
     };
   }, []);
 
@@ -86,6 +107,38 @@ export default function ComunicacaoPage() {
           <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir caixa →</span>
         </span>
       </Link>
+
+      {podeGestaoSugestoes && (
+        <Link
+          href="/admin/sugestoes"
+          className="flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 hover:border-amber-400 transition-colors min-h-[44px]"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-200/80 text-amber-950">
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+              />
+            </svg>
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-coffee-base text-base">
+              Analisar sugestões da equipe
+              {sugestoesPendentes > 0 ? (
+                <span className="ml-2 inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-coffee-base">
+                  {sugestoesPendentes} aguardando
+                </span>
+              ) : null}
+            </span>
+            <span className="block text-sm text-coffee-100 mt-1">
+              Ideias enviadas pelos colaboradores. Marque como visto ou «Gostamos — vamos analisar» (+7 Grãos).
+            </span>
+            <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir gestão →</span>
+          </span>
+        </Link>
+      )}
 
       {podeInboxAjuda && (
         <Link

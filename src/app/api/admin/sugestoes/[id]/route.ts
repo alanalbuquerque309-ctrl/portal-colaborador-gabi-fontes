@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canViewReclamacoesAdmin, getAdminViewerContext, requireAdminFullApi } from '@/lib/admin-auth';
+import {
+  canViewReclamacoesAdmin,
+  getAdminViewerContext,
+  requireAdminFullApi,
+} from '@/lib/admin-auth';
+import {
+  aplicarDestaqueSugestaoGraos,
+  podeDestacarSugestaoGraos,
+  semanaInicioDeCreatedAt,
+} from '@/lib/graos/sugestao-destaque';
 
-/** Marca sugestão/reclamação como vista pela administração. */
+/** Marca sugestão/reclamação como vista ou destaca sugestão (+7 Grãos). */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -15,30 +25,77 @@ export async function PATCH(
     return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });
   }
 
-  let body: { visualizado?: boolean };
+  let body: { visualizado?: boolean; destaque_graos?: boolean };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ ok: false, erro: 'Corpo inválido' }, { status: 400 });
   }
 
-  if (body.visualizado !== true) {
-    return NextResponse.json({ ok: false, erro: 'Use visualizado: true' }, { status: 400 });
-  }
-
   try {
     const supabase = createAdminClient();
     const { data: row, error: errRow } = await supabase
       .from('sugestoes_reclamacoes')
-      .select('tipo')
+      .select('id, tipo, colaborador_id, created_at, graos_destaque_em')
       .eq('id', id)
       .single();
 
     if (errRow || !row) {
       return NextResponse.json({ ok: false, erro: 'Registro não encontrado' }, { status: 404 });
     }
-    if ((row as { tipo?: string }).tipo === 'reclamacao' && !canViewReclamacoesAdmin(ctx)) {
+
+    const tipo = String((row as { tipo?: string }).tipo ?? '');
+    if (tipo === 'reclamacao' && !canViewReclamacoesAdmin(ctx)) {
       return NextResponse.json({ ok: false, erro: 'Sem permissão para reclamações' }, { status: 403 });
+    }
+
+    if (body.destaque_graos === true) {
+      if (tipo !== 'sugestao') {
+        return NextResponse.json(
+          { ok: false, erro: 'Destaque de Grãos vale só para sugestões.' },
+          { status: 400 }
+        );
+      }
+      if (!podeDestacarSugestaoGraos(ctx)) {
+        return NextResponse.json(
+          { ok: false, erro: 'Apenas sócios e administrador podem destacar sugestões.' },
+          { status: 403 }
+        );
+      }
+
+      const colaboradorId = String((row as { colaborador_id?: string | null }).colaborador_id ?? '');
+      if (!colaboradorId) {
+        return NextResponse.json(
+          { ok: false, erro: 'Sugestão sem autor identificado — não é possível creditar Grãos.' },
+          { status: 400 }
+        );
+      }
+
+      if ((row as { graos_destaque_em?: string | null }).graos_destaque_em) {
+        return NextResponse.json({ ok: true, ja_destacada: true });
+      }
+
+      const cookieStore = await cookies();
+      const destacadoPorId =
+        ctx.kind === 'portal' ? cookieStore.get('portal_colaborador_id')?.value ?? null : null;
+
+      const createdAt = String((row as { created_at?: string }).created_at ?? '');
+      const result = await aplicarDestaqueSugestaoGraos(supabase, {
+        sugestaoId: id,
+        colaboradorId,
+        semanaInicio: semanaInicioDeCreatedAt(createdAt),
+        destacadoPorId,
+      });
+
+      if (!result.ok) {
+        return NextResponse.json({ ok: false, erro: result.erro }, { status: 500 });
+      }
+
+      return NextResponse.json({ ok: true, destaque_graos: true });
+    }
+
+    if (body.visualizado !== true) {
+      return NextResponse.json({ ok: false, erro: 'Use visualizado: true ou destaque_graos: true' }, { status: 400 });
     }
 
     const { error } = await supabase

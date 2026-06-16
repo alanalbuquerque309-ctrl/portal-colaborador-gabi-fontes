@@ -13,7 +13,9 @@ import {
   podeVerGraosCafePortal,
 } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
+import { podeVerBonificacaoInterna } from '@/lib/bonificacao-access';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
+import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 
 type NavItem = {
   href: string;
@@ -148,6 +150,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [podeResponderAjuda, setPodeResponderAjuda] = useState(false);
   const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
+  const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
   const [perfilRoleLocal, setPerfilRoleLocal] = useState<string | null>(null);
   const [colaboradorIdNav, setColaboradorIdNav] = useState<string | null>(null);
@@ -160,6 +163,38 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
 
   const colaboradorIdEfetivo =
     colaboradorIdNav ?? getPortalSession()?.colaboradorId ?? null;
+
+  const podeContadorSugestoes = podeVerBonificacaoInterna(roleNav);
+
+  useEffect(() => {
+    if (!perfilCarregado || !podeContadorSugestoes) {
+      setSugestoesPendentes(0);
+      return;
+    }
+    let cancel = false;
+    const carregar = () => {
+      fetch(`/api/admin/sugestoes/pendentes?_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+        .then((r) => r.json())
+        .then((d: { ok?: boolean; pendentes?: number }) => {
+          if (cancel || d.ok !== true) return;
+          setSugestoesPendentes(Math.max(0, Number(d.pendentes ?? 0)));
+        })
+        .catch(() => {});
+    };
+    carregar();
+    const timer = window.setInterval(carregar, 15000);
+    window.addEventListener('focus', carregar);
+    window.addEventListener(SUGESTOES_ATUALIZADO, carregar);
+    return () => {
+      cancel = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', carregar);
+      window.removeEventListener(SUGESTOES_ATUALIZADO, carregar);
+    };
+  }, [perfilCarregado, podeContadorSugestoes, pathname]);
 
   useEffect(() => {
     if (!perfilCarregado || !podeVerGraosCafePortal(roleNav, colaboradorIdEfetivo)) {
@@ -433,6 +468,8 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
               const ativo = navAtivo(pathname, href);
               const alertaAjuda =
                 href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
+              const alertaSugestoes =
+                href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
               return (
                 <Link
                   key={href}
@@ -440,6 +477,14 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                   className={`relative hover:text-cafeteria-900 ${ativo ? 'font-semibold text-cafeteria-800' : ''}`}
                 >
                   {label}
+                  {alertaSugestoes && (
+                    <span
+                      className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-amber-500 text-coffee-base text-xs font-bold items-center justify-center align-middle"
+                      title={`${sugestoesPendentes} sugestão(ões) aguardando análise`}
+                    >
+                      {sugestoesPendentes > 99 ? '99+' : sugestoesPendentes}
+                    </span>
+                  )}
                   {alertaAjuda && (
                     <span className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold items-center justify-center align-middle animate-pulse">
                       {pendenciasAjuda > 99 ? '99+' : pendenciasAjuda}
@@ -450,10 +495,15 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
             })}
             {podeAdmin && (
               <Link
-                href="/admin/dashboard"
-                className="text-dourado-base font-medium hover:text-dourado-600"
+                href="/admin/sugestoes"
+                className="relative text-dourado-base font-medium hover:text-dourado-600"
               >
                 Admin
+                {sugestoesPendentes > 0 && podeContadorSugestoes && (
+                  <span className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-amber-500 text-coffee-base text-xs font-bold items-center justify-center align-middle">
+                    {sugestoesPendentes > 99 ? '99+' : sugestoesPendentes}
+                  </span>
+                )}
               </Link>
             )}
             <button
@@ -477,13 +527,21 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
             const iconKey = iconePorHref[href] ?? 'mural';
             const alertaAjuda =
               href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
+            const alertaSugestoes =
+              href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
             const badgeGraos = href === '/portal/graos' && graosSaldo != null && graosSaldo > 0;
             return (
               <Link
                 key={href}
                 href={href}
                 aria-current={ativo ? 'page' : undefined}
-                aria-label={alertaAjuda ? `${label}: ${pendenciasAjuda} sem resposta` : label}
+                aria-label={
+                  alertaSugestoes
+                    ? `${label}: ${sugestoesPendentes} sugestão(ões) aguardando análise`
+                    : alertaAjuda
+                      ? `${label}: ${pendenciasAjuda} sem resposta`
+                      : label
+                }
                 className={`flex flex-col items-center justify-center py-2.5 px-1 min-w-[58px] shrink-0 min-h-[52px] ${
                   ativo ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
                 }`}
@@ -493,6 +551,11 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                   {badgeGraos && (
                     <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
                       {graosSaldo > 99 ? '99+' : graosSaldo}
+                    </span>
+                  )}
+                  {alertaSugestoes && (
+                    <span className="absolute -top-2 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-coffee-base text-[10px] font-bold flex items-center justify-center">
+                      {sugestoesPendentes > 9 ? '9+' : sugestoesPendentes}
                     </span>
                   )}
                   {alertaAjuda && (
@@ -509,16 +572,27 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
           })}
           {podeAdmin && (
             <Link
-              href="/admin/dashboard"
-              aria-label="Área administrativa"
-              className={`flex flex-col items-center justify-center py-2.5 px-1 min-w-[58px] shrink-0 min-h-[52px] ${
+              href="/admin/sugestoes"
+              aria-label={
+                sugestoesPendentes > 0 && podeContadorSugestoes
+                  ? `Admin: ${sugestoesPendentes} sugestões aguardando análise`
+                  : 'Área administrativa'
+              }
+              className={`relative flex flex-col items-center justify-center py-2.5 px-1 min-w-[58px] shrink-0 min-h-[52px] ${
                 pathname?.startsWith('/admin') ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
               }`}
             >
-              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+              <span className="relative">
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {sugestoesPendentes > 0 && podeContadorSugestoes && (
+                  <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-coffee-base text-[10px] font-bold flex items-center justify-center">
+                    {sugestoesPendentes > 9 ? '9+' : sugestoesPendentes}
+                  </span>
+                )}
+              </span>
               <span className="text-[13px] mt-1 text-center leading-tight">Admin</span>
             </Link>
           )}

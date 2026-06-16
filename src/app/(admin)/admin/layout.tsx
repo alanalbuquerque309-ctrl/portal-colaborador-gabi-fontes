@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
 import { adminPathPermitidoRh } from '@/lib/admin-access';
+import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 
 export default function AdminLayout({
   children,
@@ -19,6 +20,7 @@ export default function AdminLayout({
   const [nivelLabel, setNivelLabel] = useState('');
   const [menuNav, setMenuNav] = useState<{ href: string; label: string }[]>([]);
   const [podeVerGorjeta, setPodeVerGorjeta] = useState(false);
+  const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   type NavItemAdmin = { href: string; label: string; gorjeta?: boolean };
@@ -98,6 +100,41 @@ export default function AdminLayout({
       .catch(() => setAuthorized(false))
       .finally(() => window.clearTimeout(timer));
   }, []);
+
+  useEffect(() => {
+    if (authorized !== true || !podeVerGorjeta) {
+      setSugestoesPendentes(0);
+      return;
+    }
+    let cancel = false;
+    const carregar = () => {
+      fetch(`/api/admin/sugestoes/pendentes?_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+        .then((r) => r.json())
+        .then((d: { ok?: boolean; pendentes?: number }) => {
+          if (cancel || d.ok !== true) return;
+          setSugestoesPendentes(Math.max(0, Number(d.pendentes ?? 0)));
+        })
+        .catch(() => {});
+    };
+    carregar();
+    const timer = window.setInterval(carregar, 15000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') carregar();
+    };
+    window.addEventListener('focus', carregar);
+    window.addEventListener(SUGESTOES_ATUALIZADO, carregar);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancel = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', carregar);
+      window.removeEventListener(SUGESTOES_ATUALIZADO, carregar);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [authorized, podeVerGorjeta]);
 
   const pathNorm = pathname?.replace(/\/$/, '') ?? '';
   const isLoginPage = pathNorm === '/admin';
@@ -185,16 +222,25 @@ export default function AdminLayout({
     );
   }
 
-  const navLink = (href: string, label: string) => {
+  const navLink = (href: string, label: string, badge?: number) => {
     const active = pathname === href || pathname?.startsWith(href + '/');
+    const showBadge = typeof badge === 'number' && badge > 0;
     return (
       <Link
         href={href}
-        className={`block px-3 py-2 rounded-lg text-sm md:text-base ${
+        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm md:text-base ${
           active ? 'bg-dourado-base/30 text-cream-100' : 'hover:bg-white/10'
         }`}
       >
-        {label}
+        <span>{label}</span>
+        {showBadge && (
+          <span
+            className="min-w-[20px] h-5 px-1.5 rounded-full bg-amber-400 text-coffee-base text-xs font-bold flex items-center justify-center shrink-0"
+            aria-label={`${badge} aguardando análise`}
+          >
+            {badge > 99 ? '99+' : badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -242,7 +288,13 @@ export default function AdminLayout({
           <nav className="space-y-4">
             {acessoRh || menuNav.length <= 8
               ? menuNav.map((item) => (
-                  <div key={item.href}>{navLink(item.href, item.label)}</div>
+                  <div key={item.href}>
+                    {navLink(
+                      item.href,
+                      item.label,
+                      item.href === '/admin/sugestoes' ? sugestoesPendentes : undefined
+                    )}
+                  </div>
                 ))
               : navGrupos.map((grupo) => {
                   const itensVisiveis = grupo.itens.filter((item) =>
@@ -259,7 +311,13 @@ export default function AdminLayout({
                       </p>
                       <div className="space-y-0.5">
                         {itensVisiveis.map((item) => (
-                          <div key={item.href}>{navLink(item.href, item.label)}</div>
+                          <div key={item.href}>
+                            {navLink(
+                              item.href,
+                              item.label,
+                              item.href === '/admin/sugestoes' ? sugestoesPendentes : undefined
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
