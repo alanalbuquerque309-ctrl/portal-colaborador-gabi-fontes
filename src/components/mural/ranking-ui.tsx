@@ -1,5 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+
+/** Quantos colocados mostrar no ranking de troféus antes de "Ver mais". */
+export const TROFEUS_RANKING_VISIVEL_INICIAL = 4;
+const TROFEUS_RANKING_VER_MAIS_1 = 6;
+const TROFEUS_RANKING_VER_MAIS_DEPOIS = 10;
+
+export function proximoLoteRankingTrofeus(visiveis: number): number {
+  return visiveis <= TROFEUS_RANKING_VISIVEL_INICIAL ? TROFEUS_RANKING_VER_MAIS_1 : TROFEUS_RANKING_VER_MAIS_DEPOIS;
+}
+
 export type RankingAvaliacaoItem = {
   posicao: number;
   colaborador_id: string;
@@ -217,16 +228,37 @@ export function BlocoRankingTrofeus({
   itens: RankingTrofeuItem[];
   periodo: 'semanal' | 'mensal';
 }) {
+  const [visiveis, setVisiveis] = useState(TROFEUS_RANKING_VISIVEL_INICIAL);
+
+  useEffect(() => {
+    setVisiveis(TROFEUS_RANKING_VISIVEL_INICIAL);
+  }, [titulo, itens.length]);
+
   if (itens.length === 0) return null;
+
+  const lista = itens.slice(0, visiveis);
+  const restantes = itens.length - visiveis;
+  const lote = proximoLoteRankingTrofeus(visiveis);
+  const proximos = Math.min(lote, restantes);
+
   return (
     <section>
       <h3 className="text-base font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
       <p className="text-sm text-cafeteria-600 mb-3 leading-relaxed">{subtitulo}</p>
       <div className="space-y-3">
-        {itens.map((item) => (
+        {lista.map((item) => (
           <LinhaRankingTrofeu key={`trof-${item.colaborador_id}`} item={item} periodo={periodo} />
         ))}
       </div>
+      {restantes > 0 && (
+        <button
+          type="button"
+          onClick={() => setVisiveis((n) => Math.min(itens.length, n + lote))}
+          className="mt-3 w-full rounded-lg border border-dourado-300 bg-cream-50 px-4 py-2.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 min-h-[44px]"
+        >
+          Ver mais ({proximos} {proximos === 1 ? 'colocado' : 'colocados'})
+        </button>
+      )}
     </section>
   );
 }
