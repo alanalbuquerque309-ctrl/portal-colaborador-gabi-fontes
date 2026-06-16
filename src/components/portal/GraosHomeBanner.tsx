@@ -19,8 +19,19 @@ export function GraosHomeBanner() {
     let cancel = false;
     fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((d: { ok?: boolean; saldo_confirmado?: number; saldo_pendente?: number; graos_semana_ganhos?: number; graos_semana_possivel?: number; nivel?: { emoji: string; label: string } }) => {
+      .then(
+        (d: {
+          ok?: boolean;
+          saldo_confirmado?: number;
+          saldo_pendente?: number;
+          graos_semana_ganhos?: number;
+          graos_semana_possivel?: number;
+          nivel?: { emoji: string; label: string };
+          modo_gestao?: boolean;
+          apenas_visualizacao?: boolean;
+        }) => {
         if (cancel || d.ok !== true) return;
+        if (d.modo_gestao || d.apenas_visualizacao) return;
         setResumo({
           saldo_confirmado: Number(d.saldo_confirmado ?? 0),
           saldo_pendente: Number(d.saldo_pendente ?? 0),

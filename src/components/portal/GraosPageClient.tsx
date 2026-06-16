@@ -15,10 +15,24 @@ type Missao = {
 
 type CatalogoItem = { id: string; nome: string; graos: number };
 
+type LinhaGestao = {
+  colaborador_id: string;
+  nome: string;
+  setor: string | null;
+  saldo_confirmado: number;
+  saldo_pendente: number;
+  graos_semana_ganhos: number;
+  nivel: { emoji: string; label: string };
+};
+
 type ResumoGraos = {
   ok: boolean;
   erro?: string;
+  modo_gestao?: boolean;
   apenas_visualizacao?: boolean;
+  colaborador_id?: string;
+  colaborador_nome?: string;
+  colaboradores?: LinhaGestao[];
   saldo_confirmado?: number;
   saldo_pendente?: number;
   nivel?: { emoji: string; label: string };
@@ -43,11 +57,17 @@ export function GraosPageClient() {
   const [codigoResgate, setCodigoResgate] = useState<string | null>(null);
   const [msgResgate, setMsgResgate] = useState<string | null>(null);
   const [quintaLoading, setQuintaLoading] = useState(false);
+  const [colaboradorGestaoId, setColaboradorGestaoId] = useState<string | null>(null);
+  const [buscaGestao, setBuscaGestao] = useState('');
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (colaboradorId?: string | null) => {
     setCarregando(true);
     try {
-      const res = await fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' });
+      const url =
+        colaboradorId != null && colaboradorId !== ''
+          ? `/api/portal/graos?colaborador_id=${encodeURIComponent(colaboradorId)}`
+          : '/api/portal/graos';
+      const res = await fetch(url, { credentials: 'include', cache: 'no-store' });
       const json = (await res.json()) as ResumoGraos;
       setData(json);
     } finally {
@@ -56,8 +76,8 @@ export function GraosPageClient() {
   }, []);
 
   useEffect(() => {
-    void carregar();
-  }, [carregar]);
+    void carregar(colaboradorGestaoId);
+  }, [carregar, colaboradorGestaoId]);
 
   const toggleItem = (item: CatalogoItem) => {
     setCarrinho((prev) => {
@@ -93,7 +113,7 @@ export function GraosPageClient() {
       setMsgResgate(json.mensagem);
       setCarrinho([]);
       setModo('codigo');
-      await carregar();
+      await carregar(colaboradorGestaoId);
     } catch {
       setMsgResgate('Erro de conexão.');
     } finally {
@@ -107,7 +127,7 @@ export function GraosPageClient() {
       const res = await fetch('/api/portal/graos/quinta', { method: 'POST', credentials: 'include' });
       const json = await res.json();
       if (!json.ok) alert(json.erro || 'Erro');
-      await carregar();
+      await carregar(colaboradorGestaoId);
     } finally {
       setQuintaLoading(false);
     }
@@ -130,10 +150,98 @@ export function GraosPageClient() {
     Math.round(((data.graos_semana_ganhos ?? 0) / (data.graos_semana_possivel ?? 40)) * 100)
   );
   const modoVisualizacao = data.apenas_visualizacao === true;
+  const listaGestao = data.modo_gestao === true && !colaboradorGestaoId && (data.colaboradores?.length ?? 0) > 0;
+
+  if (listaGestao) {
+    const termo = buscaGestao.trim().toLowerCase();
+    const linhas = (data.colaboradores ?? []).filter((c) => {
+      if (!termo) return true;
+      return c.nome.toLowerCase().includes(termo) || (c.setor ?? '').toLowerCase().includes(termo);
+    });
+
+    return (
+      <div className="max-w-lg mx-auto px-4 pb-28 pt-4 space-y-5">
+        <header className="space-y-1">
+          <p className="text-sm text-cafeteria-600">☕ Grãos de café · gestão</p>
+          <h1 className="font-display text-2xl text-cafeteria-900">Equipe da operação</h1>
+          <p className="text-sm text-cafeteria-600">
+            Visão interna (sócio/admin). Colaboradores veem apenas o próprio saldo.
+          </p>
+        </header>
+
+        <input
+          type="search"
+          value={buscaGestao}
+          onChange={(e) => setBuscaGestao(e.target.value)}
+          placeholder="Buscar por nome ou setor"
+          className="w-full rounded-xl border border-cafeteria-200 px-4 py-3 text-sm min-h-[48px]"
+        />
+
+        <ul className="space-y-2">
+          {linhas.map((c) => (
+            <li key={c.colaborador_id}>
+              <button
+                type="button"
+                onClick={() => {
+                  setModo('home');
+                  setColaboradorGestaoId(c.colaborador_id);
+                }}
+                className="w-full text-left rounded-xl border border-cafeteria-200 bg-white px-4 py-3 min-h-[56px] hover:bg-cream-50"
+              >
+                <div className="flex justify-between items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-cafeteria-900 truncate">{c.nome}</p>
+                    {c.setor && <p className="text-xs text-cafeteria-500">{c.setor}</p>}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-dourado-base tabular-nums">{c.saldo_confirmado}</p>
+                    <p className="text-xs text-cafeteria-600">
+                      {c.nivel.emoji} sem. {c.graos_semana_ganhos}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </li>
+          ))}
+        </ul>
+
+        {(data.catalogo ?? []).length > 0 && (
+          <section className="rounded-xl border border-cafeteria-200 bg-white p-4 space-y-2">
+            <p className="font-semibold text-cafeteria-900">Catálogo de resgate</p>
+            <ul className="text-sm space-y-1">
+              {(data.catalogo ?? []).map((item) => (
+                <li key={item.id} className="flex justify-between text-cafeteria-800">
+                  <span>{item.nome}</span>
+                  <span className="font-semibold text-dourado-base">{item.graos}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-lg mx-auto px-4 pb-28 pt-4 space-y-5">
-      {modoVisualizacao && (
+      {colaboradorGestaoId && (
+        <button
+          type="button"
+          onClick={() => {
+            setModo('home');
+            setColaboradorGestaoId(null);
+          }}
+          className="text-sm text-cafeteria-700 underline"
+        >
+          ← Voltar à lista da equipe
+        </button>
+      )}
+      {modoVisualizacao && colaboradorGestaoId && data.colaborador_nome && (
+        <div className="rounded-xl border border-cafeteria-300 bg-cream-50 px-4 py-3 text-sm text-cafeteria-800">
+          Visualizando: <strong>{data.colaborador_nome}</strong> (somente leitura)
+        </div>
+      )}
+      {modoVisualizacao && !colaboradorGestaoId && (
         <div className="rounded-xl border border-cafeteria-300 bg-cream-50 px-4 py-3 text-sm text-cafeteria-800">
           Modo visualização (sócio/gestão): catálogo e regras da operação. Resgate e missões valem só para
           colaboradores da loja.

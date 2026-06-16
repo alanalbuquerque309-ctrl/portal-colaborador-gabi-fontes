@@ -44,9 +44,9 @@ function assiduidadePermitidaNovoEnvio(s: string): s is AssiduidadeTipo {
   );
 }
 
-/** Semana sem nota: fora do plantão, férias e falta justificada não exigem critérios. */
+/** Semana sem nota: fora do plantão e férias não exigem critérios. */
 function assiduidadeSemNota(s: AssiduidadeTipo): boolean {
-  return s === 'fora_plantao' || s === 'ferias' || s === 'falta_justificada';
+  return s === 'fora_plantao' || s === 'ferias';
 }
 
 export function sanitizeJustificativaSemanal(value: unknown): string {
@@ -109,7 +109,7 @@ export function validarBodyAvaliacaoSemanal(
     };
   }
 
-  if (assidRaw === 'presente') {
+  if (assidRaw === 'presente' || assidRaw === 'falta_justificada') {
     const campos = [
       notasPersistidas.vestimenta,
       notasPersistidas.pontualidade,
@@ -121,7 +121,10 @@ export function validarBodyAvaliacaoSemanal(
       return {
         ok: false,
         status: 400,
-        erro: 'Com presença, informe os cinco critérios de 1 a 5 (meio em meio ponto).',
+        erro:
+          assidRaw === 'falta_justificada'
+            ? 'Com falta justificada, informe os cinco critérios (a nota vale; sem Grãos na semana).'
+            : 'Com presença, informe os cinco critérios de 1 a 5 (meio em meio ponto).',
       };
     }
   }

@@ -170,11 +170,15 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     let cancel = false;
     fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((d: { ok?: boolean; saldo_confirmado?: number }) => {
+      .then((d: { ok?: boolean; saldo_confirmado?: number; modo_gestao?: boolean; apenas_visualizacao?: boolean }) => {
         if (cancel) return;
         const ok = d.ok === true;
         setMostrarGraosNav(ok);
-        setGraosSaldo(ok && typeof d.saldo_confirmado === 'number' ? d.saldo_confirmado : null);
+        if (d.modo_gestao || d.apenas_visualizacao) {
+          setGraosSaldo(null);
+        } else {
+          setGraosSaldo(ok && typeof d.saldo_confirmado === 'number' ? d.saldo_confirmado : null);
+        }
       })
       .catch(() => {
         if (!cancel) {

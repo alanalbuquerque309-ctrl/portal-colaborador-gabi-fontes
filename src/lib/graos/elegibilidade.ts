@@ -75,7 +75,7 @@ export function avaliarElegibilidadeDeLinha(row: AvaliacaoRow | null): GraosEleg
   if (a === 'falta_injustificada') {
     return {
       estado: 'inelegivel',
-      motivo: 'Falta injustificada na semana — sem Grãos.',
+      motivo: 'Falta injustificada — sem Grãos e nota da semana zerada.',
       elegivel: false,
       avaliacao_id: row.id,
     };
@@ -84,7 +84,7 @@ export function avaliarElegibilidadeDeLinha(row: AvaliacaoRow | null): GraosEleg
   if (a === 'falta_justificada') {
     return {
       estado: 'inelegivel',
-      motivo: 'Falta na semana — sem Grãos.',
+      motivo: 'Falta justificada nesta semana — sem Grãos. A nota do líder vale para desempenho.',
       elegivel: false,
       avaliacao_id: row.id,
     };

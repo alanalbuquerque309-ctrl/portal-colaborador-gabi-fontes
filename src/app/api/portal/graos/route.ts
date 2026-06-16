@@ -2,48 +2,101 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeVerGraosCafePortal, podeParticiparGraosCafe } from '@/lib/roles';
-import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
-import { ehQuintaSaoPaulo } from '@/lib/semana-brasil';
+import { podeVerGraosGestaoTodos } from '@/lib/graos-access';
+import { segundaSemanaSaoPaulo, ehQuintaSaoPaulo } from '@/lib/semana-brasil';
 import { calcularSaldoGraos, listarExtratoGraos } from '@/lib/graos/movimentos';
 import { obterResumoGraosColaborador } from '@/lib/graos/missoes';
+import { listarGraosGestao } from '@/lib/graos/gestao-lista';
 import { nivelGraosPorTotal } from '@/lib/graos/nivel';
 
 export const dynamic = 'force-dynamic';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
-export async function GET() {
+export async function GET(req: Request) {
   const cookieStore = await cookies();
-  const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
-  if (!colaboradorId || colaboradorId === 'pending') {
+  const viewerId = cookieStore.get('portal_colaborador_id')?.value;
+  if (!viewerId || viewerId === 'pending') {
     return NextResponse.json({ ok: false, erro: 'Faça login no portal' }, { status: 401, headers: NO_STORE });
   }
 
+  const alvoParam = new URL(req.url).searchParams.get('colaborador_id')?.trim() ?? '';
+
   try {
     const supabase = createAdminClient();
-    const { data: colab, error: errColab } = await supabase
+    const { data: viewer, error: errViewer } = await supabase
       .from('colaboradores')
       .select('role')
-      .eq('id', colaboradorId)
+      .eq('id', viewerId)
       .maybeSingle();
 
-    if (errColab || !colab) {
+    if (errViewer || !viewer) {
       return NextResponse.json({ ok: false, erro: 'Perfil não encontrado' }, { status: 404, headers: NO_STORE });
     }
 
-    const role = normalizePortalRole((colab as { role?: string }).role);
-    if (!podeVerGraosCafePortal(role, colaboradorId)) {
+    const role = normalizePortalRole((viewer as { role?: string }).role);
+    if (!podeVerGraosCafePortal(role, viewerId)) {
       return NextResponse.json(
         { ok: false, erro: 'Grãos de café não disponível para este perfil.' },
         { status: 403, headers: NO_STORE }
       );
     }
 
-    const apenasVisualizacao = !podeParticiparGraosCafe(role);
+    const gestao = podeVerGraosGestaoTodos(role, viewerId);
+    const colaboradorOperacao = podeParticiparGraosCafe(role);
+
+    if (!colaboradorOperacao && alvoParam && alvoParam !== viewerId && !gestao) {
+      return NextResponse.json({ ok: false, erro: 'Acesso negado.' }, { status: 403, headers: NO_STORE });
+    }
+
+    if (colaboradorOperacao && alvoParam && alvoParam !== viewerId) {
+      return NextResponse.json(
+        { ok: false, erro: 'Você só pode ver seus próprios Grãos.' },
+        { status: 403, headers: NO_STORE }
+      );
+    }
 
     const semanaInicio = segundaSemanaSaoPaulo();
+
+    if (gestao && !alvoParam) {
+      const colaboradores = await listarGraosGestao(supabase, semanaInicio);
+      const { data: catalogo } = await supabase
+        .from('graos_catalogo')
+        .select('id, nome, graos')
+        .eq('ativo', true)
+        .order('ordem', { ascending: true });
+
+      return NextResponse.json(
+        {
+          ok: true,
+          modo_gestao: true,
+          apenas_visualizacao: true,
+          semana_inicio: semanaInicio,
+          colaboradores,
+          catalogo: catalogo ?? [],
+        },
+        { headers: NO_STORE }
+      );
+    }
+
+    const colaboradorId = gestao && alvoParam ? alvoParam : viewerId;
+
+    if (gestao && alvoParam) {
+      const { data: alvo } = await supabase
+        .from('colaboradores')
+        .select('id, nome, role')
+        .eq('id', alvoParam)
+        .maybeSingle();
+
+      if (!alvo || normalizePortalRole((alvo as { role?: string }).role) !== 'colaborador') {
+        return NextResponse.json({ ok: false, erro: 'Colaborador não encontrado.' }, { status: 404, headers: NO_STORE });
+      }
+    }
+
+    const apenasVisualizacao = !colaboradorOperacao || (gestao && colaboradorId !== viewerId);
+
     const resumo = await obterResumoGraosColaborador(supabase, colaboradorId, semanaInicio, {
-      sincronizar: !apenasVisualizacao,
+      sincronizar: colaboradorOperacao && colaboradorId === viewerId,
     });
     const saldo = await calcularSaldoGraos(supabase, colaboradorId);
     const extrato = await listarExtratoGraos(supabase, colaboradorId, 15);
@@ -55,10 +108,23 @@ export async function GET() {
       .eq('ativo', true)
       .order('ordem', { ascending: true });
 
+    let colaboradorNome: string | undefined;
+    if (gestao && colaboradorId !== viewerId) {
+      const { data: alvoNome } = await supabase
+        .from('colaboradores')
+        .select('nome')
+        .eq('id', colaboradorId)
+        .maybeSingle();
+      colaboradorNome = String((alvoNome as { nome?: string } | null)?.nome ?? '');
+    }
+
     return NextResponse.json(
       {
         ok: true,
+        modo_gestao: gestao,
         apenas_visualizacao: apenasVisualizacao,
+        colaborador_id: colaboradorId,
+        colaborador_nome: colaboradorNome,
         semana_inicio: semanaInicio,
         saldo_confirmado: saldo.confirmado,
         saldo_pendente: saldo.pendente,

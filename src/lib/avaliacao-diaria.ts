@@ -1,8 +1,8 @@
 /**
  * Avaliação semanal da equipe:
- * - Assiduidade (presente / folga / falta…) não entra na média numérica.
- * - Com presença: 5 critérios de 1 a 5 em meio ponto → média aritmética.
- * - Falta injustificada → média 0; isento → média null.
+ * - Assiduidade (presente / falta…) não entra na média numérica.
+ * - Com presença ou falta justificada: 5 critérios → média aritmética (falta justificada sem Grãos).
+ * - Falta injustificada → média 0; férias/fora plantão → média null.
  */
 
 import { normalizarNotaCriterio, notaCriterioValida } from '@/lib/avaliacao-notas';
@@ -19,22 +19,17 @@ export type AssiduidadeTipo =
 
 /** Semana sem média numérica (férias, fora do plantão ou registos legados de folga/escala). */
 export function assiduidadeIsentaSemana(a: AssiduidadeTipo | string): boolean {
-  return (
-    a === 'falta_justificada' ||
-    a === 'folga' ||
-    a === 'outra_escala' ||
-    a === 'fora_plantao' ||
-    a === 'ferias'
-  );
+  return a === 'folga' || a === 'outra_escala' || a === 'fora_plantao' || a === 'ferias';
 }
 
 export function assiduidadeLegacySemanalRemovida(a: AssiduidadeTipo | string): boolean {
-  return a === 'folga' || a === 'outra_escala' || a === 'falta_justificada';
+  return a === 'folga' || a === 'outra_escala';
 }
 
 /** Tipos aceitos em envios novos (avaliação semanal). */
 export const ASSIDUIDADES_SEMANAL_ATIVAS: AssiduidadeTipo[] = [
   'presente',
+  'falta_justificada',
   'falta_injustificada',
   'fora_plantao',
   'ferias',
@@ -160,8 +155,22 @@ export function formatarExibicaoAvaliacaoAdmin(l: {
       mediaLabel: '0,00',
       justificativaLabel: just
         ? `Falta injustificada — média zerada. ${just}`
-        : 'Falta injustificada — média zerada.',
+        : 'Falta injustificada — média zerada e sem Grãos.',
       faltaInjustificada: true,
+      isenta: false,
+      foraPlantao: false,
+      ferias: false,
+      legado: false,
+    };
+  }
+
+  if (a === 'falta_justificada') {
+    return {
+      mediaLabel: l.media_dia != null ? Number(l.media_dia).toFixed(2).replace('.', ',') : '—',
+      justificativaLabel: just
+        ? `Falta justificada — sem Grãos nesta semana. ${just}`
+        : 'Falta justificada — sem Grãos nesta semana; nota do líder vale.',
+      faltaInjustificada: false,
       isenta: false,
       foraPlantao: false,
       ferias: false,
@@ -246,6 +255,17 @@ export function detalharItensNotaAvaliacaoAdmin(l: {
       { label: 'Trabalho em equipe', nota: '0', destaque: 'zero' },
       { label: 'Desempenho de tarefas', nota: '0', destaque: 'zero' },
       { label: 'Proatividade e iniciativa', nota: '0', destaque: 'zero' },
+    ];
+  }
+
+  if (a === 'falta_justificada') {
+    return [
+      { label: 'Assiduidade', nota: 'Falta justificada (sem Grãos)', destaque: 'info' },
+      { label: 'Vestimenta', nota: fmt(l.nota_vestimenta) },
+      { label: 'Pontualidade', nota: fmt(l.nota_pontualidade) },
+      { label: 'Trabalho em equipe', nota: fmt(l.nota_trabalho_equipe) },
+      { label: 'Desempenho de tarefas', nota: fmt(l.nota_desempenho_tarefas) },
+      { label: 'Proatividade e iniciativa', nota: fmt(l.nota_proatividade) },
     ];
   }
 

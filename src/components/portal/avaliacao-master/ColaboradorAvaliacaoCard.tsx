@@ -205,12 +205,12 @@ export function ColaboradorAvaliacaoCard({
   const justificada = assiduidade === 'falta_justificada';
   const foraPlantao = assiduidade === 'fora_plantao';
   const ferias = assiduidade === 'ferias';
-  const semNota = foraPlantao || ferias || justificada || injustificada;
-  const estrelasDesabilitadas = somenteLeitura || injustificada || semNota;
+  const semNotaSemanal = foraPlantao || ferias;
+  const estrelasDesabilitadas = somenteLeitura || injustificada;
   /** Linha enxuta com 3 ações antes de abrir as estrelas. */
-  const acoesCompactas = !somenteLeitura && !semNota && !avaliando;
-  /** Bloco de notas: leitura do que foi salvo, ou edição ao tocar em Avaliar. */
-  const mostrarNotas = !semNota && (somenteLeitura || avaliando);
+  const acoesCompactas = !somenteLeitura && !semNotaSemanal && !injustificada && !avaliando;
+  /** Bloco de notas: presente ou falta justificada (com critérios). */
+  const mostrarNotas = !semNotaSemanal && !injustificada && (somenteLeitura || avaliando);
   const temNotaBaixa = temNotaBaixaEquipe(assiduidade, {
     vestimenta: v,
     pontualidade: p,
@@ -382,6 +382,17 @@ export function ColaboradorAvaliacaoCard({
     if (somenteLeitura) return;
     setErro(null);
     setMsg(null);
+    if (
+      (assiduidade === 'presente' || assiduidade === 'falta_justificada') &&
+      ![v, p, e, d, pr].every((n) => notaCriterioValida(n))
+    ) {
+      setErro(
+        assiduidade === 'falta_justificada'
+          ? 'Com falta justificada, informe os cinco critérios (a nota vale; sem Grãos na semana).'
+          : 'Informe os cinco critérios de 1 a 5.'
+      );
+      return;
+    }
     if (temNotaBaixa && justificativaNotaBaixa.trim().length < 10) {
       setErro('Explique em poucas palavras o motivo da nota 3 ou menor.');
       return;
@@ -604,11 +615,6 @@ export function ColaboradorAvaliacaoCard({
                     type="button"
                     onClick={() => {
                       setAssiduidade('falta_justificada');
-                      setV(null);
-                      setP(null);
-                      setE(null);
-                      setD(null);
-                      setPr(null);
                       setJustificativaNotaBaixa('');
                     }}
                     className={`rounded-lg px-3 py-2 text-sm font-medium min-h-[44px] ${
@@ -635,6 +641,13 @@ export function ColaboradorAvaliacaoCard({
             )}
 
             {justificada && !somenteLeitura && (
+              <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                Falta justificada: <strong>sem Grãos</strong> nesta semana, mas informe a nota dos cinco critérios
+                normalmente.
+              </p>
+            )}
+
+            {justificada && !somenteLeitura && (
               <label className="block text-sm">
                 <span className="text-cafeteria-800">Motivo (opcional)</span>
                 <input
@@ -650,7 +663,7 @@ export function ColaboradorAvaliacaoCard({
 
             {injustificada && (
               <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                Os cinco critérios foram zerados. A média da semana é <strong>0</strong>.
+                Falta injustificada: critérios zerados, média <strong>0</strong> e sem Grãos na semana.
               </p>
             )}
 
@@ -760,6 +773,19 @@ export function ColaboradorAvaliacaoCard({
               </button>
             </div>
           </div>
+        )}
+
+        {justificada && somenteLeitura && (
+          <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <strong>Falta justificada</strong> nesta semana — sem Grãos, mas a nota do líder vale para
+            desempenho.
+            {avaliacaoInicial?.justificativa_nota_baixa ? (
+              <>
+                {' '}
+                Motivo: {avaliacaoInicial.justificativa_nota_baixa}
+              </>
+            ) : null}
+          </p>
         )}
 
         {ferias && somenteLeitura && (
