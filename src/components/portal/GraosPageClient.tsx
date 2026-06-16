@@ -18,6 +18,7 @@ type CatalogoItem = { id: string; nome: string; graos: number };
 type ResumoGraos = {
   ok: boolean;
   erro?: string;
+  apenas_visualizacao?: boolean;
   saldo_confirmado?: number;
   saldo_pendente?: number;
   nivel?: { emoji: string; label: string };
@@ -128,9 +129,16 @@ export function GraosPageClient() {
     100,
     Math.round(((data.graos_semana_ganhos ?? 0) / (data.graos_semana_possivel ?? 40)) * 100)
   );
+  const modoVisualizacao = data.apenas_visualizacao === true;
 
   return (
     <div className="max-w-lg mx-auto px-4 pb-28 pt-4 space-y-5">
+      {modoVisualizacao && (
+        <div className="rounded-xl border border-cafeteria-300 bg-cream-50 px-4 py-3 text-sm text-cafeteria-800">
+          Modo visualização (sócio/gestão): catálogo e regras da operação. Resgate e missões valem só para
+          colaboradores da loja.
+        </div>
+      )}
       <header className="text-center space-y-1">
         <p className="text-sm text-cafeteria-600">☕ Grãos de café</p>
         <p className="font-display text-5xl text-cafeteria-900 tabular-nums">{saldoConfirmado}</p>
@@ -165,7 +173,7 @@ export function GraosPageClient() {
             </div>
           )}
 
-          {data.eh_quinta && (
+          {data.eh_quinta && !modoVisualizacao && (
             <div className="rounded-xl border-2 border-dourado-400 bg-white p-4 space-y-3">
               <p className="font-semibold text-cafeteria-900">⭐ Quinta do café</p>
               <p className="text-sm text-cafeteria-700">
@@ -223,14 +231,30 @@ export function GraosPageClient() {
             </ul>
           </section>
 
-          <button
-            type="button"
-            disabled={saldoConfirmado <= 0}
-            onClick={() => setModo('usar')}
-            className="w-full rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold py-4 min-h-[56px] shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Usar grãos
-          </button>
+          {!modoVisualizacao && (
+            <button
+              type="button"
+              disabled={saldoConfirmado <= 0}
+              onClick={() => setModo('usar')}
+              className="w-full rounded-2xl bg-orange-500 hover:bg-orange-600 text-white text-lg font-bold py-4 min-h-[56px] shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Usar grãos
+            </button>
+          )}
+
+          {modoVisualizacao && (data.catalogo ?? []).length > 0 && (
+            <section className="rounded-xl border border-cafeteria-200 bg-white p-4 space-y-2">
+              <p className="font-semibold text-cafeteria-900">Catálogo (operacao)</p>
+              <ul className="text-sm space-y-1">
+                {(data.catalogo ?? []).map((item) => (
+                  <li key={item.id} className="flex justify-between text-cafeteria-800">
+                    <span>{item.nome}</span>
+                    <span className="font-semibold text-dourado-base">{item.graos}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <button
             type="button"

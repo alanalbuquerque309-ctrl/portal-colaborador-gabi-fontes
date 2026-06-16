@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole } from '@/lib/roles';
+import { normalizePortalRole, podeVerGraosCafePortal, podeParticiparGraosCafe } from '@/lib/roles';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { ehQuintaSaoPaulo } from '@/lib/semana-brasil';
 import { calcularSaldoGraos, listarExtratoGraos } from '@/lib/graos/movimentos';
@@ -32,15 +32,19 @@ export async function GET() {
     }
 
     const role = normalizePortalRole((colab as { role?: string }).role);
-    if (role !== 'colaborador') {
+    if (!podeVerGraosCafePortal(role, colaboradorId)) {
       return NextResponse.json(
-        { ok: false, erro: 'Grãos de café são apenas para colaboradores da operação.' },
+        { ok: false, erro: 'Grãos de café não disponível para este perfil.' },
         { status: 403, headers: NO_STORE }
       );
     }
 
+    const apenasVisualizacao = !podeParticiparGraosCafe(role);
+
     const semanaInicio = segundaSemanaSaoPaulo();
-    const resumo = await obterResumoGraosColaborador(supabase, colaboradorId, semanaInicio);
+    const resumo = await obterResumoGraosColaborador(supabase, colaboradorId, semanaInicio, {
+      sincronizar: !apenasVisualizacao,
+    });
     const saldo = await calcularSaldoGraos(supabase, colaboradorId);
     const extrato = await listarExtratoGraos(supabase, colaboradorId, 15);
     const nivel = nivelGraosPorTotal(saldo.total_ganho_confirmado);
@@ -54,6 +58,7 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: true,
+        apenas_visualizacao: apenasVisualizacao,
         semana_inicio: semanaInicio,
         saldo_confirmado: saldo.confirmado,
         saldo_pendente: saldo.pendente,

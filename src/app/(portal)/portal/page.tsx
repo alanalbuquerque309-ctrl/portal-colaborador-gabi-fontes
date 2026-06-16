@@ -3,6 +3,7 @@ import { MuralPreview } from '@/components/mural/MuralPreview';
 import { DestaqueSection } from '@/components/destaque/DestaqueSection';
 import { DesdeUltimaVisitaHome } from '@/components/portal/DesdeUltimaVisitaHome';
 import { FacaAgoraHome } from '@/components/portal/FacaAgoraHome';
+import { GraosHomeBanner } from '@/components/portal/GraosHomeBanner';
 import { PortalAtalhosPerfil } from '@/components/portal/PortalAtalhosPerfil';
 import { TermometroEmocional } from '@/components/emocional/TermometroEmocional';
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
@@ -11,6 +12,7 @@ export default function PortalHomePage() {
   return (
     <main className="space-y-8">
       <EmocionalAlertasGestao />
+      <GraosHomeBanner />
       <DesdeUltimaVisitaHome />
       <FacaAgoraHome />
       <DestaqueSection />

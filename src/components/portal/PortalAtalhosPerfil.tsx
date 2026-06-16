@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getPortalSession } from '@/lib/utils/session';
-
-function normalizarRole(raw: unknown): string {
-  if (typeof raw !== 'string') return 'colaborador';
-  const t = raw.trim().toLowerCase();
-  return t || 'colaborador';
-}
+import { normalizePortalRole } from '@/lib/roles';
 
 type Atalho = { href: string; titulo: string; descricao: string };
 
@@ -22,9 +16,19 @@ export function PortalAtalhosPerfil() {
       .then((r) => r.json())
       .then((data: { ok?: boolean; pode_visita_rh?: boolean; colaborador?: { role?: string | null } }) => {
         if (cancelado) return;
-        const nr = data.ok && data.colaborador ? normalizarRole(data.colaborador.role) : 'colaborador';
+        const nr = data.ok && data.colaborador ? normalizePortalRole(data.colaborador.role) : 'colaborador';
         const lista: Atalho[] = [];
 
+        if (nr === 'colaborador' || nr === 'socio' || nr === 'admin') {
+          lista.push({
+            href: '/portal/graos',
+            titulo: 'Grãos de café',
+            descricao:
+              nr === 'colaborador'
+                ? 'Missões da semana, saldo e resgate na cafeteria.'
+                : 'Visualizar missões, catálogo e regras da gamificação.',
+          });
+        }
         if (nr === 'colaborador') {
           lista.push({
             href: '/portal/desempenho',

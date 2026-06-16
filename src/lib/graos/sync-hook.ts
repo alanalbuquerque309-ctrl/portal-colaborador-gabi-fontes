@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { normalizePortalRole } from '@/lib/roles';
+import { podeParticiparGraosCafe } from '@/lib/roles';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { sincronizarMissoesSemanaGraos } from '@/lib/graos/missoes';
 
@@ -10,7 +10,7 @@ export async function syncGraosColaboradorSeAplicavel(
 ): Promise<void> {
   try {
     const { data } = await supabase.from('colaboradores').select('role').eq('id', colaboradorId).maybeSingle();
-    if (!data || normalizePortalRole((data as { role?: string }).role) !== 'colaborador') return;
+    if (!data || !podeParticiparGraosCafe((data as { role?: string }).role)) return;
     await sincronizarMissoesSemanaGraos(supabase, colaboradorId, segundaSemanaSaoPaulo());
   } catch {
     /* migração pendente ou erro não bloqueia fluxo principal */

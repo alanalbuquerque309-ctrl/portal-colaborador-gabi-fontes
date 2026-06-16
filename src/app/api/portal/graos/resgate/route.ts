@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole } from '@/lib/roles';
+import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { GRAOS_CENTAVOS_POR_GRAO } from '@/lib/graos/constants';
 import { calcularSaldoGraos, debitarResgateGraos } from '@/lib/graos/movimentos';
 import { randomBytes } from 'crypto';
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       .eq('id', colaboradorId)
       .maybeSingle();
 
-    if (!colab || normalizePortalRole((colab as { role?: string }).role) !== 'colaborador') {
+    if (!colab || !podeParticiparGraosCafe((colab as { role?: string }).role)) {
       return NextResponse.json({ ok: false, erro: 'Apenas colaboradores podem resgatar.' }, { status: 403, headers: NO_STORE });
     }
 

@@ -128,7 +128,23 @@ export function canAcessarChatEquipe(
   return canVisualizarAjuda(role, colaboradorId);
 }
 
-/** @deprecated Preferir `canResponderAjudaFinal`. */
-export function canResponderAjuda(role: string | null | undefined): boolean {
-  return canResponderAjudaLegacy(role);
+/** Abrir /portal/graos: colaboradores da operação + sócios + admin (Daniel) + UUID dedicado ajuda. */
+export function podeVerGraosCafePortal(
+  role: string | null | undefined,
+  colaboradorId?: string | null
+): boolean {
+  const r = normalizePortalRole(role);
+  if (r === 'colaborador' || r === 'socio' || r === 'admin') return true;
+  if (canResponderAjudaPorId(colaboradorId)) return true;
+  return false;
+}
+
+/** Ganhar missões e resgatar na cafeteria — só colaborador da operação (líderes/sócios fora). */
+export function podeParticiparGraosCafe(role: string | null | undefined): boolean {
+  return normalizePortalRole(role) === 'colaborador';
+}
+
+/** @deprecated Use `podeParticiparGraosCafe` ou `podeVerGraosCafePortal`. */
+export function podeAcessarGraosCafe(role: string | null | undefined): boolean {
+  return podeParticiparGraosCafe(role);
 }

@@ -284,9 +284,12 @@ export async function registrarLoginSemanaGraos(
 export async function obterResumoGraosColaborador(
   supabase: SupabaseClient,
   colaboradorId: string,
-  semanaInicio: string
+  semanaInicio: string,
+  opts?: { sincronizar?: boolean }
 ) {
-  await sincronizarMissoesSemanaGraos(supabase, colaboradorId, semanaInicio);
+  if (opts?.sincronizar !== false) {
+    await sincronizarMissoesSemanaGraos(supabase, colaboradorId, semanaInicio);
+  }
   const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
   const { missoes, graos_semana_possivel, graos_semana_ganhos } = await montarMissoesUi(
     supabase,

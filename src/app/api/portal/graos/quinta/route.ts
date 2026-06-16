@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole } from '@/lib/roles';
+import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { creditarMissaoGraos, refKeyGraos } from '@/lib/graos/movimentos';
 import { GRAOS_MISSAO } from '@/lib/graos/constants';
@@ -34,7 +34,7 @@ export async function POST() {
       .eq('id', colaboradorId)
       .maybeSingle();
 
-    if (!colab || normalizePortalRole((colab as { role?: string }).role) !== 'colaborador') {
+    if (!colab || !podeParticiparGraosCafe((colab as { role?: string }).role)) {
       return NextResponse.json({ ok: false, erro: 'Apenas colaboradores.' }, { status: 403, headers: NO_STORE });
     }
 

@@ -10,6 +10,7 @@ import {
   canResponderAjudaFinal,
   canVisualizarAjuda,
   normalizePortalRole,
+  podeVerGraosCafePortal,
 } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
@@ -149,14 +150,20 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
   const [perfilRoleLocal, setPerfilRoleLocal] = useState<string | null>(null);
+  const [colaboradorIdNav, setColaboradorIdNav] = useState<string | null>(null);
+  const [mostrarGraosNav, setMostrarGraosNav] = useState(false);
   const [graosSaldo, setGraosSaldo] = useState<number | null>(null);
 
   const roleNav = perfilCarregado
     ? normalizePortalRole(perfilRoleLayout)
     : normalizePortalRole(perfilRoleLocal ?? 'colaborador');
 
+  const colaboradorIdEfetivo =
+    colaboradorIdNav ?? getPortalSession()?.colaboradorId ?? null;
+
   useEffect(() => {
-    if (roleNav !== 'colaborador') {
+    if (!perfilCarregado || !podeVerGraosCafePortal(roleNav, colaboradorIdEfetivo)) {
+      setMostrarGraosNav(false);
       setGraosSaldo(null);
       return;
     }
@@ -164,21 +171,28 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((d: { ok?: boolean; saldo_confirmado?: number }) => {
-        if (!cancel && d.ok) setGraosSaldo(typeof d.saldo_confirmado === 'number' ? d.saldo_confirmado : 0);
+        if (cancel) return;
+        const ok = d.ok === true;
+        setMostrarGraosNav(ok);
+        setGraosSaldo(ok && typeof d.saldo_confirmado === 'number' ? d.saldo_confirmado : null);
       })
       .catch(() => {
-        if (!cancel) setGraosSaldo(null);
+        if (!cancel) {
+          setMostrarGraosNav(false);
+          setGraosSaldo(null);
+        }
       });
     return () => {
       cancel = true;
     };
-  }, [roleNav, pathname]);
+  }, [perfilCarregado, roleNav, colaboradorIdEfetivo, pathname]);
 
   useEffect(() => {
     let cancelled = false;
 
     const aplicarRole = (r: string, cid?: string, unidadeId?: string) => {
       setPerfilRoleLocal(r);
+      if (cid) setColaboradorIdNav(cid);
       setPodeAdmin(podeAcessarAdminPortal(r));
       setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
       setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
@@ -283,6 +297,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
             : '';
           if (data.ok && roleApi) {
             setPerfilRoleLocal(roleApi);
+            if (cidApi) setColaboradorIdNav(cidApi);
             setPodeAdmin(podeAcessarAdminPortal(roleApi));
             setPodeGerenteAvaliador(roleApi === 'gerente' || roleApi === 'master');
             setPodeAvaliarEquipe(
@@ -327,7 +342,6 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
 
   const isAdm = roleNav === 'admin' || roleNav === 'socio';
   const isLider = roleNav === 'gerente' || roleNav === 'master';
-  const isColaboradorGraos = roleNav === 'colaborador';
 
   const itemGraos: NavItem = {
     href: '/portal/graos',
@@ -336,7 +350,15 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     icon: 'graos',
   };
 
-  const navMobile: NavItem[] = isAdm
+  const injetarGraos = (items: NavItem[]): NavItem[] => {
+    if (!mostrarGraosNav || items.some((i) => i.href === '/portal/graos')) return items;
+    const idx = items.findIndex((i) => i.href === '/portal');
+    const at = idx >= 0 ? idx + 1 : 0;
+    return [...items.slice(0, at), itemGraos, ...items.slice(at)];
+  };
+
+  const navMobile: NavItem[] = injetarGraos(
+    isAdm
     ? [
         { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
         ...(roleNav === 'admin' && podeAvaliarEquipe
@@ -364,7 +386,6 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
         ]
       : [
           { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
-          ...(isColaboradorGraos ? [itemGraos] : []),
           ...manualNav,
           { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' },
           ...(podeVerDesempenho
@@ -374,7 +395,8 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
           itemAniversariantes,
           itemComunicacao,
           { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
-        ];
+        ]
+  );
 
   const navDesktop: NavItem[] = [
     ...navMobile.filter((i) => i.href !== '/portal/perfil' && i.href !== '/portal/comunicacao'),
