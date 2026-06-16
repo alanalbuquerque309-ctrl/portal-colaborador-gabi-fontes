@@ -1,19 +1,23 @@
-/** Setores fixos (local de trabalho). */
+/** Setores fixos (local de trabalho). CD substitui o legado «Estoque». */
 export const SETORES_PREDEFINIDOS = [
   'Cozinha loja',
+  'Atendimento',
+  'Copa',
+  'Caixa',
+  'ASG',
   'Fábrica de doces',
   'Fábrica de preparos',
+  'Administração',
   'Escritório',
   'CD',
-  'Estoque',
-  'Atendimento',
-  'ASG',
-  'Supervisão',
   'Motorista',
-  'Marketing',
   'RH',
-  'Administração',
+  'Supervisão',
+  'Marketing',
 ] as const;
+
+/** Legado — ainda aceito em cadastros antigos; normalizar para CD. */
+export const SETOR_ESTOQUE_LEGADO = 'Estoque';
 
 /** Unidades (slug usado no cadastro e na API). Sem Matriz. */
 export const UNIDADES_CADASTRO: { slug: string; label: string }[] = [
@@ -37,7 +41,9 @@ export const ROLES_CADASTRO = ['colaborador', 'gerente', 'admin'] as const;
 
 export function isSetorValido(s: string | null | undefined): boolean {
   if (!s || !s.trim()) return false;
-  return (SETORES_PREDEFINIDOS as readonly string[]).includes(s.trim());
+  const t = s.trim();
+  if (t === SETOR_ESTOQUE_LEGADO) return true;
+  return (SETORES_PREDEFINIDOS as readonly string[]).includes(t);
 }
 
 export function isUnidadeSlugValido(slug: string): boolean {
@@ -47,7 +53,7 @@ export function isUnidadeSlugValido(slug: string): boolean {
 /** Setores backoffice: na avaliação semanal do líder transversal, gerente/admin do setor também entram na lista. */
 export const SETORES_AVALIACAO_EQUIPE_BACKOFFICE = [
   'CD',
-  'Estoque',
+  'Escritório',
   'Motorista',
   'Administração',
   'RH',

@@ -264,5 +264,16 @@ export async function aplicarConfigLiderancaOperacional(
     resultado.erros.push(e instanceof Error ? e.message : String(e));
   }
 
+  try {
+    const { error: estErr } = await supabase
+      .from('lideres_por_setor')
+      .update({ ativo: false, updated_at: new Date().toISOString() })
+      .eq('setor', 'Estoque')
+      .eq('ativo', true);
+    if (estErr) resultado.erros.push(estErr.message);
+  } catch (e) {
+    resultado.erros.push(e instanceof Error ? e.message : String(e));
+  }
+
   return resultado;
 }

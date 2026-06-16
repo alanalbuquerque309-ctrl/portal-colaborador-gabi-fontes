@@ -163,7 +163,7 @@ export default function AvaliacaoLiderancaPage() {
         </h1>
         <p className="text-cafeteria-600 mt-1 text-sm md:text-base">
           {perfilRole === 'admin'
-            ? 'Como administrador, aqui você avalia subordinados diretos (Estoque, Motorista e Aux. administrativo). Notas de 1 a 5.'
+            ? 'Como administrador, aqui você avalia subordinados diretos (CD, Motorista e Aux. administrativo). Notas de 1 a 5.'
             : 'Avalie, se desejar, seus perfis de referência da semana (chefe direto, RH e administrador). Notas de 1 a 5.'}
         </p>
         {perfilRole === 'admin' && (

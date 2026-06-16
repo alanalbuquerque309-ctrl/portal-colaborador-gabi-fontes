@@ -5,8 +5,8 @@ const MANUAL_PARA_SETOR: Record<string, string> = {
   'Manual do Atendimento.html': 'Atendimento',
   'Manual do ASG.html': 'ASG',
   'Manual do Auxiliar de Cozinha.html': 'Cozinha loja',
-  'Manual da Copa.html': 'Cozinha loja',
-  'Manual do Estoquista.html': 'Estoque',
+  'Manual da Copa.html': 'Copa',
+  'Manual do Estoquista.html': 'CD',
   'Manual do ADM e RH.html': 'Escritório',
   'Manual do Gerente.html': 'Supervisão',
 };

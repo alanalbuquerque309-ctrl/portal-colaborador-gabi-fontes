@@ -47,7 +47,7 @@ function normTxt(value: string | null | undefined): string {
 
 /** Setores que entram no público Adm (além da unidade administrativo). */
 const SETORES_PUBLICO_ADM = new Set(
-  ['Administração', 'RH', 'Estoque', 'Motorista', 'CD', 'Escritório'].map((s) => normTxt(s))
+  ['Administração', 'RH', 'Motorista', 'CD', 'Escritório'].map((s) => normTxt(s))
 );
 
 const SETOR_FABRICA_DOCES = normTxt('Fábrica de doces');

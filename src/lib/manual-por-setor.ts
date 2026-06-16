@@ -85,7 +85,7 @@ export function manualPorSetor(
     return { file: 'Manual da Copa.html', titulo: 'Manual da copa' };
   }
   if (isEstoque(t)) {
-    return { file: 'Manual do Estoquista.html', titulo: 'Manual de estoque' };
+    return { file: 'Manual do Estoquista.html', titulo: 'Manual do CD' };
   }
   if (t.includes('escritorio') || t.includes('escritório') || t.includes('rh') || t.includes('administr')) {
     return { file: 'Manual do ADM e RH.html', titulo: 'Manual ADM / RH' };

@@ -162,6 +162,14 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 
 **Página Avaliação de Equipe (admin):** título *Avaliação de Equipe (semanal)*; orientações em gaveta recolhível; filtros reorganizados; sem botão duplicado *Pendentes da semana* (`e4c261e`).
 
+### Avaliação entre pares — admin troféus (jun/2026, `d3779f3`)
+
+- **Rota:** `/admin/avaliacao-entre-pares` — menu **Avaliação entre pares**.
+- **Modos:** abas **Ranking** (default) e **Detalhe** (`modo: 'ranking' | 'detalhe'`).
+- **Ranking:** `agregarRankingTrofeusPares` (`trofeus-pares-ranking.ts`) + `AdminTrofeusRanking.tsx` — lista agregada por destinatário (total + resumo por tipo/emoji); filtros data, unidade e busca.
+- **Detalhe:** tabela linha a linha (avaliador → destinatário, semana, tipo) via `GET /api/admin/trofeus-pares`.
+- **Objetivo:** visão executiva rápida sem perder o drill-down quando necessário.
+
 - **Guard de rota:** `admin/layout.tsx` redireciona RH para `/admin/dashboard` se pathname não estiver em `adminPathPermitidoRh`.
 - **Badge:** `nivel_label` → "RH (acesso limitado)" no sidebar.
 - **Pré-requisito Keila:** cadastro com `role: rh` + sessão portal que passa em `isAdminAuthorized` (bridge admin).
@@ -253,11 +261,35 @@ Página única que agrupa os canais de feedback e contato:
 - **Inbox gestão:** `/portal/ajuda-inbox` — responder e filtrar pendentes; APIs `GET/PATCH /api/admin/ajuda-chat`.
 - **Permissões:** `canVisualizarAjuda`, `canResponderAjudaFinal`, `canExcluirMensagensAjuda` em `src/lib/roles.ts` — **não alterar** visibilidade do Inbox para sócios/admin sem pedido explícito do Alan.
 
+### Chat ajuda agrupado por tópico (jun/2026, `d3779f3`)
+
+- **Lib:** `src/lib/ajuda-chat-threads.ts` — `agruparAjudaChatEmTopicos`, `appendAjudaMensagem`, `idsPendentesDoTopico`, `contarTopicosPendentes`.
+- **Colaborador:** segunda (e seguintes) mensagens **pendentes** do mesmo colaborador **acumulam** na mesma linha/tópico (`AJUDA_CHAT_MSG_SEP` + carimbo `[dd/mm hh:mm]`); UI em `CanalAjudaPainel.tsx` mostra blocos separados.
+- **Gestão:** Inbox lista **tópicos** (não uma linha por mensagem); badge de pendentes conta **tópicos** (`contarTopicosPendentes`).
+- **Resposta única:** ao responder um tópico, `PATCH /api/admin/ajuda-chat/[id]` fecha **todas** as linhas pendentes do mesmo tópico via `idsPendentesDoTopico` (uma resposta encerra o lote).
+- **APIs afetadas:** `POST /api/portal/ajuda-chat` (append), `GET` admin/portal ajuda-chat e pendências.
+
 ## Mural e ranking
 
 - **Grupo Mesquita:** slugs `mesquita`, `fabrica`, `administrativo` compartilham o mesmo mural/ranking (`src/lib/mural-unidade-grupo.ts`).
 - **Ranking unidade:** top 3 **mês anterior** fixos + top 3 **mês corrente** em evolução (`src/lib/mural-ranking-unidade.ts`, `MuralRankingUnidade.tsx`, `GET /api/portal/destaque`).
 - **Troféus entre pares** alimentam mural da unidade.
+
+### Ranking mensal — semanas avaliadas e época (jun/2026, `4883fb0`)
+
+- **Média mensal** = média das **médias semanais** consolidadas (não maior nota isolada nem soma de dias).
+- **`semanas_avaliadas`:** quantas **semanas distintas** (segundas-feiras `data_referencia`) entraram na média do mês; rótulo via `rotuloSemanasAvaliadas` em `ranking-ui.tsx` («1 semana avaliada» / «N semanas avaliadas»).
+- **Normalização:** toda `data_referencia` é tratada como **segunda-feira** da semana (`inicioSemanaSegundaFeiraLocal` em `semana-referencia.ts`); agregação em `avaliacao-semanal-agregacao.ts` + `agruparMediasPorColaborador` (`avaliacao-ranking.ts`).
+- **Época oficial:** `AVALIACAO_RANKING_EPOCA_INICIO = '2026-06-02'` (primeira segunda do ranking jun/2026); `inicioDataReferenciaRanking(periodoIni)` usa o mais recente entre início do mês e essa época.
+- **Fim do mês:** filtro `periodoFim` normalizado para segunda da semana que contém o último dia do mês (evita contar semana «extra» fora do mês civil).
+- **Bug corrigido:** jun/2026 com avaliações ~dia 8 e ~15 mostrava «3 semanas»; agora reflete só semanas com nota válida no intervalo do mês.
+
+### Paginação — ranking de troféus na home (jun/2026, `80cf893`)
+
+- **Componente:** `BlocoRankingTrofeus` em `ranking-ui.tsx` (usado em `ReconhecimentoSemanal.tsx` e `MuralRankingsMensais.tsx`).
+- **Lotes:** **4** colocados iniciais → **Ver mais** +**6** → depois +**10** por clique (`TROFEUS_RANKING_VISIVEL_INICIAL`, `proximoLoteRankingTrofeus`).
+- **Reset:** ao mudar título ou tamanho da lista, volta aos 4 iniciais.
+- **Objetivo:** home/mural não ficarem longos demais com ranking extenso de troféus.
 
 ### Separação semanal (home) vs mensal (mural) — jun/2026
 
@@ -275,16 +307,44 @@ Página única que agrupa os canais de feedback e contato:
 **Ordem fixa** em `src/app/(portal)/portal/page.tsx`:
 
 1. `EmocionalAlertasGestao` (só quem tem permissão)
-2. **`FacaAgoraHome`** — pendências acionáveis (some se vazio)
-3. **`DestaqueSection`** — título *Destaques da semana* + `ReconhecimentoSemanal compacto`
-4. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
-5. **Manuais oficiais** — `<details>` recolhido por padrão
-6. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
-7. **Mural** — preview mensal (`MuralPreview`)
+2. **`DesdeUltimaVisitaHome`** — card *Para você* (personalizado; some se vazio)
+3. **`FacaAgoraHome`** — pendências acionáveis (some se vazio)
+4. **`DestaqueSection`** — título *Destaques da semana* + `ReconhecimentoSemanal compacto`
+5. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
+6. **Manuais oficiais** — `<details>` recolhido por padrão
+7. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
+8. **Mural** — preview mensal (`MuralPreview`)
 
 **Onboarding:** inalterado — `PortalLayout.tsx` continua obrigando CPF → perfil → vídeo/manual/quiz antes do portal.
 
 **Relatórios sócio/admin:** **não** expor atalhos na home; acesso via **Admin** ou rotas de relatório já existentes (`b2d0c5c`).
+
+### Card «Para você» — desde a última visita (jun/2026, `c2549e6`)
+
+Personalização leve no topo da home (abaixo dos alertas emocionais, acima do Faça agora).
+
+| Peça | Ficheiro / rota |
+|------|------------------|
+| UI | `src/components/portal/DesdeUltimaVisitaHome.tsx` |
+| `localStorage` | `portal_ultima_visita_home` — `lerUltimaVisitaHome` / `gravarUltimaVisitaHome` (`portal-ultima-visita.ts`) |
+| Lógica server | `montarResumoDesdeVisita` (`portal-resumo-desde-visita.ts`) |
+| API | `GET /api/portal/resumo-desde-visita?desde=<ISO>` |
+
+**Fluxo client:** lê timestamp **antes** do fetch; após resposta `ok`, grava nova visita (não perde novidades se a API falhar).
+
+**Conteúdo (até 5 itens, colaborador):**
+
+| Situação | O que mostra |
+|----------|----------------|
+| **Primeira visita** (sem `desde`) | Média do mês, troféus do mês, ou boas-vindas |
+| **Desde última visita** | Troféus novos; nova avaliação + média atualizada; avisos novos (filtro `avisos-publico.ts`) |
+| **Sempre que couber** | Aniversários hoje / amanhã / próximos 7 dias (exclui o próprio) |
+| **Sem novidades** | Mensagem amigável com média do mês mantida |
+
+- **Janela `desde`:** máximo **14 dias** no passado (datas mais antigas são truncadas).
+- **Título dinâmico:** `rotuloDesdeVisita` — «Resumo para você», «Desde mais cedo hoje», «Desde 15 jun.», etc.
+- **Links:** cada item pode apontar para mural, desempenho, comunicação ou aniversariantes.
+- **Ocultação:** componente retorna `null` se não houver itens ou sessão inválida; skeleton breve enquanto carrega.
 
 ### Faça agora (`FacaAgoraHome.tsx`)
 
@@ -359,7 +419,7 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | `041_aniversario_dia_acao.sql` | Ações do balão de aniversário (parabéns/dispensar) |
 | `042_plantao_12x36_paridade.sql` | Paridade de plantão 12x36 por função de liderança |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**.
 
 ---
 
@@ -510,6 +570,28 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 - Colaborador escolhe anônimo (default) ou identificado; `avaliador_id` **sempre** persistido.
 - `auditoria-lideranca-viewer.ts` centraliza quem vê autor (sócios/Alan/Gabriela); relatório admin com banner auditoria; PWA **v6** força refresh (`cacheId` + `PortalPwaRefresh`).
 
+### Ranking mensal — contagem correta de semanas (jun/2026, `4883fb0`)
+
+- `avaliacao-ranking.ts` + `semana-referencia.ts`: época `2026-06-02`, normalização segunda-feira, fim do mês civil.
+- `rotuloSemanasAvaliadas` em `ranking-ui.tsx`; consumo em `MuralRankingUnidade`, rankings mensais e desempenho.
+
+### Chat ajuda — tópicos agrupados (jun/2026, `d3779f3`)
+
+- `ajuda-chat-threads.ts`; append na mesma conversa; resposta única fecha pendências do tópico; contagem de pendentes por tópico.
+
+### Admin — ranking agregado de troféus entre pares (jun/2026, `d3779f3`)
+
+- `/admin/avaliacao-entre-pares`: aba **Ranking** + **Detalhe**; `trofeus-pares-ranking.ts`, `AdminTrofeusRanking.tsx`.
+
+### Home — paginação ranking de troféus (jun/2026, `80cf893`)
+
+- `BlocoRankingTrofeus`: 4 iniciais, Ver mais +6/+10; em `ReconhecimentoSemanal` e `MuralRankingsMensais`.
+
+### Home — card «Para você» / desde última visita (jun/2026, `c2549e6`)
+
+- `DesdeUltimaVisitaHome`, `portal-resumo-desde-visita.ts`, `portal-ultima-visita.ts`, `GET /api/portal/resumo-desde-visita`.
+- Primeira evolução de **engajamento diário** (P6) entregue: novidades personalizadas sem push notification.
+
 ### Segurança (pré-produção já feita)
 
 - Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
@@ -529,7 +611,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | P3 | **Manter guia na Área de Trabalho** atualizado | Se mudar rotas/labels no portal |
 | P4 | **Sugerir líder do outro plantão** ao marcar «Outro plantão» | Depende de 042 + paridade configurada; inferir colega de plantão oposto no card |
 | P5 | **Avaliação identificada visível ao líder?** | Hoje só sócios veem autor; confirmar se líder deve ver nome quando colaborador desmarca anônimo |
-| P6 | **Engajamento diário** (ideias além avaliações/troféus) | Alan pediu propostas; implementação adiada |
+| P6 | **Engajamento diário** (além do card *Para você*) | Card «desde última visita» entregue (`c2549e6`); outras ideias (streak, push) só com pedido explícito |
 
 ### Infra / produção
 
@@ -570,7 +652,15 @@ src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, m
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
 src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
+src/lib/ajuda-chat-threads.ts
 src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/
+src/lib/avaliacao-ranking.ts, semana-referencia.ts, avaliacao-semanal-agregacao.ts
+src/lib/trofeus-pares-ranking.ts
+src/components/admin/AdminTrofeusRanking.tsx
+src/app/(admin)/admin/avaliacao-entre-pares/page.tsx
+src/components/portal/DesdeUltimaVisitaHome.tsx
+src/lib/portal-resumo-desde-visita.ts, portal-ultima-visita.ts
+src/app/api/portal/resumo-desde-visita/
 src/lib/avaliacao-pendentes-semana.ts, plantao-12x36.ts
 src/lib/auditoria-lideranca-viewer.ts, avaliacoes-relatorio-access.ts, avaliacoes-lideranca-relatorio.ts
 src/components/admin/AvaliacoesPendentesModal.tsx

@@ -14,6 +14,7 @@ import {
   resolverUnidadeIdsGrupoMesquita,
   resolverTodasUnidadeIds,
 } from '@/lib/setores-fabrica-lideranca';
+import { normalizarSetorOrganizacional, setoresDbEquivalentes } from '@/lib/lideranca-org';
 
 function normalizarTextoOrg(value: string | null | undefined): string {
   return String(value ?? '')
@@ -32,7 +33,7 @@ export function colaboradorDeveAvaliarAdministradorEmpresa(
   setor: string | null | undefined,
   _unidadeSlug?: string | null | undefined
 ): boolean {
-  const setorNorm = normalizarTextoOrg(setor);
+  const setorNorm = normalizarTextoOrg(normalizarSetorOrganizacional(setor));
   if (!setorNorm) return false;
   return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some(
     (s) => normalizarTextoOrg(s) === setorNorm
@@ -46,10 +47,10 @@ function isLiderTransversalCd(nome: string): boolean {
   return n === alvo || n.includes('daniel');
 }
 
-/** Daniel só pode aparecer como chefe quando o setor do colaborador é CD, Estoque, Motorista, Administração ou RH. */
+/** Daniel só pode aparecer como chefe quando o setor do colaborador é CD, Escritório, Motorista, Administração ou RH. */
 function liderConfigPermitidoParaSetorColaborador(nomeLider: string, setorColaborador: string): boolean {
   if (!isLiderTransversalCd(nomeLider)) return true;
-  const setorNorm = normalizarTextoOrg(setorColaborador);
+  const setorNorm = normalizarTextoOrg(normalizarSetorOrganizacional(setorColaborador));
   if (!setorNorm) return false;
   return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some((s) => normalizarTextoOrg(s) === setorNorm);
 }
@@ -100,8 +101,9 @@ export async function listarLideresConfigPorUnidadeSetor(
   if (!unidadeId) return [];
 
   const setorTrim = String(setor ?? '').trim();
+  const setorCanon = normalizarSetorOrganizacional(setorTrim);
   const setorEspecifico = setorTrim && isSetorValido(setorTrim);
-  const setorFabrica = setorEspecifico && isSetorLideradoNaFabrica(setorTrim);
+  const setorFabrica = setorEspecifico && isSetorLideradoNaFabrica(setorCanon || setorTrim);
 
   const unidadeIdLideranca = setorFabrica
     ? (await resolverUnidadeIdFabrica(supabase)) ?? unidadeId
@@ -110,11 +112,12 @@ export async function listarLideresConfigPorUnidadeSetor(
   let porSetor: { lider_id: string }[] | null = [];
   let errSetor: { message: string } | null = null;
   if (setorEspecifico) {
+    const equiv = setoresDbEquivalentes(setorCanon || setorTrim);
     const res = await supabase
       .from('lideres_por_setor')
       .select('lider_id')
       .eq('unidade_id', unidadeIdLideranca)
-      .eq('setor', setorTrim)
+      .in('setor', equiv)
       .eq('ativo', true);
     porSetor = res.data;
     errSetor = res.error;
@@ -154,7 +157,7 @@ export async function listarLideresConfigPorUnidadeSetor(
     .in('id', ids);
   if (errCols) throw new Error(errCols.message);
 
-  const setorParaFiltro = setorEspecifico ? setorTrim : '';
+  const setorParaFiltro = setorEspecifico ? setorCanon || setorTrim : '';
   return (cols ?? [])
     .filter((c) => liderConfigPermitidoParaSetorColaborador(String(c.nome ?? ''), setorParaFiltro))
     .map((c) => ({
@@ -191,7 +194,7 @@ export async function listarColaboradoresPorUnidadeSetor(
     const setorCol = (c as { setor?: string | null }).setor;
     const r = normalizePortalRole(role);
     if (r === 'colaborador') return true;
-    const setorTrim = String(setorCol ?? '').trim();
+    const setorTrim = normalizarSetorOrganizacional(String(setorCol ?? ''));
     return (
       (r === 'gerente' || r === 'admin') &&
       (SETORES_AVALIACAO_EQUIPE_BACKOFFICE as readonly string[]).includes(setorTrim)
@@ -231,7 +234,7 @@ export async function listarColaboradoresPorUnidadeSetor(
       .from('colaboradores')
       .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
       .in('unidade_id', todasIds)
-      .eq('setor', setorCfg)
+      .in('setor', setoresDbEquivalentes(setorCfg))
       .order('nome');
 
     if (error) throw new Error(error.message);
@@ -252,7 +255,9 @@ export async function listarColaboradoresPorUnidadeSetor(
     .order('nome');
 
   if (setorCfg !== SETOR_TODOS_NA_UNIDADE) {
-    query = query.eq('setor', setorCfg);
+    const equiv = setoresDbEquivalentes(setorCfg);
+    if (equiv.length === 1) query = query.eq('setor', equiv[0]);
+    else query = query.in('setor', equiv);
   }
 
   const { data, error } = await query;

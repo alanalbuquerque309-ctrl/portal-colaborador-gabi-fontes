@@ -4,6 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO, SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
+import {
+  agruparLinhasPorSetorExibicao,
+  descricaoGerenciaUnidade,
+  descricaoSetorAdmin,
+  ehUnidadeFabrica,
+  rotuloGerenciaUnidade,
+  setoresExibicaoPorUnidade,
+} from '@/lib/lideranca-org';
 import { paridadeNoMes, rotuloParidade } from '@/lib/plantao-12x36';
 
 type Linha = {
@@ -298,10 +306,14 @@ export default function LideresPorSetorPage() {
   };
 
   const lideresUnidadeToda = linhas.filter((l) => l.setor === SETOR_TODOS_NA_UNIDADE);
-  const porSetor = SETORES_PREDEFINIDOS.map((setor) => ({
-    setor,
-    lideres: linhas.filter((l) => l.setor === setor),
-  }));
+  const porSetorMap = useMemo(
+    () => agruparLinhasPorSetorExibicao(linhas, unidadeSlug),
+    [linhas, unidadeSlug]
+  );
+  const setoresFormulario = useMemo(
+    () => setoresExibicaoPorUnidade(unidadeSlug),
+    [unidadeSlug]
+  );
 
   const editando = modoEditar && podeEditarMapa;
   const nomeUnidade =
@@ -385,8 +397,9 @@ export default function LideresPorSetorPage() {
               Liderança por setor
             </h1>
             <p className="text-sm text-coffee-100 mt-1">
-              Todas as unidades do grupo. Alterações no mapa atualizam automaticamente a liderança de
-              cada colaborador na unidade e setor correspondentes.
+              Mapa por filial e setor. «Gerência da loja» = responsáveis pela operação da filial (cozinha,
+              atendimento, copa, caixa, ASG). CD substitui o antigo Estoque. Aplique o mapa operacional após
+              alterações grandes.
             </p>
           </div>
           {podeEditarMapa && (
@@ -518,8 +531,10 @@ export default function LideresPorSetorPage() {
                   onChange={(e) => setSetorNovo(e.target.value)}
                   className="rounded-lg border border-cream-300 px-3 py-2 text-sm"
                 >
-                  <option value={SETOR_TODOS_NA_UNIDADE}>Toda a unidade (*)</option>
-                  {SETORES_PREDEFINIDOS.map((s) => (
+                  <option value={SETOR_TODOS_NA_UNIDADE}>
+                    {rotuloGerenciaUnidade(unidadeSlug)} (*)
+                  </option>
+                  {setoresFormulario.map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
@@ -561,10 +576,12 @@ export default function LideresPorSetorPage() {
         <p className="text-coffee-100">Carregando mapa…</p>
       ) : (
         <div className="space-y-4">
-          {lideresUnidadeToda.length > 0 && (
+          {lideresUnidadeToda.length > 0 && !ehUnidadeFabrica(unidadeSlug) && (
             <section className="rounded-xl border border-dourado-300 bg-dourado-50/30 p-4 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-display font-semibold text-coffee-base">Toda a unidade</h3>
+                <h3 className="font-display font-semibold text-coffee-base">
+                  {rotuloGerenciaUnidade(unidadeSlug)}
+                </h3>
                 {editando && (
                   <button
                     type="button"
@@ -576,6 +593,11 @@ export default function LideresPorSetorPage() {
                   </button>
                 )}
               </div>
+              {descricaoGerenciaUnidade(unidadeSlug) && (
+                <p className="text-xs text-coffee-100 mt-1 leading-relaxed">
+                  {descricaoGerenciaUnidade(unidadeSlug)}
+                </p>
+              )}
               {editando && (
                 <p className="text-xs text-coffee-100 mt-1">
                   Plantão 12x36: marque a paridade da <strong>função</strong> (dias pares/ímpares) deste mês.
@@ -585,16 +607,21 @@ export default function LideresPorSetorPage() {
               <ul className="mt-2 space-y-2">{lideresUnidadeToda.map(renderLinha)}</ul>
             </section>
           )}
-          {porSetor.map(({ setor, lideres }) => (
+          {Array.from(porSetorMap.entries()).map(([setor, lideres]) => (
             <section
               key={setor}
               className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm"
             >
               <h3 className="font-display font-semibold text-coffee-base">{setor}</h3>
+              {descricaoSetorAdmin(setor) && (
+                <p className="text-xs text-coffee-100 mt-1 leading-relaxed">{descricaoSetorAdmin(setor)}</p>
+              )}
               {lideres.length === 0 ? (
                 <p className="text-sm text-coffee-100 mt-2">Nenhum líder configurado.</p>
               ) : (
-                <ul className="mt-2 space-y-2">{lideres.map(renderLinha)}</ul>
+                <ul className="mt-2 space-y-2">
+                  {(lideres as Linha[]).map(renderLinha)}
+                </ul>
               )}
             </section>
           ))}
