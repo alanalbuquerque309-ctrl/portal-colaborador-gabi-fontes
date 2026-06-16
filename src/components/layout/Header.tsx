@@ -12,6 +12,7 @@ import {
   normalizePortalRole,
 } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
+import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 
 type NavItem = {
   href: string;
@@ -208,11 +209,13 @@ export function Header() {
       if (document.visibilityState === 'visible') carregar();
     };
     window.addEventListener('focus', carregar);
+    window.addEventListener(AJUDA_CHAT_ATUALIZADO, carregar);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
       cancel = true;
       window.clearInterval(timer);
       window.removeEventListener('focus', carregar);
+      window.removeEventListener(AJUDA_CHAT_ATUALIZADO, carregar);
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [podeVisualizarAjuda]);

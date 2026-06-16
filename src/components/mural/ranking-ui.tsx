@@ -44,6 +44,13 @@ export function rotuloMes(mesRef: string): string {
   return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 }
 
+/** Quantas semanas distintas entraram na média mensal do colaborador. */
+export function rotuloSemanasAvaliadas(n: number): string {
+  if (n <= 0) return 'Nenhuma semana avaliada';
+  if (n === 1) return '1 semana avaliada';
+  return `${n} semanas avaliadas`;
+}
+
 function Avatar({ nome, foto }: { nome: string; foto: string | null }) {
   if (foto) {
     return (
@@ -87,9 +94,7 @@ export function CardRankingAvaliacao({
           </p>
           <MetaUnidadeSetor unidade={item.unidade_nome} setor={item.setor} />
           {modo === 'mensal' && (
-            <p className="text-sm text-cafeteria-600 mt-0.5">
-              {item.semanas_avaliadas} semana{item.semanas_avaliadas === 1 ? '' : 's'} no mês
-            </p>
+            <p className="text-sm text-cafeteria-600 mt-0.5">{rotuloSemanasAvaliadas(item.semanas_avaliadas)}</p>
           )}
         </div>
       </div>

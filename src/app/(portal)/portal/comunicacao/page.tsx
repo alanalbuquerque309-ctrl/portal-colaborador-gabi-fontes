@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { CanalAjudaPainel, NOME_ATENDIMENTO_AJUDA } from '@/components/ajuda/CanalAjudaPainel';
 import { getPortalSession } from '@/lib/utils/session';
 import { canVisualizarAjuda, normalizePortalRole } from '@/lib/roles';
+import { AJUDA_CHAT_ATUALIZADO, emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
 
 export default function ComunicacaoPage() {
   const router = useRouter();
@@ -21,6 +22,19 @@ export default function ComunicacaoPage() {
 
   useEffect(() => {
     let cancel = false;
+    const carregarPendencias = () => {
+      fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+        .then((r) => r.json())
+        .then((inbox: { ok?: boolean; itens?: unknown[] }) => {
+          if (cancel || !inbox.ok) return;
+          setPendenciasInbox(Array.isArray(inbox.itens) ? inbox.itens.length : 0);
+        })
+        .catch(() => {});
+    };
+
     fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((data: { ok?: boolean; colaborador?: { id?: string; role?: string | null } }) => {
@@ -30,20 +44,14 @@ export default function ComunicacaoPage() {
         const pode = canVisualizarAjuda(role, cid);
         setPodeInboxAjuda(pode);
         if (!pode) return;
-        fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
-          credentials: 'include',
-          cache: 'no-store',
-        })
-          .then((r) => r.json())
-          .then((inbox: { ok?: boolean; itens?: unknown[] }) => {
-            if (cancel || !inbox.ok) return;
-            setPendenciasInbox(Array.isArray(inbox.itens) ? inbox.itens.length : 0);
-          })
-          .catch(() => {});
+        carregarPendencias();
       })
       .catch(() => {});
+
+    window.addEventListener(AJUDA_CHAT_ATUALIZADO, carregarPendencias);
     return () => {
       cancel = true;
+      window.removeEventListener(AJUDA_CHAT_ATUALIZADO, carregarPendencias);
     };
   }, []);
 
@@ -119,7 +127,7 @@ export default function ComunicacaoPage() {
           Dúvidas operacionais, pedidos urgentes ou assuntos do dia a dia com {NOME_ATENDIMENTO_AJUDA} e a
           administração.
         </p>
-        <CanalAjudaPainel variant="embedded" />
+        <CanalAjudaPainel variant="embedded" onChatAtualizado={emitAjudaChatAtualizado} />
       </section>
     </main>
   );

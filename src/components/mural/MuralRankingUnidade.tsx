@@ -1,5 +1,7 @@
 'use client';
 
+import { rotuloSemanasAvaliadas } from '@/components/mural/ranking-ui';
+
 type RankingItem = {
   posicao: number;
   colaborador_id: string;
@@ -54,9 +56,8 @@ function CardRanking({
         )}
         <div className="min-w-0 flex-1">
           <h4 className="font-semibold text-coffee-base text-base leading-snug break-words">{item.nome}</h4>
-          <p className="text-base font-medium text-dourado-700 mt-0.5">
-            Média {item.media.toFixed(2)} · {item.semanas_avaliadas} semana(s) avaliada(s)
-          </p>
+          <p className="text-base font-medium text-dourado-700 mt-0.5">Média {item.media.toFixed(2)}</p>
+          <p className="text-sm text-cafeteria-600 mt-0.5">{rotuloSemanasAvaliadas(item.semanas_avaliadas)}</p>
           {(item.unidade_nome || item.setor) && (
             <p className="text-sm text-cafeteria-600 mt-0.5 leading-snug break-words">
               {[item.unidade_nome, item.setor].filter(Boolean).join(' · ')}

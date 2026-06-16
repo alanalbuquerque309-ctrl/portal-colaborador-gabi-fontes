@@ -4,8 +4,12 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   canExcluirMensagensAjuda,
+  canResponderAjudaFinal,
+  canVisualizarAjuda,
   normalizePortalRole,
 } from '@/lib/roles';
+import { getPortalSession } from '@/lib/utils/session';
+import { emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
 
 const POLL_MS = 8000;
 const NOVO_TOPICO_ID = '__novo__';
@@ -27,6 +31,8 @@ type Props = {
   /** Página embutida (sem botão fechar) ou modal do FAB. */
   variant?: 'embedded' | 'modal';
   onClose?: () => void;
+  /** Chamado após responder/apagar (atualiza badge do FAB e menu). */
+  onChatAtualizado?: () => void;
 };
 
 function fmtDataCurta(iso: string): string {
@@ -45,36 +51,54 @@ function rotuloTopico(item: MensagemAjuda, modoGestor: boolean): string {
   return preview || 'Mensagem';
 }
 
-export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
-  const [modoGestorAjuda, setModoGestorAjuda] = useState(false);
+function notificarAtualizacao(onChatAtualizado?: () => void) {
+  onChatAtualizado?.();
+  emitAjudaChatAtualizado();
+}
+
+export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualizado }: Props) {
+  const [modoGestor, setModoGestor] = useState(false);
+  const [podeResponder, setPodeResponder] = useState(false);
+  const [podeExcluir, setPodeExcluir] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [texto, setTexto] = useState('');
+  const [textoResposta, setTextoResposta] = useState('');
+  const [enviandoResposta, setEnviandoResposta] = useState(false);
   const [itens, setItens] = useState<MensagemAjuda[]>([]);
   const [chatIndisponivel, setChatIndisponivel] = useState(false);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [perfilOk, setPerfilOk] = useState(false);
   const [topicoAtivo, setTopicoAtivo] = useState<string>(NOVO_TOPICO_ID);
+  const [filtroGestor, setFiltroGestor] = useState<'pendentes' | 'todas'>('pendentes');
 
   useEffect(() => {
     let cancel = false;
     fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
+      .then((data: { ok?: boolean; colaborador?: { id?: string; role?: string | null } }) => {
         if (cancel) return;
         if (!data.ok || !data.colaborador) {
-          setModoGestorAjuda(false);
+          setModoGestor(false);
+          setPodeResponder(false);
+          setPodeExcluir(false);
           setPerfilOk(true);
           return;
         }
+        const sess = getPortalSession();
+        const cid = String(data.colaborador.id ?? sess?.colaboradorId ?? '').trim();
         const role = normalizePortalRole(data.colaborador.role);
-        const podeExcluir = canExcluirMensagensAjuda(role);
-        setModoGestorAjuda(podeExcluir);
+        const gestor = canVisualizarAjuda(role, cid || undefined);
+        setModoGestor(gestor);
+        setPodeResponder(canResponderAjudaFinal(cid || undefined, role));
+        setPodeExcluir(canExcluirMensagensAjuda(role));
         setPerfilOk(true);
       })
       .catch(() => {
         if (!cancel) {
-          setModoGestorAjuda(false);
+          setModoGestor(false);
+          setPodeResponder(false);
+          setPodeExcluir(false);
           setPerfilOk(true);
         }
       });
@@ -91,8 +115,13 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
       }
       setChatIndisponivel(false);
       try {
-        const url = modoGestorAjuda
-          ? `/api/admin/ajuda-chat?_=${Date.now()}`
+        const url = modoGestor
+          ? (() => {
+              const params = new URLSearchParams();
+              if (filtroGestor === 'pendentes') params.set('somente_pendentes', '1');
+              params.set('_', String(Date.now()));
+              return `/api/admin/ajuda-chat?${params.toString()}`;
+            })()
           : '/api/portal/ajuda-chat';
         const res = await fetch(url, {
           credentials: 'include',
@@ -108,7 +137,9 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
           return;
         }
         const raw = Array.isArray(data.itens) ? data.itens : [];
-        if (modoGestorAjuda) {
+        if (modoGestor) {
+          if (data.pode_responder === true) setPodeResponder(true);
+          if (data.pode_excluir === true) setPodeExcluir(true);
           setItens(
             raw.map((row: Record<string, unknown>) => ({
               id: String(row.id ?? ''),
@@ -130,7 +161,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
         if (!silent) setLoading(false);
       }
     },
-    [modoGestorAjuda]
+    [modoGestor, filtroGestor]
   );
 
   useEffect(() => {
@@ -152,11 +183,17 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
   useEffect(() => {
     if (topicoAtivo === NOVO_TOPICO_ID) return;
     if (!itens.some((i) => i.id === topicoAtivo)) {
-      if (itens.length > 0) setTopicoAtivo(itens[itens.length - 1].id);
-      else if (!modoGestorAjuda) setTopicoAtivo(NOVO_TOPICO_ID);
+      const primeiroPendente = itens.find((i) => !i.resposta);
+      if (primeiroPendente) setTopicoAtivo(primeiroPendente.id);
+      else if (itens.length > 0) setTopicoAtivo(itens[itens.length - 1].id);
+      else if (!modoGestor) setTopicoAtivo(NOVO_TOPICO_ID);
       else setTopicoAtivo('');
     }
-  }, [itens, topicoAtivo, modoGestorAjuda]);
+  }, [itens, topicoAtivo, modoGestor]);
+
+  useEffect(() => {
+    setTextoResposta('');
+  }, [topicoAtivo]);
 
   const itemAtivo = useMemo(
     () => itens.find((i) => i.id === topicoAtivo) ?? null,
@@ -181,6 +218,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
         return;
       }
       await carregar(true);
+      notificarAtualizacao(onChatAtualizado);
     } catch {
       setErro('Erro de conexão ao apagar.');
     } finally {
@@ -188,8 +226,35 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
     }
   };
 
+  const responder = async (id: string) => {
+    const resposta = textoResposta.trim();
+    if (resposta.length < 2) return;
+    setEnviandoResposta(true);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/admin/ajuda-chat/${id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resposta }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível enviar a resposta.');
+        return;
+      }
+      setTextoResposta('');
+      await carregar(true);
+      notificarAtualizacao(onChatAtualizado);
+    } catch {
+      setErro('Erro de conexão ao responder.');
+    } finally {
+      setEnviandoResposta(false);
+    }
+  };
+
   const enviar = async () => {
-    if (modoGestorAjuda || chatIndisponivel) return;
+    if (modoGestor || chatIndisponivel) return;
     const mensagem = texto.trim();
     if (mensagem.length < 3) return;
     setErro(null);
@@ -208,6 +273,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
       setTexto('');
       await carregar(true);
       setTopicoAtivo(NOVO_TOPICO_ID);
+      notificarAtualizacao(onChatAtualizado);
     } catch {
       setErro('Erro de conexão ao enviar.');
     }
@@ -218,39 +284,65 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
       ? 'rounded-xl bg-white border border-dourado-200 shadow-xl p-4 max-h-[min(85vh,560px)] flex flex-col'
       : 'rounded-2xl border border-cafeteria-200 bg-white p-4 sm:p-5 flex flex-col';
 
-  const mostrarFormulario = !modoGestorAjuda && (topicoAtivo === NOVO_TOPICO_ID || itens.length === 0);
+  const mostrarFormulario = !modoGestor && (topicoAtivo === NOVO_TOPICO_ID || itens.length === 0);
 
   return (
     <div className={shellClass}>
       <h3 className="font-display font-semibold text-coffee-base mb-2">
-        {modoGestorAjuda ? 'Canal de ajuda (atalho)' : `Canal direto com ${NOME_ATENDIMENTO_AJUDA}`}
+        {modoGestor ? 'Inbox ajuda (atalho)' : `Canal direto com ${NOME_ATENDIMENTO_AJUDA}`}
       </h3>
       <p className="text-xs text-coffee-100 mb-3">
-        {modoGestorAjuda ? (
+        {modoGestor ? (
           <>
-            Últimos pedidos de todos os colaboradores. Use <strong>Apagar</strong> para remover um registro.
-            Para responder, abra a{' '}
+            Histórico de todos os pedidos. {podeResponder ? 'Você pode responder aqui' : 'Somente visualização'}.
+            {podeExcluir ? ' Sócios/admin podem apagar registros.' : ''}{' '}
             <Link href="/portal/ajuda-inbox" className="text-dourado-base underline font-medium">
-              Inbox ajuda
+              Abrir inbox completo
             </Link>
-            .
           </>
         ) : (
           <>
             Envie por aqui. Quem atende no dia a dia é o {NOME_ATENDIMENTO_AJUDA}; sócios e admin também podem
-            responder no Inbox ajuda.
+            responder.
           </>
         )}
       </p>
 
+      {modoGestor && (
+        <div className="flex gap-2 mb-3">
+          <button
+            type="button"
+            onClick={() => setFiltroGestor('pendentes')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+              filtroGestor === 'pendentes'
+                ? 'bg-dourado-base text-cream-100'
+                : 'border border-cream-300 text-coffee-base'
+            }`}
+          >
+            Pendentes
+          </button>
+          <button
+            type="button"
+            onClick={() => setFiltroGestor('todas')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+              filtroGestor === 'todas'
+                ? 'bg-dourado-base text-cream-100'
+                : 'border border-cream-300 text-coffee-base'
+            }`}
+          >
+            Todas (histórico)
+          </button>
+        </div>
+      )}
+
       <div className="grid md:grid-cols-[minmax(148px,220px)_1fr] gap-3 flex-1 min-h-0">
         <aside className="rounded-lg border border-cream-300 bg-cream-50 flex flex-col min-h-[200px] md:min-h-0 md:max-h-[min(52vh,420px)]">
           <p className="px-3 py-2 text-xs font-semibold text-coffee-base border-b border-cream-200 shrink-0">
-            Histórico de atividades
+            {modoGestor ? 'Conversas' : 'Histórico de atividades'}
           </p>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {loading && <p className="text-xs text-coffee-100 px-1">Carregando…</p>}
-            {!modoGestorAjuda && (
+            {!modoGestor && (
               <button
                 type="button"
                 onClick={() => setTopicoAtivo(NOVO_TOPICO_ID)}
@@ -263,8 +355,10 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
                 + Nova mensagem
               </button>
             )}
-            {!loading && itens.length === 0 && modoGestorAjuda && (
-              <p className="text-xs text-coffee-100 px-1">Nenhuma atividade registrada.</p>
+            {!loading && itens.length === 0 && modoGestor && (
+              <p className="text-xs text-coffee-100 px-1">
+                {filtroGestor === 'pendentes' ? 'Nenhuma mensagem pendente.' : 'Nenhuma conversa registrada.'}
+              </p>
             )}
             {itens.map((item) => {
               const ativo = topicoAtivo === item.id;
@@ -279,7 +373,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
                   }`}
                 >
                   <span className="block font-medium leading-snug break-words">
-                    {rotuloTopico(item, modoGestorAjuda)}
+                    {rotuloTopico(item, modoGestor)}
                   </span>
                   <span className="flex items-center gap-2 mt-1 text-[10px] text-coffee-100">
                     <span>{fmtDataCurta(item.created_at)}</span>
@@ -321,7 +415,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="min-w-0">
                   <p className="text-xs text-coffee-100 font-medium">
-                    {modoGestorAjuda
+                    {modoGestor
                       ? `${itemAtivo.colaborador_nome ?? 'Colaborador'} · ${fmtDataCurta(itemAtivo.created_at)}`
                       : `Você · ${fmtDataCurta(itemAtivo.created_at)}`}
                   </p>
@@ -329,7 +423,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
                     {itemAtivo.mensagem}
                   </p>
                 </div>
-                {modoGestorAjuda && (
+                {modoGestor && podeExcluir && (
                   <button
                     type="button"
                     onClick={() => void apagar(itemAtivo.id)}
@@ -350,6 +444,24 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
                   </p>
                   <p className="text-sm text-emerald-900 mt-1 break-words whitespace-pre-wrap">{itemAtivo.resposta}</p>
                 </div>
+              ) : podeResponder && modoGestor ? (
+                <div className="space-y-2 mt-auto">
+                  <textarea
+                    value={textoResposta}
+                    onChange={(e) => setTextoResposta(e.target.value)}
+                    className="w-full rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base min-h-[88px]"
+                    rows={3}
+                    placeholder="Escreva a resposta para o colaborador…"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void responder(itemAtivo.id)}
+                    disabled={enviandoResposta || textoResposta.trim().length < 2}
+                    className="w-full rounded-lg bg-coffee-base px-4 py-2.5 text-sm font-medium text-cream-100 hover:bg-coffee-300 disabled:opacity-50 min-h-[44px]"
+                  >
+                    {enviandoResposta ? 'Enviando…' : 'Responder'}
+                  </button>
+                </div>
               ) : (
                 <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-auto">
                   Aguardando resposta do atendimento.
@@ -357,7 +469,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose }: Props) {
               )}
             </div>
           ) : (
-            <p className="p-4 text-sm text-coffee-100">Selecione uma atividade à esquerda.</p>
+            <p className="p-4 text-sm text-coffee-100">Selecione uma conversa à esquerda.</p>
           )}
         </section>
       </div>

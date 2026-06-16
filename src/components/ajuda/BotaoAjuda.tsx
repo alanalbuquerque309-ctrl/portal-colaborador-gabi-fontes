@@ -1,23 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   canExcluirMensagensAjuda,
   canVisualizarAjuda,
   normalizePortalRole,
 } from '@/lib/roles';
 import { getPortalSession } from '@/lib/utils/session';
+import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { CanalAjudaPainel } from '@/components/ajuda/CanalAjudaPainel';
 
 export function BotaoAjuda() {
-  /**
-   * FAB oculto no mobile (menu Comunicação) e para quem vê Inbox sem poder apagar (ex.: RH dedicado).
-   * Sócio/admin mantêm o atalho flutuante no desktop.
-   */
   const [mostrarFabAjuda, setMostrarFabAjuda] = useState<boolean | null>(null);
   const [podeInbox, setPodeInbox] = useState(false);
   const [pendentes, setPendentes] = useState(0);
   const [aberto, setAberto] = useState(false);
+
+  const carregarPendentes = useCallback(() => {
+    fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/json', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    })
+      .then((r) => r.json())
+      .then((data: { ok?: boolean; itens?: unknown[] }) => {
+        if (!data.ok) return;
+        setPendentes(Array.isArray(data.itens) ? data.itens.length : 0);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancel = false;
@@ -46,40 +57,27 @@ export function BotaoAjuda() {
     };
   }, []);
 
-  // Pendentes do canal de ajuda para quem responde (sócios/Daniel): pisca o FAB.
   useEffect(() => {
     if (!podeInbox) {
       setPendentes(0);
       return;
     }
-    let cancel = false;
-    const carregar = () => {
-      fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
-        credentials: 'include',
-        cache: 'no-store',
-        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-      })
-        .then((r) => r.json())
-        .then((data: { ok?: boolean; itens?: unknown[] }) => {
-          if (cancel || !data.ok) return;
-          setPendentes(Array.isArray(data.itens) ? data.itens.length : 0);
-        })
-        .catch(() => {});
-    };
-    carregar();
-    const timer = window.setInterval(carregar, 10000);
+    carregarPendentes();
+    const timer = window.setInterval(carregarPendentes, 10000);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') carregar();
+      if (document.visibilityState === 'visible') carregarPendentes();
     };
-    window.addEventListener('focus', carregar);
+    const onAtualizado = () => carregarPendentes();
+    window.addEventListener('focus', carregarPendentes);
+    window.addEventListener(AJUDA_CHAT_ATUALIZADO, onAtualizado);
     document.addEventListener('visibilitychange', onVisible);
     return () => {
-      cancel = true;
       window.clearInterval(timer);
-      window.removeEventListener('focus', carregar);
+      window.removeEventListener('focus', carregarPendentes);
+      window.removeEventListener(AJUDA_CHAT_ATUALIZADO, onAtualizado);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [podeInbox]);
+  }, [podeInbox, carregarPendentes]);
 
   if (mostrarFabAjuda !== true) return null;
 
@@ -115,8 +113,12 @@ export function BotaoAjuda() {
             onClick={() => setAberto(false)}
             aria-hidden
           />
-          <div className="hidden md:block fixed bottom-24 right-6 z-50 w-[380px]">
-            <CanalAjudaPainel variant="modal" onClose={() => setAberto(false)} />
+          <div className="hidden md:block fixed bottom-24 right-6 z-50 w-[min(420px,calc(100vw-2rem))]">
+            <CanalAjudaPainel
+              variant="modal"
+              onClose={() => setAberto(false)}
+              onChatAtualizado={carregarPendentes}
+            />
           </div>
         </>
       )}

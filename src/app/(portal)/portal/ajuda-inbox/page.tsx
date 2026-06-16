@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
 
 const POLL_MS = 10000;
 
@@ -103,6 +104,7 @@ export default function AjudaInboxPage() {
       }
       setTextoResposta((prev) => ({ ...prev, [id]: '' }));
       await carregar({ silent: true });
+      emitAjudaChatAtualizado();
     } catch {
       setErro('Erro de conexão ao responder.');
     } finally {
@@ -128,6 +130,7 @@ export default function AjudaInboxPage() {
         return;
       }
       await carregar({ silent: true });
+      emitAjudaChatAtualizado();
     } catch {
       setErro('Erro de conexão ao apagar.');
     } finally {
