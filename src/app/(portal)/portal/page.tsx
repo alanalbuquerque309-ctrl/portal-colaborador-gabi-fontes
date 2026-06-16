@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { MuralPreview } from '@/components/mural/MuralPreview';
 import { DestaqueSection } from '@/components/destaque/DestaqueSection';
+import { DesdeUltimaVisitaHome } from '@/components/portal/DesdeUltimaVisitaHome';
 import { FacaAgoraHome } from '@/components/portal/FacaAgoraHome';
 import { PortalAtalhosPerfil } from '@/components/portal/PortalAtalhosPerfil';
 import { TermometroEmocional } from '@/components/emocional/TermometroEmocional';
@@ -10,6 +11,7 @@ export default function PortalHomePage() {
   return (
     <main className="space-y-8">
       <EmocionalAlertasGestao />
+      <DesdeUltimaVisitaHome />
       <FacaAgoraHome />
       <DestaqueSection />
       <PortalAtalhosPerfil />
