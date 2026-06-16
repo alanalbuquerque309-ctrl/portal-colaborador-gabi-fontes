@@ -45,7 +45,7 @@ export function semanaAnteriorInicioISO(ref: Date = new Date()): string {
   const segAtual = parseDataLocalISO(inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(ref)));
   if (Number.isNaN(segAtual.getTime())) return hojeInicioSemanaISO();
   segAtual.setDate(segAtual.getDate() - 7);
-  return formatarDataLocalISO(segAtual);
+  return inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(segAtual));
 }
 
 /** Semana que a liderança deve avaliar por defeito (semana civil anterior). */

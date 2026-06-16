@@ -106,7 +106,7 @@ export async function calcularTop3GrupoMural(
 
   const ctx = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
 
-  const porId = agruparMediasPorColaborador(linhasMapeadas, ids, ini, ctx);
+  const porId = agruparMediasPorColaborador(linhasMapeadas, ids, ini, ctx, fim);
 
   const scored = (colaboradores ?? []).map((c) => {
     const agg = mediaMensalColaborador(porId[String(c.id)] ?? []);

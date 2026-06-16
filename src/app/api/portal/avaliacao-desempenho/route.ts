@@ -103,7 +103,7 @@ export async function GET(req: Request) {
     const ctxEu = await montarContextoConsolidacaoRanking(supabase, minhasMapeadas);
 
     const agg = mediaMensalColaborador(
-      agruparMediasPorColaborador(minhasMapeadas, [colaboradorId], ini, ctxEu)[colaboradorId] ??
+      agruparMediasPorColaborador(minhasMapeadas, [colaboradorId], ini, ctxEu, fim)[colaboradorId] ??
         []
     );
     const meu_desempenho = {
@@ -152,7 +152,7 @@ export async function GET(req: Request) {
     );
     const ctxRanking = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
 
-    const porColab = agruparMediasPorColaborador(linhasMapeadas, idsRanking, ini, ctxRanking);
+    const porColab = agruparMediasPorColaborador(linhasMapeadas, idsRanking, ini, ctxRanking, fim);
 
     const nomePorId = Object.fromEntries((colegas ?? []).map((c) => [c.id, String(c.nome ?? '')]));
 

@@ -3,12 +3,13 @@ import {
   type AvaliacaoSemanaConsolidavel,
 } from '@/lib/avaliacao-semanal-agregacao';
 import type { ContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
+import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 
 /**
  * Segunda-feira (`data_referencia`) da primeira semana oficial no mural/ranking.
- * Semanas anteriores não entram em médias nem em contagem de semanas avaliadas.
+ * Jun/2026: semana 2–8 (segunda 02/06). Semanas anteriores não entram.
  */
-export const AVALIACAO_RANKING_EPOCA_INICIO = '2026-06-01';
+export const AVALIACAO_RANKING_EPOCA_INICIO = '2026-06-02';
 
 /** Mínimo de semanas distintas no mês para entrar no ranking mensal (top 3). */
 export const AVALIACAO_RANKING_MIN_SEMANAS = 1;
@@ -21,20 +22,22 @@ export type AvaliacaoSemanaLinha = {
   avaliador_role?: string | null;
 };
 
-/** Limite inferior efetivo: não antes da época oficial nem antes do início do mês consultado. */
+/** Limite inferior efetivo: segunda-feira do mês ou da época oficial (o que for mais recente). */
 export function inicioDataReferenciaRanking(periodoIni: string): string {
-  return periodoIni >= AVALIACAO_RANKING_EPOCA_INICIO
-    ? periodoIni
-    : AVALIACAO_RANKING_EPOCA_INICIO;
+  const epoca = inicioSemanaSegundaFeiraLocal(AVALIACAO_RANKING_EPOCA_INICIO);
+  const ini = inicioSemanaSegundaFeiraLocal(periodoIni);
+  return ini >= epoca ? ini : epoca;
 }
 
 export function agruparMediasPorColaborador(
   linhas: Array<AvaliacaoSemanaLinha & { colaborador_id: string }>,
   colaboradorIds: string[],
   periodoIni: string,
-  ctx: ContextoConsolidacaoRanking
+  ctx: ContextoConsolidacaoRanking,
+  periodoFim?: string
 ): Record<string, { media_dia: number | null }[]> {
   const desde = inicioDataReferenciaRanking(periodoIni);
+  const ate = periodoFim ? inicioSemanaSegundaFeiraLocal(periodoFim) : undefined;
   const raw: Record<string, AvaliacaoSemanaConsolidavel[]> = {};
   for (const id of colaboradorIds) raw[id] = [];
   for (const row of linhas) {
@@ -54,6 +57,7 @@ export function agruparMediasPorColaborador(
       liderIds,
       rhIds: ctx.rhIds,
       desde,
+      ate,
     });
   }
   return out;
@@ -81,7 +85,7 @@ export function topTresComEmpateNoTerceiro(scored: ScoreMensal[]): { id: string;
   return out.map(({ id, nome, media }) => ({ id, nome, media: Math.round(media * 100) / 100 }));
 }
 
-/** `dias` no retorno é o número de registros no mês (uma avaliação por semana). */
+/** `dias` no retorno é o número de semanas distintas (segundas-feiras) no período. */
 export function mediaMensalColaborador(
   linhas: { media_dia: number | null }[]
 ): { media: number | null; dias: number } {

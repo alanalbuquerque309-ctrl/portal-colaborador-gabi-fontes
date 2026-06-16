@@ -88,7 +88,7 @@ export async function GET(req: Request) {
       }))
     );
     const ctx = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
-    const porId = agruparMediasPorColaborador(linhasMapeadas, ids, ini, ctx);
+    const porId = agruparMediasPorColaborador(linhasMapeadas, ids, ini, ctx, fim);
 
     const colaboradores = membros.map((m) => {
       const id = m.id as string;

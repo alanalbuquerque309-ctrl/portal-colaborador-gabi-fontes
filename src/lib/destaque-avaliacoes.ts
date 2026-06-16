@@ -94,12 +94,13 @@ async function carregarCandidatos(
   linhas: LinhaDestaque[],
   minSemanas: number,
   periodoIni: string,
-  ctx: Awaited<ReturnType<typeof montarContextoConsolidacaoRanking>>
+  ctx: Awaited<ReturnType<typeof montarContextoConsolidacaoRanking>>,
+  periodoFim?: string
 ): Promise<Candidato[]> {
   if (linhas.length === 0) return [];
 
   const ids = Array.from(new Set(linhas.map((l) => String(l.colaborador_id)).filter(Boolean)));
-  const porColabMedias = agruparMediasPorColaborador(linhas, ids, periodoIni, ctx);
+  const porColabMedias = agruparMediasPorColaborador(linhas, ids, periodoIni, ctx, periodoFim);
   const porColab: Record<string, number[]> = {};
   for (const [cid, semanas] of Object.entries(porColabMedias)) {
     porColab[cid] = semanas
@@ -205,7 +206,8 @@ export async function calcularDestaquesMural(
     linhasMesMap,
     AVALIACAO_RANKING_MIN_SEMANAS,
     ini,
-    ctx
+    ctx,
+    fim
   );
   const candidatosSemana = await carregarCandidatos(
     supabase,

@@ -9,6 +9,8 @@ import {
   BONIFICACAO_PESO_AVAL_RH,
 } from '@/lib/bonificacao-config';
 import type { SemanaAvaliacao } from '@/lib/bonificacao-indice';
+import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
+import { AVALIACAO_RANKING_EPOCA_INICIO } from '@/lib/avaliacao-ranking';
 
 export type AvaliacaoSemanalBruta = {
   data_referencia: string;
@@ -139,13 +141,17 @@ function ultimaNotaPorAvaliadorNaSemana(
  */
 export function consolidarNotasSemanaisParaRanking(
   linhas: AvaliacaoSemanaConsolidavel[],
-  opts: { liderIds: Set<string>; rhIds: Set<string>; desde?: string }
+  opts: { liderIds: Set<string>; rhIds: Set<string>; desde?: string; ate?: string }
 ): { media_dia: number | null }[] {
-  const desde = opts.desde ?? '2026-06-01';
+  const desde = inicioSemanaSegundaFeiraLocal(opts.desde ?? AVALIACAO_RANKING_EPOCA_INICIO);
+  const ate = opts.ate ? inicioSemanaSegundaFeiraLocal(opts.ate) : null;
   const porSemana = new Map<string, AvaliacaoSemanaConsolidavel[]>();
   for (const l of linhas) {
-    const ref = String(l.data_referencia ?? '').slice(0, 10);
-    if (!ref || ref < desde) continue;
+    const bruta = String(l.data_referencia ?? '').slice(0, 10);
+    if (!bruta) continue;
+    const ref = inicioSemanaSegundaFeiraLocal(bruta);
+    if (ref < desde) continue;
+    if (ate != null && ref > ate) continue;
     const list = porSemana.get(ref) ?? [];
     list.push(l);
     porSemana.set(ref, list);
