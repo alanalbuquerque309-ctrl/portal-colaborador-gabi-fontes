@@ -53,7 +53,7 @@ type Props = {
 function normalizarAssiduidadeForm(row: NonNullable<AvaliacaoServidor>): AssiduidadeTipo {
   const a = row.assiduidade;
   if (assiduidadeLegacySemanalRemovida(a)) return 'presente';
-  if (a === 'fora_plantao' || a === 'falta_injustificada' || a === 'ferias') return a;
+  if (a === 'fora_plantao' || a === 'falta_injustificada' || a === 'falta_justificada' || a === 'ferias') return a;
   return 'presente';
 }
 
@@ -202,9 +202,10 @@ export function ColaboradorAvaliacaoCard({
   };
 
   const injustificada = assiduidade === 'falta_injustificada';
+  const justificada = assiduidade === 'falta_justificada';
   const foraPlantao = assiduidade === 'fora_plantao';
   const ferias = assiduidade === 'ferias';
-  const semNota = foraPlantao || ferias;
+  const semNota = foraPlantao || ferias || justificada || injustificada;
   const estrelasDesabilitadas = somenteLeitura || injustificada || semNota;
   /** Linha enxuta com 3 ações antes de abrir as estrelas. */
   const acoesCompactas = !somenteLeitura && !semNota && !avaliando;
@@ -470,6 +471,14 @@ export function ColaboradorAvaliacaoCard({
             <span className="text-sm font-medium rounded-full bg-sky-100 text-sky-900 px-2.5 py-0.5">
               Férias
             </span>
+          ) : justificada ? (
+            <span className="text-sm font-medium rounded-full bg-amber-100 text-amber-950 px-2.5 py-0.5">
+              Falta justificada
+            </span>
+          ) : injustificada ? (
+            <span className="text-sm font-medium rounded-full bg-red-100 text-red-900 px-2.5 py-0.5">
+              Falta injustificada
+            </span>
           ) : (
             <span className="text-xs sm:text-sm font-medium rounded-full bg-green-100 text-green-800 px-2.5 py-0.5">
               Avaliado
@@ -568,16 +577,74 @@ export function ColaboradorAvaliacaoCard({
         {mostrarNotas && (
           <>
             {!somenteLeitura && (
-              <label className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/60 px-3 py-3 cursor-pointer">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-cafeteria-900">Como foi a semana?</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssiduidade('presente');
+                      if (injustificada || justificada) {
+                        setV(null);
+                        setP(null);
+                        setE(null);
+                        setD(null);
+                        setPr(null);
+                      }
+                    }}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium min-h-[44px] ${
+                      assiduidade === 'presente'
+                        ? 'bg-cafeteria-700 text-cream-50'
+                        : 'border border-cafeteria-300 bg-white text-cafeteria-800'
+                    }`}
+                  >
+                    Presente
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAssiduidade('falta_justificada');
+                      setV(null);
+                      setP(null);
+                      setE(null);
+                      setD(null);
+                      setPr(null);
+                      setJustificativaNotaBaixa('');
+                    }}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium min-h-[44px] ${
+                      justificada
+                        ? 'bg-amber-700 text-cream-50'
+                        : 'border border-amber-400 bg-amber-50 text-amber-950'
+                    }`}
+                  >
+                    Falta justificada
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => toggleFaltaInjustificada(true)}
+                    className={`rounded-lg px-3 py-2 text-sm font-medium min-h-[44px] ${
+                      injustificada
+                        ? 'bg-red-700 text-cream-50'
+                        : 'border border-red-400 bg-red-50 text-red-950'
+                    }`}
+                  >
+                    Falta injustificada
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {justificada && !somenteLeitura && (
+              <label className="block text-sm">
+                <span className="text-cafeteria-800">Motivo (opcional)</span>
                 <input
-                  type="checkbox"
-                  checked={injustificada}
-                  onChange={(e) => toggleFaltaInjustificada(e.target.checked)}
-                  className="mt-1"
+                  type="text"
+                  value={justificativaNotaBaixa}
+                  onChange={(e) => setJustificativaNotaBaixa(e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-cafeteria-200 px-3 py-2"
+                  maxLength={500}
+                  placeholder="Ex.: atestado médico"
                 />
-                <span className="text-sm text-red-950">
-                  <strong>Falta injustificada na semana</strong> — zera a pontuação e impacta a equipe.
-                </span>
               </label>
             )}
 

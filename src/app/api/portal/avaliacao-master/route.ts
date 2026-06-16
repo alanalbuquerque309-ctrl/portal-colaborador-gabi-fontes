@@ -151,6 +151,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: insErr }, { status: 500 });
     }
 
+    const { reprocessarGraosAposAvaliacaoEquipe } = await import('@/lib/graos/sync-hook');
+    await reprocessarGraosAposAvaliacaoEquipe(supabase, validado.colaboradorAlvo, dataRef);
+
     return NextResponse.json({ ok: true, media_dia: validado.media });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
@@ -245,6 +248,9 @@ export async function PATCH(req: Request) {
     if (updErr) {
       return NextResponse.json({ ok: false, erro: updErr }, { status: 500 });
     }
+
+    const { reprocessarGraosAposAvaliacaoEquipe } = await import('@/lib/graos/sync-hook');
+    await reprocessarGraosAposAvaliacaoEquipe(supabase, validado.colaboradorAlvo, dataRef);
 
     return NextResponse.json({ ok: true, media_dia: validado.media, edicao_utilizada: true });
   } catch (e) {

@@ -44,6 +44,34 @@ export function rotuloSemanaSaoPaulo(semanaInicio: string): string {
   return `${fmt(ini)} a ${fmt(fim)}`;
 }
 
+/** Partes de data/hora em America/Sao_Paulo. */
+export function partesSaoPaulo(ref: Date = new Date()) {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  });
+  const parts = fmt.formatToParts(ref);
+  const y = parseInt(parts.find((p) => p.type === 'year')?.value ?? '0', 10);
+  const mo = parseInt(parts.find((p) => p.type === 'month')?.value ?? '1', 10);
+  const day = parseInt(parts.find((p) => p.type === 'day')?.value ?? '1', 10);
+  const wd = parts.find((p) => p.type === 'weekday')?.value ?? '';
+  return { y, mo, day, wd, iso: `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}` };
+}
+
+/** `true` na quinta-feira (0h–23:59 SP). */
+export function ehQuintaSaoPaulo(ref: Date = new Date()): boolean {
+  const { wd } = partesSaoPaulo(ref);
+  return wd.startsWith('Thu');
+}
+
+/** Data ISO de hoje em São Paulo. */
+export function hojeIsoSaoPaulo(ref: Date = new Date()): string {
+  return partesSaoPaulo(ref).iso;
+}
+
 /** `true` quando hoje é domingo em America/Sao_Paulo. */
 export function hojeEhDomingoSaoPaulo(ref: Date = new Date()): boolean {
   const fmt = new Intl.DateTimeFormat('en-CA', {

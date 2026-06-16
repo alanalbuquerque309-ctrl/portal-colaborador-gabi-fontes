@@ -153,6 +153,28 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   }, [pathname, router]);
 
   useEffect(() => {
+    if (!gateOk || isPendingRegistration()) return;
+    const role = normalizePortalRole(perfilRole);
+    const isLider = role === 'gerente' || role === 'master' || role === 'admin';
+    if (!isLider) return;
+    if (pathname === '/portal/avaliacao-master') return;
+
+    let cancel = false;
+    fetch('/api/portal/graos/lider-bloqueio', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; bloqueado?: boolean }) => {
+        if (cancel) return;
+        if (d.ok && d.bloqueado) {
+          router.replace('/portal/avaliacao-master');
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+  }, [gateOk, pathname, perfilRole, router]);
+
+  useEffect(() => {
     if (pathname !== '/portal') return;
     if (isPendingRegistration()) return;
 

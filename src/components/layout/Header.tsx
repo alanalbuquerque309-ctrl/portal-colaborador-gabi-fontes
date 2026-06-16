@@ -18,7 +18,7 @@ type NavItem = {
   href: string;
   label: string;
   short: string;
-  icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia';
+  icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia' | 'graos';
 };
 
 function navAtivo(pathname: string | null | undefined, href: string): boolean {
@@ -114,6 +114,14 @@ function NavIcon({ type }: { type: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
       );
+    case 'graos':
+      return (
+        <svg className={base} viewBox="0 0 24 24" fill="currentColor">
+          <ellipse cx="12" cy="14" rx="4" ry="6" opacity="0.85" />
+          <ellipse cx="8" cy="11" rx="3" ry="5" opacity="0.65" />
+          <ellipse cx="16" cy="11" rx="3" ry="5" opacity="0.65" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -135,6 +143,26 @@ export function Header() {
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
   const [perfilRole, setPerfilRole] = useState('colaborador');
+  const [graosSaldo, setGraosSaldo] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (perfilRole !== 'colaborador') {
+      setGraosSaldo(null);
+      return;
+    }
+    let cancel = false;
+    fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; saldo_confirmado?: number }) => {
+        if (!cancel && d.ok) setGraosSaldo(typeof d.saldo_confirmado === 'number' ? d.saldo_confirmado : 0);
+      })
+      .catch(() => {
+        if (!cancel) setGraosSaldo(null);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [perfilRole, pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,6 +346,7 @@ export function Header() {
         ]
       : [
           { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
+          { href: '/portal/graos', label: 'Grãos de café', short: 'Grãos', icon: 'graos' },
           ...manualNav,
           { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' },
           ...(podeVerDesempenho
@@ -404,6 +433,7 @@ export function Header() {
             const iconKey = iconePorHref[href] ?? 'mural';
             const alertaAjuda =
               href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
+            const badgeGraos = href === '/portal/graos' && graosSaldo != null && graosSaldo > 0;
             return (
               <Link
                 key={href}
@@ -416,6 +446,11 @@ export function Header() {
               >
                 <span className="relative">
                   <NavIcon type={iconKey} />
+                  {badgeGraos && (
+                    <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
+                      {graosSaldo > 99 ? '99+' : graosSaldo}
+                    </span>
+                  )}
                   {alertaAjuda && (
                     <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
                       {pendenciasAjuda > 9 ? '9+' : pendenciasAjuda}

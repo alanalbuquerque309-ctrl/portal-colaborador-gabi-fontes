@@ -264,6 +264,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: insErr.message }, { status: 500, headers: NO_STORE });
     }
 
+    const { syncGraosColaboradorSeAplicavel } = await import('@/lib/graos/sync-hook');
+    await syncGraosColaboradorSeAplicavel(supabase, colaboradorId);
+
     return NextResponse.json({ ok: true, semana_inicio: semanaInicio }, { headers: NO_STORE });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

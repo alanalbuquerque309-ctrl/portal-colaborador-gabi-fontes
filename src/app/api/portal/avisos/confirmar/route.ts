@@ -35,6 +35,10 @@ export async function POST(req: Request) {
       }
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
+
+    const { syncGraosColaboradorSeAplicavel } = await import('@/lib/graos/sync-hook');
+    await syncGraosColaboradorSeAplicavel(supabase, colaboradorId);
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

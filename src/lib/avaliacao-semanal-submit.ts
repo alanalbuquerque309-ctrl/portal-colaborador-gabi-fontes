@@ -39,13 +39,14 @@ function assiduidadePermitidaNovoEnvio(s: string): s is AssiduidadeTipo {
     s === 'presente' ||
     s === 'fora_plantao' ||
     s === 'ferias' ||
-    s === 'falta_injustificada'
+    s === 'falta_injustificada' ||
+    s === 'falta_justificada'
   );
 }
 
-/** Semana sem nota: fora do plantão e férias não exigem critérios nem justificativa. */
+/** Semana sem nota: fora do plantão, férias e falta justificada não exigem critérios. */
 function assiduidadeSemNota(s: AssiduidadeTipo): boolean {
-  return s === 'fora_plantao' || s === 'ferias';
+  return s === 'fora_plantao' || s === 'ferias' || s === 'falta_justificada';
 }
 
 export function sanitizeJustificativaSemanal(value: unknown): string {
@@ -71,7 +72,7 @@ export function validarBodyAvaliacaoSemanal(
     return {
       ok: false,
       status: 400,
-      erro: 'Tipo de assiduidade descontinuado. Use notas semanais, falta injustificada ou fora do plantão.',
+      erro: 'Tipo de assiduidade descontinuado. Use presente, falta justificada, falta injustificada, férias ou fora do plantão.',
     };
   }
 
@@ -146,9 +147,11 @@ export function validarBodyAvaliacaoSemanal(
           ? JUSTIFICATIVA_FORA_PLANTAO
           : assidRaw === 'ferias'
             ? JUSTIFICATIVA_FERIAS
-            : temNotaBaixa
-              ? justificativaFinal
-              : null,
+            : assidRaw === 'falta_justificada'
+              ? justificativaFinal || null
+              : temNotaBaixa
+                ? justificativaFinal
+                : null,
     },
   };
 }

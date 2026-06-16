@@ -168,6 +168,12 @@ export async function POST(req: Request) {
       .single();
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+
+    if (tipo === 'sugestao') {
+      const { syncGraosColaboradorSeAplicavel } = await import('@/lib/graos/sync-hook');
+      await syncGraosColaboradorSeAplicavel(supabase, colaboradorId);
+    }
+
     return NextResponse.json({ ok: true, id: data?.id });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
