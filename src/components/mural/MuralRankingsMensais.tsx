@@ -9,6 +9,9 @@ import {
   BlocoTop3PorUnidade,
   BlocoRankingTrofeus,
   rotuloMes,
+  SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE,
+  SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE,
+  SUBTITULO_RANKING_TROFEUS_MENSAL,
   type RankingAvaliacaoItem,
   type RankingPorUnidade,
   type RankingTrofeuItem,
@@ -70,19 +73,19 @@ export function MuralRankingsMensais() {
     <div className="space-y-8">
       <BlocoTop3Geral
         titulo={`Destaques do mês · ${mesRotulo}`}
-        subtitulo="Top 3 da rede pela média das notas semanais acumuladas no mês (em andamento até o dia 31)."
+        subtitulo={SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE}
         itens={geralTop3}
         modo="mensal"
       />
       <BlocoTop3PorUnidade
         titulo={`Destaques por unidade · ${mesRotulo}`}
-        subtitulo="Top 3 de cada loja pela média mensal das avaliações."
+        subtitulo={SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE}
         blocos={porUnidade}
         modo="mensal"
       />
       <BlocoRankingTrofeus
         titulo={`Troféus entre pares · ${mesRotulo}`}
-        subtitulo="Soma de todos os troféus recebidos no mês, por colaborador."
+        subtitulo={SUBTITULO_RANKING_TROFEUS_MENSAL}
         itens={trofeus}
         periodo="mensal"
       />

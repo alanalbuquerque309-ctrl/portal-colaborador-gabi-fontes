@@ -62,6 +62,11 @@ function isTipoEscala(v: string | null | undefined): v is TipoEscala {
   return v === '5x2' || v === '6x1' || v === '12x36';
 }
 
+/** «Outro plantão» só faz sentido para colaboradores em regime 12x36 (par de gerentes). */
+export function colaboradorPermiteMarcarForaPlantao(tipoEscala: string | null | undefined): boolean {
+  return tipoEscala === '12x36';
+}
+
 type ColabEscala = {
   tipo_escala: string | null;
   escala_folga_dias: string | null;

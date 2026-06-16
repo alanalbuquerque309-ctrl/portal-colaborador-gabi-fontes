@@ -188,6 +188,19 @@ export function ColaboradorAvaliacaoCard({
     setErro(null);
   };
 
+  const desfazerSemNotaNaEdicao = () => {
+    setAssiduidade('presente');
+    setRegistroLegado(false);
+    setV(null);
+    setP(null);
+    setE(null);
+    setD(null);
+    setPr(null);
+    setJustificativaNotaBaixa('');
+    setErro(null);
+    setMsg(null);
+  };
+
   const injustificada = assiduidade === 'falta_injustificada';
   const foraPlantao = assiduidade === 'fora_plantao';
   const ferias = assiduidade === 'ferias';
@@ -622,7 +635,64 @@ export function ColaboradorAvaliacaoCard({
         {foraPlantao && somenteLeitura && (
           <p className="text-sm text-violet-900 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
             Você sinalizou que <strong>outro líder</strong> deve avaliar esta semana. Não há notas suas aqui.
+            {podeEditarAvaliacao ? (
+              <>
+                {' '}
+                Se foi engano, use <strong>✏️ Editar</strong> e depois <strong>Avaliar esta semana</strong>.
+              </>
+            ) : null}
           </p>
+        )}
+
+        {modoEdicao && foraPlantao && (
+          <div className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-3 space-y-3">
+            <p className="text-sm text-violet-950">
+              Você marcou <strong>outro plantão</strong>. Se {nome} estava com você nesta semana, desfaça e lance as
+              notas.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={desfazerSemNotaNaEdicao}
+                className="rounded-lg bg-violet-800 text-white text-sm font-medium px-4 py-2 min-h-[44px] hover:bg-violet-900"
+              >
+                Avaliar esta semana
+              </button>
+              <button
+                type="button"
+                onClick={cancelarEdicao}
+                disabled={salvando}
+                className="rounded-lg border border-violet-400 px-4 py-2 text-sm font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-50 min-h-[44px]"
+              >
+                Cancelar edição
+              </button>
+            </div>
+          </div>
+        )}
+
+        {modoEdicao && ferias && (
+          <div className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-3 space-y-3">
+            <p className="text-sm text-sky-950">
+              Você marcou <strong>férias</strong>. Se a pessoa trabalhou na semana, desfaça e avalie com notas.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={desfazerSemNotaNaEdicao}
+                className="rounded-lg bg-sky-800 text-white text-sm font-medium px-4 py-2 min-h-[44px] hover:bg-sky-900"
+              >
+                Avaliar esta semana
+              </button>
+              <button
+                type="button"
+                onClick={cancelarEdicao}
+                disabled={salvando}
+                className="rounded-lg border border-sky-400 px-4 py-2 text-sm font-medium text-sky-900 hover:bg-sky-100 disabled:opacity-50 min-h-[44px]"
+              >
+                Cancelar edição
+              </button>
+            </div>
+          </div>
         )}
 
         {ferias && somenteLeitura && (

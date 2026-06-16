@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { ColaboradorAvaliacaoCard, type AvaliacaoServidor } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
 import { normalizePortalRole } from '@/lib/roles';
+import { colaboradorPermiteMarcarForaPlantao } from '@/lib/escala-portal';
 import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 
@@ -20,6 +21,7 @@ type MembroEquipe = {
   cargo: string | null;
   setor: string | null;
   unidade_nome?: string | null;
+  tipo_escala?: string | null;
   onboarding_completo?: boolean;
   operacao_apto?: boolean;
   avaliacao: AvaliacaoServidor;
@@ -262,6 +264,7 @@ export default function AvaliacaoMasterPage() {
                   setEditandoId(null);
                   carregar();
                 }}
+                mostrarForaPlantao={colaboradorPermiteMarcarForaPlantao(m.tipo_escala)}
               />
             </li>
           ))}

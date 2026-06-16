@@ -180,6 +180,7 @@ export async function listarColaboradoresPorUnidadeSetor(
     role: string | null;
     cargo: string | null;
     setor: string | null;
+    tipo_escala: string | null;
     onboarding_completo: boolean;
     operacao_apto: boolean;
   }>
@@ -207,6 +208,7 @@ export async function listarColaboradoresPorUnidadeSetor(
     role: (c as { role?: string | null }).role ?? null,
     cargo: (c as { cargo?: string | null }).cargo ?? null,
     setor: (c as { setor?: string | null }).setor ?? null,
+    tipo_escala: (c as { tipo_escala?: string | null }).tipo_escala ?? null,
     onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
     operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
   });
@@ -217,7 +219,7 @@ export async function listarColaboradoresPorUnidadeSetor(
 
     const { data, error } = await supabase
       .from('colaboradores')
-      .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
+      .select('id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto')
       .in('unidade_id', grupoIds)
       .eq('setor', setorCfg)
       .order('nome');
@@ -232,7 +234,7 @@ export async function listarColaboradoresPorUnidadeSetor(
 
     const { data, error } = await supabase
       .from('colaboradores')
-      .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
+      .select('id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto')
       .in('unidade_id', todasIds)
       .in('setor', setoresDbEquivalentes(setorCfg))
       .order('nome');
@@ -250,7 +252,7 @@ export async function listarColaboradoresPorUnidadeSetor(
 
   let query = supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
+    .select('id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto')
     .eq('unidade_id', unidadeId)
     .order('nome');
 

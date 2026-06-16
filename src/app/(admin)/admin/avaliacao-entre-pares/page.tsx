@@ -106,8 +106,8 @@ export default function AdminAvaliacaoEntreParesPage() {
         </Link>
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Troféus entre pares</h1>
         <p className="text-sm text-coffee-100 mt-1 max-w-2xl">
-          Ranking de quem mais recebeu no período. Use &quot;Envios detalhados&quot; só quando precisar ver quem enviou
-          cada troféu.
+          Ranking <strong>mensal</strong> de quem mais recebeu troféus no período (filtre pelo mês civil). Use
+          &quot;Envios detalhados&quot; só quando precisar ver quem enviou cada troféu.
         </p>
       </div>
 

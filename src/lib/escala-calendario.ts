@@ -127,8 +127,8 @@ export const ESCALAS_DOCUMENTO_JUNHO_2026: Array<{
     config: { tipo: '6x1', folgaDiasSemana: [4], domingosFolgaExtras: ['2026-06-21'] },
   },
   {
-    chavesNome: ['tiago'],
-    unidadeSlug: 'mesquita',
+    chavesNome: ['tiago ventura', 'tiago'],
+    unidadeSlug: 'administrativo',
     setor: 'Administração',
     config: { tipo: '6x1', folgaDiasSemana: [], folgaDomingoSemanal: true, domingosFolgaExtras: DOMINGOS_JUNHO_2026 },
   },

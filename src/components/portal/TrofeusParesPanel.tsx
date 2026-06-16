@@ -93,7 +93,9 @@ export function TrofeusParesPanel() {
     <section className="space-y-5">
       {erro && <p className="text-red-600 text-sm">{erro}</p>}
       <p className="text-sm text-cafeteria-700">
-        Créditos restantes esta semana: <strong>{creditosRestantes}</strong> de 3 (pessoas diferentes).
+        Você pode enviar até <strong>3 troféus por semana</strong> (pessoas diferentes). Créditos restantes esta
+        semana: <strong>{creditosRestantes}</strong> de 3. Os rankings na home e no mural somam os troféus{' '}
+        <strong>do mês inteiro</strong>.
       </p>
 
       {creditosRestantes > 0 && (

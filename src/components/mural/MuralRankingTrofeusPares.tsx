@@ -72,7 +72,7 @@ export function MuralRankingTrofeusPares({ grupoRotulo, mesAnterior, mesAtual, c
     return (
       <p className="text-sm text-cafeteria-600 rounded-xl border border-dourado-200 bg-cream-50 p-4">
         O top 3 de troféus entre pares de {grupoRotulo} aparece aqui quando a equipe enviar reconhecimentos
-        na semana.
+        no mês (acumulado até o dia 31).
       </p>
     );
   }

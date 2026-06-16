@@ -39,7 +39,7 @@ function nomeCombinaLista(nome: string, padroes: string[]): boolean {
 async function listarColaboradoresAtivos(supabase: SupabaseAdmin) {
   const { data, error } = await supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor, unidade_id, onboarding_completo, operacao_apto')
+    .select('id, nome, role, cargo, setor, unidade_id, tipo_escala, onboarding_completo, operacao_apto')
     .order('nome');
   if (error) throw new Error(error.message);
   return data ?? [];
@@ -102,6 +102,7 @@ function rowParaMembro(c: Record<string, unknown>): MembroEquipe {
     role: (c.role as string | null) ?? null,
     cargo: (c.cargo as string | null) ?? null,
     setor: (c.setor as string | null) ?? null,
+    tipo_escala: (c.tipo_escala as string | null) ?? null,
     onboarding_completo: Boolean(c.onboarding_completo),
     operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
   };
@@ -121,7 +122,7 @@ export async function listarEquipeAvaliacaoDireta(
 
   const { data, error } = await supabase
     .from('colaboradores')
-    .select('id, nome, role, cargo, setor, onboarding_completo, operacao_apto')
+    .select('id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto')
     .in('id', Array.from(alvoIds))
     .neq('id', avaliadorId)
     .order('nome');

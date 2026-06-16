@@ -2,6 +2,22 @@
 
 import { useEffect, useState } from 'react';
 
+/** Rankings de avaliação e troféus: semanal (top 3 notas) e mensal (acumulado no mês). */
+export const ROTULO_PERIODO_RANKING_SEMANAL = 'Ranking semanal';
+export const ROTULO_PERIODO_RANKING_MENSAL = 'Ranking mensal';
+
+export const SUBTITULO_RANKING_AVALIACAO_SEMANAL =
+  'Top 3 da rede na semana em avaliação (segunda a domingo). Atualiza quando a liderança registra notas.';
+
+export const SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE =
+  'Top 3 da rede pela média das notas semanais acumuladas no mês (em andamento até o dia 31).';
+
+export const SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE =
+  'Top 3 de cada unidade pela média mensal das avaliações semanais.';
+
+export const SUBTITULO_RANKING_TROFEUS_MENSAL =
+  'Soma de todos os troféus entre pares recebidos no mês civil.';
+
 /** Quantos colocados mostrar no ranking de troféus antes de "Ver mais". */
 export const TROFEUS_RANKING_VISIVEL_INICIAL = 4;
 const TROFEUS_RANKING_VER_MAIS_1 = 6;
@@ -154,6 +170,22 @@ export function LinhaRankingTrofeu({
   );
 }
 
+function EtiquetaRankingSemanal() {
+  return (
+    <span className="inline-block rounded-full bg-sky-100 text-sky-900 text-xs font-semibold px-2.5 py-0.5 mb-2">
+      {ROTULO_PERIODO_RANKING_SEMANAL}
+    </span>
+  );
+}
+
+function EtiquetaRankingMensal() {
+  return (
+    <span className="inline-block rounded-full bg-dourado-100 text-dourado-900 text-xs font-semibold px-2.5 py-0.5 mb-2">
+      {ROTULO_PERIODO_RANKING_MENSAL}
+    </span>
+  );
+}
+
 export function BlocoTop3Geral({
   titulo,
   subtitulo,
@@ -168,6 +200,7 @@ export function BlocoTop3Geral({
   if (itens.length === 0) return null;
   return (
     <section>
+      {modo === 'mensal' ? <EtiquetaRankingMensal /> : <EtiquetaRankingSemanal />}
       <h3 className="text-base font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
       <p className="text-sm text-cafeteria-600 mb-3 leading-relaxed">{subtitulo}</p>
       <div className="grid gap-3">
@@ -194,6 +227,7 @@ export function BlocoTop3PorUnidade({
   return (
     <section className="space-y-5">
       <div>
+        {modo === 'mensal' ? <EtiquetaRankingMensal /> : null}
         <h3 className="text-base font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
         <p className="text-sm text-cafeteria-600 leading-relaxed">{subtitulo}</p>
       </div>
@@ -243,6 +277,7 @@ export function BlocoRankingTrofeus({
 
   return (
     <section>
+      {periodo === 'mensal' ? <EtiquetaRankingMensal /> : null}
       <h3 className="text-base font-semibold text-cafeteria-800 mb-1">{titulo}</h3>
       <p className="text-sm text-cafeteria-600 mb-3 leading-relaxed">{subtitulo}</p>
       <div className="space-y-3">

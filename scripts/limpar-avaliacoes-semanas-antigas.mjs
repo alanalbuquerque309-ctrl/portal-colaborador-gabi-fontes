@@ -182,6 +182,10 @@ async function limparViaPostgres() {
 
     `;
 
+    const antesTrof = await sql`
+      SELECT count(*)::int AS n FROM trofeus_entre_pares WHERE semana_inicio < ${semanaPreservar}
+    `;
+
     const manterEquipe = await sql`
 
       SELECT count(*)::int AS n FROM avaliacoes_diarias WHERE data_referencia >= ${semanaPreservar}
@@ -191,6 +195,18 @@ async function limparViaPostgres() {
 
 
     await sql`DELETE FROM avaliacoes_diarias WHERE data_referencia < ${semanaPreservar}`;
+
+    let removidosTrof = 0;
+    try {
+      const delT = await sql`
+        DELETE FROM trofeus_entre_pares WHERE semana_inicio < ${semanaPreservar}
+      `;
+      removidosTrof = delT.count ?? antesTrof[0].n;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!/trofeus_entre_pares/i.test(msg)) throw e;
+      console.warn('Tabela trofeus_entre_pares ausente; ignorado.');
+    }
 
     let removidosLider = 0;
 
@@ -221,6 +237,8 @@ async function limparViaPostgres() {
       removidosEquipe: antesEquipe[0].n,
 
       removidosLider: removidosLider || antesLider[0].n,
+
+      removidosTrof: removidosTrof || antesTrof[0].n,
 
       mantidosEquipe: manterEquipe[0].n,
 
@@ -274,6 +292,20 @@ async function limparViaSupabase() {
 
 
 
+  let removidosTrof = 0;
+  const { count: antesTrof } = await supabase
+    .from('trofeus_entre_pares')
+    .select('*', { count: 'exact', head: true })
+    .lt('semana_inicio', semanaPreservar);
+  const { error: errT } = await supabase
+    .from('trofeus_entre_pares')
+    .delete({ count: 'exact' })
+    .lt('semana_inicio', semanaPreservar);
+  if (errT && !/trofeus_entre_pares/i.test(errT.message)) throw new Error(errT.message);
+  else removidosTrof = antesTrof ?? 0;
+
+
+
   let removidosLider = 0;
 
   const { count: antesLider } = await supabase
@@ -305,6 +337,8 @@ async function limparViaSupabase() {
     removidosEquipe: antesEquipe ?? 0,
 
     removidosLider,
+
+    removidosTrof,
 
     mantidosEquipe: manterEquipe ?? 0,
 
@@ -340,7 +374,9 @@ try {
 
   console.log(`  avaliacoes_lideranca: ${stats.removidosLider}`);
 
-  console.log(`Mantido nesta semana (equipe): ${stats.mantidosEquipe} registro(s)`);
+  console.log(`  trofeus_entre_pares: ${stats.removidosTrof ?? 0}`);
+
+  console.log(`Mantido a partir de ${semanaPreservar} (equipe): ${stats.mantidosEquipe} registro(s)`);
 
 } catch (e) {
 
