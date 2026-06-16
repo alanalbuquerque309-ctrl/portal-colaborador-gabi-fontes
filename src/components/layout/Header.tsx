@@ -127,7 +127,13 @@ function NavIcon({ type }: { type: string }) {
   }
 }
 
-export function Header() {
+type HeaderProps = {
+  /** Role já validado pelo PortalLayout (evita flash de nav de colaborador). */
+  perfilRole?: string;
+  perfilCarregado?: boolean;
+};
+
+export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }: HeaderProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [podeAdmin, setPodeAdmin] = useState(false);
@@ -142,11 +148,15 @@ export function Header() {
   const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
-  const [perfilRole, setPerfilRole] = useState('colaborador');
+  const [perfilRoleLocal, setPerfilRoleLocal] = useState<string | null>(null);
   const [graosSaldo, setGraosSaldo] = useState<number | null>(null);
 
+  const roleNav = perfilCarregado
+    ? normalizePortalRole(perfilRoleLayout)
+    : normalizePortalRole(perfilRoleLocal ?? 'colaborador');
+
   useEffect(() => {
-    if (perfilRole !== 'colaborador') {
+    if (roleNav !== 'colaborador') {
       setGraosSaldo(null);
       return;
     }
@@ -162,13 +172,13 @@ export function Header() {
     return () => {
       cancel = true;
     };
-  }, [perfilRole, pathname]);
+  }, [roleNav, pathname]);
 
   useEffect(() => {
     let cancelled = false;
 
     const aplicarRole = (r: string, cid?: string, unidadeId?: string) => {
-      setPerfilRole(r);
+      setPerfilRoleLocal(r);
       setPodeAdmin(podeAcessarAdminPortal(r));
       setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
       setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
@@ -272,7 +282,7 @@ export function Header() {
             ? String((data.colaborador as { id?: string }).id ?? '')
             : '';
           if (data.ok && roleApi) {
-            setPerfilRole(roleApi);
+            setPerfilRoleLocal(roleApi);
             setPodeAdmin(podeAcessarAdminPortal(roleApi));
             setPodeGerenteAvaliador(roleApi === 'gerente' || roleApi === 'master');
             setPodeAvaliarEquipe(
@@ -315,13 +325,21 @@ export function Header() {
     ? [{ href: '/portal/meu-manual', label: 'Meu manual', short: 'Manual', icon: 'meu-manual' }]
     : [];
 
-  const isAdm = perfilRole === 'admin' || perfilRole === 'socio';
-  const isLider = perfilRole === 'gerente' || perfilRole === 'master';
+  const isAdm = roleNav === 'admin' || roleNav === 'socio';
+  const isLider = roleNav === 'gerente' || roleNav === 'master';
+  const isColaboradorGraos = roleNav === 'colaborador';
+
+  const itemGraos: NavItem = {
+    href: '/portal/graos',
+    label: 'Grãos de café',
+    short: 'Grãos',
+    icon: 'graos',
+  };
 
   const navMobile: NavItem[] = isAdm
     ? [
         { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
-        ...(perfilRole === 'admin' && podeAvaliarEquipe
+        ...(roleNav === 'admin' && podeAvaliarEquipe
           ? [{ href: '/portal/avaliacao-master', label: 'Avaliação da equipe', short: 'Avaliar', icon: 'avaliacao' as const }]
           : []),
         { href: '/portal/mural', label: 'Mural', short: 'Mural', icon: 'mural' },
@@ -346,7 +364,7 @@ export function Header() {
         ]
       : [
           { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
-          { href: '/portal/graos', label: 'Grãos de café', short: 'Grãos', icon: 'graos' },
+          ...(isColaboradorGraos ? [itemGraos] : []),
           ...manualNav,
           { href: '/portal/escala', label: 'Minha escala', short: 'Escala', icon: 'escala' },
           ...(podeVerDesempenho

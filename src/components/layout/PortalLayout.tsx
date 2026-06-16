@@ -223,7 +223,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   if (isPendingRegistration()) {
     return (
       <div className="min-h-screen bg-cream-100">
-        <Header />
+        <Header perfilRole={perfilRole} perfilCarregado={gateOk} />
         <main className="max-w-6xl mx-auto px-4 py-8 pb-[max(6rem,calc(5rem+env(safe-area-inset-bottom,0px)))] md:pb-8">
           <CompleteRegistrationForm />
         </main>
@@ -233,7 +233,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   }
   return (
     <div className="min-h-screen bg-cream-100">
-      <Header />
+      <Header perfilRole={perfilRole} perfilCarregado={gateOk} />
       <PortalPresenceHeartbeat />
       <PortalPwaRefresh />
       <PortalOnlineStrip />
