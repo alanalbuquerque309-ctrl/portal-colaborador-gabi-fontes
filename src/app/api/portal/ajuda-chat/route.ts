@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { appendAjudaMensagem } from '@/lib/ajuda-chat-threads';
 
 function normalizeMensagem(texto: string): string {
   return texto.replace(/\s+/g, ' ').trim();
@@ -84,6 +85,56 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
+
+    const { data: candidatas, error: errAberta } = await supabase
+      .from('ajuda_chat')
+      .select('id, mensagem, resposta, respondido_em')
+      .eq('colaborador_id', colaboradorId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    if (errAberta && !isMissingAjudaChatTable(errAberta.message)) {
+      return NextResponse.json({ ok: false, erro: errAberta.message }, { status: 500 });
+    }
+
+    const aberta = (candidatas ?? []).find((row) => {
+      const em = row.respondido_em;
+      if (em != null && String(em).trim() !== '') return false;
+      const resp = row.resposta;
+      if (resp != null && String(resp).trim() !== '') return false;
+      return true;
+    });
+
+    if (aberta?.id) {
+      const mensagemAtualizada = appendAjudaMensagem(String(aberta.mensagem ?? ''), mensagem);
+      const { data, error } = await supabase
+        .from('ajuda_chat')
+        .update({ mensagem: mensagemAtualizada })
+        .eq('id', aberta.id)
+        .select(
+          'id, mensagem, resposta, created_at, respondido_em, lido_admin_em, respondido_por:colaboradores!ajuda_chat_respondido_por_id_fkey(nome)'
+        )
+        .single();
+      if (error) {
+        if (isMissingAjudaChatTable(error.message)) {
+          return NextResponse.json(
+            {
+              ok: false,
+              erro: 'Canal de ajuda em ativação. Tente novamente em instantes.',
+              code: 'ajuda_chat_missing_table',
+            },
+            { status: 503 }
+          );
+        }
+        return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+      }
+      return NextResponse.json({
+        ok: true,
+        item: data ? formatItem(data as Record<string, unknown>) : null,
+        agrupado: true,
+      });
+    }
+
     const { data, error } = await supabase
       .from('ajuda_chat')
       .insert({

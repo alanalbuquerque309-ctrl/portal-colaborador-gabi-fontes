@@ -2,14 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AdminTrofeusRanking } from '@/components/admin/AdminTrofeusRanking';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { agregarRankingTrofeusPares } from '@/lib/trofeus-pares-ranking';
 import { TROFEU_PAR_LABELS, TROFEUS_PARES_TIPOS } from '@/lib/trofeus-pares';
 
 type LinhaTrofeu = {
   id: string;
   semana_inicio: string;
   semana_intervalo: string;
+  avaliador_id: string;
   avaliador_nome: string;
+  destinatario_id: string;
   destinatario_nome: string;
   tipo: string;
   trofeu_titulo: string;
@@ -17,6 +21,8 @@ type LinhaTrofeu = {
   unidade_nome: string;
   created_at: string;
 };
+
+type ModoVisual = 'ranking' | 'detalhe';
 
 function hojeISO(): string {
   const d = new Date();
@@ -35,7 +41,6 @@ function formatarDataHora(iso: string): string {
   return d.toLocaleString('pt-BR', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -47,6 +52,7 @@ export default function AdminAvaliacaoEntreParesPage() {
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [buscaDraft, setBuscaDraft] = useState('');
   const [busca, setBusca] = useState('');
+  const [modo, setModo] = useState<ModoVisual>('ranking');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [linhas, setLinhas] = useState<LinhaTrofeu[]>([]);
@@ -82,15 +88,15 @@ export default function AdminAvaliacaoEntreParesPage() {
     setBusca(buscaDraft.trim());
   };
 
+  const ranking = useMemo(() => agregarRankingTrofeusPares(linhas), [linhas]);
+
   const resumo = useMemo(() => {
     const porTipo = new Map<string, number>();
-    const recebidos = new Map<string, number>();
     for (const l of linhas) {
       porTipo.set(l.trofeu_titulo, (porTipo.get(l.trofeu_titulo) ?? 0) + 1);
-      recebidos.set(l.destinatario_nome, (recebidos.get(l.destinatario_nome) ?? 0) + 1);
     }
-    return { porTipo, total: linhas.length, pessoasDistintas: recebidos.size };
-  }, [linhas]);
+    return { porTipo, total: linhas.length, pessoas: ranking.length };
+  }, [linhas, ranking.length]);
 
   return (
     <div>
@@ -98,17 +104,17 @@ export default function AdminAvaliacaoEntreParesPage() {
         <Link href="/admin/dashboard" className="text-sm text-dourado-500 hover:underline">
           ← Dashboard
         </Link>
-        <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Avaliação entre pares</h1>
-        <p className="text-sm text-coffee-100 mt-1 max-w-3xl">
-          Troféus enviados pelos colaboradores na avaliação de liderança (até 3 por semana, mesma unidade).
-          Tipos: {TROFEUS_PARES_TIPOS.map((t) => TROFEU_PAR_LABELS[t].titulo).join(', ')}.
+        <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">Troféus entre pares</h1>
+        <p className="text-sm text-coffee-100 mt-1 max-w-2xl">
+          Ranking de quem mais recebeu no período. Use &quot;Envios detalhados&quot; só quando precisar ver quem enviou
+          cada troféu.
         </p>
       </div>
 
-      <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm space-y-4 mb-6">
-        <div className="flex flex-wrap gap-4 items-end">
+      <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm space-y-4 mb-4">
+        <div className="flex flex-wrap gap-3 items-end">
           <div>
-            <label className="block text-xs font-medium text-coffee-base mb-1">Semana a partir de</label>
+            <label className="block text-xs font-medium text-coffee-base mb-1">De</label>
             <input
               type="date"
               value={inicio}
@@ -117,7 +123,7 @@ export default function AdminAvaliacaoEntreParesPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-coffee-base mb-1">Semana até</label>
+            <label className="block text-xs font-medium text-coffee-base mb-1">Até</label>
             <input
               type="date"
               value={fim}
@@ -130,7 +136,7 @@ export default function AdminAvaliacaoEntreParesPage() {
             <select
               value={unidadeSlug}
               onChange={(e) => setUnidadeSlug(e.target.value)}
-              className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm min-w-[180px]"
+              className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm min-w-[160px]"
             >
               <option value="">Todas</option>
               {UNIDADES_CADASTRO.map((u) => (
@@ -140,8 +146,8 @@ export default function AdminAvaliacaoEntreParesPage() {
               ))}
             </select>
           </div>
-          <div className="min-w-[200px] flex-1">
-            <label className="block text-xs font-medium text-coffee-base mb-1">Buscar nome ou troféu</label>
+          <div className="min-w-[180px] flex-1">
+            <label className="block text-xs font-medium text-coffee-base mb-1">Buscar nome</label>
             <input
               type="search"
               value={buscaDraft}
@@ -149,7 +155,7 @@ export default function AdminAvaliacaoEntreParesPage() {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') aplicarBusca();
               }}
-              placeholder="Quem deu, quem recebeu, Postura…"
+              placeholder="Quem deu ou recebeu…"
               className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm"
             />
           </div>
@@ -160,83 +166,86 @@ export default function AdminAvaliacaoEntreParesPage() {
           >
             Buscar
           </button>
-          <button
-            type="button"
-            onClick={() => void buscar()}
-            disabled={carregando}
-            className="rounded-lg bg-dourado-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
-          >
-            {carregando ? 'Carregando…' : 'Atualizar'}
-          </button>
         </div>
 
         {erro && <p className="text-sm text-red-600">{erro}</p>}
 
         {linhas.length > 0 && (
-          <div className="flex flex-wrap gap-2 text-xs pt-1 border-t border-cream-200">
-            <span className="rounded-full bg-cream-100 text-coffee-base px-2.5 py-1">
-              {resumo.total} troféu{resumo.total === 1 ? '' : 's'}
-            </span>
-            {Array.from(resumo.porTipo.entries()).map(([titulo, n]) => (
-              <span key={titulo} className="rounded-full bg-dourado-50 text-dourado-800 px-2.5 py-1">
-                {titulo}: {n}
-              </span>
-            ))}
-          </div>
+          <p className="text-sm text-coffee-base border-t border-cream-200 pt-3">
+            <span className="font-medium">{resumo.total}</span> troféu{resumo.total === 1 ? '' : 's'} ·{' '}
+            <span className="font-medium">{resumo.pessoas}</span> pessoa{resumo.pessoas === 1 ? '' : 's'} ·{' '}
+            {TROFEUS_PARES_TIPOS.map((t) => `${TROFEU_PAR_LABELS[t].emoji} ${resumo.porTipo.get(TROFEU_PAR_LABELS[t].titulo) ?? 0}`).join(' · ')}
+          </p>
         )}
       </div>
 
+      <div className="flex gap-2 mb-3">
+        <button
+          type="button"
+          onClick={() => setModo('ranking')}
+          className={`rounded-lg px-3 py-2 text-sm font-medium ${
+            modo === 'ranking' ? 'bg-dourado-base text-cream-100' : 'border border-cream-300 text-coffee-base'
+          }`}
+        >
+          Ranking
+        </button>
+        <button
+          type="button"
+          onClick={() => setModo('detalhe')}
+          className={`rounded-lg px-3 py-2 text-sm font-medium ${
+            modo === 'detalhe' ? 'bg-dourado-base text-cream-100' : 'border border-cream-300 text-coffee-base'
+          }`}
+        >
+          Envios detalhados
+        </button>
+      </div>
+
       <div className="rounded-xl border border-dourado-200 bg-white overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-cream-50 text-coffee-base border-b border-cream-200">
-              <tr>
-                <th className="px-3 py-2 font-semibold whitespace-nowrap">Semana</th>
-                <th className="px-3 py-2 font-semibold">Quem deu</th>
-                <th className="px-3 py-2 font-semibold">Troféu</th>
-                <th className="px-3 py-2 font-semibold">Quem recebeu</th>
-                <th className="px-3 py-2 font-semibold">Unidade</th>
-                <th className="px-3 py-2 font-semibold whitespace-nowrap">Enviado em</th>
-              </tr>
-            </thead>
-            <tbody>
-              {carregando && linhas.length === 0 ? (
+        {carregando && linhas.length === 0 ? (
+          <p className="px-4 py-10 text-center text-sm text-coffee-100">Carregando…</p>
+        ) : modo === 'ranking' ? (
+          <AdminTrofeusRanking itens={ranking} />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-cream-50 text-coffee-base border-b border-cream-200">
                 <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-coffee-100">
-                    Carregando…
-                  </td>
+                  <th className="px-3 py-2 font-semibold whitespace-nowrap">Semana</th>
+                  <th className="px-3 py-2 font-semibold">De → Para</th>
+                  <th className="px-3 py-2 font-semibold">Troféu</th>
+                  <th className="px-3 py-2 font-semibold">Unidade</th>
                 </tr>
-              ) : linhas.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-3 py-8 text-center text-coffee-100">
-                    Nenhum troféu no período. Ajuste as datas ou aguarde envios dos colaboradores.
-                  </td>
-                </tr>
-              ) : (
-                linhas.map((l) => (
-                  <tr key={l.id} className="border-b border-cream-200 hover:bg-cream-50/80">
-                    <td className="px-3 py-2 text-coffee-base whitespace-nowrap">
-                      <span className="block text-xs text-coffee-100">{l.semana_inicio}</span>
-                      {l.semana_intervalo}
-                    </td>
-                    <td className="px-3 py-2 font-medium text-coffee-base">{l.avaliador_nome}</td>
-                    <td className="px-3 py-2 text-coffee-base">
-                      <span className="inline-flex items-center gap-1.5">
-                        <span aria-hidden>{l.trofeu_emoji}</span>
-                        {l.trofeu_titulo}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 font-medium text-coffee-base">{l.destinatario_nome}</td>
-                    <td className="px-3 py-2 text-coffee-100">{l.unidade_nome}</td>
-                    <td className="px-3 py-2 text-coffee-100 whitespace-nowrap text-xs">
-                      {formatarDataHora(l.created_at)}
+              </thead>
+              <tbody>
+                {linhas.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-8 text-center text-coffee-100">
+                      Nenhum troféu no período.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  linhas.map((l) => (
+                    <tr key={l.id} className="border-b border-cream-200 hover:bg-cream-50/80">
+                      <td className="px-3 py-2 text-coffee-100 whitespace-nowrap text-xs">
+                        {l.semana_intervalo || l.semana_inicio}
+                      </td>
+                      <td className="px-3 py-2 text-coffee-base">
+                        <span className="font-medium">{l.avaliador_nome}</span>
+                        <span className="text-coffee-100"> → </span>
+                        <span className="font-medium">{l.destinatario_nome}</span>
+                        <span className="block text-xs text-coffee-100 mt-0.5">{formatarDataHora(l.created_at)}</span>
+                      </td>
+                      <td className="px-3 py-2 text-coffee-base whitespace-nowrap">
+                        <span aria-hidden>{l.trofeu_emoji}</span> {l.trofeu_titulo}
+                      </td>
+                      <td className="px-3 py-2 text-coffee-100 text-xs">{l.unidade_nome}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

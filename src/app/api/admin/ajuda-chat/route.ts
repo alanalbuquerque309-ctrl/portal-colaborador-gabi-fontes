@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { colaboradoresResumoPorIds } from '@/lib/equipe-chat-format';
 import { canResponderAjudaFinal, canVisualizarAjuda, canExcluirMensagensAjuda } from '@/lib/roles';
+import { contarTopicosPendentes, type AjudaChatLinha } from '@/lib/ajuda-chat-threads';
 
 const NO_STORE = {
   'Cache-Control': 'no-store, max-age=0, must-revalidate',
@@ -100,7 +101,9 @@ export async function GET(req: Request) {
         lido_admin_em: r.lido_admin_em,
         respondido_por_nome: respId ? infoResp?.nome ?? null : null,
       };
-    });
+    }) as AjudaChatLinha[];
+
+    const pendentesTopicos = contarTopicosPendentes(itens);
 
     /** Lista filtrada já é a fonte da verdade para “pendentes”; evita contagem divergir da lista (balão fantasma). */
     if (somentePendentes) {
@@ -108,7 +111,7 @@ export async function GET(req: Request) {
         {
           ok: true,
           itens,
-          pendentes: rows.length,
+          pendentes: pendentesTopicos,
           pode_responder: viewer.podeResponder,
           pode_excluir: viewer.podeExcluir,
         },
@@ -116,16 +119,19 @@ export async function GET(req: Request) {
       );
     }
 
-    const { count } = await supabase
+    const { data: pendentesRows } = await supabase
       .from('ajuda_chat')
-      .select('id', { count: 'exact', head: true })
-      .is('respondido_em', null);
+      .select('id, colaborador_id, mensagem, resposta, created_at, respondido_em')
+      .is('respondido_em', null)
+      .limit(500);
+
+    const pendentesGeral = contarTopicosPendentes((pendentesRows ?? []) as AjudaChatLinha[]);
 
     return NextResponse.json(
       {
         ok: true,
         itens,
-        pendentes: typeof count === 'number' ? count : 0,
+        pendentes: pendentesGeral,
         pode_responder: viewer.podeResponder,
         pode_excluir: viewer.podeExcluir,
       },

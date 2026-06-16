@@ -10,19 +10,17 @@ import {
 } from '@/lib/roles';
 import { getPortalSession } from '@/lib/utils/session';
 import { emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
+import {
+  agruparAjudaChatEmTopicos,
+  parseBlocosMensagem,
+  type AjudaChatLinha,
+  type AjudaChatTopico,
+} from '@/lib/ajuda-chat-threads';
 
 const POLL_MS = 8000;
 const NOVO_TOPICO_ID = '__novo__';
 
-type MensagemAjuda = {
-  id: string;
-  mensagem: string;
-  resposta: string | null;
-  respondido_por_nome: string | null;
-  created_at: string;
-  respondido_em: string | null;
-  colaborador_nome?: string | null;
-};
+type MensagemAjuda = AjudaChatLinha;
 
 export const NOME_ATENDIMENTO_AJUDA =
   process.env.NEXT_PUBLIC_AJUDA_RESPONSAVEL_NOME?.trim() || 'Daniel';
@@ -41,12 +39,13 @@ function fmtDataCurta(iso: string): string {
   return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function rotuloTopico(item: MensagemAjuda, modoGestor: boolean): string {
-  const texto = item.mensagem.trim().replace(/\s+/g, ' ');
-  const preview = texto.length > 52 ? `${texto.slice(0, 52)}…` : texto;
+function rotuloTopico(topico: AjudaChatTopico, modoGestor: boolean): string {
+  const previewFonte = topico.blocos_mensagem[topico.blocos_mensagem.length - 1] ?? '';
+  const preview = previewFonte.length > 52 ? `${previewFonte.slice(0, 52)}…` : previewFonte;
   if (modoGestor) {
-    const nome = item.colaborador_nome?.trim() || 'Colaborador';
-    return `${nome}: ${preview}`;
+    const nome = topico.colaborador_nome.trim() || 'Colaborador';
+    const extra = topico.blocos_mensagem.length > 1 ? ` (${topico.blocos_mensagem.length} msgs)` : '';
+    return `${nome}: ${preview}${extra}`;
   }
   return preview || 'Mensagem';
 }
@@ -153,7 +152,14 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
             }))
           );
         } else {
-          setItens(raw as MensagemAjuda[]);
+          const sess = getPortalSession();
+          const cid = String(sess?.colaboradorId ?? 'eu');
+          setItens(
+            (raw as MensagemAjuda[]).map((row) => ({
+              ...row,
+              colaborador_id: cid,
+            }))
+          );
         }
       } catch {
         if (!silent) setErro('Erro de conexão ao carregar chat.');
@@ -180,42 +186,64 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
     };
   }, [perfilOk, carregar]);
 
+  const topicos = useMemo(() => {
+    const linhas: AjudaChatLinha[] = itens.map((item) => ({
+      ...item,
+      colaborador_id: item.colaborador_id ?? undefined,
+    }));
+    const todos = agruparAjudaChatEmTopicos(linhas);
+    if (modoGestor && filtroGestor === 'pendentes') {
+      return todos.filter((t) => t.pendente);
+    }
+    return todos;
+  }, [itens, modoGestor, filtroGestor]);
+
   useEffect(() => {
     if (topicoAtivo === NOVO_TOPICO_ID) return;
-    if (!itens.some((i) => i.id === topicoAtivo)) {
-      const primeiroPendente = itens.find((i) => !i.resposta);
+    if (!topicos.some((t) => t.id === topicoAtivo)) {
+      const primeiroPendente = topicos.find((t) => t.pendente);
       if (primeiroPendente) setTopicoAtivo(primeiroPendente.id);
-      else if (itens.length > 0) setTopicoAtivo(itens[itens.length - 1].id);
+      else if (topicos.length > 0) setTopicoAtivo(topicos[0].id);
       else if (!modoGestor) setTopicoAtivo(NOVO_TOPICO_ID);
       else setTopicoAtivo('');
     }
-  }, [itens, topicoAtivo, modoGestor]);
+  }, [topicos, topicoAtivo, modoGestor]);
 
   useEffect(() => {
     setTextoResposta('');
   }, [topicoAtivo]);
 
-  const itemAtivo = useMemo(
+  const topicoAtivoObj = useMemo(
+    () => topicos.find((t) => t.id === topicoAtivo) ?? null,
+    [topicos, topicoAtivo]
+  );
+
+  const itemColaboradorAtivo = useMemo(
     () => itens.find((i) => i.id === topicoAtivo) ?? null,
     [itens, topicoAtivo]
   );
 
-  const apagar = async (id: string) => {
+  const apagar = async (topico: AjudaChatTopico) => {
+    const qtd = topico.mensagens.length;
     if (
       !window.confirm(
-        'Apagar esta mensagem do canal de ajuda? Não dá para desfazer. O colaborador deixa de ver no histórico.'
+        qtd > 1
+          ? `Apagar esta conversa (${qtd} mensagens)? Não dá para desfazer.`
+          : 'Apagar esta mensagem do canal de ajuda? Não dá para desfazer. O colaborador deixa de ver no histórico.'
       )
     ) {
       return;
     }
-    setExcluindoId(id);
+    setExcluindoId(topico.id);
     setErro(null);
     try {
-      const res = await fetch(`/api/admin/ajuda-chat/${id}`, { method: 'DELETE', credentials: 'include' });
-      const data = await res.json();
-      if (!data.ok) {
-        setErro(data.erro || 'Não foi possível apagar.');
-        return;
+      for (const msg of topico.mensagens) {
+        const res = await fetch(`/api/admin/ajuda-chat/${msg.id}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json();
+        if (!data.ok) {
+          setErro(data.erro || 'Não foi possível apagar.');
+          return;
+        }
       }
       await carregar(true);
       notificarAtualizacao(onChatAtualizado);
@@ -272,7 +300,9 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
       }
       setTexto('');
       await carregar(true);
-      setTopicoAtivo(NOVO_TOPICO_ID);
+      const novoId = data.item?.id != null ? String(data.item.id) : '';
+      if (novoId) setTopicoAtivo(novoId);
+      else setTopicoAtivo(NOVO_TOPICO_ID);
       notificarAtualizacao(onChatAtualizado);
     } catch {
       setErro('Erro de conexão ao enviar.');
@@ -283,6 +313,24 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
     variant === 'modal'
       ? 'rounded-xl bg-white border border-dourado-200 shadow-xl p-4 max-h-[min(85vh,560px)] flex flex-col'
       : 'rounded-2xl border border-cafeteria-200 bg-white p-4 sm:p-5 flex flex-col';
+
+  const blocosAtivos = useMemo(() => {
+    if (modoGestor && topicoAtivoObj) return topicoAtivoObj.blocos_mensagem;
+    if (itemColaboradorAtivo) return parseBlocosMensagem(itemColaboradorAtivo.mensagem);
+    return [];
+  }, [modoGestor, topicoAtivoObj, itemColaboradorAtivo]);
+
+  const conversaAtiva = modoGestor ? topicoAtivoObj : itemColaboradorAtivo
+    ? ({
+        id: itemColaboradorAtivo.id,
+        colaborador_nome: 'Você',
+        created_at: itemColaboradorAtivo.created_at,
+        resposta: itemColaboradorAtivo.resposta,
+        respondido_por_nome: itemColaboradorAtivo.respondido_por_nome ?? null,
+        respondido_em: itemColaboradorAtivo.respondido_em,
+        pendente: !itemColaboradorAtivo.resposta,
+      } as const)
+    : null;
 
   const mostrarFormulario = !modoGestor && (topicoAtivo === NOVO_TOPICO_ID || itens.length === 0);
 
@@ -355,29 +403,28 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
                 + Nova mensagem
               </button>
             )}
-            {!loading && itens.length === 0 && modoGestor && (
+            {!loading && topicos.length === 0 && modoGestor && (
               <p className="text-xs text-coffee-100 px-1">
                 {filtroGestor === 'pendentes' ? 'Nenhuma mensagem pendente.' : 'Nenhuma conversa registrada.'}
               </p>
             )}
-            {itens.map((item) => {
-              const ativo = topicoAtivo === item.id;
-              const pendente = !item.resposta;
+            {topicos.map((topico) => {
+              const ativo = topicoAtivo === topico.id;
               return (
                 <button
-                  key={item.id}
+                  key={topico.id}
                   type="button"
-                  onClick={() => setTopicoAtivo(item.id)}
+                  onClick={() => setTopicoAtivo(topico.id)}
                   className={`w-full text-left rounded-lg px-3 py-2 text-sm ${
                     ativo ? 'bg-dourado-base/15 text-coffee-base' : 'hover:bg-white text-coffee-base'
                   }`}
                 >
                   <span className="block font-medium leading-snug break-words">
-                    {rotuloTopico(item, modoGestor)}
+                    {rotuloTopico(topico, modoGestor)}
                   </span>
                   <span className="flex items-center gap-2 mt-1 text-[10px] text-coffee-100">
-                    <span>{fmtDataCurta(item.created_at)}</span>
-                    {pendente && (
+                    <span>{fmtDataCurta(topico.ultima_atividade)}</span>
+                    {topico.pendente && (
                       <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-amber-900 font-medium">
                         Aguardando
                       </span>
@@ -410,42 +457,54 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
                 {chatIndisponivel ? 'Canal em ativação' : 'Enviar mensagem'}
               </button>
             </div>
-          ) : itemAtivo ? (
+          ) : conversaAtiva ? (
             <div className="p-3 flex flex-col flex-1 overflow-y-auto">
               <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-xs text-coffee-100 font-medium">
                     {modoGestor
-                      ? `${itemAtivo.colaborador_nome ?? 'Colaborador'} · ${fmtDataCurta(itemAtivo.created_at)}`
-                      : `Você · ${fmtDataCurta(itemAtivo.created_at)}`}
+                      ? `${topicoAtivoObj?.colaborador_nome ?? 'Colaborador'} · ${fmtDataCurta(conversaAtiva.created_at)}`
+                      : `Você · ${fmtDataCurta(conversaAtiva.created_at)}`}
                   </p>
-                  <p className="text-sm text-coffee-base mt-2 break-words whitespace-pre-wrap leading-relaxed">
-                    {itemAtivo.mensagem}
-                  </p>
+                  <div className="mt-2 space-y-2">
+                    {blocosAtivos.map((bloco, idx) => (
+                      <p
+                        key={`${conversaAtiva.id}-${idx}`}
+                        className="text-sm text-coffee-base break-words whitespace-pre-wrap leading-relaxed rounded-lg bg-white/80 border border-cream-200 px-3 py-2"
+                      >
+                        {bloco}
+                      </p>
+                    ))}
+                  </div>
                 </div>
-                {modoGestor && podeExcluir && (
+                {modoGestor && podeExcluir && topicoAtivoObj && (
                   <button
                     type="button"
-                    onClick={() => void apagar(itemAtivo.id)}
-                    disabled={excluindoId === itemAtivo.id}
+                    onClick={() => void apagar(topicoAtivoObj)}
+                    disabled={excluindoId === topicoAtivoObj.id}
                     className="shrink-0 rounded border border-red-200 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
                   >
-                    {excluindoId === itemAtivo.id ? '…' : 'Apagar'}
+                    {excluindoId === topicoAtivoObj.id ? '…' : 'Apagar'}
                   </button>
                 )}
               </div>
-              {itemAtivo.resposta ? (
+              {conversaAtiva.resposta ? (
                 <div className="rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 mt-auto">
                   <p className="text-xs text-emerald-800 font-medium">
-                    {itemAtivo.respondido_por_nome
-                      ? `${itemAtivo.respondido_por_nome} (atendimento)`
+                    {conversaAtiva.respondido_por_nome
+                      ? `${conversaAtiva.respondido_por_nome} (atendimento)`
                       : 'Atendimento'}
-                    {itemAtivo.respondido_em ? ` · ${fmtDataCurta(itemAtivo.respondido_em)}` : ''}
+                    {conversaAtiva.respondido_em ? ` · ${fmtDataCurta(conversaAtiva.respondido_em)}` : ''}
                   </p>
-                  <p className="text-sm text-emerald-900 mt-1 break-words whitespace-pre-wrap">{itemAtivo.resposta}</p>
+                  <p className="text-sm text-emerald-900 mt-1 break-words whitespace-pre-wrap">{conversaAtiva.resposta}</p>
                 </div>
               ) : podeResponder && modoGestor ? (
                 <div className="space-y-2 mt-auto">
+                  {topicoAtivoObj && topicoAtivoObj.blocos_mensagem.length > 1 && (
+                    <p className="text-xs text-cafeteria-600">
+                      {topicoAtivoObj.blocos_mensagem.length} mensagens nesta conversa; a resposta vale para todas.
+                    </p>
+                  )}
                   <textarea
                     value={textoResposta}
                     onChange={(e) => setTextoResposta(e.target.value)}
@@ -455,7 +514,7 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
                   />
                   <button
                     type="button"
-                    onClick={() => void responder(itemAtivo.id)}
+                    onClick={() => void responder(conversaAtiva.id)}
                     disabled={enviandoResposta || textoResposta.trim().length < 2}
                     className="w-full rounded-lg bg-coffee-base px-4 py-2.5 text-sm font-medium text-cream-100 hover:bg-coffee-300 disabled:opacity-50 min-h-[44px]"
                   >

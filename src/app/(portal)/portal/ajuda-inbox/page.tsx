@@ -1,21 +1,19 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
+import {
+  agruparAjudaChatEmTopicos,
+  type AjudaChatLinha,
+  type AjudaChatTopico,
+} from '@/lib/ajuda-chat-threads';
 
 const POLL_MS = 10000;
 
-type ItemInbox = {
-  id: string;
-  colaborador_nome: string;
+type ItemInbox = AjudaChatLinha & {
   colaborador_telefone: string | null;
   unidade_nome: string;
-  mensagem: string;
-  resposta: string | null;
-  created_at: string;
-  respondido_em: string | null;
   lido_admin_em: string | null;
-  respondido_por_nome: string | null;
 };
 
 export default function AjudaInboxPage() {
@@ -86,12 +84,21 @@ export default function AjudaInboxPage() {
     };
   }, [carregar]);
 
-  const responder = async (id: string) => {
-    const resposta = String(textoResposta[id] ?? '').trim();
+  const topicos = useMemo(() => {
+    const linhas: AjudaChatLinha[] = itens.map((item) => ({
+      ...item,
+      colaborador_id: item.colaborador_id ?? item.id,
+    }));
+    const todos = agruparAjudaChatEmTopicos(linhas);
+    return somentePendentes ? todos.filter((t) => t.pendente) : todos;
+  }, [itens, somentePendentes]);
+
+  const responder = async (topico: AjudaChatTopico) => {
+    const resposta = String(textoResposta[topico.id] ?? '').trim();
     if (resposta.length < 2) return;
-    setEnviandoId(id);
+    setEnviandoId(topico.id);
     try {
-      const res = await fetch(`/api/admin/ajuda-chat/${id}`, {
+      const res = await fetch(`/api/admin/ajuda-chat/${topico.id}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -102,7 +109,7 @@ export default function AjudaInboxPage() {
         setErro(data.erro || 'Não foi possível enviar a resposta.');
         return;
       }
-      setTextoResposta((prev) => ({ ...prev, [id]: '' }));
+      setTextoResposta((prev) => ({ ...prev, [topico.id]: '' }));
       await carregar({ silent: true });
       emitAjudaChatAtualizado();
     } catch {
@@ -112,22 +119,27 @@ export default function AjudaInboxPage() {
     }
   };
 
-  const apagar = async (id: string) => {
+  const apagar = async (topico: AjudaChatTopico) => {
+    const qtd = topico.mensagens.length;
     if (
       !window.confirm(
-        'Apagar esta mensagem do canal de ajuda? O colaborador deixa de ver este registro no histórico do botão de ajuda. Não dá para desfazer.'
+        qtd > 1
+          ? `Apagar esta conversa (${qtd} mensagens)? O colaborador deixa de ver no histórico. Não dá para desfazer.`
+          : 'Apagar esta mensagem do canal de ajuda? O colaborador deixa de ver este registro no histórico do botão de ajuda. Não dá para desfazer.'
       )
     ) {
       return;
     }
-    setExcluindoId(id);
+    setExcluindoId(topico.id);
     setErro(null);
     try {
-      const res = await fetch(`/api/admin/ajuda-chat/${id}`, { method: 'DELETE', credentials: 'include' });
-      const data = await res.json();
-      if (!data.ok) {
-        setErro(data.erro || 'Não foi possível apagar.');
-        return;
+      for (const msg of topico.mensagens) {
+        const res = await fetch(`/api/admin/ajuda-chat/${msg.id}`, { method: 'DELETE', credentials: 'include' });
+        const data = await res.json();
+        if (!data.ok) {
+          setErro(data.erro || 'Não foi possível apagar.');
+          return;
+        }
       }
       await carregar({ silent: true });
       emitAjudaChatAtualizado();
@@ -179,65 +191,76 @@ export default function AjudaInboxPage() {
 
       <div className="space-y-3">
         {loading && <p className="text-sm text-cafeteria-600">Carregando mensagens…</p>}
-        {!loading && itens.length === 0 && (
+        {!loading && topicos.length === 0 && (
           <p className="rounded-lg border border-cafeteria-200 bg-white px-4 py-6 text-sm text-cafeteria-600">
             {somentePendentes ? 'Nenhuma mensagem pendente.' : 'Nenhuma conversa registrada.'}
           </p>
         )}
 
         {!loading &&
-          itens.map((item) => (
-            <section key={item.id} className="rounded-xl border border-cafeteria-200 bg-white p-4 space-y-3">
+          topicos.map((topico) => (
+            <section key={topico.id} className="rounded-xl border border-cafeteria-200 bg-white p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-cafeteria-900">
-                  {item.colaborador_nome} · {item.unidade_nome}
+                  {topico.colaborador_nome} · {topico.unidade_nome}
                 </p>
                 <div className="flex items-center gap-2 shrink-0">
                   {podeExcluir && (
                     <button
                       type="button"
-                      onClick={() => void apagar(item.id)}
-                      disabled={excluindoId === item.id}
+                      onClick={() => void apagar(topico)}
+                      disabled={excluindoId === topico.id}
                       className="rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
                     >
-                      {excluindoId === item.id ? 'Apagando…' : 'Apagar'}
+                      {excluindoId === topico.id ? 'Apagando…' : 'Apagar'}
                     </button>
                   )}
                   <span className="text-xs text-cafeteria-500">
-                    {new Date(item.created_at).toLocaleString('pt-BR')}
+                    {new Date(topico.created_at).toLocaleString('pt-BR')}
                   </span>
                 </div>
               </div>
-              <p className="text-xs text-cafeteria-500">Remetente: {item.colaborador_nome}</p>
-              <p className="text-sm text-cafeteria-800">{item.mensagem}</p>
-              {item.colaborador_telefone && (
-                <p className="text-xs text-cafeteria-500">Contato: {item.colaborador_telefone}</p>
+              <p className="text-xs text-cafeteria-500">Remetente: {topico.colaborador_nome}</p>
+              <div className="space-y-2">
+                {topico.blocos_mensagem.map((bloco, idx) => (
+                  <p key={`${topico.id}-${idx}`} className="text-sm text-cafeteria-800 rounded-lg bg-cream-50 border border-cafeteria-100 px-3 py-2 whitespace-pre-wrap">
+                    {bloco}
+                  </p>
+                ))}
+              </div>
+              {topico.colaborador_telefone && (
+                <p className="text-xs text-cafeteria-500">Contato: {topico.colaborador_telefone}</p>
               )}
 
-              {item.resposta ? (
+              {topico.resposta ? (
                 <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
                   <p className="text-xs font-medium text-emerald-800 mb-1">
                     Resposta enviada
-                    {item.respondido_por_nome ? ` · ${item.respondido_por_nome}` : ''}
+                    {topico.respondido_por_nome ? ` · ${topico.respondido_por_nome}` : ''}
                   </p>
-                  <p className="text-sm text-emerald-900">{item.resposta}</p>
+                  <p className="text-sm text-emerald-900">{topico.resposta}</p>
                 </div>
               ) : podeResponder ? (
                 <div className="space-y-2">
+                  {topico.blocos_mensagem.length > 1 && (
+                    <p className="text-xs text-cafeteria-600">
+                      {topico.blocos_mensagem.length} mensagens nesta conversa; a resposta vale para todas.
+                    </p>
+                  )}
                   <textarea
-                    value={textoResposta[item.id] ?? ''}
-                    onChange={(e) => setTextoResposta((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                    value={textoResposta[topico.id] ?? ''}
+                    onChange={(e) => setTextoResposta((prev) => ({ ...prev, [topico.id]: e.target.value }))}
                     className="w-full rounded-lg border border-cafeteria-200 px-3 py-2 text-sm text-cafeteria-900"
                     rows={3}
                     placeholder="Escreva a resposta para o colaborador…"
                   />
                   <button
                     type="button"
-                    onClick={() => void responder(item.id)}
-                    disabled={enviandoId === item.id}
+                    onClick={() => void responder(topico)}
+                    disabled={enviandoId === topico.id}
                     className="rounded-lg bg-coffee-base px-3 py-2 text-sm font-medium text-cream-100 hover:bg-coffee-300 disabled:opacity-60"
                   >
-                    {enviandoId === item.id ? 'Enviando…' : 'Responder'}
+                    {enviandoId === topico.id ? 'Enviando…' : 'Responder'}
                   </button>
                 </div>
               ) : (

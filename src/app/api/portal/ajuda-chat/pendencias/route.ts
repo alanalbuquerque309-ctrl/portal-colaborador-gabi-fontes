@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canVisualizarAjuda } from '@/lib/roles';
+import { contarTopicosPendentes, type AjudaChatLinha } from '@/lib/ajuda-chat-threads';
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -22,12 +23,14 @@ export async function GET() {
       return NextResponse.json({ ok: true, pendentes: 0 });
     }
 
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from('ajuda_chat')
-      .select('id', { count: 'exact', head: true })
-      .is('respondido_em', null);
+      .select('id, colaborador_id, mensagem, resposta, created_at, respondido_em')
+      .is('respondido_em', null)
+      .limit(500);
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
-    return NextResponse.json({ ok: true, pendentes: typeof count === 'number' ? count : 0 });
+    const pendentes = contarTopicosPendentes((data ?? []) as AjudaChatLinha[]);
+    return NextResponse.json({ ok: true, pendentes });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

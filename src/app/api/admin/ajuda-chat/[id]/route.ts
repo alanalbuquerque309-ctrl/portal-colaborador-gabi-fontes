@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { canResponderAjudaFinal, canExcluirMensagensAjuda } from '@/lib/roles';
+import { idsPendentesDoTopico, type AjudaChatLinha } from '@/lib/ajuda-chat-threads';
 
 function sanitize(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -56,14 +57,45 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   try {
     const supabase = createAdminClient();
+
+    if (resposta != null) {
+      const { data: alvo, error: errAlvo } = await supabase
+        .from('ajuda_chat')
+        .select('id, colaborador_id')
+        .eq('id', id)
+        .maybeSingle();
+      if (errAlvo) return NextResponse.json({ ok: false, erro: errAlvo.message }, { status: 500 });
+      if (!alvo) return NextResponse.json({ ok: false, erro: 'Mensagem não encontrada.' }, { status: 404 });
+
+      const colaboradorId = String((alvo as { colaborador_id?: string }).colaborador_id ?? '');
+      const { data: linhasColab, error: errLinhas } = await supabase
+        .from('ajuda_chat')
+        .select('id, colaborador_id, mensagem, resposta, created_at, respondido_em')
+        .eq('colaborador_id', colaboradorId)
+        .order('created_at', { ascending: true })
+        .limit(200);
+      if (errLinhas) return NextResponse.json({ ok: false, erro: errLinhas.message }, { status: 500 });
+
+      const idsResponder = idsPendentesDoTopico((linhasColab ?? []) as AjudaChatLinha[], id);
+      const agora = new Date().toISOString();
+      const payload = {
+        resposta,
+        respondido_em: agora,
+        respondido_por_id: viewer.id,
+        lido_admin_em: agora,
+      };
+
+      const { data, error } = await supabase
+        .from('ajuda_chat')
+        .update(payload)
+        .in('id', idsResponder)
+        .select('id, resposta, respondido_em, lido_admin_em');
+      if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+      return NextResponse.json({ ok: true, itens: data, respondidos: idsResponder.length });
+    }
+
     const payload: Record<string, unknown> = {};
     if (marcarLido) payload.lido_admin_em = new Date().toISOString();
-    if (resposta != null) {
-      payload.resposta = resposta;
-      payload.respondido_em = new Date().toISOString();
-      payload.respondido_por_id = viewer.id;
-      payload.lido_admin_em = new Date().toISOString();
-    }
 
     const { data, error } = await supabase
       .from('ajuda_chat')
