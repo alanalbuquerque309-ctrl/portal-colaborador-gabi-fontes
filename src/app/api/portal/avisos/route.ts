@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  colaboradorRecebeAvisoPublico,
+  resolverPublicoAviso,
+} from '@/lib/avisos-publico';
 
-/** Lista avisos para o colaborador logado (sua unidade + Matriz). Inclui status de confirmação. */
+const SELECT_AVISOS =
+  'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, publico_alvo, unidades(slug)';
+const SELECT_AVISOS_SEM_PUBLICO =
+  'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, unidades(slug)';
+
+/** Lista avisos para o colaborador logado conforme público-alvo. */
 export async function GET() {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
-  const unidadeId = cookieStore.get('portal_unidade_id')?.value;
   const role = cookieStore.get('portal_role')?.value ?? '';
 
   if (!colaboradorId || colaboradorId === 'pending') {
@@ -17,33 +25,59 @@ export async function GET() {
     const supabase = createAdminClient();
     const verTodasLojas = ['socio', 'admin'].includes(role.toLowerCase());
 
-    let query = supabase
+    const { data: colab, error: errColab } = await supabase
+      .from('colaboradores')
+      .select('id, setor, unidade_id, unidades(slug)')
+      .eq('id', colaboradorId)
+      .maybeSingle();
+
+    if (errColab || !colab) {
+      return NextResponse.json({ ok: false, erro: 'Perfil não encontrado' }, { status: 404 });
+    }
+
+    const unidadeRaw = (colab as { unidades?: unknown }).unidades;
+    const unidadeObj = Array.isArray(unidadeRaw) ? unidadeRaw[0] : unidadeRaw;
+    const unidadeSlug =
+      unidadeObj && typeof unidadeObj === 'object' && 'slug' in unidadeObj
+        ? String((unidadeObj as { slug?: string }).slug ?? '')
+        : '';
+
+    const primario = await supabase
       .from('avisos')
-      .select('id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, unidades(nome)')
+      .select(SELECT_AVISOS)
       .eq('ativo', true)
       .order('data_publicacao', { ascending: false });
 
-    if (!verTodasLojas && unidadeId) {
-      // Buscar id da unidade Matriz (avisos para todas)
-      const { data: matriz } = await supabase
-        .from('unidades')
-        .select('id')
-        .eq('slug', 'matriz')
-        .maybeSingle();
-      const matrizId = matriz?.id;
-      if (matrizId) {
-        query = query.or(`unidade_id.eq.${unidadeId},unidade_id.eq.${matrizId}`);
-      } else {
-        query = query.eq('unidade_id', unidadeId);
-      }
+    let avisosRows: Record<string, unknown>[] = [];
+    if (primario.error && /publico_alvo/i.test(primario.error.message)) {
+      const retry = await supabase
+        .from('avisos')
+        .select(SELECT_AVISOS_SEM_PUBLICO)
+        .eq('ativo', true)
+        .order('data_publicacao', { ascending: false });
+      if (retry.error) return NextResponse.json({ ok: false, erro: retry.error.message }, { status: 500 });
+      avisosRows = (retry.data ?? []) as unknown as Record<string, unknown>[];
+    } else {
+      if (primario.error) return NextResponse.json({ ok: false, erro: primario.error.message }, { status: 500 });
+      avisosRows = (primario.data ?? []) as unknown as Record<string, unknown>[];
     }
 
-    const { data: avisosData, error: avisosErr } = await query;
-    if (avisosErr) return NextResponse.json({ ok: false, erro: avisosErr.message }, { status: 500 });
+    let avisos = avisosRows;
 
-    const avisos = avisosData ?? [];
+    if (!verTodasLojas) {
+      avisos = avisos.filter((a: Record<string, unknown>) => {
+        const unidadeAviso = a.unidades as { slug?: string } | null;
+        const publico = resolverPublicoAviso(
+          a.publico_alvo as string | null | undefined,
+          unidadeAviso?.slug
+        );
+        return colaboradorRecebeAvisoPublico(
+          { unidade_slug: unidadeSlug, setor: (colab as { setor?: string | null }).setor ?? null },
+          publico
+        );
+      });
+    }
 
-    // Buscar confirmações do colaborador
     const { data: confirmacoes } = await supabase
       .from('aviso_confirmacoes')
       .select('aviso_id')
@@ -56,7 +90,6 @@ export async function GET() {
       titulo: a.titulo,
       conteudo: a.conteudo,
       data_publicacao: a.data_publicacao,
-      unidade_nome: (a.unidades as { nome?: string } | null)?.nome ?? '',
       exige_confirmacao: a.exige_confirmacao === true,
       confirmado: confirmadosSet.has(a.id as string),
     }));

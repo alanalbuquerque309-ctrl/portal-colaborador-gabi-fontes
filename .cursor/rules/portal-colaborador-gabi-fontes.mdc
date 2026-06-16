@@ -18,7 +18,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 | Dev local | `npm run dev` → porta **3001** |
 | Produção | https://portal-colaborador-gabi-fontes.vercel.app |
 | Git remoto | **`portal-colaborador-gabi-fontes`** (repo **nesta pasta**, não na raiz `ISA AI/`), branch `main` → deploy Vercel |
-| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `040_` e seguintes) |
+| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `042_` e seguintes) |
 | Docs operacionais | `BACKUP_RESTORE.md`, `SECURITY_ROADMAP.md` (backlog segurança, não duplicar aqui em detalhe) |
 
 ## Vocabulário e tom
@@ -39,19 +39,22 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
   - `requireAdminLiderancaMapaApi` — editar mapa de liderança e aplicar padrão (sócios, `admin`, login por senha).
   - `GET /api/admin/auth` expõe `nivel`, `acesso_limitado_rh`, `menu_rh`, `pode_editar_lideranca_mapa`.
 - Mutações de avaliação portal, ajuda, upload, etc. no servidor com service role onde aplicável.
-- **PWA:** `@ducanh2912/next-pwa`; manuais HTML em `public/manuais/` (sync no `prebuild`).
+- **PWA:** `@ducanh2912/next-pwa`; `cacheId` / `SW_VERSION` em `next.config.js` + `PortalPwaRefresh.tsx` (bump forçado após deploy relevante; atual **v6** `portal-gabi-fontes-v6-audit-cpf`); manuais HTML em `public/manuais/` (sync no `prebuild`).
 
 ## Avaliações (contrato funcional)
 
 ### Líder (gerente / master / admin)
 
 - **Rota:** `/portal/avaliacao-master` — menu **Avaliação da equipe**.
+- **UI compacta (jun/2026):** card por colaborador mostra **nome, cargo, setor, unidade**; três ações legíveis (**Avaliar**, **Outro plantão**, **Férias**); formulário com estrelas e justificativa **só** após clicar **Avaliar** (`ColaboradorAvaliacaoCard.tsx`).
+- **Perfil não ativado:** banner no topo da página lista colaboradores com `onboarding_completo === false` (cadastro portal pendente).
 - **Obrigatório:** uma avaliação por colaborador da equipe **por semana**; após salvar, **uma correção** via botão **Editar** (ícone ✏️ no checklist ou no card); depois só leitura (`edicao_utilizada`, migration `038`).
 - **Equipe Nova Iguaçu:** gerentes no mapa operacional (`config-lideranca-operacional.ts` — Nathália, Cristina); lista também via `resolver-unidades-equipe-avaliacao.ts` se `lideres_por_setor` ainda não estiver aplicado.
 - **Joyce (temporário):** também avalia Nova Iguaçu via `config-avaliacao-unidade-extra.ts` (remover regra quando não precisar).
 - **Fábrica de doces / preparos:** líderes Sabrina+Henrique (doces) e Joyce+Silvia (preparos) na unidade `fabrica`. Setores da fábrica **não** entram na lista `*` de Mesquita; equipe do setor busca no grupo Mesquita+fábrica+adm (`setores-fabrica-lideranca.ts`).
 - **API:** `POST` primeiro envio; `PATCH /api/portal/avaliacao-master` com `avaliacao_id` para edição única.
-- **Campos:** assiduidade; se presente, notas 1–5 (vestimenta, pontualidade, trabalho em equipe, desempenho); nota ≤3 exige justificativa.
+- **Campos:** assiduidade (`presente`, `folga`, `outra_escala`, `falta_justificada`, **`ferias`**, `fora_plantao`); se presente, notas 1–5 (vestimenta, pontualidade, trabalho em equipe, desempenho); nota ≤3 exige justificativa.
+- **Férias:** assiduidade isenta da média semanal (`assiduidadeIsentaSemana`); persiste como `falta_justificada` + marcador `JUSTIFICATIVA_FERIAS` (`avaliacao-semanal-shared.ts`); admin exibe **Férias** / **Isenta**.
 - **Novatos:** pode avaliar com cadastro portal pendente ou em adaptação; **Marcar como apto na função** quando aplicável.
 - **Feedback recebido:** `/portal/minha-lideranca` (menu **Minha liderança**).
 - **Acesso à rota:** `isRoleGerenteAvaliador` **ou** `pode_avaliacao_equipe` no perfil (sócia/RH com equipe direta por nome).
@@ -73,6 +76,8 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 ### Colaborador (e admin/rh onde elegível)
 
 - **Rota:** `/portal/avaliacao-lideranca` — menu **Avaliar liderança**.
+- **Anonimato (jun/2026):** checkbox **Avaliar de forma anônima** (default **marcado**); colaborador pode desmarcar para avaliação identificada. **`avaliador_id` sempre gravado** no banco para auditoria de sócios; líderes e colegas **não** veem quem avaliou anonimamente.
+- **Auditoria sócios:** `src/lib/auditoria-lideranca-viewer.ts` + `podeAuditarAutorAvaliacaoLideranca` — só quem passa em `viewerTemAuditoriaLideranca` (CPF Alan, IDs fixos, nome Gabriela/Alan, role sócio/admin) vê autor real no relatório admin, inclusive avaliações marcadas anônimas. Banner **auditoria ativa/sem auditoria** no relatório mobile.
 - **Aba Líderes que vou avaliar:** notas 1–5 por pilar (exemplo, comunicação, suporte, justiça, clima); opcional para colaborador; justificativa se ≤3.
 - **Aba Reconhecimento entre pares:** até **3 troféus/semana** para **3 pessoas diferentes** na mesma unidade; tipos: `postura`, `braco_direito`, `eficiencia` (`src/lib/trofeus-pares.ts`).
 - **Desempenho próprio:** `/portal/desempenho` (colaborador).
@@ -89,7 +94,9 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 ### Pendentes da semana (modal admin + relatório portal)
 
 - **UI:** `AvaliacoesPendentesModal.tsx` — botão *Pendentes da semana* em `/admin/avaliacoes-diarias` e `/portal/relatorios-avaliacoes`.
+- **Resumo por líder (jun/2026):** chips clicáveis agrupam pendências por **líder responsável** (ex.: «Silvia · 5») para filtrar a lista; Daniel/sócios identificam quem não avaliou a equipe sem procurar nome a nome.
 - **API:** `GET /api/admin/avaliacoes-pendentes`, `GET /api/portal/avaliacoes-pendentes` → `calcularPendenciasSemana` em `src/lib/avaliacao-pendentes-semana.ts`.
+- **Plantão 12x36 (jun/2026):** rótulo do responsável inclui paridade efetiva do mês (ex.: «Silvia (dias ímpares)») via `src/lib/plantao-12x36.ts` + colunas `plantao_paridade` / `plantao_paridade_mes_ref` em `lideres_por_setor` (migration **042**). Paridade vinculada à **função de liderança**, não à pessoa; inversão automática mês a mês.
 - **Regra de lista (jun/2026, `260559a`):** incluir **somente** quem falta avaliação de **pelo menos um líder** e/ou **Visita RH** (elegível); **excluir** quem já tem líder **e** RH na semana.
 - **Filtro padrão:** `pendentes` (*Pendentes (líder ou RH)*); filtros secundários: `gerente`, `rh_complemento`, `rh_rede`.
 - **Semana de referência:** `resolverDataRefPendentes` — usa `semanaAvaliacaoEquipePadraoISO()` (semana passada); se vazia no banco e a semana atual tiver avaliações, escolhe a semana com dados (evita listar rede inteira por semana errada).
@@ -100,7 +107,7 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 
 - **UI:** `AdminAvaliacoesEquipeAgrupado.tsx` — linhas **agrupadas por colaborador + semana** (`admin-avaliacoes-equipe-agrupar.ts`); chips por avaliador quando há mais de um na mesma semana.
 - **Gaveta de notas:** clicar na **média** (ou chip) abre detalhe por critério (`AvaliacaoNotasGaveta.tsx`, `detalharItensNotaAvaliacaoAdmin` em `avaliacao-diaria.ts`). Só quem passa em `podeVerDetalheNotasAvaliacaoAdmin`.
-- **Assiduidade isenta:** `folga`, `outra_escala` e `falta_justificada` exibem **Isenta** na tabela e uma linha resumida na gaveta (não listam critérios vazios como «—»).
+- **Assiduidade isenta:** `folga`, `outra_escala`, `falta_justificada` e **`ferias`** exibem **Isenta** / **Férias** na tabela e uma linha resumida na gaveta (não listam critérios vazios como «—»).
 - **Compat SELECT admin:** `avaliacoes-justificativa-compat.ts` — modo detalhe **sempre** inclui colunas de notas; se migration `040` ainda não existir no Supabase, cai em `SELECT_*_SEM_IGNORAR` (com notas), **nunca** em resumo sem critérios.
 - **Ignorar avaliação (fora da média):**
   - Migration **`040_avaliacao_ignorada.sql`**: `ignorada`, `ignorada_em`, `ignorada_por`, `ignorada_motivo` em `avaliacoes_diarias`.
@@ -162,6 +169,8 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 ### Liderança por setor (`/admin/lideres-por-setor`)
 
 - **Tabela:** `lideres_por_setor` (migration `032`); materialização em `colaboradores_lideres` via `sincronizarVinculosUnidadeSetor` / `sincronizarVinculosTodosColaboradores`.
+- **Plantão 12x36 (migration `042`):** colunas `plantao_paridade` (`par` | `impar`) e `plantao_paridade_mes_ref` (`YYYY-MM`); configurável por vínculo **Toda a unidade**; UI mostra paridade efetiva do mês corrente; API migration-safe (fallback se 042 ainda não aplicada). SQL copiável via `GET /api/admin/lideres-por-setor/migration-sql?arquivo=042_plantao_12x36_paridade.sql`.
+- **Exemplo operacional jun/2026:** Mesquita — Silvia dias ímpares, Joyce dias pares; Nova Iguaçu — Nathália dias pares; troca automática ao virar o mês. Colaboradores **6x1** ou **5x2** podem ter **dois líderes** na mesma semana (não forçar paridade única).
 - **API:** `src/app/api/admin/lideres-por-setor/route.ts`
   - `GET ?todas=1` — todas as unidades (`UNIDADES_CADASTRO` + contagens) + linhas ativas.
   - `GET ?unidade_slug=` — detalhe de uma unidade.
@@ -227,8 +236,8 @@ Página única que agrupa os canais de feedback e contato:
 | **Falar com suporte (ADM/RH)** | Todos (envio); sócios/admin veem atalho de gestão acima | Chat embutido na própria página |
 
 - **Componentes:** `src/app/(portal)/portal/comunicacao/page.tsx`; painel reutilizável `src/components/ajuda/CanalAjudaPainel.tsx`.
-- **Botão flutuante «Preciso de ajuda»:** `BotaoAjuda.tsx` — **só desktop** (`hidden md:flex`); no celular o canal fica em **Comunicação** (evita duplicar FAB sobre a barra inferior).
-- **Desktop (header):** link único **Comunicação** substitui «Sugestões» e «Inbox ajuda» separados; sub-rotas (`/portal/sugestoes`, `/portal/ajuda-inbox`) mantêm item **Comunicação** ativo no menu (`navAtivo` em `Header.tsx`).
+- **Botão flutuante «Preciso de ajuda»:** `BotaoAjuda.tsx` — **só desktop** (`hidden md:flex`); no celular o canal fica em **Comunicação** (evita duplicar FAB sobre a barra inferior). **Alerta pendentes (jun/2026):** para Daniel/sócios/admin autorizados, FAB pulsa em vermelho com badge de contagem (`GET /api/admin/ajuda-chat?somente_pendentes=1`).
+- **Desktop (header):** link único **Comunicação** substitui «Sugestões» e «Inbox ajuda» separados; sub-rotas (`/portal/sugestoes`, `/portal/ajuda-inbox`) mantêm item **Comunicação** ativo no menu (`navAtivo` em `Header.tsx`). **Mobile/desktop:** ícone Comunicação com badge + `animate-pulse` quando há pendentes no Inbox ajuda.
 
 ### Caixa de sugestões e reclamações (`/portal/sugestoes`)
 
@@ -347,8 +356,10 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | `038_avaliacao_edicao_unica.sql` | Uma edição por avaliação/semana (`edicao_utilizada`) |
 | `039_avaliacao_meio_ponto_proatividade.sql` | Notas 1–5 em meio ponto + `nota_proatividade` |
 | `040_avaliacao_ignorada.sql` | Marcar avaliação ignorada (fora de média/ranking/bonificação) |
+| `041_aniversario_dia_acao.sql` | Ações do balão de aniversário (parabéns/dispensar) |
+| `042_plantao_12x36_paridade.sql` | Paridade de plantão 12x36 por função de liderança |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**.
 
 ---
 
@@ -475,6 +486,30 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 - Hub `/portal/comunicacao`: sugestões/reclamações + suporte ADM/RH + Inbox ajuda (sócios/admin).
 - Menu inferior **Comunicação**; FAB ajuda apenas no desktop; `CanalAjudaPainel` compartilhado.
 
+### Alerta visual — Inbox ajuda pendente (jun/2026, `198fe8c`)
+
+- `BotaoAjuda.tsx` (desktop) e `Header.tsx` (menu Comunicação mobile/desktop): badge com contagem + pulso vermelho quando há mensagens pendentes; só quem passa em `canVisualizarAjuda` / autorização admin ajuda.
+
+### Avaliação da equipe — UI compacta + Férias + perfil pendente (jun/2026, `198fe8c`)
+
+- Card compacto: nome, cargo, setor, unidade; botões **Avaliar** / **Outro plantão** / **Férias**; formulário detalhado só após **Avaliar**.
+- Assiduidade **Férias** isenta da média (`avaliacao-semanal-shared.ts`, `avaliacao-diaria.ts`).
+- Banner na página lista colaboradores sem `onboarding_completo`.
+
+### Pendentes da semana — filtro por líder (jun/2026, `198fe8c`)
+
+- `AvaliacoesPendentesModal.tsx`: chips por líder com contagem; filtro rápido para Daniel/sócios cobrarem quem não avaliou.
+
+### Plantão 12x36 por função de liderança (jun/2026, `198fe8c`)
+
+- Migration **`042_plantao_12x36_paridade.sql`**; lib `plantao-12x36.ts`; admin **Liderança por setor** com seletor par/impar; consumo em `avaliacao-pendentes-semana.ts` (rótulo com dias pares/ímpares do mês).
+- **Pré-requisito produção:** aplicar SQL 042 no Supabase + configurar paridade de jun/2026 (Mesquita: Silvia ímpar / Joyce par; Nova Iguaçu: Nathália par).
+
+### Avaliação de liderança — anonimato opcional + auditoria sócios (jun/2026, `198fe8c`)
+
+- Colaborador escolhe anônimo (default) ou identificado; `avaliador_id` **sempre** persistido.
+- `auditoria-lideranca-viewer.ts` centraliza quem vê autor (sócios/Alan/Gabriela); relatório admin com banner auditoria; PWA **v6** força refresh (`cacheId` + `PortalPwaRefresh`).
+
 ### Segurança (pré-produção já feita)
 
 - Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
@@ -492,6 +527,9 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | P1 | **Documentação técnica/funcional completa** (seções 1–18) | Inventário feito em conversa; texto longo **não** fechado no repo |
 | P2 | **PDF ou texto ultra-curto** do guia de avaliações | Para WhatsApp; opcional a partir do `.md` na Área de Trabalho |
 | P3 | **Manter guia na Área de Trabalho** atualizado | Se mudar rotas/labels no portal |
+| P4 | **Sugerir líder do outro plantão** ao marcar «Outro plantão» | Depende de 042 + paridade configurada; inferir colega de plantão oposto no card |
+| P5 | **Avaliação identificada visível ao líder?** | Hoje só sócios veem autor; confirmar se líder deve ver nome quando colaborador desmarca anônimo |
+| P6 | **Engajamento diário** (ideias além avaliações/troféus) | Alan pediu propostas; implementação adiada |
 
 ### Infra / produção
 
@@ -500,7 +538,8 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
-| I4 | Aplicar migrations **`038`**, **`039`** e **`040`** no Supabase produção | SQL Editor ou `npm run db:apply-migrations-avaliacao` + `db:apply-040`; ignorar em lote só após `040` |
+| I4 | Aplicar migrations **`038`**, **`039`**, **`040`** e **`042`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** obrigatória para plantão 12x36; ignorar em lote só após `040` |
+| I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par); após migration 042 |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
 
@@ -532,8 +571,13 @@ src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
 src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
 src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/
-src/lib/avaliacao-pendentes-semana.ts
+src/lib/avaliacao-pendentes-semana.ts, plantao-12x36.ts
+src/lib/auditoria-lideranca-viewer.ts, avaliacoes-relatorio-access.ts, avaliacoes-lideranca-relatorio.ts
 src/components/admin/AvaliacoesPendentesModal.tsx
+src/components/portal/PortalPwaRefresh.tsx
+next.config.js
+src/app/api/admin/avaliacoes-lideranca/, api/admin/lideres-por-setor/migration-sql/
+src/app/api/portal/avaliacao-lideranca/
 src/app/api/admin/avaliacoes-pendentes/, api/portal/avaliacoes-pendentes/
 src/components/portal/FacaAgoraHome.tsx, PortalAtalhosPerfil.tsx
 src/components/destaque/DestaqueSection.tsx
@@ -558,6 +602,7 @@ src/app/api/admin/auth/, lideres-por-setor/, escalas/, colaboradores-para-escala
 src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
+supabase/migrations/041_aniversario_dia_acao.sql, 042_plantao_12x36_paridade.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
 scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
 scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs

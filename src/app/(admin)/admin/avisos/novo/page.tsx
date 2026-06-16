@@ -3,13 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-
-const OPCOES_UNIDADE = [
-  { value: 'matriz', label: 'Matriz (todas as lojas)' },
-  { value: 'mesquita', label: 'Mesquita' },
-  { value: 'barra', label: 'Barra' },
-  { value: 'nova-iguacu', label: 'Nova Iguaçu' },
-];
+import { AvisosPublicoSelector } from '@/components/admin/AvisosPublicoSelector';
+import type { PublicoAvisoKey } from '@/lib/avisos-publico';
 
 export default function NovoAvisoPage() {
   const router = useRouter();
@@ -18,7 +13,7 @@ export default function NovoAvisoPage() {
   const [form, setForm] = useState({
     titulo: '',
     conteudo: '',
-    unidade_slug: 'matriz',
+    publico_alvo: 'todos' as PublicoAvisoKey,
     exige_confirmacao: false,
   });
 
@@ -38,7 +33,7 @@ export default function NovoAvisoPage() {
         body: JSON.stringify({
           titulo: form.titulo.trim(),
           conteudo: form.conteudo.trim() || undefined,
-          unidade_slug: form.unidade_slug,
+          publico_alvo: form.publico_alvo,
           exige_confirmacao: form.exige_confirmacao,
         }),
       });
@@ -61,7 +56,7 @@ export default function NovoAvisoPage() {
         Novo aviso
       </h1>
 
-      <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
+      <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
         <div>
           <label htmlFor="titulo" className="block text-sm font-medium text-coffee-base mb-1">
             Título *
@@ -91,28 +86,10 @@ export default function NovoAvisoPage() {
             placeholder="Texto do aviso..."
           />
         </div>
-        <div>
-          <span className="block text-sm font-medium text-coffee-base mb-2">Unidade *</span>
-          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Unidade">
-            {OPCOES_UNIDADE.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, unidade_slug: opt.value }))}
-                className={`min-h-[48px] rounded-lg border-2 px-4 py-3 text-left text-sm font-medium transition-colors ${
-                  form.unidade_slug === opt.value
-                    ? 'border-dourado-base bg-dourado-50 text-coffee-base'
-                    : 'border-cream-300 bg-cream-50 text-coffee-base hover:border-cream-400'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-coffee-100 mt-1">
-            Matriz exibe o aviso para colaboradores de todas as lojas.
-          </p>
-        </div>
+        <AvisosPublicoSelector
+          value={form.publico_alvo}
+          onChange={(publico_alvo) => setForm((f) => ({ ...f, publico_alvo }))}
+        />
         <div className="flex items-center gap-3">
           <input
             id="exige_confirmacao"

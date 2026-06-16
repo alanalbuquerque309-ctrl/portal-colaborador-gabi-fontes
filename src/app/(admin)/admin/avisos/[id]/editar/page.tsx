@@ -4,23 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-
-const OPCOES_UNIDADE = [
-  { value: 'matriz', label: 'Matriz (todas as lojas)' },
-  { value: 'mesquita', label: 'Mesquita' },
-  { value: 'barra', label: 'Barra' },
-  { value: 'nova-iguacu', label: 'Nova Iguaçu' },
-];
-
-function slugFromNome(nome: string): string {
-  const mapa: Record<string, string> = {
-    'Matriz (todas as lojas)': 'matriz',
-    Mesquita: 'mesquita',
-    Barra: 'barra',
-    'Nova Iguaçu': 'nova-iguacu',
-  };
-  return mapa[nome] ?? 'matriz';
-}
+import { AvisosPublicoSelector } from '@/components/admin/AvisosPublicoSelector';
+import {
+  resolverPublicoAviso,
+  type PublicoAvisoKey,
+} from '@/lib/avisos-publico';
 
 export default function EditarAvisoPage() {
   const router = useRouter();
@@ -32,7 +20,7 @@ export default function EditarAvisoPage() {
   const [form, setForm] = useState({
     titulo: '',
     conteudo: '',
-    unidade_slug: 'matriz',
+    publico_alvo: 'todos' as PublicoAvisoKey,
     ativo: true,
     exige_confirmacao: false,
   });
@@ -45,10 +33,11 @@ export default function EditarAvisoPage() {
         if (data.ok && Array.isArray(data.avisos)) {
           const aviso = data.avisos.find((a: { id: string }) => a.id === id);
           if (aviso) {
+            const publico = resolverPublicoAviso(aviso.publico_alvo, aviso.unidade_slug);
             setForm({
               titulo: aviso.titulo ?? '',
               conteudo: aviso.conteudo ?? '',
-              unidade_slug: slugFromNome(aviso.unidade_nome ?? '') || 'matriz',
+              publico_alvo: publico,
               ativo: aviso.ativo !== false,
               exige_confirmacao: aviso.exige_confirmacao === true,
             });
@@ -76,7 +65,7 @@ export default function EditarAvisoPage() {
         body: JSON.stringify({
           titulo: form.titulo.trim(),
           conteudo: form.conteudo.trim() || null,
-          unidade_slug: form.unidade_slug,
+          publico_alvo: form.publico_alvo,
           ativo: form.ativo,
           exige_confirmacao: form.exige_confirmacao,
         }),
@@ -119,7 +108,7 @@ export default function EditarAvisoPage() {
         Editar aviso
       </h1>
 
-      <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
+      <form onSubmit={handleSubmit} className="max-w-2xl space-y-4">
         <div>
           <label htmlFor="titulo" className="block text-sm font-medium text-coffee-base mb-1">
             Título *
@@ -147,25 +136,10 @@ export default function EditarAvisoPage() {
             className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
           />
         </div>
-        <div>
-          <span className="block text-sm font-medium text-coffee-base mb-2">Unidade *</span>
-          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Unidade">
-            {OPCOES_UNIDADE.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, unidade_slug: opt.value }))}
-                className={`min-h-[48px] rounded-lg border-2 px-4 py-3 text-left text-sm font-medium transition-colors ${
-                  form.unidade_slug === opt.value
-                    ? 'border-dourado-base bg-dourado-50 text-coffee-base'
-                    : 'border-cream-300 bg-cream-50 text-coffee-base hover:border-cream-400'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <AvisosPublicoSelector
+          value={form.publico_alvo}
+          onChange={(publico_alvo) => setForm((f) => ({ ...f, publico_alvo }))}
+        />
         <div className="flex items-center gap-3">
           <input
             id="ativo"

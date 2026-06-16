@@ -4,15 +4,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import {
-  RelatorioLiderancaPorLider,
-  type LinhaLiderRelatorio,
-} from '@/components/portal/RelatorioAvaliacoesPorSetor';
-
-function hojeISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+import { AdminFeedbackLiderancaSemanal } from '@/components/admin/AdminFeedbackLiderancaSemanal';
+import type { LinhaLiderRelatorio } from '@/components/portal/RelatorioAvaliacoesPorSetor';
+import { domingoSemanaSaoPaulo, rotuloSemanaSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 
 function inicioMesISO(): string {
   const d = new Date();
@@ -20,8 +14,10 @@ function inicioMesISO(): string {
 }
 
 export default function AdminAvaliacoesLiderancaPage() {
+  const semanaAtualInicio = segundaSemanaSaoPaulo();
+  const semanaAtualFim = domingoSemanaSaoPaulo();
   const [inicio, setInicio] = useState(inicioMesISO);
-  const [fim, setFim] = useState(hojeISO);
+  const [fim, setFim] = useState(semanaAtualFim);
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -68,10 +64,10 @@ export default function AdminAvaliacoesLiderancaPage() {
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">
           Feedback sobre a liderança
         </h1>
-          <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
-            Todas as notas e justificativas que os colaboradores deram sobre gerentes e administrativo.
-            Filtro por <strong>semana de referência</strong> (segunda-feira).
-          </p>
+        <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
+          Visão por <strong>semana</strong>: destaque na semana corrente ({rotuloSemanaSaoPaulo(semanaAtualInicio)}),
+          média do mês e histórico recolhível. Sócios veem quem avaliou (inclusive anônimo).
+        </p>
         <p className="text-sm mt-2">
           <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
             Ver também no portal (equipe + liderança por filial) →
@@ -84,9 +80,31 @@ export default function AdminAvaliacoesLiderancaPage() {
       </div>
 
       <div className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm space-y-4 mb-6">
+        <div className="flex flex-wrap gap-2 items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setInicio(semanaAtualInicio);
+              setFim(semanaAtualFim);
+            }}
+            className="rounded-lg border border-dourado-300 bg-dourado-50 px-3 py-2 text-sm font-medium text-coffee-base hover:bg-dourado-100"
+          >
+            Só esta semana
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setInicio(inicioMesISO());
+              setFim(semanaAtualFim);
+            }}
+            className="rounded-lg border border-cream-300 px-3 py-2 text-sm font-medium text-coffee-base hover:bg-cream-50"
+          >
+            Mês atual (recomendado)
+          </button>
+        </div>
         <div className="flex flex-wrap gap-4 items-end">
           <div>
-            <label className="block text-xs font-medium text-coffee-base mb-1">Início (semana)</label>
+            <label className="block text-xs font-medium text-coffee-base mb-1">Período — início</label>
             <input
               type="date"
               value={inicio}
@@ -95,7 +113,7 @@ export default function AdminAvaliacoesLiderancaPage() {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-coffee-base mb-1">Fim (semana)</label>
+            <label className="block text-xs font-medium text-coffee-base mb-1">Período — fim</label>
             <input
               type="date"
               value={fim}
@@ -136,7 +154,8 @@ export default function AdminAvaliacoesLiderancaPage() {
           </p>
         )}
         <p className="text-xs text-coffee-100">
-          Total no período: <strong>{linhas.length}</strong> registro(s)
+          Total no período: <strong>{linhas.length}</strong> registro(s). A tela abaixo separa automaticamente a{' '}
+          <strong>semana corrente</strong> das anteriores.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
           <input
@@ -165,7 +184,11 @@ export default function AdminAvaliacoesLiderancaPage() {
           <XicaraCarregando size="md" label="Carregando feedback…" />
         </div>
       ) : (
-        <RelatorioLiderancaPorLider linhas={linhas} busca={busca} somenteNotaBaixa={somenteNotaBaixa} />
+        <AdminFeedbackLiderancaSemanal
+          linhas={linhas}
+          busca={busca}
+          somenteNotaBaixa={somenteNotaBaixa}
+        />
       )}
     </div>
   );
