@@ -5,14 +5,15 @@ import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PodioTop3 } from '@/components/portal/vivo/PodioTop3';
+import { PodioTop3Trofeus } from '@/components/portal/vivo/PodioTop3Trofeus';
 import {
-  BlocoRankingTrofeus,
+  LinhaRankingTrofeu,
+  proximoLoteRankingTrofeus,
   rotuloMes,
   SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE,
   SUBTITULO_RANKING_AVALIACAO_SEMANAL,
   SUBTITULO_RANKING_TROFEUS_MENSAL,
   SUBTITULO_RANKING_TROFEUS_SEMANAL,
-  TROFEUS_RANKING_VISIVEL_HOME,
   type RankingAvaliacaoItem,
   type RankingPorUnidade,
   type RankingTrofeuItem,
@@ -31,10 +32,12 @@ type Props = {
   aba: 'semanal' | 'mensal';
 };
 
-/** Home: Semanal/Mensal + abas Geral / unidades; pódio avaliação + troféus (top 3 + ver mais). */
+/** Home: pódio avaliação + pódio troféus; lista detalhada só após «Ver mais». */
 export function DestaquesHome({ aba }: Props) {
   const [loading, setLoading] = useState(true);
   const [abaUnidade, setAbaUnidade] = useState<DestaqueAbaUnidadeId>('geral');
+  const [trofeusExpandido, setTrofeusExpandido] = useState(false);
+  const [trofeusVisiveis, setTrofeusVisiveis] = useState(4);
   const [semanaRotulo, setSemanaRotulo] = useState('');
   const [semanalGeral, setSemanalGeral] = useState<RankingAvaliacaoItem[]>([]);
   const [semanalPorUnidade, setSemanalPorUnidade] = useState<RankingPorUnidade[]>([]);
@@ -72,6 +75,11 @@ export function DestaquesHome({ aba }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    setTrofeusExpandido(false);
+    setTrofeusVisiveis(4);
+  }, [aba, abaUnidade]);
+
   if (loading) {
     return (
       <div className="flex justify-center py-6">
@@ -97,6 +105,8 @@ export function DestaquesHome({ aba }: Props) {
         ? rotuloMes(mesRef)
         : 'este mês';
 
+  const periodoTrofeus = aba === 'semanal' ? 'semanal' : 'mensal';
+
   const subtituloAvaliacao =
     aba === 'semanal' ? SUBTITULO_RANKING_AVALIACAO_SEMANAL : SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE;
 
@@ -112,6 +122,13 @@ export function DestaquesHome({ aba }: Props) {
     mensalPorUnidade.length > 0;
 
   const temTrofeus = semanalTrofeus.length > 0 || mensalTrofeus.length > 0;
+
+  const top3Trofeus = trofeusLista.slice(0, 3);
+  const restoTrofeus = trofeusLista.slice(3);
+  const restoVisivel = restoTrofeus.slice(0, trofeusVisiveis);
+  const restoRestantes = restoTrofeus.length - restoVisivel.length;
+  const loteTrofeus = proximoLoteRankingTrofeus(trofeusVisiveis);
+  const proximosTrofeus = Math.min(loteTrofeus, restoRestantes);
 
   if (!temAvaliacao && !temTrofeus) {
     return (
@@ -158,7 +175,7 @@ export function DestaquesHome({ aba }: Props) {
         </h3>
         <p className="text-sm text-cafeteria-600 mt-1 mb-4 leading-relaxed">{subtituloAvaliacao}</p>
         {top3.length > 0 ? (
-          <PodioTop3 itens={top3} modo={aba === 'semanal' ? 'semanal' : 'mensal'} />
+          <PodioTop3 itens={top3} modo={periodoTrofeus} />
         ) : (
           <p className="text-sm text-cafeteria-600 py-4 text-center">
             Ainda sem ranking de avaliação para {labelUnidade} neste período.
@@ -166,15 +183,44 @@ export function DestaquesHome({ aba }: Props) {
         )}
       </div>
 
-      {trofeusLista.length > 0 && (
+      {top3Trofeus.length > 0 && (
         <div className="rounded-xl border border-dourado-200/70 bg-white/95 p-4 sm:p-5">
-          <BlocoRankingTrofeus
-            titulo={`Troféus entre pares · ${labelUnidade} · ${periodoLabel}`}
-            subtitulo={subtituloTrofeus}
-            itens={trofeusLista}
-            periodo={aba === 'semanal' ? 'semanal' : 'mensal'}
-            visivelInicial={TROFEUS_RANKING_VISIVEL_HOME}
-          />
+          <h3 className="text-base font-semibold text-cafeteria-800">
+            Top 3 · Troféus entre pares · {labelUnidade} · {periodoLabel}
+          </h3>
+          <p className="text-sm text-cafeteria-600 mt-1 mb-4 leading-relaxed">{subtituloTrofeus}</p>
+          <PodioTop3Trofeus itens={top3Trofeus} periodo={periodoTrofeus} />
+
+          {restoTrofeus.length > 0 && !trofeusExpandido && (
+            <button
+              type="button"
+              onClick={() => setTrofeusExpandido(true)}
+              className="mt-4 w-full rounded-lg border border-dourado-300 bg-cream-50 px-4 py-2.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 min-h-[44px]"
+            >
+              Ver mais ({restoTrofeus.length} {restoTrofeus.length === 1 ? 'colocado' : 'colocados'})
+            </button>
+          )}
+
+          {trofeusExpandido && restoTrofeus.length > 0 && (
+            <div className="mt-4 space-y-3 border-t border-cream-200 pt-4">
+              {restoVisivel.map((item) => (
+                <LinhaRankingTrofeu
+                  key={`trof-${item.colaborador_id}`}
+                  item={item}
+                  periodo={periodoTrofeus}
+                />
+              ))}
+              {restoRestantes > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setTrofeusVisiveis((n) => Math.min(restoTrofeus.length, n + loteTrofeus))}
+                  className="w-full rounded-lg border border-dourado-300 bg-cream-50 px-4 py-2.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 min-h-[44px]"
+                >
+                  Ver mais ({proximosTrofeus} {proximosTrofeus === 1 ? 'colocado' : 'colocados'})
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
