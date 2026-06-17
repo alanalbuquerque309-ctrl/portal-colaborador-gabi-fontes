@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizePortalRole } from '@/lib/roles';
+import { podeEnviarReclamacaoPortal } from '@/lib/bonificacao-access';
 
 const TIPOS = ['sugestao', 'reclamacao'] as const;
 
@@ -59,8 +61,8 @@ export async function GET() {
       .select('role')
       .eq('id', colaboradorId)
       .single();
-    const meuRole = String((perfil as { role?: string } | null)?.role || '').toLowerCase();
-    const socioVeReclamacoes = meuRole === 'socio';
+    const meuRole = normalizePortalRole((perfil as { role?: string } | null)?.role);
+    const gestaoVeReclamacoes = podeEnviarReclamacaoPortal(meuRole);
 
     if (unidadeId) {
       const { data: feedRaw, error: errFeed } = await supabase
@@ -96,7 +98,7 @@ export async function GET() {
         });
       }
 
-      if (socioVeReclamacoes) {
+      if (gestaoVeReclamacoes) {
         const { data: reclRaw } = await supabase
           .from('sugestoes_reclamacoes')
           .select('id, texto, created_at, anonimo, colaboradores(nome)')
@@ -119,7 +121,7 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ ok: true, minhas, feed, feed_reclamacoes });
+    return NextResponse.json({ ok: true, minhas, feed, feed_reclamacoes, pode_enviar_reclamacao: gestaoVeReclamacoes });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
@@ -153,6 +155,27 @@ export async function POST(req: Request) {
   }
 
   const anonimo = body.anonimo === true;
+
+  if (tipo === 'reclamacao') {
+    try {
+      const supabaseCheck = createAdminClient();
+      const { data: perfil } = await supabaseCheck
+        .from('colaboradores')
+        .select('role')
+        .eq('id', colaboradorId)
+        .maybeSingle();
+      const role = normalizePortalRole((perfil as { role?: string } | null)?.role);
+      if (!podeEnviarReclamacaoPortal(role)) {
+        return NextResponse.json(
+          { ok: false, erro: 'Reclamações são registradas apenas pela gestão (sócios e ADM).' },
+          { status: 403 }
+        );
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro';
+      return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+    }
+  }
 
   try {
     const supabase = createAdminClient();

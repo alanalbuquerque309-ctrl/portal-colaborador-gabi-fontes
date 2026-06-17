@@ -1,214 +1,155 @@
-'use client';
-
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { getPortalSession } from '@/lib/utils/session';
-import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { PodioTop3 } from '@/components/portal/vivo/PodioTop3';
-import {
-  BlocoTop3PorUnidade,
-  BlocoRankingTrofeus,
-  CardRankingAvaliacao,
-  rotuloMes,
-  SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE,
-  SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE,
-  SUBTITULO_RANKING_AVALIACAO_SEMANAL,
-  SUBTITULO_RANKING_TROFEUS_MENSAL,
-  type RankingAvaliacaoItem,
-  type RankingPorUnidade,
-  type RankingTrofeuItem,
-} from '@/components/mural/ranking-ui';
-
-function BotaoExpandir({
-  label,
-  aberto,
-  onClick,
-}: {
-  label: string;
-  aberto: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={aberto}
-      className="flex-1 min-w-[8rem] rounded-lg border border-dourado-base/40 bg-white px-3 py-2.5 text-sm font-medium text-cafeteria-800 hover:border-dourado-base hover:bg-dourado-50/50 transition-colors min-h-[44px]"
-    >
-      {aberto ? `Ocultar ${label}` : label}
-    </button>
-  );
-}
-
-type Props = {
-  aba: 'semanal' | 'mensal';
-};
-
-/** Home: top 3 semanal ou mensal (pódio + detalhes). */
-export function DestaquesHome({ aba }: Props) {
-  const [loading, setLoading] = useState(true);
-  const [semanaRotulo, setSemanaRotulo] = useState('');
-  const [semanalTop3, setSemanalTop3] = useState<RankingAvaliacaoItem[]>([]);
-  const [mesRef, setMesRef] = useState('');
-  const [minSemanas, setMinSemanas] = useState(1);
-  const [mensalGeralTop3, setMensalGeralTop3] = useState<RankingAvaliacaoItem[]>([]);
-  const [porUnidade, setPorUnidade] = useState<RankingPorUnidade[]>([]);
-  const [trofeus, setTrofeus] = useState<RankingTrofeuItem[]>([]);
-  const [abrirUnidade, setAbrirUnidade] = useState(false);
-  const [abrirTrofeus, setAbrirTrofeus] = useState(false);
-
-  useEffect(() => {
-    const session = getPortalSession();
-    if (!session?.colaboradorId) {
-      setLoading(false);
-      return;
-    }
-
-    void Promise.all([
-      fetch('/api/portal/reconhecimento-semanal', { credentials: 'include' }).then((r) => r.json()),
-      fetch('/api/portal/destaque', { credentials: 'include' }).then((r) => r.json()),
-    ])
-      .then(([sem, mes]) => {
-        if (sem?.ok === true) {
-          setSemanaRotulo(String(sem.semana_rotulo ?? ''));
-          setSemanalTop3(
-            Array.isArray(sem.ranking_geral_top3) ? sem.ranking_geral_top3.slice(0, 3) : []
-          );
-        }
-        if (mes?.ok === true) {
-          setMesRef(String(mes.mes_referencia ?? ''));
-          setMinSemanas(Number(mes.min_semanas_ranking_mensal ?? 1));
-          setMensalGeralTop3(
-            Array.isArray(mes.ranking_geral_top3) ? mes.ranking_geral_top3.slice(0, 3) : []
-          );
-          setPorUnidade(Array.isArray(mes.ranking_por_unidade) ? mes.ranking_por_unidade : []);
-          setTrofeus(Array.isArray(mes.ranking_trofeus) ? mes.ranking_trofeus : []);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center py-6">
-        <XicaraCarregando size="sm" label="Carregando destaques…" />
-      </div>
-    );
-  }
-
-  const mesRotulo = mesRef ? rotuloMes(mesRef) : 'este mês';
-  const periodoSemana = semanaRotulo || 'esta semana';
-  const temMensalExtra = porUnidade.length > 0 || trofeus.length > 0;
-  const vazioTotal =
-    semanalTop3.length === 0 && mensalGeralTop3.length === 0 && !temMensalExtra;
-
-  if (vazioTotal) {
-    return (
-      <p className="text-sm text-cafeteria-700 rounded-xl border border-dourado-200 bg-cream-50 p-4">
-        Os destaques aparecem quando a liderança registra avaliações semanais e os colegas enviam troféus.
-        Rankings mensais completos ficam no{' '}
-        <Link href="/portal/mural" className="text-dourado-base font-medium hover:underline">
-          mural
-        </Link>
-        .
-      </p>
-    );
-  }
-
-  if (aba === 'semanal') {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-sky-200/80 bg-white/95 p-4 sm:p-5">
-          <h3 className="text-base font-semibold text-cafeteria-800 mb-0.5">Top 3 · {periodoSemana}</h3>
-          <p className="text-sm text-cafeteria-600 mb-4 leading-relaxed">{SUBTITULO_RANKING_AVALIACAO_SEMANAL}</p>
-          {semanalTop3.length > 0 ? (
-            <>
-              <PodioTop3 itens={semanalTop3} modo="semanal" />
-              <div className="mt-4 space-y-2 border-t border-cream-200 pt-4">
-                {semanalTop3.map((item) => (
-                  <CardRankingAvaliacao key={item.colaborador_id} item={item} modo="semanal" />
-                ))}
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-cafeteria-600">Top 3 ainda não disponível nesta semana.</p>
-          )}
-        </div>
-        <p className="text-xs text-cafeteria-600 text-center">
-          <Link href="/portal/mural" className="text-dourado-base font-medium hover:underline">
-            Ver rankings completos no mural
-          </Link>
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-dourado-200/80 bg-white/95 p-4 sm:p-5 space-y-4">
-        <div>
-          <h3 className="text-base font-semibold text-cafeteria-800 mb-0.5">Top 3 do mês · {mesRotulo}</h3>
-          <p className="text-sm text-cafeteria-600 leading-relaxed">{SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE}</p>
-        </div>
-        {mensalGeralTop3.length > 0 ? (
-          <>
-            <PodioTop3 itens={mensalGeralTop3} modo="mensal" />
-            <div className="space-y-2 border-t border-cream-200 pt-4">
-              {mensalGeralTop3.map((item) => (
-                <CardRankingAvaliacao key={item.colaborador_id} item={item} modo="mensal" />
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-cafeteria-600">
-            Ranking geral ainda em formação
-            {minSemanas > 1 ? ` (mínimo ${minSemanas} semanas por pessoa)` : ''}.
-          </p>
-        )}
-
-        {temMensalExtra && (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {porUnidade.length > 0 && (
-              <BotaoExpandir
-                label="Ranking por unidade"
-                aberto={abrirUnidade}
-                onClick={() => setAbrirUnidade((v) => !v)}
-              />
-            )}
-            {trofeus.length > 0 && (
-              <BotaoExpandir
-                label="Troféus do mês"
-                aberto={abrirTrofeus}
-                onClick={() => setAbrirTrofeus((v) => !v)}
-              />
-            )}
-          </div>
-        )}
-
-        {abrirUnidade && porUnidade.length > 0 && (
-          <BlocoTop3PorUnidade
-            titulo={`Por unidade · ${mesRotulo}`}
-            subtitulo={SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE}
-            blocos={porUnidade}
-            modo="mensal"
-          />
-        )}
-
-        {abrirTrofeus && trofeus.length > 0 && (
-          <BlocoRankingTrofeus
-            titulo={`Troféus entre pares · ${mesRotulo}`}
-            subtitulo={SUBTITULO_RANKING_TROFEUS_MENSAL}
-            itens={trofeus}
-            periodo="mensal"
-          />
-        )}
-      </div>
-
-      <p className="text-xs text-cafeteria-600 text-center">
-        <Link href="/portal/mural" className="text-dourado-base font-medium hover:underline">
-          Ver rankings completos no mural
-        </Link>
-      </p>
-    </div>
-  );
-}
+'use client';
+
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { getPortalSession } from '@/lib/utils/session';
+import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { PodioTop3 } from '@/components/portal/vivo/PodioTop3';
+import {
+  rotuloMes,
+  SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE,
+  SUBTITULO_RANKING_AVALIACAO_SEMANAL,
+  type RankingAvaliacaoItem,
+  type RankingPorUnidade,
+} from '@/components/mural/ranking-ui';
+import {
+  DESTAQUE_ABAS_UNIDADE,
+  type DestaqueAbaUnidadeId,
+  normalizarPorUnidade,
+  normalizarTop3Geral,
+  top3DestaquePorAba,
+} from '@/lib/destaques-home-unidades';
+
+type Props = {
+  aba: 'semanal' | 'mensal';
+};
+
+/** Home: Semanal/Mensal + abas Geral / unidades; só top 3 (pódio). */
+export function DestaquesHome({ aba }: Props) {
+  const [loading, setLoading] = useState(true);
+  const [abaUnidade, setAbaUnidade] = useState<DestaqueAbaUnidadeId>('geral');
+  const [semanaRotulo, setSemanaRotulo] = useState('');
+  const [semanalGeral, setSemanalGeral] = useState<RankingAvaliacaoItem[]>([]);
+  const [semanalPorUnidade, setSemanalPorUnidade] = useState<RankingPorUnidade[]>([]);
+  const [mesRef, setMesRef] = useState('');
+  const [mensalGeral, setMensalGeral] = useState<RankingAvaliacaoItem[]>([]);
+  const [mensalPorUnidade, setMensalPorUnidade] = useState<RankingPorUnidade[]>([]);
+
+  useEffect(() => {
+    const session = getPortalSession();
+    if (!session?.colaboradorId) {
+      setLoading(false);
+      return;
+    }
+
+    void Promise.all([
+      fetch('/api/portal/reconhecimento-semanal', { credentials: 'include' }).then((r) => r.json()),
+      fetch('/api/portal/destaque', { credentials: 'include' }).then((r) => r.json()),
+    ])
+      .then(([sem, mes]) => {
+        if (sem?.ok === true) {
+          setSemanaRotulo(String(sem.semana_rotulo ?? ''));
+          setSemanalGeral(normalizarTop3Geral(sem.ranking_geral_top3));
+          setSemanalPorUnidade(normalizarPorUnidade(sem.ranking_por_unidade));
+        }
+        if (mes?.ok === true) {
+          setMesRef(String(mes.mes_referencia ?? ''));
+          setMensalGeral(normalizarTop3Geral(mes.ranking_geral_top3));
+          setMensalPorUnidade(normalizarPorUnidade(mes.ranking_por_unidade));
+        }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-6">
+        <XicaraCarregando size="sm" label="Carregando destaques…" />
+      </div>
+    );
+  }
+
+  const top3 =
+    aba === 'semanal'
+      ? top3DestaquePorAba(abaUnidade, semanalGeral, semanalPorUnidade)
+      : top3DestaquePorAba(abaUnidade, mensalGeral, mensalPorUnidade);
+
+  const periodoLabel =
+    aba === 'semanal'
+      ? semanaRotulo || 'esta semana'
+      : mesRef
+        ? rotuloMes(mesRef)
+        : 'este mês';
+
+  const subtitulo = aba === 'semanal' ? SUBTITULO_RANKING_AVALIACAO_SEMANAL : SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE;
+
+  const labelUnidade = DESTAQUE_ABAS_UNIDADE.find((u) => u.id === abaUnidade)?.label ?? 'Geral';
+
+  const vazioTotal =
+    semanalGeral.length === 0 &&
+    mensalGeral.length === 0 &&
+    semanalPorUnidade.length === 0 &&
+    mensalPorUnidade.length === 0;
+
+  if (vazioTotal) {
+    return (
+      <p className="text-sm text-cafeteria-700 rounded-xl border border-dourado-200 bg-cream-50 p-4">
+        Os reconhecimentos aparecem quando a liderança registra avaliações semanais. Rankings completos no{' '}
+        <Link href="/portal/mural" className="text-dourado-base font-medium hover:underline">
+          mural
+        </Link>
+        .
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div
+        className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        aria-label="Unidade do ranking"
+      >
+        {DESTAQUE_ABAS_UNIDADE.map((u) => {
+          const ativo = abaUnidade === u.id;
+          return (
+            <button
+              key={u.id}
+              type="button"
+              role="tab"
+              aria-selected={ativo}
+              onClick={() => setAbaUnidade(u.id)}
+              className={`shrink-0 rounded-full px-3.5 py-2 text-sm font-medium min-h-[40px] border transition-colors ${
+                ativo
+                  ? 'bg-coffee-base text-cream-100 border-coffee-base'
+                  : 'bg-white text-cafeteria-700 border-cafeteria-200 hover:border-dourado-base'
+              }`}
+            >
+              {u.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="rounded-xl border border-dourado-200/70 bg-white/95 p-4 sm:p-5">
+        <h3 className="text-base font-semibold text-cafeteria-800">
+          Top 3 · {labelUnidade} · {periodoLabel}
+        </h3>
+        <p className="text-sm text-cafeteria-600 mt-1 mb-4 leading-relaxed">{subtitulo}</p>
+        {top3.length > 0 ? (
+          <PodioTop3 itens={top3} modo={aba === 'semanal' ? 'semanal' : 'mensal'} />
+        ) : (
+          <p className="text-sm text-cafeteria-600 py-4 text-center">
+            Ainda sem ranking para {labelUnidade} neste período.
+          </p>
+        )}
+      </div>
+
+      <p className="text-xs text-cafeteria-600 text-center">
+        <Link href="/portal/mural" className="text-dourado-base font-medium hover:underline">
+          Ver mural completo
+        </Link>
+      </p>
+    </div>
+  );
+}

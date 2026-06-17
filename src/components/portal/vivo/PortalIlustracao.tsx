@@ -3,10 +3,7 @@ export function IlustracaoCafe({ className = 'w-24 h-24' }: { className?: string
   return (
     <svg className={className} viewBox="0 0 120 100" fill="none" aria-hidden>
       <ellipse cx="60" cy="88" rx="42" ry="6" fill="#D4AF37" fillOpacity="0.25" />
-      <path
-        d="M28 38c0-14 14-22 32-22s32 8 32 22v28H28V38z"
-        fill="#774b39"
-      />
+      <path d="M28 38c0-14 14-22 32-22s32 8 32 22v28H28V38z" fill="#774b39" />
       <path d="M34 66h52v8c0 6-10 10-26 10s-26-4-26-10v-8z" fill="#925a41" />
       <path
         d="M92 44h8c6 0 10 4 10 10s-4 10-10 10h-8"
@@ -79,6 +76,51 @@ export function IlustracaoTrofeu({ className = 'w-24 h-24' }: { className?: stri
         fill="#ebd9a8"
       />
       <circle cx="50" cy="32" r="6" fill="#faf6f2" stroke="#b8941f" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+/** Ramo de café — decoração nos cantos (estilo mockup). */
+export function IlustracaoRamoCafe({
+  className = 'w-24 h-24',
+  espelhar = false,
+}: {
+  className?: string;
+  espelhar?: boolean;
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 80 80"
+      fill="none"
+      aria-hidden
+      style={espelhar ? { transform: 'scaleX(-1)' } : undefined}
+    >
+      <path
+        d="M8 72 C20 58, 28 42, 36 28 C44 14, 52 8, 62 4"
+        stroke="#6B4423"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M36 28 C32 22, 26 18, 18 16"
+        stroke="#6B4423"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M44 20 C48 14, 54 10, 62 8"
+        stroke="#6B4423"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <ellipse cx="14" cy="14" rx="9" ry="5" fill="#1a5c45" transform="rotate(-35 14 14)" />
+      <ellipse cx="22" cy="10" rx="8" ry="4.5" fill="#22704f" transform="rotate(-20 22 10)" />
+      <ellipse cx="32" cy="24" rx="10" ry="5.5" fill="#1a5c45" transform="rotate(-55 32 24)" />
+      <ellipse cx="40" cy="16" rx="9" ry="5" fill="#2d8659" transform="rotate(-40 40 16)" />
+      <ellipse cx="50" cy="10" rx="8" ry="4.5" fill="#1a5c45" transform="rotate(-25 50 10)" />
+      <ellipse cx="58" cy="6" rx="7" ry="4" fill="#22704f" transform="rotate(-15 58 6)" />
+      <ellipse cx="18" cy="20" rx="7" ry="4" fill="#2d8659" transform="rotate(-50 18 20)" />
     </svg>
   );
 }

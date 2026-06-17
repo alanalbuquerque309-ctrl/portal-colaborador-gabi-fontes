@@ -1,24 +1,31 @@
 import Link from 'next/link';
 import { MuralPreview } from '@/components/mural/MuralPreview';
 import { DestaqueSection } from '@/components/destaque/DestaqueSection';
+import { AvisosHome } from '@/components/portal/AvisosHome';
 import { DesdeUltimaVisitaHome } from '@/components/portal/DesdeUltimaVisitaHome';
 import { FacaAgoraHome } from '@/components/portal/FacaAgoraHome';
 import { GraosHomeBanner } from '@/components/portal/GraosHomeBanner';
+import { SugestoesEquipeHome } from '@/components/portal/SugestoesEquipeHome';
 import { PortalAtalhosPerfil } from '@/components/portal/PortalAtalhosPerfil';
 import { TermometroEmocional } from '@/components/emocional/TermometroEmocional';
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
 import { PortalBoasVindas } from '@/components/portal/vivo/PortalBoasVindas';
+import { PortalDecoracaoRamosPagina } from '@/components/portal/vivo/PortalBalaoCard';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 
 export default function PortalHomePage() {
   return (
-    <main className="space-y-8">
+    <main className="space-y-8 relative">
+      <PortalDecoracaoRamosPagina />
+      <div className="relative z-[1] space-y-8">
       <EmocionalAlertasGestao />
       <PortalBoasVindas />
-      <GraosHomeBanner />
       <DesdeUltimaVisitaHome />
       <FacaAgoraHome />
+      <AvisosHome />
+      <GraosHomeBanner />
       <DestaqueSection />
+      <SugestoesEquipeHome />
       <PortalAtalhosPerfil />
       <section className="rounded-2xl border border-cafeteria-200 bg-white/80 overflow-hidden">
         <details className="group">
@@ -67,6 +74,7 @@ export default function PortalHomePage() {
         <MuralPreview />
       </section>
       <PortalRodapeFrase variant="home" />
+      </div>
     </main>
   );
 }

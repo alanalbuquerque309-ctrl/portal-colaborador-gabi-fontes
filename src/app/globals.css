@@ -22,3 +22,40 @@ select {
   -webkit-appearance: menulist;
   touch-action: manipulation;
 }
+
+@keyframes megafone-aviso {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  20% {
+    transform: scale(1.04) rotate(-2deg);
+  }
+  40% {
+    transform: scale(1.02) rotate(1.5deg);
+  }
+  60% {
+    transform: scale(1.05) rotate(-1deg);
+  }
+}
+
+.animate-megafone-aviso {
+  animation: megafone-aviso 2.4s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+/** Xícara hero: bordas somem no fundo cream da página (evita efeito “recorte colado”). */
+.hero-xicara-mask {
+  -webkit-mask-image: radial-gradient(ellipse 88% 82% at 58% 48%, #000 42%, transparent 72%);
+  mask-image: radial-gradient(ellipse 88% 82% at 58% 48%, #000 42%, transparent 72%);
+}
+
+.hero-xicara-fade {
+  background: linear-gradient(
+    to right,
+    #ffffff 0%,
+    rgba(253, 251, 247, 0.92) 28%,
+    rgba(253, 251, 247, 0.35) 52%,
+    transparent 72%
+  );
+}

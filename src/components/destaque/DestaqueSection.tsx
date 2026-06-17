@@ -11,9 +11,9 @@ export function DestaqueSection() {
     <section className="rounded-2xl border-2 border-dourado-base/60 bg-gradient-to-br from-dourado-50/80 via-cream-50 to-white p-5 sm:p-6 shadow-md overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-4">
         <div>
-          <h2 className="text-lg font-display font-semibold text-cafeteria-900">Destaques</h2>
+          <h2 className="text-lg font-display font-semibold text-cafeteria-900">Reconhecimentos</h2>
           <p className="text-sm text-cafeteria-600 mt-0.5 leading-relaxed">
-            Reconhecimento da equipe — semanal e mensal.
+            Top 3 por unidade — semanal ou mensal.
           </p>
         </div>
         <div
