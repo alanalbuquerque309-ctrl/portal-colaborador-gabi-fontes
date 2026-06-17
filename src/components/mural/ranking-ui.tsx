@@ -18,8 +18,12 @@ export const SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE =
 export const SUBTITULO_RANKING_TROFEUS_MENSAL =
   'Soma de todos os troféus entre pares recebidos no mês civil.';
 
+export const SUBTITULO_RANKING_TROFEUS_SEMANAL =
+  'Quem mais recebeu troféus entre pares nesta semana (Postura, Braço Direito, Eficiência).';
+
 /** Quantos colocados mostrar no ranking de troféus antes de "Ver mais". */
 export const TROFEUS_RANKING_VISIVEL_INICIAL = 4;
+export const TROFEUS_RANKING_VISIVEL_HOME = 3;
 const TROFEUS_RANKING_VER_MAIS_1 = 6;
 const TROFEUS_RANKING_VER_MAIS_DEPOIS = 10;
 
@@ -256,17 +260,19 @@ export function BlocoRankingTrofeus({
   subtitulo,
   itens,
   periodo,
+  visivelInicial = TROFEUS_RANKING_VISIVEL_INICIAL,
 }: {
   titulo: string;
   subtitulo: string;
   itens: RankingTrofeuItem[];
   periodo: 'semanal' | 'mensal';
+  visivelInicial?: number;
 }) {
-  const [visiveis, setVisiveis] = useState(TROFEUS_RANKING_VISIVEL_INICIAL);
+  const [visiveis, setVisiveis] = useState(visivelInicial);
 
   useEffect(() => {
-    setVisiveis(TROFEUS_RANKING_VISIVEL_INICIAL);
-  }, [titulo, itens.length]);
+    setVisiveis(visivelInicial);
+  }, [titulo, itens.length, visivelInicial]);
 
   if (itens.length === 0) return null;
 

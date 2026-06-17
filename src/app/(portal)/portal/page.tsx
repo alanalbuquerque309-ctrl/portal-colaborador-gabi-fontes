@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { MuralPreview } from '@/components/mural/MuralPreview';
 import { DestaqueSection } from '@/components/destaque/DestaqueSection';
 import { AvisosHome } from '@/components/portal/AvisosHome';
 import { DesdeUltimaVisitaHome } from '@/components/portal/DesdeUltimaVisitaHome';
@@ -68,10 +67,6 @@ export default function PortalHomePage() {
       <section id="termometro-emocoes">
         <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-4">Termômetro de emoções</h2>
         <TermometroEmocional />
-      </section>
-      <section>
-        <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-4">Mural</h2>
-        <MuralPreview />
       </section>
       <PortalRodapeFrase variant="home" />
       </div>

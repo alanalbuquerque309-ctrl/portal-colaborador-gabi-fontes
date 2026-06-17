@@ -1,13 +1,13 @@
-import type { RankingAvaliacaoItem, RankingPorUnidade } from '@/components/mural/ranking-ui';
+import type { RankingAvaliacaoItem, RankingPorUnidade, RankingTrofeuItem } from '@/components/mural/ranking-ui';
 
 /** Abas fixas na home — ordem de exibição. */
 export const DESTAQUE_ABAS_UNIDADE = [
   { id: 'geral', label: 'Geral' },
   { id: 'mesquita', label: 'Mesquita', slug: 'mesquita' },
   { id: 'barra', label: 'Barra', slug: 'barra' },
-  { id: 'nova-iguacu', label: 'Nova Iguaçu', slug: 'nova-iguacu' },
+  { id: 'nova-iguacu', label: 'Nova Iguaçu', labelCurto: 'N. Iguaçu', slug: 'nova-iguacu' },
   { id: 'fabrica', label: 'Fábrica', slug: 'fabrica' },
-  { id: 'administrativo', label: 'Administração', slug: 'administrativo' },
+  { id: 'administrativo', label: 'Administração', labelCurto: 'ADM', slug: 'administrativo' },
 ] as const;
 
 export type DestaqueAbaUnidadeId = (typeof DESTAQUE_ABAS_UNIDADE)[number]['id'];
@@ -68,4 +68,46 @@ export function normalizarPorUnidade(raw: unknown): RankingPorUnidade[] {
         : [],
     };
   });
+}
+
+export function normalizarTrofeus(raw: unknown): RankingTrofeuItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((r, i) => {
+    const row = r as {
+      posicao?: number;
+      colaborador_id: string;
+      nome: string;
+      foto_url: string | null;
+      unidade_nome?: string;
+      unidade_slug?: string;
+      setor?: string | null;
+      total_trofeus: number;
+      trofeus?: RankingTrofeuItem['trofeus'];
+    };
+    return {
+      posicao: Number(row.posicao ?? i + 1),
+      colaborador_id: String(row.colaborador_id),
+      nome: String(row.nome),
+      foto_url: row.foto_url,
+      unidade_nome: String(row.unidade_nome ?? ''),
+      unidade_slug: String(row.unidade_slug ?? ''),
+      setor: row.setor ?? null,
+      total_trofeus: Number(row.total_trofeus ?? 0),
+      trofeus: Array.isArray(row.trofeus) ? row.trofeus : [],
+    };
+  });
+}
+
+/** Troféus filtrados por aba de unidade (geral = rede inteira). */
+export function trofeusDestaquePorAba(
+  abaUnidade: DestaqueAbaUnidadeId,
+  lista: RankingTrofeuItem[]
+): RankingTrofeuItem[] {
+  if (abaUnidade === 'geral') return lista;
+  const cfg = DESTAQUE_ABAS_UNIDADE.find((a) => a.id === abaUnidade);
+  const slug = cfg && 'slug' in cfg ? cfg.slug : null;
+  if (!slug) return [];
+  return lista
+    .filter((t) => t.unidade_slug === slug)
+    .map((t, i) => ({ ...t, posicao: i + 1 }));
 }
