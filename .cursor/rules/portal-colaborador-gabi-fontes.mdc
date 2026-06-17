@@ -18,7 +18,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 | Dev local | `npm run dev` → porta **3001** |
 | Produção | https://portal-colaborador-gabi-fontes.vercel.app |
 | Git remoto | **`portal-colaborador-gabi-fontes`** (repo **nesta pasta**, não na raiz `ISA AI/`), branch `main` → deploy Vercel |
-| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `042_` e seguintes) |
+| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `045_` e seguintes) |
 | Docs operacionais | `BACKUP_RESTORE.md`, `SECURITY_ROADMAP.md` (backlog segurança, não duplicar aqui em detalhe) |
 
 ## Vocabulário e tom
@@ -46,14 +46,15 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 ### Líder (gerente / master / admin)
 
 - **Rota:** `/portal/avaliacao-master` — menu **Avaliação da equipe**.
-- **UI compacta (jun/2026):** card por colaborador mostra **nome, cargo, setor, unidade**; três ações legíveis (**Avaliar**, **Outro plantão**, **Férias**); formulário com estrelas e justificativa **só** após clicar **Avaliar** (`ColaboradorAvaliacaoCard.tsx`).
+- **UI compacta (jun/2026):** card por colaborador mostra **nome, cargo, setor, unidade**; ações legíveis (**Avaliar**, **Outro plantão**, **Férias**, **Falta justificada**, **Falta injustificada**); formulário com estrelas e justificativa **só** após clicar **Avaliar** (`ColaboradorAvaliacaoCard.tsx`).
 - **Perfil não ativado:** banner no topo da página lista colaboradores com `onboarding_completo === false` (cadastro portal pendente).
 - **Obrigatório:** uma avaliação por colaborador da equipe **por semana**; após salvar, **uma correção** via botão **Editar** (ícone ✏️ no checklist ou no card); depois só leitura (`edicao_utilizada`, migration `038`).
 - **Equipe Nova Iguaçu:** gerentes no mapa operacional (`config-lideranca-operacional.ts` — Nathália, Cristina); lista também via `resolver-unidades-equipe-avaliacao.ts` se `lideres_por_setor` ainda não estiver aplicado.
 - **Joyce (temporário):** também avalia Nova Iguaçu via `config-avaliacao-unidade-extra.ts` (remover regra quando não precisar).
 - **Fábrica de doces / preparos:** líderes Sabrina+Henrique (doces) e Joyce+Silvia (preparos) na unidade `fabrica`. Setores da fábrica **não** entram na lista `*` de Mesquita; equipe do setor busca no grupo Mesquita+fábrica+adm (`setores-fabrica-lideranca.ts`).
 - **API:** `POST` primeiro envio; `PATCH /api/portal/avaliacao-master` com `avaliacao_id` para edição única.
-- **Campos:** assiduidade (`presente`, `folga`, `outra_escala`, `falta_justificada`, **`ferias`**, `fora_plantao`); se presente, notas 1–5 (vestimenta, pontualidade, trabalho em equipe, desempenho); nota ≤3 exige justificativa.
+- **Campos:** assiduidade (`presente`, `folga`, `outra_escala`, **`falta_justificada`**, **`falta_injustificada`**, **`ferias`**, `fora_plantao`); se presente, notas 1–5 (vestimenta, pontualidade, trabalho em equipe, desempenho, proatividade); nota ≤3 exige justificativa.
+- **Faltas e Grãos (jun/2026):** **Falta justificada** — líder preenche critérios; **nota vale** para desempenho/ranking; colaborador **sem Grãos na semana**. **Falta injustificada** — critérios zerados, **média zera**, **sem Grãos**. Ver secção **Grãos de café**.
 - **Férias:** assiduidade isenta da média semanal (`assiduidadeIsentaSemana`); persiste como `falta_justificada` + marcador `JUSTIFICATIVA_FERIAS` (`avaliacao-semanal-shared.ts`); admin exibe **Férias** / **Isenta**.
 - **Novatos:** pode avaliar com cadastro portal pendente ou em adaptação; **Marcar como apto na função** quando aplicável.
 - **Feedback recebido:** `/portal/minha-lideranca` (menu **Minha liderança**).
@@ -229,6 +230,78 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
   - Env: `ANIVERSARIO_BALAO_PREVIEW=true` (default); `ANIVERSARIO_BALAO_REDE_ATIVO=false`; opcional `ANIVERSARIO_BALAO_PREVIEW_IDS=uuid,uuid`.
   - Match por nome em `src/lib/aniversario-balao-access.ts` (`nomeCoincide`).
 
+## Grãos de café (nossa moeda) — jun/2026 (`e6852d6`, `a7f61a9`)
+
+Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por participação e **resgatam** itens do catálogo (docinhos, café, etc.). **Não é automático:** missões geram movimentos **`pendente`**; só **`confirmado`** após **elegibilidade da semana** (avaliação do líder + regras de assiduidade/notas).
+
+### Valores e missões (`src/lib/graos/constants.ts`)
+
+| Missão | Grãos | Notas |
+|--------|------:|-------|
+| Entrada no portal na semana | 5 | `login_semana` |
+| Confirmar aviso/comunicado | 5 | `aviso_semana` |
+| Avaliar liderança | 10 | `lideranca_semana` |
+| Enviar sugestão | 3 | `sugestao_semana` |
+| Destaque da gestão na sugestão | +7 | `sugestao_destaque_bonus` — só sócio/admin |
+| Quinta do café (treino) | 5 | `quinta` — só na quinta |
+| Troféus entre pares | até 5 | proporcional ao envio na semana |
+
+- **Teto sugestão/semana:** 3 + 7 = 10 (`GRAOS_SUGESTAO_MAX_SEMANA`).
+- **Complemento caixa (interno):** `GRAOS_CENTAVOS_POR_GRAO` — 35 grãos ≈ R$ 15 (`graos/constants.ts`).
+
+### Elegibilidade semanal (`src/lib/graos/elegibilidade.ts`, `movimentos.ts`)
+
+| Situação | Grãos da semana | Nota / desempenho |
+|----------|-----------------|-------------------|
+| Líder ainda não avaliou | pendente, não confirma | — |
+| **Presente** + critérios OK | confirma | normal |
+| **Falta justificada** | **sem Grãos** | **nota do líder vale** |
+| **Falta injustificada** | **sem Grãos** | **média zera** |
+| **Férias** | sem Grãos | isenta da média |
+| **Fora do plantão** | aguarda outro líder | — |
+| Nota ≤2 em pontualidade, vestimenta, equipe, desempenho ou proatividade | sem Grãos | saldo acumulado anterior mantém |
+
+- **Responsabilidade do líder:** avaliar a equipe **toda semana** define quem recebe ou perde bonificação; nota atrasada ou incorreta impacta o colaborador direto.
+- **Quinta-feira — bloqueio líder:** se faltar avaliação da equipe, portal **bloqueia** exceto rota de avaliação (`lider-quinta-bloqueio.ts`, `GET /api/portal/graos/lider-bloqueio`).
+
+### Quem vê o quê (`graos-access.ts`, `roles.ts`, `GraosPageClient.tsx`)
+
+| Perfil | Saldo / missões | Resgate | Lista da equipe |
+|--------|-----------------|---------|-----------------|
+| **Colaborador** (operação) | só o **próprio** | sim | não |
+| **Sócio / admin (Daniel)** | **todos** (modo gestão) | **não** (só visualização) | sim |
+| **Gerente / master / RH** | próprio se elegível operação | conforme role | não |
+
+- API bloqueia `?colaborador_id` de terceiros para quem não é gestão (`403`).
+
+### Rotas e peças principais
+
+| Peça | Caminho |
+|------|---------|
+| UI colaborador | `/portal/graos` — `GraosPageClient.tsx` |
+| Banner home | `GraosHomeBanner.tsx` |
+| Nav | `Header.tsx` — ícone Grãos + badge saldo |
+| APIs portal | `GET/POST /api/portal/graos`, `.../resgate`, `.../quinta`, `.../lider-bloqueio` |
+| Ledger | `graos_movimentos` (estados `pendente` \| `confirmado` \| `cancelado`) |
+| Catálogo / resgates | `graos_catalogo`, `graos_resgates` |
+| Missões sync | `missoes.ts`, `sincronizarMissoesSemanaGraos` |
+| Backfill | `scripts/backfill-graos-semanas.mjs`, `scripts/aplicar-graos-044.mjs` |
+
+### Copy operacional (WhatsApp — referência)
+
+**Líderes:** Grãos = moeda de reconhecimento; avaliação semanal **obrigatória**; decidem falta justificada/injustificada e se a semana conta; quinta bloqueia se pendente.
+
+**Colaboradores:** participar do portal (avisos, liderança, sugestões, quinta, troféus) gera Grãos **pendentes**; confirmam após avaliação do líder; ver saldo em **Portal → Grãos**.
+
+### Migrations Supabase
+
+| Arquivo | Para quê |
+|---------|----------|
+| **`044_graos_cafe.sql`** | Ledger, catálogo, resgates, quinta |
+| **`045_sugestao_graos_destaque.sql`** | `graos_destaque_em`, `graos_destaque_por` em `sugestoes_reclamacoes` |
+
+- SQL pronto editor: `supabase/APLIQUE_045_SUGESTAO_GRAOS_SQL_EDITOR.sql`.
+
 ## Comunicação (sugestões, reclamações e suporte)
 
 **Foco mobile:** colaborador acessa tudo pelo item **Comunicação** na barra inferior (`Header.tsx`).
@@ -240,19 +313,24 @@ Página única que agrupa os canais de feedback e contato:
 | Bloco | Quem vê | Destino / comportamento |
 |-------|---------|-------------------------|
 | **Sugestões e reclamações** | Todos logados | Link → `/portal/sugestoes` (formulário existente) |
+| **Analisar sugestões da equipe** | **Sócio / admin** (`podeVerBonificacaoInterna`) | Link → `/admin/sugestoes`; badge **N aguardando** |
 | **Inbox ajuda** | Só quem passa em `canVisualizarAjuda` (**sócio**, **admin**, responsável dedicado por UUID; **RH** só se **não** houver UUID dedicado) | Link → `/portal/ajuda-inbox`; badge com pendentes no card e no menu |
-| **Falar com suporte (ADM/RH)** | Todos (envio); sócios/admin veem atalho de gestão acima | Chat embutido na própria página |
+| **Falar com suporte (ADM/RH)** | Todos (envio); sócios/admin veem atalhos de gestão acima | Chat embutido na própria página |
+
+- **Badge sugestões (jun/2026):** contagem de sugestões **não vistas** (`tipo = sugestao` + `visualizado_em IS NULL`); âmbar no menu **Comunicação** e link **Admin** (`Header.tsx`, sidebar admin); poll ~15s + evento `SUGESTOES_ATUALIZADO` (`sugestoes-events.ts`); API `GET /api/admin/sugestoes/pendentes` — só sócio/admin/senha admin.
 
 - **Componentes:** `src/app/(portal)/portal/comunicacao/page.tsx`; painel reutilizável `src/components/ajuda/CanalAjudaPainel.tsx`.
 - **Botão flutuante «Preciso de ajuda»:** `BotaoAjuda.tsx` — **só desktop** (`hidden md:flex`); no celular o canal fica em **Comunicação** (evita duplicar FAB sobre a barra inferior). **Alerta pendentes (jun/2026):** para Daniel/sócios/admin autorizados, FAB pulsa em vermelho com badge de contagem (`GET /api/admin/ajuda-chat?somente_pendentes=1`).
-- **Desktop (header):** link único **Comunicação** substitui «Sugestões» e «Inbox ajuda» separados; sub-rotas (`/portal/sugestoes`, `/portal/ajuda-inbox`) mantêm item **Comunicação** ativo no menu (`navAtivo` em `Header.tsx`). **Mobile/desktop:** ícone Comunicação com badge + `animate-pulse` quando há pendentes no Inbox ajuda.
+- **Desktop (header):** link único **Comunicação** substitui «Sugestões» e «Inbox ajuda» separados; sub-rotas (`/portal/sugestoes`, `/portal/ajuda-inbox`) mantêm item **Comunicação** ativo no menu (`navAtivo` em `Header.tsx`). **Mobile/desktop:** ícone Comunicação com badge vermelho (ajuda) e/ou **âmbar (sugestões pendentes)** quando aplicável.
 
 ### Caixa de sugestões e reclamações (`/portal/sugestoes`)
 
-- **Tipos:** `sugestao` | `reclamacao` (radio no formulário); opção **anônimo**.
+- **Tipos:** `sugestao` | `reclamacao` (radio no formulário); opção **anônimo** (autor oculto no feed; **`colaborador_id` sempre gravado** no servidor para Grãos).
+- **Grãos (jun/2026):** envio de sugestão → **3 Grãos** (`pendente` até elegibilidade da semana). Gestão (**sócio/admin** ou senha admin) pode **«Gostamos — vamos analisar»** → **+7 Grãos** (`sugestao-destaque.ts`, migration **045**). **Não** usar copy «ideia aprovada»; colaborador vê acolhimento *Gostamos da sua sugestão — vamos analisar com carinho.*
 - **API:** `GET/POST /api/portal/sugestoes`; curtidas só em sugestões (`POST .../curtir`).
 - **Feed público na unidade:** só **sugestões** (reclamações não entram no mural de curtidas).
-- **Admin:** `/admin/sugestoes` — gestão completa; **reclamações** visíveis só para quem passa em `canViewReclamacoesAdmin` (sócio; **RH limitado não vê**).
+- **Admin:** `/admin/sugestoes` — marcar visto / destacar Grãos; faixa **N sugestões aguardando análise**; gestão completa; **reclamações** visíveis só para quem passa em `canViewReclamacoesAdmin` (sócio; **RH limitado não vê**).
+- **Líderes:** **não** destacam sugestões; foco na **avaliação da equipe** (impacto direto nos Grãos).
 
 ### Canal de ajuda (suporte ADM/RH)
 
@@ -418,12 +496,23 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | `040_avaliacao_ignorada.sql` | Marcar avaliação ignorada (fora de média/ranking/bonificação) |
 | `041_aniversario_dia_acao.sql` | Ações do balão de aniversário (parabéns/dispensar) |
 | `042_plantao_12x36_paridade.sql` | Paridade de plantão 12x36 por função de liderança |
+| **`044_graos_cafe.sql`** | Grãos de café: ledger, catálogo, resgates, quinta |
+| **`045_sugestao_graos_destaque.sql`** | Destaque gestão em sugestões (+7 Grãos) |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**.
 
 ---
 
 ## Evoluções entregues (registro — 2026)
+
+### Grãos de café + sugestões 3+7 + contador pendentes (jun/2026, `e6852d6`, `a7f61a9`)
+
+- **Grãos:** moeda de reconhecimento; missões semanais; ledger `pendente` → `confirmado` via elegibilidade (`elegibilidade.ts`, migration **044**).
+- **Avaliação equipe:** falta justificada (nota vale, sem Grãos na semana) e injustificada (média zera, sem Grãos); card líder com botões dedicados.
+- **Gestão Grãos:** sócio/admin vê equipe toda; colaborador só o próprio; API `403` em consulta alheia.
+- **Quinta:** bloqueio portal para líder com avaliações pendentes (`lider-quinta-bloqueio.ts`).
+- **Sugestões:** 3 Grãos no envio; destaque gestão «Gostamos — vamos analisar» +7 (`sugestao-destaque.ts`, migration **045**).
+- **Contador:** sugestões não vistas — badge Comunicação/Admin, sidebar admin, card hub Comunicação, faixa em `/admin/sugestoes` (`sugestoes-pendentes.ts`, `GET /api/admin/sugestoes/pendentes`).
 
 ### Mural e dados de teste
 
@@ -620,7 +709,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
-| I4 | Aplicar migrations **`038`**, **`039`**, **`040`** e **`042`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** obrigatória para plantão 12x36; ignorar em lote só após `040` |
+| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045** destaque sugestão |
 | I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par); após migration 042 |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
@@ -653,7 +742,11 @@ src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
 src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
 src/lib/ajuda-chat-threads.ts
-src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/
+src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/, graos/
+src/lib/graos/constants.ts, elegibilidade.ts, movimentos.ts, missoes.ts, sugestao-destaque.ts, graos-access.ts, lider-quinta-bloqueio.ts
+src/lib/sugestoes-pendentes.ts, sugestoes-events.ts
+src/components/portal/GraosPageClient.tsx, GraosHomeBanner.tsx
+src/app/api/portal/graos/, api/admin/sugestoes/pendentes/
 src/lib/avaliacao-ranking.ts, semana-referencia.ts, avaliacao-semanal-agregacao.ts
 src/lib/trofeus-pares-ranking.ts
 src/components/admin/AdminTrofeusRanking.tsx
@@ -693,7 +786,9 @@ src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
 supabase/migrations/041_aniversario_dia_acao.sql, 042_plantao_12x36_paridade.sql
+supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
+scripts/backfill-graos-semanas.mjs, aplicar-graos-044.mjs
 scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
 scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs
 scripts/aplicar-migrations-038-039.mjs, aplicar-migration-040.mjs, ignorar-avaliacoes-vinculo-incorreto.mjs

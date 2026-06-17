@@ -38,6 +38,9 @@ const config: Config = {
           roseHover: '#FCE8EC',
           ink: '#4B3621',
           inkMuted: '#5C4435',
+          action: '#1a5c45',
+          actionLight: '#e6f4ef',
+          actionMuted: '#2d6b54',
         },
         cafeteria: {
           50: '#faf6f2',

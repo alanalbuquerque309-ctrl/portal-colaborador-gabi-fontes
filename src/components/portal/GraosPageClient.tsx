@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
+import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 
 type Missao = {
   id: string;
@@ -161,12 +163,17 @@ export function GraosPageClient() {
 
     return (
       <div className="max-w-lg mx-auto px-4 pb-28 pt-4 space-y-5">
-        <header className="space-y-1">
-          <p className="text-sm text-cafeteria-600">☕ Grãos de café · gestão</p>
-          <h1 className="font-display text-2xl text-cafeteria-900">Equipe da operação</h1>
-          <p className="text-sm text-cafeteria-600">
-            Visão interna (sócio/admin). Colaboradores veem apenas o próprio saldo.
-          </p>
+        <header className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-cream-50 to-white p-5 overflow-hidden">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium text-amber-900">☕ Grãos de café · gestão</p>
+              <h1 className="font-display text-2xl text-cafeteria-900 mt-1">Equipe da operação</h1>
+              <p className="text-sm text-cafeteria-600 mt-1">
+                Visão interna (sócio/admin). Colaboradores veem apenas o próprio saldo.
+              </p>
+            </div>
+            <IlustracaoGraos className="w-24 h-16 shrink-0" />
+          </div>
         </header>
 
         <input
@@ -174,10 +181,10 @@ export function GraosPageClient() {
           value={buscaGestao}
           onChange={(e) => setBuscaGestao(e.target.value)}
           placeholder="Buscar por nome ou setor"
-          className="w-full rounded-xl border border-cafeteria-200 px-4 py-3 text-sm min-h-[48px]"
+          className="w-full rounded-xl border border-cafeteria-200 bg-white px-4 py-3 text-sm min-h-[48px] shadow-sm"
         />
 
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {linhas.map((c) => (
             <li key={c.colaborador_id}>
               <button
@@ -186,16 +193,21 @@ export function GraosPageClient() {
                   setModo('home');
                   setColaboradorGestaoId(c.colaborador_id);
                 }}
-                className="w-full text-left rounded-xl border border-cafeteria-200 bg-white px-4 py-3 min-h-[56px] hover:bg-cream-50"
+                className="w-full text-left rounded-2xl border border-cafeteria-200/80 bg-white px-4 py-4 min-h-[64px] hover:border-dourado-base hover:shadow-md transition-all"
               >
-                <div className="flex justify-between items-start gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-cafeteria-900 truncate">{c.nome}</p>
-                    {c.setor && <p className="text-xs text-cafeteria-500">{c.setor}</p>}
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-dourado-100 to-amber-100 border border-dourado-200 flex items-center justify-center font-display text-lg text-dourado-800 shrink-0">
+                    {c.nome.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-cafeteria-900 leading-snug">{c.nome}</p>
+                    {c.setor && <p className="text-xs text-cafeteria-500 mt-0.5">{c.setor}</p>}
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-bold text-dourado-base tabular-nums">{c.saldo_confirmado}</p>
-                    <p className="text-xs text-cafeteria-600">
+                    <p className="font-display text-2xl font-bold text-dourado-base tabular-nums leading-none">
+                      {c.saldo_confirmado}
+                    </p>
+                    <p className="text-xs text-cafeteria-600 mt-1">
                       {c.nivel.emoji} sem. {c.graos_semana_ganhos}
                     </p>
                   </div>
@@ -218,6 +230,8 @@ export function GraosPageClient() {
             </ul>
           </section>
         )}
+
+        <PortalRodapeFrase variant="graos" />
       </div>
     );
   }
@@ -247,8 +261,11 @@ export function GraosPageClient() {
           colaboradores da loja.
         </div>
       )}
-      <header className="text-center space-y-1">
-        <p className="text-sm text-cafeteria-600">☕ Grãos de café</p>
+      <header className="text-center space-y-1 relative">
+        <div className="flex justify-center mb-1 opacity-80">
+          <IlustracaoGraos className="w-28 h-18" />
+        </div>
+        <p className="text-sm text-cafeteria-600">☕ Grãos de café — nossa moeda</p>
         <p className="font-display text-5xl text-cafeteria-900 tabular-nums">{saldoConfirmado}</p>
         {(data.saldo_pendente ?? 0) > 0 && (
           <p className="text-sm text-amber-800">+{data.saldo_pendente} pendentes (aguardam avaliação ok)</p>
@@ -467,6 +484,7 @@ export function GraosPageClient() {
           </ul>
         </div>
       )}
+      {!colaboradorGestaoId && <PortalRodapeFrase variant="graos" />}
     </div>
   );
 }

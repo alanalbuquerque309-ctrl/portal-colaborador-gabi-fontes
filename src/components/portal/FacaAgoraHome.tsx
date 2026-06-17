@@ -13,6 +13,7 @@ type Tarefa = {
   href: string;
   urgente?: boolean;
   acaoLabel?: string;
+  hero?: boolean;
 };
 
 function normalizarRole(raw: unknown): string {
@@ -29,6 +30,31 @@ function formatarNomes(nomes: string[], max = 3): string {
     return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
   }
   return `${nomes.slice(0, max).join(', ')} e mais ${nomes.length - max}`;
+}
+
+function CardHeroPendencia({ t }: { t: Tarefa }) {
+  return (
+    <Link
+      href={t.href}
+      className="block rounded-2xl bg-gradient-to-br from-portal-action to-portal-actionMuted px-5 py-5 text-white shadow-lg hover:shadow-xl transition-shadow min-h-[44px]"
+    >
+      <div className="flex items-start gap-4">
+        <span
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15 text-2xl"
+          aria-hidden
+        >
+          📋
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-lg sm:text-xl font-display font-semibold leading-snug">{t.titulo}</p>
+          <p className="text-sm text-emerald-50/95 mt-1.5 leading-relaxed">{t.detalhe}</p>
+          <span className="inline-block mt-3 text-sm font-semibold text-dourado-100 underline-offset-2 hover:underline">
+            {t.acaoLabel ?? 'Clique para ver →'}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
 }
 
 export function FacaAgoraHome() {
@@ -191,6 +217,7 @@ export function FacaAgoraHome() {
               detalhe: 'Avaliações da semana ainda não concluídas — ver no Admin.',
               href: '/admin/avaliacoes-diarias',
               urgente: pend.resumo?.criticos > 0,
+              hero: true,
               acaoLabel: 'Clique para ver →',
             });
           }
@@ -235,9 +262,9 @@ export function FacaAgoraHome() {
 
   if (fase === 'loading') {
     return (
-      <section aria-busy="true" className="rounded-2xl border border-dourado-base/40 bg-cream-50 p-5">
-        <h2 className="text-lg font-display font-semibold text-cafeteria-900">Faça agora</h2>
-        <p className="text-sm text-cafeteria-600 mt-2">Carregando pendências…</p>
+      <section aria-busy="true" className="rounded-2xl border border-portal-action/20 bg-portal-actionLight p-5">
+        <h2 className="text-lg font-display font-semibold text-portal-action">Faça agora</h2>
+        <p className="text-sm text-portal-actionMuted mt-2">Carregando pendências…</p>
       </section>
     );
   }
@@ -246,32 +273,42 @@ export function FacaAgoraHome() {
     return null;
   }
 
+  const hero = tarefas.find((t) => t.hero) ?? (tarefas.find((t) => t.urgente && t.id === 'equipe') ?? null);
+  const demais = tarefas.filter((t) => t !== hero);
+
   return (
-    <section aria-labelledby="titulo-faca-agora" className="rounded-2xl border border-dourado-base/40 bg-cream-50 p-5 shadow-sm">
-      <h2 id="titulo-faca-agora" className="text-lg font-display font-semibold text-cafeteria-900">
-        Faça agora
-      </h2>
-      <p className="text-sm text-cafeteria-600 mt-1">O que precisa da sua atenção neste momento.</p>
-      <ul className="mt-4 space-y-3">
-        {tarefas.map((t) => (
-          <li key={t.id}>
-            <Link
-              href={t.href}
-              className={`block rounded-xl border px-4 py-3 transition-all hover:shadow-md ${
-                t.urgente
-                  ? 'border-amber-400 bg-amber-50/80 hover:border-amber-500'
-                  : 'border-cafeteria-200 bg-white hover:border-dourado-base'
-              }`}
-            >
-              <p className="text-base font-semibold text-cafeteria-900">{t.titulo}</p>
-              <p className="text-sm text-cafeteria-600 mt-0.5">{t.detalhe}</p>
-              <span className="inline-block mt-2 text-sm font-medium text-dourado-base">
-                {t.acaoLabel ?? 'Abrir →'}
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+    <section aria-labelledby="titulo-faca-agora" className="space-y-4">
+      <div>
+        <h2 id="titulo-faca-agora" className="text-lg font-display font-semibold text-cafeteria-900">
+          Faça agora
+        </h2>
+        <p className="text-sm text-cafeteria-600 mt-1">O que precisa da sua atenção neste momento.</p>
+      </div>
+
+      {hero && <CardHeroPendencia t={hero} />}
+
+      {demais.length > 0 && (
+        <ul className="space-y-3">
+          {demais.map((t) => (
+            <li key={t.id}>
+              <Link
+                href={t.href}
+                className={`block rounded-xl border px-4 py-3 transition-all hover:shadow-md ${
+                  t.urgente
+                    ? 'border-amber-400 bg-amber-50/90 hover:border-amber-500'
+                    : 'border-cafeteria-200 bg-white hover:border-dourado-base'
+                }`}
+              >
+                <p className="text-base font-semibold text-cafeteria-900">{t.titulo}</p>
+                <p className="text-sm text-cafeteria-600 mt-0.5">{t.detalhe}</p>
+                <span className="inline-block mt-2 text-sm font-medium text-dourado-base">
+                  {t.acaoLabel ?? 'Abrir →'}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

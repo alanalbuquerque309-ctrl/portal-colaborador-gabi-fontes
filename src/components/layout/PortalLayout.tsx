@@ -8,7 +8,6 @@ import { clearPortalSession, isPendingRegistration, setPortalSession } from '@/l
 import { CompleteRegistrationForm } from '@/components/portal/CompleteRegistrationForm';
 import { normalizePortalRole } from '@/lib/roles';
 import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast';
-import { PortalOnlineStrip, PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 import { fotoObrigatoriaPortal } from '@/lib/perfil-completo';
 import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
@@ -234,9 +233,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-cream-100">
       <Header perfilRole={perfilRole} perfilCarregado={gateOk} />
-      <PortalPresenceHeartbeat />
       <PortalPwaRefresh />
-      <PortalOnlineStrip />
       <main className="max-w-6xl mx-auto px-4 py-8 pb-[max(6rem,calc(5rem+env(safe-area-inset-bottom,0px)))] md:pb-8">
         {children}
       </main>

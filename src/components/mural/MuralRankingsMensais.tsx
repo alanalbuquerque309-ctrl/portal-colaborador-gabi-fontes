@@ -5,9 +5,9 @@ import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { AniversariantesReconhecimento } from '@/components/mural/AniversariantesReconhecimento';
 import {
-  BlocoTop3Geral,
   BlocoTop3PorUnidade,
   BlocoRankingTrofeus,
+  CardRankingAvaliacao,
   rotuloMes,
   SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE,
   SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE,
@@ -16,6 +16,7 @@ import {
   type RankingPorUnidade,
   type RankingTrofeuItem,
 } from '@/components/mural/ranking-ui';
+import { PodioTop3 } from '@/components/portal/vivo/PodioTop3';
 
 export function MuralRankingsMensais() {
   const [loading, setLoading] = useState(true);
@@ -71,12 +72,18 @@ export function MuralRankingsMensais() {
 
   return (
     <div className="space-y-8">
-      <BlocoTop3Geral
-        titulo={`Destaques do mês · ${mesRotulo}`}
-        subtitulo={SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE}
-        itens={geralTop3}
-        modo="mensal"
-      />
+      {geralTop3.length > 0 && (
+        <section className="rounded-2xl border border-dourado-200 bg-white/95 p-5 shadow-sm">
+          <h3 className="text-base font-semibold text-cafeteria-800 mb-0.5">{`Destaques do mês · ${mesRotulo}`}</h3>
+          <p className="text-sm text-cafeteria-600 mb-4 leading-relaxed">{SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE}</p>
+          <PodioTop3 itens={geralTop3.slice(0, 3)} modo="mensal" />
+          <div className="mt-4 space-y-2 border-t border-cream-200 pt-4">
+            {geralTop3.map((item) => (
+              <CardRankingAvaliacao key={item.colaborador_id} item={item} modo="mensal" />
+            ))}
+          </div>
+        </section>
+      )}
       <BlocoTop3PorUnidade
         titulo={`Destaques por unidade · ${mesRotulo}`}
         subtitulo={SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE}

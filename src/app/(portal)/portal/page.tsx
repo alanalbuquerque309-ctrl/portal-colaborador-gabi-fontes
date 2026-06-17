@@ -7,11 +7,14 @@ import { GraosHomeBanner } from '@/components/portal/GraosHomeBanner';
 import { PortalAtalhosPerfil } from '@/components/portal/PortalAtalhosPerfil';
 import { TermometroEmocional } from '@/components/emocional/TermometroEmocional';
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
+import { PortalBoasVindas } from '@/components/portal/vivo/PortalBoasVindas';
+import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 
 export default function PortalHomePage() {
   return (
     <main className="space-y-8">
       <EmocionalAlertasGestao />
+      <PortalBoasVindas />
       <GraosHomeBanner />
       <DesdeUltimaVisitaHome />
       <FacaAgoraHome />
@@ -63,6 +66,7 @@ export default function PortalHomePage() {
         <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-4">Mural</h2>
         <MuralPreview />
       </section>
+      <PortalRodapeFrase variant="home" />
     </main>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
 
 type GraosResumo = {
   saldo_confirmado: number;
@@ -54,10 +55,10 @@ export function GraosHomeBanner() {
     : 0;
 
   return (
-    <section className="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-orange-800">☕ Grãos de café</p>
+    <section className="rounded-2xl border border-orange-200/80 bg-gradient-to-br from-orange-50 via-amber-50/80 to-dourado-50/40 p-5 shadow-sm overflow-hidden">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-orange-800">☕ Grãos de café — nossa moeda</p>
           <p className="text-2xl font-display font-bold text-cafeteria-900 mt-1">
             {resumo.saldo_confirmado} Grãos
             {resumo.nivel ? (
@@ -70,13 +71,14 @@ export function GraosHomeBanner() {
             Semana: {resumo.graos_semana_ganhos}/{resumo.graos_semana_possivel} ({pct}%)
             {resumo.saldo_pendente > 0 ? ` · ${resumo.saldo_pendente} aguardando avaliação` : ''}
           </p>
+          <Link
+            href="/portal/graos"
+            className="inline-flex mt-3 min-h-[44px] items-center justify-center rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 shadow-md"
+          >
+            Ver missões e resgatar
+          </Link>
         </div>
-        <Link
-          href="/portal/graos"
-          className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-orange-600 shrink-0"
-        >
-          Ver missões e resgatar
-        </Link>
+        <IlustracaoGraos className="w-24 h-16 shrink-0 opacity-90" />
       </div>
     </section>
   );

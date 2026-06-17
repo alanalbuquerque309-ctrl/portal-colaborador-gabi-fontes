@@ -9,6 +9,8 @@ import { canVisualizarAjuda, normalizePortalRole } from '@/lib/roles';
 import { podeVerBonificacaoInterna } from '@/lib/bonificacao-access';
 import { AJUDA_CHAT_ATUALIZADO, emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
+import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
+import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 
 export default function ComunicacaoPage() {
   const router = useRouter();
@@ -78,11 +80,16 @@ export default function ComunicacaoPage() {
 
   return (
     <main className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-semibold text-cafeteria-800">Comunicação</h1>
-        <p className="text-sm text-coffee-100 mt-1">
-          Sugestões, reclamações e contato com ADM/RH em um só lugar.
-        </p>
+      <div className="rounded-2xl border border-dourado-200/70 bg-gradient-to-br from-cream-50 via-white to-portal-actionLight/30 p-5 overflow-hidden">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-display font-semibold text-cafeteria-800">Comunicação</h1>
+            <p className="text-sm text-cafeteria-600 mt-1 leading-relaxed">
+              Sugestões, reclamações e contato com ADM/RH em um só lugar.
+            </p>
+          </div>
+          <IlustracaoMegafone className="w-24 h-20 shrink-0 opacity-95" />
+        </div>
       </div>
 
       <Link
@@ -182,6 +189,8 @@ export default function ComunicacaoPage() {
         </p>
         <CanalAjudaPainel variant="embedded" onChatAtualizado={emitAjudaChatAtualizado} />
       </section>
+
+      <PortalRodapeFrase variant="comunicacao" />
     </main>
   );
 }
