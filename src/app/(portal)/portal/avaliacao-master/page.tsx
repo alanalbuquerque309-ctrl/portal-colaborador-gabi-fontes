@@ -9,6 +9,7 @@ import { normalizePortalRole } from '@/lib/roles';
 import { colaboradorPermiteMarcarForaPlantao } from '@/lib/escala-portal';
 import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
+import { QuintaTreinoLiderBanner } from '@/components/portal/QuintaTreinoLiderBanner';
 
 function isRoleGerenteAvaliadorPortal(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
@@ -104,6 +105,7 @@ export default function AvaliacaoMasterPage() {
 
   return (
     <main className="space-y-6">
+      <QuintaTreinoLiderBanner />
       <div>
         <Link href="/portal" className="text-sm text-dourado-base hover:underline font-medium">
           ← Voltar ao portal

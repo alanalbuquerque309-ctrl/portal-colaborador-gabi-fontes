@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
+import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
 
 type Missao = {
   id: string;
@@ -44,6 +45,13 @@ type ResumoGraos = {
   graos_semana_ganhos?: number;
   aviso_quinta?: string | null;
   eh_quinta?: boolean;
+  quinta_treino?: {
+    titulo: string;
+    resumo: string;
+    youtube_video_id: string | null;
+    embed_url: string | null;
+    formato?: 'horizontal' | 'shorts';
+  };
   catalogo?: CatalogoItem[];
   extrato?: Array<{ descricao: string; graos: number; estado: string; created_at: string }>;
 };
@@ -59,6 +67,7 @@ export function GraosPageClient() {
   const [codigoResgate, setCodigoResgate] = useState<string | null>(null);
   const [msgResgate, setMsgResgate] = useState<string | null>(null);
   const [quintaLoading, setQuintaLoading] = useState(false);
+  const [quintaAssistido, setQuintaAssistido] = useState(false);
   const [colaboradorGestaoId, setColaboradorGestaoId] = useState<string | null>(null);
   const [buscaGestao, setBuscaGestao] = useState('');
 
@@ -301,17 +310,45 @@ export function GraosPageClient() {
           {data.eh_quinta && !modoVisualizacao && (
             <div className="rounded-xl border-2 border-dourado-400 bg-white p-4 space-y-3">
               <p className="font-semibold text-cafeteria-900">⭐ Quinta do café</p>
-              <p className="text-sm text-cafeteria-700">
-                Treino rápido: lembre-se de tratar bem quem entra na loja e conferir o cardápio do dia.
-              </p>
-              <button
-                type="button"
-                disabled={quintaLoading}
-                onClick={() => void concluirQuinta()}
-                className="w-full rounded-xl bg-cafeteria-800 text-cream-50 py-3 font-semibold min-h-[48px] disabled:opacity-50"
-              >
-                {quintaLoading ? 'Salvando…' : 'Concluir treino (+5 Grãos)'}
-              </button>
+
+              {data.quinta_treino?.embed_url ? (
+                <QuintaTreinoEmbed
+                  embedUrl={data.quinta_treino.embed_url}
+                  titulo={data.quinta_treino.titulo}
+                  resumo={data.quinta_treino.resumo}
+                  formato={data.quinta_treino.formato}
+                />
+              ) : (
+                <p className="text-sm text-cafeteria-700 leading-relaxed">
+                  {data.quinta_treino?.resumo ??
+                    'Treino rápido: trate bem quem entra na loja e confira o cardápio do dia.'}
+                </p>
+              )}
+
+              {(data.missoes ?? []).find((m) => m.id === 'quinta')?.status === 'feito_confirmado' ||
+              (data.missoes ?? []).find((m) => m.id === 'quinta')?.status === 'feito_pendente' ? (
+                <p className="text-sm font-medium text-emerald-800">✅ Treino desta quinta já concluído.</p>
+              ) : (
+                <>
+                  <label className="flex items-start gap-2 text-sm text-cafeteria-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={quintaAssistido}
+                      onChange={(e) => setQuintaAssistido(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-cafeteria-300"
+                    />
+                    <span>Assisti ao treino de hoje (ou li o conteúdo acima)</span>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={quintaLoading || !quintaAssistido}
+                    onClick={() => void concluirQuinta()}
+                    className="w-full rounded-xl bg-cafeteria-800 text-cream-50 py-3 font-semibold min-h-[48px] disabled:opacity-50"
+                  >
+                    {quintaLoading ? 'Salvando…' : 'Concluir treino (+5 Grãos)'}
+                  </button>
+                </>
+              )}
             </div>
           )}
 

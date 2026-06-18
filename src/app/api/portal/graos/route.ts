@@ -8,6 +8,7 @@ import { calcularSaldoGraos, listarExtratoGraos } from '@/lib/graos/movimentos';
 import { obterResumoGraosColaborador } from '@/lib/graos/missoes';
 import { listarGraosGestao } from '@/lib/graos/gestao-lista';
 import { nivelGraosPorTotal } from '@/lib/graos/nivel';
+import { resolverQuintaTreino } from '@/lib/graos/quinta-treino';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,6 +58,8 @@ export async function GET(req: Request) {
     }
 
     const semanaInicio = segundaSemanaSaoPaulo();
+    const origin = new URL(req.url).origin;
+    const quintaTreino = resolverQuintaTreino(origin, 'colaborador');
 
     if (gestao && !alvoParam) {
       const colaboradores = await listarGraosGestao(supabase, semanaInicio);
@@ -139,6 +142,7 @@ export async function GET(req: Request) {
           ? null
           : 'Toda quinta-feira tem treino rápido no portal. Concluindo, você ganha +5 Grãos extras (até 40 na semana).',
         eh_quinta: ehQuintaSaoPaulo(),
+        quinta_treino: quintaTreino,
         catalogo: catalogo ?? [],
         extrato,
       },
