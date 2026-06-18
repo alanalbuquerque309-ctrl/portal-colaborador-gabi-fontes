@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
+import { QuintaTreinosPanel } from '@/components/portal/QuintaTreinosPanel';
 
 type Missao = {
   id: string;
@@ -48,10 +49,19 @@ type ResumoGraos = {
   quinta_treino?: {
     titulo: string;
     resumo: string;
+    apresentador?: {
+      nome: string;
+      cargo: string;
+      credencial: string;
+    } | null;
     youtube_video_id: string | null;
     embed_url: string | null;
     formato?: 'horizontal' | 'shorts';
   };
+  treinos_quinta?: {
+    colaborador?: NonNullable<ResumoGraos['quinta_treino']>;
+    lider?: NonNullable<ResumoGraos['quinta_treino']>;
+  } | null;
   catalogo?: CatalogoItem[];
   extrato?: Array<{ descricao: string; graos: number; estado: string; created_at: string }>;
 };
@@ -193,6 +203,13 @@ export function GraosPageClient() {
           className="w-full rounded-xl border border-cafeteria-200 bg-white px-4 py-3 text-sm min-h-[48px] shadow-sm"
         />
 
+        <QuintaTreinosPanel
+          ehQuinta={data.eh_quinta === true}
+          treinoColaborador={data.treinos_quinta?.colaborador ?? data.quinta_treino}
+          treinoLider={data.treinos_quinta?.lider}
+          intro="Visão gestão: acompanhe os treinos de colaboradores e de liderança."
+        />
+
         <ul className="space-y-3">
           {linhas.map((c) => (
             <li key={c.colaborador_id}>
@@ -316,6 +333,7 @@ export function GraosPageClient() {
                   embedUrl={data.quinta_treino.embed_url}
                   titulo={data.quinta_treino.titulo}
                   resumo={data.quinta_treino.resumo}
+                  apresentador={data.quinta_treino.apresentador}
                   formato={data.quinta_treino.formato}
                 />
               ) : (

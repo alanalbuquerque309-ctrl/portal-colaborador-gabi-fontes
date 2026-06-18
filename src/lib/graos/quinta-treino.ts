@@ -45,10 +45,18 @@ export function urlEmbedYoutubeTreino(videoId: string, origin?: string): string 
   return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
 }
 
+export type QuintaTreinoApresentador = {
+  nome: string;
+  cargo: string;
+  /** Por que ouvir esta pessoa (validação / autoridade). */
+  credencial: string;
+};
+
 export type QuintaTreinoConfig = {
   perfil: QuintaTreinoPerfil;
   titulo: string;
   resumo: string;
+  apresentador: QuintaTreinoApresentador | null;
   youtube_video_id: string | null;
   embed_url: string | null;
   /** vertical = Shorts / vídeo 9:16 */
@@ -68,18 +76,59 @@ function resolverFormato(urlRaw: string, perfil: QuintaTreinoPerfil): QuintaTrei
   return 'horizontal';
 }
 
+function resolverApresentador(perfil: QuintaTreinoPerfil): QuintaTreinoApresentador | null {
+  const sufixo = perfil === 'lider' ? '_LIDERES' : '';
+
+  const nome = envLimpo(
+    typeof process !== 'undefined'
+      ? process.env[`NEXT_PUBLIC_QUINTA_APRESENTADOR_NOME${sufixo}` as keyof NodeJS.ProcessEnv]
+      : ''
+  );
+  const cargo = envLimpo(
+    typeof process !== 'undefined'
+      ? process.env[`NEXT_PUBLIC_QUINTA_APRESENTADOR_CARGO${sufixo}` as keyof NodeJS.ProcessEnv]
+      : ''
+  );
+  const credencial = envLimpo(
+    typeof process !== 'undefined'
+      ? process.env[`NEXT_PUBLIC_QUINTA_APRESENTADOR_CREDENCIAL${sufixo}` as keyof NodeJS.ProcessEnv]
+      : ''
+  );
+
+  if (!nome && !cargo && !credencial) return null;
+  return { nome, cargo, credencial };
+}
+
+/** URLs padrão (Vercel pode sobrescrever via NEXT_PUBLIC_QUINTA_YOUTUBE_URL*). */
+export const QUINTA_VIDEO_COLABORADOR_PADRAO = 'https://youtu.be/dd1bsHYYqjg';
+export const QUINTA_VIDEO_LIDERES_PADRAO = 'https://youtube.com/shorts/0XYHQQ3RuTY';
+
+export type QuintaTreinoPar = {
+  colaborador: QuintaTreinoConfig;
+  lider: QuintaTreinoConfig;
+};
+
+export function resolverParTreinosQuinta(origin: string | undefined): QuintaTreinoPar {
+  return {
+    colaborador: resolverQuintaTreino(origin, 'colaborador'),
+    lider: resolverQuintaTreino(origin, 'lider'),
+  };
+}
+
 /** Configuração do treino da quinta para colaboradores ou liderança. */
 export function resolverQuintaTreino(
   origin: string | undefined,
   perfil: QuintaTreinoPerfil
 ): QuintaTreinoConfig {
-  const urlRaw = envLimpo(
+  const urlEnv = envLimpo(
     typeof process !== 'undefined'
       ? perfil === 'lider'
         ? process.env.NEXT_PUBLIC_QUINTA_YOUTUBE_URL_LIDERES
         : process.env.NEXT_PUBLIC_QUINTA_YOUTUBE_URL
       : ''
   );
+  const urlRaw =
+    urlEnv || (perfil === 'lider' ? QUINTA_VIDEO_LIDERES_PADRAO : QUINTA_VIDEO_COLABORADOR_PADRAO);
   const videoId = urlRaw ? extrairYoutubeVideoId(urlRaw) : null;
   const formato = urlRaw ? resolverFormato(urlRaw, perfil) : 'horizontal';
 
@@ -107,6 +156,7 @@ export function resolverQuintaTreino(
     perfil,
     titulo: tituloEnv || tituloDefault,
     resumo: resumoEnv || resumoDefault,
+    apresentador: resolverApresentador(perfil),
     youtube_video_id: videoId,
     embed_url: videoId ? urlEmbedYoutubeTreino(videoId, origin) : null,
     formato,

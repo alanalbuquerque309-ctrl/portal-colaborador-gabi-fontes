@@ -128,6 +128,12 @@ export function canAcessarChatEquipe(
   return canVisualizarAjuda(role, colaboradorId);
 }
 
+/** Admin e sócios acompanham treino de colaboradores e de liderança. */
+export function podeVerTodosTreinosQuinta(role: string | null | undefined): boolean {
+  const r = normalizePortalRole(role);
+  return r === 'admin' || r === 'socio';
+}
+
 /** Abrir /portal/graos: colaboradores da operação + sócios + admin (Daniel) + UUID dedicado ajuda. */
 export function podeVerGraosCafePortal(
   role: string | null | undefined,

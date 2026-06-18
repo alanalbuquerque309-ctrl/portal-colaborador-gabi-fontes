@@ -1,21 +1,23 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { QuintaTreinosPanel } from '@/components/portal/QuintaTreinosPanel';
 import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
+import type { QuintaTreinoConfig } from '@/lib/graos/quinta-treino';
 
 type QuintaApi = {
   ok?: boolean;
   eh_quinta?: boolean;
+  ver_todos?: boolean;
   perfil_treino?: 'lider' | 'colaborador';
-  quinta_treino?: {
-    titulo: string;
-    resumo: string;
-    embed_url: string | null;
-    formato?: 'horizontal' | 'shorts';
+  treinos_quinta?: {
+    colaborador: QuintaTreinoConfig;
+    lider: QuintaTreinoConfig;
   };
+  quinta_treino?: QuintaTreinoConfig & { embed_url: string | null };
 };
 
-/** Treino da quinta exclusivo para liderança (Avaliação da equipe). */
+/** Treino da quinta para liderança (e visão completa admin/sócio). */
 export function QuintaTreinoLiderBanner() {
   const [data, setData] = useState<QuintaApi | null>(null);
 
@@ -34,7 +36,21 @@ export function QuintaTreinoLiderBanner() {
     };
   }, []);
 
-  if (!data?.ok || !data.eh_quinta || data.perfil_treino !== 'lider') return null;
+  if (!data?.ok || !data.eh_quinta) return null;
+
+  if (data.ver_todos && data.treinos_quinta) {
+    return (
+      <QuintaTreinosPanel
+        ehQuinta
+        treinoColaborador={data.treinos_quinta.colaborador}
+        treinoLider={data.treinos_quinta.lider}
+        intro="Visão gestão: treinos publicados para colaboradores e para liderança."
+        className="mb-6"
+      />
+    );
+  }
+
+  if (data.perfil_treino !== 'lider') return null;
 
   const treino = data.quinta_treino;
   if (!treino?.embed_url) {
@@ -57,6 +73,7 @@ export function QuintaTreinoLiderBanner() {
         embedUrl={treino.embed_url}
         titulo={treino.titulo}
         resumo={treino.resumo}
+        apresentador={treino.apresentador}
         formato={treino.formato}
       />
     </div>

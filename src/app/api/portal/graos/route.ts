@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole, podeVerGraosCafePortal, podeParticiparGraosCafe } from '@/lib/roles';
+import { normalizePortalRole, podeVerGraosCafePortal, podeParticiparGraosCafe, podeVerTodosTreinosQuinta } from '@/lib/roles';
 import { podeVerGraosGestaoTodos } from '@/lib/graos-access';
 import { segundaSemanaSaoPaulo, ehQuintaSaoPaulo } from '@/lib/semana-brasil';
 import { calcularSaldoGraos, listarExtratoGraos } from '@/lib/graos/movimentos';
 import { obterResumoGraosColaborador } from '@/lib/graos/missoes';
 import { listarGraosGestao } from '@/lib/graos/gestao-lista';
 import { nivelGraosPorTotal } from '@/lib/graos/nivel';
-import { resolverQuintaTreino } from '@/lib/graos/quinta-treino';
+import { resolverQuintaTreino, resolverParTreinosQuinta } from '@/lib/graos/quinta-treino';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +59,10 @@ export async function GET(req: Request) {
 
     const semanaInicio = segundaSemanaSaoPaulo();
     const origin = new URL(req.url).origin;
+    const ehQuinta = ehQuintaSaoPaulo();
+    const verTodosTreinos = podeVerTodosTreinosQuinta(role);
     const quintaTreino = resolverQuintaTreino(origin, 'colaborador');
+    const treinosQuinta = verTodosTreinos ? resolverParTreinosQuinta(origin) : null;
 
     if (gestao && !alvoParam) {
       const colaboradores = await listarGraosGestao(supabase, semanaInicio);
@@ -75,6 +78,8 @@ export async function GET(req: Request) {
           modo_gestao: true,
           apenas_visualizacao: true,
           semana_inicio: semanaInicio,
+          eh_quinta: ehQuinta,
+          treinos_quinta: treinosQuinta,
           colaboradores,
           catalogo: catalogo ?? [],
         },
@@ -138,11 +143,12 @@ export async function GET(req: Request) {
         missoes: resumo.missoes,
         graos_semana_possivel: resumo.graos_semana_possivel,
         graos_semana_ganhos: resumo.graos_semana_ganhos,
-        aviso_quinta: ehQuintaSaoPaulo()
+        aviso_quinta: ehQuinta
           ? null
           : 'Toda quinta-feira tem treino rápido no portal. Concluindo, você ganha +5 Grãos extras (até 40 na semana).',
-        eh_quinta: ehQuintaSaoPaulo(),
+        eh_quinta: ehQuinta,
         quinta_treino: quintaTreino,
+        treinos_quinta: verTodosTreinos ? treinosQuinta ?? resolverParTreinosQuinta(origin) : null,
         catalogo: catalogo ?? [],
         extrato,
       },

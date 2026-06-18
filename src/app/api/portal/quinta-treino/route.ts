@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
+import { normalizePortalRole, podeParticiparGraosCafe, podeVerTodosTreinosQuinta } from '@/lib/roles';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { ehQuintaSaoPaulo } from '@/lib/semana-brasil';
-import { resolverQuintaTreino, type QuintaTreinoPerfil } from '@/lib/graos/quinta-treino';
+import { resolverQuintaTreino, resolverParTreinosQuinta, type QuintaTreinoPerfil } from '@/lib/graos/quinta-treino';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +33,25 @@ export async function GET(req: Request) {
     const role = normalizePortalRole((viewer as { role?: string }).role);
     const ehLider = await podeUsarAvaliacaoEquipeSemanal(supabase, viewerId, role);
     const ehColaboradorOperacao = podeParticiparGraosCafe(role);
+    const verTodos = podeVerTodosTreinosQuinta(role);
+    const origin = new URL(req.url).origin;
+    const ehQuinta = ehQuintaSaoPaulo();
+
+    if (verTodos) {
+      const par = resolverParTreinosQuinta(origin);
+      return NextResponse.json(
+        {
+          ok: true,
+          eh_quinta: ehQuinta,
+          ver_todos: true,
+          treinos_quinta: par,
+          quinta_treino: par.colaborador,
+          perfil_treino: 'colaborador' as const,
+          pode_concluir_graos: false,
+        },
+        { headers: NO_STORE }
+      );
+    }
 
     if (!ehLider && !ehColaboradorOperacao) {
       return NextResponse.json(
@@ -42,13 +61,12 @@ export async function GET(req: Request) {
     }
 
     const perfil: QuintaTreinoPerfil = ehLider && !ehColaboradorOperacao ? 'lider' : 'colaborador';
-    const origin = new URL(req.url).origin;
     const quintaTreino = resolverQuintaTreino(origin, perfil);
 
     return NextResponse.json(
       {
         ok: true,
-        eh_quinta: ehQuintaSaoPaulo(),
+        eh_quinta: ehQuinta,
         perfil_treino: perfil,
         quinta_treino: quintaTreino,
         pode_concluir_graos: perfil === 'colaborador' && ehColaboradorOperacao,
