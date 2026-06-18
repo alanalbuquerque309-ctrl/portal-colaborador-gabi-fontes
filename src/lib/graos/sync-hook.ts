@@ -11,7 +11,7 @@ export async function syncGraosColaboradorSeAplicavel(
   try {
     const { data } = await supabase.from('colaboradores').select('role').eq('id', colaboradorId).maybeSingle();
     if (!data || !podeParticiparGraosCafe((data as { role?: string }).role)) return;
-    await sincronizarMissoesSemanaGraos(supabase, colaboradorId, segundaSemanaSaoPaulo());
+    await sincronizarMissoesSemanaGraos(supabase, colaboradorId, segundaSemanaSaoPaulo(), { creditarLogin: false });
   } catch {
     /* migração pendente ou erro não bloqueia fluxo principal */
   }
@@ -23,7 +23,7 @@ export async function reprocessarGraosAposAvaliacaoEquipe(
   semanaInicio: string
 ): Promise<void> {
   try {
-    await sincronizarMissoesSemanaGraos(supabase, colaboradorAlvoId, semanaInicio);
+    await sincronizarMissoesSemanaGraos(supabase, colaboradorAlvoId, semanaInicio, { creditarLogin: false });
   } catch {
     /* noop */
   }

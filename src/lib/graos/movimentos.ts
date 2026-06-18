@@ -27,12 +27,19 @@ export function refKeyGraos(
 
 export async function calcularSaldoGraos(
   supabase: SupabaseClient,
-  colaboradorId: string
+  colaboradorId: string,
+  opts?: { semanaInicio?: string | null }
 ): Promise<GraosSaldo> {
-  const { data, error } = await supabase
+  let query = supabase
     .from('graos_movimentos')
-    .select('graos, estado, missao')
+    .select('graos, estado, missao, semana_inicio')
     .eq('colaborador_id', colaboradorId);
+
+  if (opts?.semanaInicio) {
+    query = query.eq('semana_inicio', opts.semanaInicio);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     if (tabelaAusente(error.message)) return { confirmado: 0, pendente: 0, total_ganho_confirmado: 0 };
@@ -60,6 +67,86 @@ export async function calcularSaldoGraos(
   return { confirmado, pendente, total_ganho_confirmado };
 }
 
+/**
+ * Cancela créditos pendentes de semanas já encerradas (segunda anterior à semana corrente).
+ * Evita acúmulo de «+5 pendente» de backfill ou semanas sem avaliação do líder.
+ */
+export async function encerrarPendentesSemanasPassadas(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaCorrenteInicio: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('id')
+    .eq('colaborador_id', colaboradorId)
+    .eq('estado', 'pendente')
+    .gt('graos', 0)
+    .lt('semana_inicio', semanaCorrenteInicio);
+
+  if (error) {
+    if (tabelaAusente(error.message)) return 0;
+    throw new Error(error.message);
+  }
+
+  const ids = (data ?? []).map((r) => r.id);
+  if (ids.length === 0) return 0;
+
+  const { error: updErr } = await supabase
+    .from('graos_movimentos')
+    .update({ estado: 'cancelado' })
+    .in('id', ids);
+
+  if (updErr) throw new Error(updErr.message);
+  return ids.length;
+}
+
+/** Remove duplicatas históricas de login/backfill na mesma semana (mantém o mais antigo). */
+export async function deduplicarLoginSemanaColaborador(
+  supabase: SupabaseClient,
+  colaboradorId: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('id, missao, semana_inicio, ref_key, created_at, estado')
+    .eq('colaborador_id', colaboradorId)
+    .eq('missao', 'login_semana')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    if (tabelaAusente(error.message)) return 0;
+    throw new Error(error.message);
+  }
+
+  const porSemana = new Map<string, typeof data>();
+  for (const row of data ?? []) {
+    const sem = String(row.semana_inicio ?? '');
+    if (!sem) continue;
+    const lista = porSemana.get(sem) ?? [];
+    lista.push(row);
+    porSemana.set(sem, lista);
+  }
+
+  const cancelarIds: string[] = [];
+  for (const rows of Array.from(porSemana.values())) {
+    if (rows.length <= 1) continue;
+    const manter = rows.find((r) => r.estado === 'confirmado') ?? rows[0];
+    for (const r of rows) {
+      if (r.id !== manter.id) cancelarIds.push(r.id);
+    }
+  }
+
+  if (cancelarIds.length === 0) return 0;
+
+  const { error: updErr } = await supabase
+    .from('graos_movimentos')
+    .update({ estado: 'cancelado' })
+    .in('id', cancelarIds);
+
+  if (updErr) throw new Error(updErr.message);
+  return cancelarIds.length;
+}
+
 /** Credita missão (pendente). Idempotente via ref_key. */
 export async function creditarMissaoGraos(
   supabase: SupabaseClient,
@@ -71,6 +158,8 @@ export async function creditarMissaoGraos(
     refKey: string;
     descricao: string;
     meta?: Record<string, unknown>;
+    /** Se true, reabre crédito cancelado da mesma ref_key (ex.: nova avaliação elegível). */
+    reabrirSeCancelado?: boolean;
   }
 ): Promise<{ ok: true; criado: boolean; estado: GraosEstadoMovimento } | { ok: false; erro: string }> {
   if (opts.graos <= 0) return { ok: false, erro: 'Grãos inválidos' };
@@ -82,7 +171,15 @@ export async function creditarMissaoGraos(
     .maybeSingle();
 
   if (existente) {
-    return { ok: true, criado: false, estado: existente.estado as GraosEstadoMovimento };
+    const est = existente.estado as GraosEstadoMovimento;
+    if (est === 'cancelado' && opts.reabrirSeCancelado) {
+      await supabase
+        .from('graos_movimentos')
+        .update({ estado: 'pendente', graos: opts.graos, descricao: opts.descricao, meta: opts.meta ?? {} })
+        .eq('id', existente.id);
+      return { ok: true, criado: false, estado: 'pendente' };
+    }
+    return { ok: true, criado: false, estado: est };
   }
 
   const { error } = await supabase.from('graos_movimentos').insert({

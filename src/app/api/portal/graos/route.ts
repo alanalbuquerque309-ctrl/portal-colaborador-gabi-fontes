@@ -97,10 +97,12 @@ export async function GET(req: Request) {
 
     const resumo = await obterResumoGraosColaborador(supabase, colaboradorId, semanaInicio, {
       sincronizar: colaboradorOperacao && colaboradorId === viewerId,
+      creditarLogin: colaboradorOperacao && colaboradorId === viewerId,
     });
-    const saldo = await calcularSaldoGraos(supabase, colaboradorId);
+    const saldoTotal = await calcularSaldoGraos(supabase, colaboradorId);
+    const saldoSemana = await calcularSaldoGraos(supabase, colaboradorId, { semanaInicio });
     const extrato = await listarExtratoGraos(supabase, colaboradorId, 15);
-    const nivel = nivelGraosPorTotal(saldo.total_ganho_confirmado);
+    const nivel = nivelGraosPorTotal(saldoTotal.total_ganho_confirmado);
 
     const { data: catalogo } = await supabase
       .from('graos_catalogo')
@@ -126,8 +128,8 @@ export async function GET(req: Request) {
         colaborador_id: colaboradorId,
         colaborador_nome: colaboradorNome,
         semana_inicio: semanaInicio,
-        saldo_confirmado: saldo.confirmado,
-        saldo_pendente: saldo.pendente,
+        saldo_confirmado: saldoTotal.confirmado,
+        saldo_pendente: saldoSemana.pendente,
         nivel: { emoji: nivel.emoji, label: nivel.label },
         elegibilidade: resumo.eleg,
         missoes: resumo.missoes,

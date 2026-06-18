@@ -67,7 +67,7 @@ export async function listarGraosGestao(
       if (g > 0 && missao !== 'debito_resgate' && missao !== 'ajuste_rh') {
         acc.total_ganho += g;
       }
-    } else if (est === 'pendente' && g > 0) {
+    } else if (est === 'pendente' && g > 0 && String(row.semana_inicio) === semanaInicio) {
       acc.pendente += g;
     }
 

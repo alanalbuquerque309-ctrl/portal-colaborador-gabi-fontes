@@ -13,26 +13,48 @@ import { loadEnvFile, resolveDatabaseUrl } from './lib/resolve-database-url.mjs'
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const portalRoot = path.join(__dirname, '..');
 
-function segundaSemanaDe(isoDate) {
+function segundaSemanaSaoPauloDe(isoDate) {
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
   const [y, mo, d] = isoDate.split('-').map(Number);
-  const dt = new Date(y, mo - 1, d);
-  const dow = dt.getDay();
+  const ref = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
+  const parts = fmt.formatToParts(ref);
+  const y2 = parseInt(parts.find((p) => p.type === 'year')?.value ?? '0', 10);
+  const mo2 = parseInt(parts.find((p) => p.type === 'month')?.value ?? '1', 10) - 1;
+  const day2 = parseInt(parts.find((p) => p.type === 'day')?.value ?? '1', 10);
+  const local = new Date(y2, mo2, day2);
+  const dow = local.getDay();
   const diff = dow === 0 ? -6 : 1 - dow;
-  dt.setDate(dt.getDate() + diff);
-  const ys = dt.getFullYear();
-  const ms = String(dt.getMonth() + 1).padStart(2, '0');
-  const ds = String(dt.getDate()).padStart(2, '0');
+  local.setDate(local.getDate() + diff);
+  const ys = local.getFullYear();
+  const ms = String(local.getMonth() + 1).padStart(2, '0');
+  const ds = String(local.getDate()).padStart(2, '0');
   return `${ys}-${ms}-${ds}`;
 }
 
 function listarSemanas(n) {
   const out = [];
-  const today = new Date();
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const hoje = fmt.formatToParts(new Date());
+  const y = parseInt(hoje.find((p) => p.type === 'year')?.value ?? '0', 10);
+  const mo = parseInt(hoje.find((p) => p.type === 'month')?.value ?? '1', 10);
+  const day = parseInt(hoje.find((p) => p.type === 'day')?.value ?? '1', 10);
+  const isoHoje = `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
   for (let i = 0; i < n; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i * 7);
-    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const seg = segundaSemanaDe(iso);
+    const ref = new Date(y, mo - 1, day);
+    ref.setDate(ref.getDate() - i * 7);
+    const iso = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}-${String(ref.getDate()).padStart(2, '0')}`;
+    const seg = segundaSemanaSaoPauloDe(iso || isoHoje);
     if (!out.includes(seg)) out.push(seg);
   }
   return out;
@@ -78,21 +100,27 @@ async function processarColaboradorSemana(ctx, c, semana) {
     await ctx.upsertMovimento({ colaboradorId: cid, semana, missao, graos, refKey, descricao });
   };
 
-  await upsert('login_semana', 5, `${cid}:login_semana:${semana}`, 'Entrada no portal (backfill)');
+  // Login: só se houve outra ação comprovada na semana (proxy de uso real do portal).
+  const nLid = await ctx.countLideranca(cid, semana);
+  const nSug = await ctx.countSugestao(cid, semana);
+  const nTrof = await ctx.countTrofeus(cid, semana);
+  const temAviso = await ctx.temAvisoSemana(cid, semana);
+  const teveAtividade = temAviso || nLid > 0 || nSug > 0 || nTrof > 0;
 
-  if (await ctx.temAvisoSemana(cid, semana)) {
-    await upsert('aviso_semana', 5, `${cid}:aviso_semana:${semana}`, 'Comunicado (backfill)');
+  if (teveAtividade) {
+    await upsert('login_semana', 5, `${cid}:login_semana:${semana}`, 'Entrada no portal na semana');
   }
 
-  const nLid = await ctx.countLideranca(cid, semana);
-  if (nLid > 0) await upsert('lideranca_semana', 10, `${cid}:lideranca_semana:${semana}`, 'Liderança (backfill)');
+  if (temAviso) {
+    await upsert('aviso_semana', 5, `${cid}:aviso_semana:${semana}`, 'Leitura de comunicado');
+  }
 
-  const nSug = await ctx.countSugestao(cid, semana);
-  if (nSug > 0) await upsert('sugestao_semana', 3, `${cid}:sugestao_semana:${semana}`, 'Sugestão (backfill)');
+  if (nLid > 0) await upsert('lideranca_semana', 10, `${cid}:lideranca_semana:${semana}`, 'Avaliar liderança');
 
-  const nTrof = await ctx.countTrofeus(cid, semana);
+  if (nSug > 0) await upsert('sugestao_semana', 3, `${cid}:sugestao_semana:${semana}`, 'Enviar sugestão');
+
   const gt = nTrof <= 0 ? 0 : nTrof === 1 ? 1 : nTrof === 2 ? 2 : 5;
-  if (gt > 0) await upsert('trofeu_semana', gt, `${cid}:trofeu_semana:${semana}`, `Troféus (backfill ${nTrof})`);
+  if (gt > 0) await upsert('trofeu_semana', gt, `${cid}:trofeu_semana:${semana}`, `Troféus entre pares (${nTrof} enviado(s))`);
 
   if (!avaliacao) {
     /* mantém pendente */

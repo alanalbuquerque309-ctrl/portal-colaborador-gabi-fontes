@@ -3,6 +3,8 @@ import { GRAOS_MISSAO, GRAOS_MAX_SEMANA, GRAOS_SUGESTAO_MAX_SEMANA, type GraosMi
 import { calcularElegibilidadeSemana } from '@/lib/graos/elegibilidade';
 import {
   creditarMissaoGraos,
+  deduplicarLoginSemanaColaborador,
+  encerrarPendentesSemanasPassadas,
   processarElegibilidadeSemanaGraos,
   refKeyGraos,
 } from '@/lib/graos/movimentos';
@@ -34,17 +36,23 @@ function statusDeMovimento(
 export async function sincronizarMissoesSemanaGraos(
   supabase: SupabaseClient,
   colaboradorId: string,
-  semanaInicio: string
+  semanaInicio: string,
+  opts?: { creditarLogin?: boolean }
 ): Promise<void> {
-  // Login da semana
-  await creditarMissaoGraos(supabase, {
-    colaboradorId,
-    semanaInicio,
-    missao: 'login_semana',
-    graos: GRAOS_MISSAO.login_semana,
-    refKey: refKeyGraos(colaboradorId, 'login_semana', semanaInicio),
-    descricao: 'Entrada no portal na semana',
-  });
+  await encerrarPendentesSemanasPassadas(supabase, colaboradorId, semanaInicio);
+  await deduplicarLoginSemanaColaborador(supabase, colaboradorId);
+
+  // Entrada no portal: 1 crédito/semana, só quando o colaborador acessa o portal (sync explícito).
+  if (opts?.creditarLogin !== false) {
+    await creditarMissaoGraos(supabase, {
+      colaboradorId,
+      semanaInicio,
+      missao: 'login_semana',
+      graos: GRAOS_MISSAO.login_semana,
+      refKey: refKeyGraos(colaboradorId, 'login_semana', semanaInicio),
+      descricao: 'Entrada no portal na semana',
+    });
+  }
 
   // Aviso confirmado (1/semana)
   const { data: confs } = await supabase
@@ -285,10 +293,12 @@ export async function obterResumoGraosColaborador(
   supabase: SupabaseClient,
   colaboradorId: string,
   semanaInicio: string,
-  opts?: { sincronizar?: boolean }
+  opts?: { sincronizar?: boolean; creditarLogin?: boolean }
 ) {
   if (opts?.sincronizar !== false) {
-    await sincronizarMissoesSemanaGraos(supabase, colaboradorId, semanaInicio);
+    await sincronizarMissoesSemanaGraos(supabase, colaboradorId, semanaInicio, {
+      creditarLogin: opts?.creditarLogin ?? true,
+    });
   }
   const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
   const { missoes, graos_semana_possivel, graos_semana_ganhos } = await montarMissoesUi(
