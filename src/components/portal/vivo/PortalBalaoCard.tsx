@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { IlustracaoRamoCafe } from './PortalIlustracao';
+import Image from 'next/image';
 
 type Tom = 'creme' | 'verde' | 'dourado' | 'branco';
 
@@ -10,51 +10,50 @@ const TOM: Record<Tom, string> = {
   branco: 'border-cafeteria-200 bg-white/95',
 };
 
-/** Card “balão” com ramos decorativos (mockup portal vivo). */
+/** Card “balão” sem desenhos — conteúdo limpo. */
 export function PortalBalaoCard({
   children,
   className = '',
   tom = 'creme',
-  ramoCanto = 'direita',
+  ramoCanto: _ramoCanto = 'nenhum',
 }: {
   children: ReactNode;
   className?: string;
   tom?: Tom;
+  /** Legado: ramos SVG removidos; prop ignorada. */
   ramoCanto?: 'nenhum' | 'esquerda' | 'direita' | 'ambos';
 }) {
   return (
-    <div
-      className={`relative rounded-2xl border shadow-sm overflow-hidden ${TOM[tom]} ${className}`}
-    >
-      {(ramoCanto === 'esquerda' || ramoCanto === 'ambos') && (
-        <IlustracaoRamoCafe
-          className="pointer-events-none absolute -bottom-2 -left-1 w-16 h-16 sm:w-20 sm:h-20 opacity-70"
-        />
-      )}
-      {(ramoCanto === 'direita' || ramoCanto === 'ambos') && (
-        <IlustracaoRamoCafe
-          espelhar
-          className="pointer-events-none absolute -bottom-1 -right-1 w-14 h-14 sm:w-20 sm:h-20 opacity-65"
-        />
-      )}
+    <div className={`relative rounded-2xl border shadow-sm overflow-hidden ${TOM[tom]} ${className}`}>
       <div className="relative z-[1]">{children}</div>
     </div>
   );
 }
 
-/** Ramos nos cantos da página (home, comunicação). */
+/** Fotos fixas nos cantos: grãos torrados (esquerda) + folhagem de cafezal (direita). */
 export function PortalDecoracaoRamosPagina() {
   return (
-    <>
-      <IlustracaoRamoCafe
-        className="pointer-events-none fixed bottom-24 left-0 w-20 h-20 sm:w-28 sm:h-28 opacity-40 z-0 hidden sm:block"
-        aria-hidden
-      />
-      <IlustracaoRamoCafe
-        espelhar
-        className="pointer-events-none fixed bottom-32 right-0 w-16 h-16 sm:w-24 sm:h-24 opacity-35 z-0 hidden sm:block"
-        aria-hidden
-      />
-    </>
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden hidden sm:block" aria-hidden>
+      <div className="absolute bottom-0 left-0 w-[min(42vw,280px)] h-[min(36vh,240px)] opacity-[0.88]">
+        <Image
+          src="/decoracao/graos-cafe-canto.png"
+          alt=""
+          fill
+          sizes="280px"
+          className="object-contain object-left-bottom"
+          priority={false}
+        />
+      </div>
+      <div className="absolute bottom-0 right-0 w-[min(42vw,280px)] h-[min(36vh,240px)] opacity-[0.82]">
+        <Image
+          src="/decoracao/folhagem-cafezal-canto.png"
+          alt=""
+          fill
+          sizes="280px"
+          className="object-contain object-right-bottom"
+          priority={false}
+        />
+      </div>
+    </div>
   );
 }
