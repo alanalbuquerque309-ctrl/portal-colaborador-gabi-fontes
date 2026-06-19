@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
-import { PortalDecoracaoRamosPagina } from '@/components/portal/vivo/PortalBalaoCard';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
 import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
 import { mensagemRespostaColaborador } from '@/lib/sugestao-resposta-graos';
@@ -191,10 +190,8 @@ export default function SugestoesPage() {
         : 'Sugestões da Equipe';
 
   return (
-    <main className="relative">
-      <PortalDecoracaoRamosPagina />
-
-      <div className="relative z-[1] space-y-8">
+    <main className="space-y-8">
+      <div className="space-y-8">
         <PortalBalaoCard tom="verde" ramoCanto="ambos" className="p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4 mb-2">
             <div>

@@ -9,14 +9,12 @@ import { PortalAtalhosPerfil } from '@/components/portal/PortalAtalhosPerfil';
 import { TermometroEmocional } from '@/components/emocional/TermometroEmocional';
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
 import { PortalBoasVindas } from '@/components/portal/vivo/PortalBoasVindas';
-import { PortalDecoracaoRamosPagina } from '@/components/portal/vivo/PortalBalaoCard';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 
 export default function PortalHomePage() {
   return (
-    <main className="space-y-8 relative">
-      <PortalDecoracaoRamosPagina />
-      <div className="relative z-[1] space-y-8">
+    <main className="space-y-8">
+      <div className="space-y-8">
       <EmocionalAlertasGestao />
       <PortalBoasVindas />
       <DesdeUltimaVisitaHome />

@@ -26,7 +26,12 @@ export function PortalBoasVindas() {
   if (!nome) return null;
 
   return (
-    <section className="rounded-2xl border border-cafeteria-200/60 bg-gradient-to-br from-white via-cream-50/90 to-white shadow-sm overflow-hidden relative min-h-[5.5rem] sm:min-h-[6.5rem]">
+    <section className="rounded-2xl border border-cafeteria-200/60 border-l-[5px] border-l-portal-action bg-gradient-to-br from-white via-cream-50/95 to-emerald-50/30 shadow-md sm:shadow-sm overflow-hidden relative min-h-[6rem] sm:min-h-[6.5rem]">
+      {/* Faixa dourada no topo — destaque no mobile */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-portal-action via-dourado-base to-portal-action/60"
+        aria-hidden
+      />
       {/* Foto integrada à direita: máscara + degradê na mesma cor do card */}
       <div
         className="pointer-events-none absolute inset-y-0 right-0 w-[min(52%,11.5rem)] sm:w-[min(48%,13rem)]"

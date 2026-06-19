@@ -289,7 +289,7 @@ export function FacaAgoraHome() {
 
   return (
     <section aria-labelledby="titulo-faca-agora" className="space-y-4">
-      <div>
+      <div className="rounded-xl border border-portal-action/15 bg-gradient-to-r from-portal-actionLight/50 via-white/80 to-emerald-50/40 px-4 py-3 sm:bg-transparent sm:border-0 sm:p-0">
         <h2 id="titulo-faca-agora" className="text-lg font-display font-semibold text-cafeteria-900">
           Faça agora
         </h2>
