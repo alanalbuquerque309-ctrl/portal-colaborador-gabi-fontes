@@ -7,6 +7,7 @@ import { insertAvaliacaoDiariaCompat } from '@/lib/avaliacoes-justificativa-comp
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
+import { aplicarEfeitosFeriasSemanaColaborador } from '@/lib/avaliacao-ferias-semana';
 
 /** Visita RH: lista da rede + avaliação complementar (independente do gerente). */
 export async function GET(req: Request) {
@@ -156,6 +157,12 @@ export async function POST(req: Request) {
     const { error: insErr } = await insertAvaliacaoDiariaCompat(supabase, row);
     if (insErr) {
       return NextResponse.json({ ok: false, erro: insErr }, { status: 500 });
+    }
+
+    const { reprocessarGraosAposAvaliacaoEquipe } = await import('@/lib/graos/sync-hook');
+    await reprocessarGraosAposAvaliacaoEquipe(supabase, validado.colaboradorAlvo, dataRef);
+    if (validado.assidRaw === 'ferias') {
+      await aplicarEfeitosFeriasSemanaColaborador(supabase, validado.colaboradorAlvo, dataRef);
     }
 
     return NextResponse.json({ ok: true, media_dia: validado.media });

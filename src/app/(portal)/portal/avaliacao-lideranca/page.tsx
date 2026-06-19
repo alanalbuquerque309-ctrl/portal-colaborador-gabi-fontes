@@ -47,7 +47,8 @@ export default function AvaliacaoLiderancaPage() {
   const [perfilRole, setPerfilRole] = useState<string>('colaborador');
   const [justificativaNotaBaixa, setJustificativaNotaBaixa] = useState('');
   const [anonimo, setAnonimo] = useState(true);
-  const [filtroPendentes, setFiltroPendentes] = useState(false);
+  const [bloqueadoFerias, setBloqueadoFerias] = useState(false);
+  const [motivoBloqueioFerias, setMotivoBloqueioFerias] = useState('');
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -94,6 +95,8 @@ export default function AvaliacaoLiderancaPage() {
           setAvaliacaoOpcional(data.avaliacao_opcional === true);
           setAlertaUltimoDia(data.alerta_ultimo_dia === true);
           setPendentesNoUltimoDia(Number(data.pendentes_no_ultimo_dia ?? 0));
+          setBloqueadoFerias(data.bloqueado_ferias === true);
+          setMotivoBloqueioFerias(String(data.bloqueado_ferias_motivo ?? ''));
         } else {
           setErro(data.erro || 'Não foi possível carregar.');
         }
@@ -207,7 +210,13 @@ export default function AvaliacaoLiderancaPage() {
             {semanaFim ? ` até ${semanaFim}` : ''}
           </p>
         )}
-        {help && <p className="text-sm text-cafeteria-600 mt-2">{help}</p>}
+        {help && !bloqueadoFerias && <p className="text-sm text-cafeteria-600 mt-2">{help}</p>}
+        {bloqueadoFerias && (
+          <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-3 text-sm text-sky-950">
+            {motivoBloqueioFerias ||
+              'Você está registrado(a) de férias nesta semana — avaliação de liderança não se aplica.'}
+          </div>
+        )}
         {alertaUltimoDia && (
           <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             Último dia da semana: você ainda tem {pendentesNoUltimoDia} liderança
@@ -248,7 +257,11 @@ export default function AvaliacaoLiderancaPage() {
           </div>
 
           {aba === 'lideranca' ? (
-            avaliados.length > 0 ? (
+            bloqueadoFerias ? (
+              <p className="text-sm text-cafeteria-600 rounded-xl border border-cafeteria-200 bg-white p-4">
+                Sem checklist nesta semana: férias registradas pela gestão.
+              </p>
+            ) : avaliados.length > 0 ? (
               <AvaliacaoSemanalChecklist
                 titulo="Quem avaliar esta semana"
                 itens={avaliados.map((a) => ({

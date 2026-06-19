@@ -108,7 +108,7 @@ export function FacaAgoraHome() {
           const lid = await fetch('/api/portal/avaliacao-lideranca', { credentials: 'include', cache: 'no-store' })
             .then((r) => r.json())
             .catch(() => null);
-          if (!cancelado && lid?.ok) {
+          if (!cancelado && lid?.ok && lid.bloqueado_ferias !== true) {
             const avaliados = Array.isArray(lid.avaliados) ? lid.avaliados : [];
             const lideresPendentes = avaliados.filter(
               (a: { ja_avaliado_esta_semana?: boolean }) => a.ja_avaliado_esta_semana !== true

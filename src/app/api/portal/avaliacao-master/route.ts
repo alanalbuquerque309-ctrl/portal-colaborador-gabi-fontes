@@ -10,6 +10,7 @@ import {
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { isDateIsoAvaliacao, assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
+import { aplicarEfeitosFeriasSemanaColaborador } from '@/lib/avaliacao-ferias-semana';
 
 /** Equipe do gerente + avaliações já salvas na semana (segunda de `data`); leitura após envio. */
 export async function GET(req: Request) {
@@ -153,6 +154,9 @@ export async function POST(req: Request) {
 
     const { reprocessarGraosAposAvaliacaoEquipe } = await import('@/lib/graos/sync-hook');
     await reprocessarGraosAposAvaliacaoEquipe(supabase, validado.colaboradorAlvo, dataRef);
+    if (validado.assidRaw === 'ferias') {
+      await aplicarEfeitosFeriasSemanaColaborador(supabase, validado.colaboradorAlvo, dataRef);
+    }
 
     return NextResponse.json({ ok: true, media_dia: validado.media });
   } catch (e) {
@@ -251,6 +255,9 @@ export async function PATCH(req: Request) {
 
     const { reprocessarGraosAposAvaliacaoEquipe } = await import('@/lib/graos/sync-hook');
     await reprocessarGraosAposAvaliacaoEquipe(supabase, validado.colaboradorAlvo, dataRef);
+    if (validado.assidRaw === 'ferias') {
+      await aplicarEfeitosFeriasSemanaColaborador(supabase, validado.colaboradorAlvo, dataRef);
+    }
 
     return NextResponse.json({ ok: true, media_dia: validado.media, edicao_utilizada: true });
   } catch (e) {

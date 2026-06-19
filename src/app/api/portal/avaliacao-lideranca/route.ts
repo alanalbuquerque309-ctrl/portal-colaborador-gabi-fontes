@@ -8,6 +8,10 @@ import {
   listarLideresDoColaborador,
 } from '@/lib/colaborador-lideres';
 import { colaboradorDeveAvaliarAdministradorEmpresa } from '@/lib/lideres-por-setor';
+import {
+  colaboradorDeFeriasNaSemana,
+  MOTIVO_BLOQUEIO_LIDERANCA_FERIAS,
+} from '@/lib/avaliacao-ferias-semana';
 
 const DIMENSOES = ['n_exemplo', 'n_comunicacao', 'n_suporte', 'n_justica', 'n_clima'] as const;
 type PapelAvaliacao = 'lider_direto' | 'rh_global' | 'admin_global' | 'subordinado_admin';
@@ -195,6 +199,7 @@ export async function GET() {
     }
 
     const semanaInicio = segundaSemanaSaoPaulo();
+    const deFerias = await colaboradorDeFeriasNaSemana(supabase, colaboradorId, semanaInicio);
     const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
     const unidadeSlug = extrairUnidadeSlug(eu);
     const setorCol = (eu as { setor?: string | null }).setor ?? null;
@@ -234,7 +239,9 @@ export async function GET() {
       ok: true,
       semana_inicio: semanaInicio,
       semana_fim: domingoSemanaSaoPaulo(),
-      avaliados,
+      bloqueado_ferias: deFerias,
+      bloqueado_ferias_motivo: deFerias ? MOTIVO_BLOQUEIO_LIDERANCA_FERIAS : null,
+      avaliados: deFerias ? [] : avaliados,
       labels: {
         n_exemplo: 'Exemplo e postura',
         n_comunicacao: 'Clareza na comunicação',
@@ -246,8 +253,8 @@ export async function GET() {
         role === 'admin'
           ? 'Administrador: avalie apenas seus subordinados diretos dos cargos operacionais permitidos (estoque, motorista e auxiliar administrativo). De 1 a 5. Identidade não exibida para o avaliado.'
           : 'Avaliação opcional para colaboradores. Você avalia cada chefe vinculado ao seu setor. Colaboradores de CD, Escritório, Motorista, Administração e RH também avaliam o administrador da empresa (Daniel). Uma avaliação por pessoa por semana. De 1 a 5. Anônima para o avaliado.',
-      alerta_ultimo_dia: ultimoDiaSemana && pendentes.length > 0,
-      pendentes_no_ultimo_dia: pendentes.length,
+      alerta_ultimo_dia: ultimoDiaSemana && !deFerias && pendentes.length > 0,
+      pendentes_no_ultimo_dia: deFerias ? 0 : pendentes.length,
       avaliacao_opcional: true,
     });
   } catch (e) {
@@ -321,6 +328,9 @@ export async function POST(req: Request) {
 
     const uid = unidadeId || (eu as { unidade_id?: string }).unidade_id;
     const semanaInicio = segundaSemanaSaoPaulo();
+    if (await colaboradorDeFeriasNaSemana(supabase, colaboradorId, semanaInicio)) {
+      return NextResponse.json({ ok: false, erro: MOTIVO_BLOQUEIO_LIDERANCA_FERIAS }, { status: 403 });
+    }
     const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
     const unidadeSlug = extrairUnidadeSlug(eu);
     const setorCol = (eu as { setor?: string | null }).setor ?? null;

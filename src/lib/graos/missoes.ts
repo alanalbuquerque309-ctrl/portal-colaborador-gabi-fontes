@@ -15,6 +15,7 @@ import { graosPorTrofeusEnviadosNaSemana } from '@/lib/graos/trofeus-graos';
 import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, semanaFimExclusiveUtcIsoSp, semanaInicioUtcIsoSp } from '@/lib/semana-brasil';
 import { GRAOS_ENVIO_SUGESTAO } from '@/lib/sugestao-resposta-graos';
 import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
+import { colaboradorDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 
 export type MissaoGraosUi = {
   id: GraosMissaoId | 'quinta';
@@ -85,22 +86,36 @@ export async function sincronizarMissoesSemanaGraos(
     });
   }
 
-  // Avaliar liderança
-  const { count: liderancaCount } = await supabase
-    .from('avaliacoes_lideranca')
-    .select('id', { count: 'exact', head: true })
-    .eq('avaliador_id', colaboradorId)
-    .eq('semana_inicio', semanaInicio);
+  // Avaliar liderança (não credita se de férias na semana)
+  const deFerias = await colaboradorDeFeriasNaSemana(supabase, colaboradorId, semanaInicio);
+  if (deFerias) {
+    await supabase
+      .from('graos_movimentos')
+      .update({
+        estado: 'cancelado',
+        meta: { ajuste_sistema: 'ferias_sem_lideranca', oculto_colaborador: true },
+      })
+      .eq('colaborador_id', colaboradorId)
+      .eq('semana_inicio', semanaInicio)
+      .eq('missao', 'lideranca_semana')
+      .neq('estado', 'cancelado');
+  } else {
+    const { count: liderancaCount } = await supabase
+      .from('avaliacoes_lideranca')
+      .select('id', { count: 'exact', head: true })
+      .eq('avaliador_id', colaboradorId)
+      .eq('semana_inicio', semanaInicio);
 
-  if ((liderancaCount ?? 0) > 0) {
-    await creditarMissaoGraos(supabase, {
-      colaboradorId,
-      semanaInicio,
-      missao: 'lideranca_semana',
-      graos: GRAOS_MISSAO.lideranca_semana,
-      refKey: refKeyGraos(colaboradorId, 'lideranca_semana', semanaInicio),
-      descricao: 'Avaliar liderança',
-    });
+    if ((liderancaCount ?? 0) > 0) {
+      await creditarMissaoGraos(supabase, {
+        colaboradorId,
+        semanaInicio,
+        missao: 'lideranca_semana',
+        graos: GRAOS_MISSAO.lideranca_semana,
+        refKey: refKeyGraos(colaboradorId, 'lideranca_semana', semanaInicio),
+        descricao: 'Avaliar liderança',
+      });
+    }
   }
 
   // Sugestão: +1 no envio; bônus 0–9 na resposta da gestão.
@@ -205,6 +220,7 @@ export async function montarMissoesUi(
   }
 
   const quintaIndisponivel = !ehQuintaSaoPaulo();
+  const deFerias = await colaboradorDeFeriasNaSemana(supabase, colaboradorId, semanaInicio);
 
   const inicioUtc = semanaInicioUtcIsoSp(semanaInicio);
   const fimUtc = semanaFimExclusiveUtcIsoSp(semanaInicio);
@@ -291,8 +307,9 @@ export async function montarMissoesUi(
       GRAOS_MISSAO.lideranca_semana,
       GRAOS_MISSAO.lideranca_semana,
       refKeyGraos(colaboradorId, 'lideranca_semana', semanaInicio),
-      '/portal/avaliacao-lideranca',
-      null
+      deFerias ? null : '/portal/avaliacao-lideranca',
+      deFerias ? 'De férias nesta semana — sem avaliação de liderança' : null,
+      deFerias ? { statusOverride: 'bloqueado' as const } : undefined
     ),
     mk(
       'trofeu_semana',
