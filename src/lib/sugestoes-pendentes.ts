@@ -4,18 +4,26 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export async function contarSugestoesPendentesAnalise(
   supabase: SupabaseClient
 ): Promise<number> {
-  const { count, error } = await supabase
-    .from('sugestoes_reclamacoes')
-    .select('id', { count: 'exact', head: true })
-    .eq('tipo', 'sugestao')
-    .is('visualizado_em', null);
+  const tentativas = [
+    () =>
+      supabase
+        .from('sugestoes_reclamacoes')
+        .select('id', { count: 'exact', head: true })
+        .eq('tipo', 'sugestao')
+        .is('visualizado_em', null),
+    () =>
+      supabase
+        .from('sugestoes_reclamacoes')
+        .select('id', { count: 'exact', head: true })
+        .eq('tipo', 'sugestao'),
+  ];
 
-  if (error) {
-    if (/graos_destaque|visualizado_em|does not exist/i.test(error.message)) {
-      return 0;
-    }
+  for (const run of tentativas) {
+    const { count, error } = await run();
+    if (!error) return count ?? 0;
+    if (/visualizado_em|does not exist|schema cache/i.test(error.message)) continue;
     throw new Error(error.message);
   }
 
-  return count ?? 0;
+  return 0;
 }

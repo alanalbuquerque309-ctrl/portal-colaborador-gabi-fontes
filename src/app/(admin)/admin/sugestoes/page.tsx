@@ -26,6 +26,8 @@ export default function SugestoesPage() {
   const [podeReclamacoes, setPodeReclamacoes] = useState(true);
   const [podeDestacarGraos, setPodeDestacarGraos] = useState(false);
   const [pendentesAnalise, setPendentesAnalise] = useState(0);
+  const [erroLista, setErroLista] = useState<string | null>(null);
+  const [avisoDb, setAvisoDb] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
@@ -54,12 +56,24 @@ export default function SugestoesPage() {
 
   const carregar = () => {
     setLoading(true);
+    setErroLista(null);
+    setAvisoDb(null);
     const params = filtro ? `?tipo=${filtro}` : '';
-    fetch(`/api/admin/sugestoes${params}`, { credentials: 'include' })
+    fetch(`/api/admin/sugestoes${params}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((data) => {
-        if (data.ok && data.itens) setItens(data.itens);
+      .then((data: { ok?: boolean; itens?: Item[]; erro?: string; aviso?: string; pode_destacar_graos?: boolean }) => {
+        if (data.ok && data.itens) {
+          setItens(data.itens);
+          if (data.aviso) setAvisoDb(String(data.aviso));
+        } else {
+          setItens([]);
+          setErroLista(data.erro || 'Erro ao carregar sugestões.');
+        }
         if (data.ok && data.pode_destacar_graos === true) setPodeDestacarGraos(true);
+      })
+      .catch(() => {
+        setItens([]);
+        setErroLista('Erro de conexão ao carregar sugestões.');
       })
       .finally(() => setLoading(false));
     carregarPendentes();
@@ -168,6 +182,18 @@ export default function SugestoesPage() {
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <strong>{pendentesAnalise}</strong> sugestão{pendentesAnalise === 1 ? '' : 'ões'} aguardando análise.
           Marque como visto ou use «Gostamos — vamos analisar» quando fizer sentido.
+        </div>
+      )}
+
+      {erroLista && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {erroLista}
+        </div>
+      )}
+
+      {avisoDb && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          {avisoDb}
         </div>
       )}
 

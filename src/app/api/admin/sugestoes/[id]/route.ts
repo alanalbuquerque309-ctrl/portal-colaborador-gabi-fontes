@@ -34,14 +34,33 @@ export async function PATCH(
 
   try {
     const supabase = createAdminClient();
-    const { data: row, error: errRow } = await supabase
-      .from('sugestoes_reclamacoes')
-      .select('id, tipo, colaborador_id, created_at, graos_destaque_em')
-      .eq('id', id)
-      .single();
+    const selectsRow = [
+      'id, tipo, colaborador_id, created_at, graos_destaque_em',
+      'id, tipo, colaborador_id, created_at',
+    ];
 
-    if (errRow || !row) {
-      return NextResponse.json({ ok: false, erro: 'Registro não encontrado' }, { status: 404 });
+    let row: Record<string, unknown> | null = null;
+    let errRowMsg = '';
+
+    for (const sel of selectsRow) {
+      const { data, error: errRow } = await supabase
+        .from('sugestoes_reclamacoes')
+        .select(sel)
+        .eq('id', id)
+        .single();
+
+      if (!errRow && data) {
+        row = data as unknown as Record<string, unknown>;
+        break;
+      }
+      errRowMsg = errRow?.message ?? 'Registro não encontrado';
+      if (!errRow || !/graos_destaque|does not exist|schema cache/i.test(errRow.message)) {
+        break;
+      }
+    }
+
+    if (!row) {
+      return NextResponse.json({ ok: false, erro: errRowMsg || 'Registro não encontrado' }, { status: 404 });
     }
 
     const tipo = String((row as { tipo?: string }).tipo ?? '');

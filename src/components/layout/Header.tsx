@@ -547,7 +547,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
             )}
             {podeAdmin && (
               <Link
-                href="/admin/sugestoes"
+                href="/admin/dashboard"
                 className="relative text-dourado-base font-medium hover:text-dourado-600"
               >
                 Admin
@@ -624,7 +624,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
           })}
           {podeAdmin && (
             <Link
-              href="/admin/sugestoes"
+              href="/admin/dashboard"
               aria-label={
                 sugestoesPendentes > 0 && podeContadorSugestoes
                   ? `Admin: ${sugestoesPendentes} sugestões aguardando análise`

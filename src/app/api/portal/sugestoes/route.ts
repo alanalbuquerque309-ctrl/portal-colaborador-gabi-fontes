@@ -18,15 +18,35 @@ export async function GET() {
   try {
     const supabase = createAdminClient();
 
-    const { data: minhasRaw, error: errMinhas } = await supabase
-      .from('sugestoes_reclamacoes')
-      .select('id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas')
-      .eq('colaborador_id', colaboradorId)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const selectsMinhas = [
+      'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas',
+      'id, tipo, texto, anonimo, created_at, visualizado_em, curtidas',
+      'id, tipo, texto, anonimo, created_at',
+    ];
 
-    if (errMinhas) {
-      return NextResponse.json({ ok: false, erro: errMinhas.message }, { status: 500 });
+    let minhasRaw: Record<string, unknown>[] | null = null;
+    let errMinhas = '';
+
+    for (const sel of selectsMinhas) {
+      const { data, error } = await supabase
+        .from('sugestoes_reclamacoes')
+        .select(sel)
+        .eq('colaborador_id', colaboradorId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!error) {
+        minhasRaw = (data ?? []) as unknown as Record<string, unknown>[];
+        break;
+      }
+      errMinhas = error.message;
+      if (!/graos_destaque|visualizado_em|curtidas|does not exist|schema cache/i.test(error.message)) {
+        return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+      }
+    }
+
+    if (!minhasRaw) {
+      return NextResponse.json({ ok: false, erro: errMinhas || 'Erro ao carregar mensagens' }, { status: 500 });
     }
 
     const minhas = (minhasRaw ?? []).map((r: Record<string, unknown>) => ({
