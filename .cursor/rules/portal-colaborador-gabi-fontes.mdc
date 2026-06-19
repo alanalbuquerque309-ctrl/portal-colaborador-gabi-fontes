@@ -362,36 +362,57 @@ Página única que agrupa os canais de feedback e contato:
 - **Fim do mês:** filtro `periodoFim` normalizado para segunda da semana que contém o último dia do mês (evita contar semana «extra» fora do mês civil).
 - **Bug corrigido:** jun/2026 com avaliações ~dia 8 e ~15 mostrava «3 semanas»; agora reflete só semanas com nota válida no intervalo do mês.
 
-### Paginação — ranking de troféus na home (jun/2026, `80cf893`)
+### Pódio e «Ver mais» — troféus na home (jun/2026, `4d7523d`, `5cc1015`)
 
-- **Componente:** `BlocoRankingTrofeus` em `ranking-ui.tsx` (usado em `ReconhecimentoSemanal.tsx` e `MuralRankingsMensais.tsx`).
-- **Lotes:** **4** colocados iniciais → **Ver mais** +**6** → depois +**10** por clique (`TROFEUS_RANKING_VISIVEL_INICIAL`, `proximoLoteRankingTrofeus`).
-- **Reset:** ao mudar título ou tamanho da lista, volta aos 4 iniciais.
-- **Objetivo:** home/mural não ficarem longos demais com ranking extenso de troféus.
+- **Home (`DestaquesHome.tsx`):** troféus entre pares no **mesmo formato visual** das avaliações — `PodioTop3Trofeus.tsx` (medalhas, foto, total de troféus).
+- **Lista detalhada** (`LinhaRankingTrofeu` em `ranking-ui.tsx`, badges Postura / Braço Direito / Eficiência): **só após** botão **Ver mais**, abaixo do pódio, a partir do **4.º colocado**.
+- **Paginação da lista expandida:** lotes via `proximoLoteRankingTrofeus` (+6 no 1.º clique, depois +10); estado reseta ao trocar aba **Semanal/Mensal** ou chip de unidade.
+- **Mural mensal:** `BlocoRankingTrofeus` em `MuralRankingsMensais.tsx` mantém lista paginada (4 iniciais + Ver mais) — **não** usa pódio.
+- **TypeScript:** `PortalRodapeFrase.tsx` usa `switch` por variant (não componente dinâmico `Ilust`) — evita erro de build na Vercel.
 
 ### Separação semanal (home) vs mensal (mural) — jun/2026
 
 | Onde | O quê | Componente / API |
 |------|--------|-------------------|
-| **Home** — bloco *Destaques da semana* | Reconhecimento **da semana corrente** (top 3 geral + expandir por unidade / troféus) | `ReconhecimentoSemanal.tsx` (`compacto`), `GET /api/portal/reconhecimento-semanal`, helpers em `ranking-ui.tsx` |
-| **Mural** (`/portal/mural`, preview na home) | Rankings **mensais cumulativos** (rede + por unidade) | `MuralRankingsMensais.tsx`, `MuralPreview.tsx`, lógica em `mural-ranking-unidade.ts` |
+| **Home** — bloco *Reconhecimentos* | Semanal **ou** mensal (tabs); chips **Geral**, Mesquita, Barra, N. Iguaçu, Fábrica, ADM; **pódio** top 3 avaliação + **pódio** top 3 troféus | `DestaqueSection.tsx` → `DestaquesHome.tsx`, `PodioTop3.tsx`, `PodioTop3Trofeus.tsx`, `destaques-home-unidades.ts`; APIs `reconhecimento-semanal` + `destaque` |
+| **Mural** (`/portal/mural`) | Rankings **mensais cumulativos** (rede + por unidade); avisos da unidade | `MuralRankingsMensais.tsx`, `MuralUnidade.tsx`, `mural-ranking-unidade.ts` |
 
+- **Mobile reconhecimentos:** chips de unidade com `labelCurto` (ex.: ADM, N. Iguaçu); link **Ver ranking completo no mural**.
 - **Mobile mural/ranking:** nomes com `break-words` (sem `truncate`); fontes um degrau maiores; menu inferior enxuto (`Header.tsx`).
+- **Legado home:** `ReconhecimentoSemanal.tsx` e preview `MuralPreview` **não** entram mais na home; mural só em `/portal/mural`.
 
-**Legado removido:** tela Admin *Colaborador em Destaque* (`/admin/destaque`, `POST/GET /api/admin/destaque`) — destaque manual por título/descrição **não** alimentava mais a home após *Destaques da semana* automáticos. Tabela Supabase `destaque` (migration `008`) pode permanecer no banco sem UI; reconhecimento visível = semanal (`reconhecimento-semanal`) + mensal (`/api/portal/destaque` rankings).
+**Legado removido:** tela Admin *Colaborador em Destaque* (`/admin/destaque`, `POST/GET /api/admin/destaque`) — destaque manual por título/descrição **não** alimentava mais a home após reconhecimentos automáticos. Tabela Supabase `destaque` (migration `008`) pode permanecer no banco sem UI; reconhecimento visível = bloco *Reconhecimentos* na home + mural mensal.
 
 ## Home do portal (contrato UX — jun/2026)
 
-**Ordem fixa** em `src/app/(portal)/portal/page.tsx`:
+**Ordem fixa** em `src/app/(portal)/portal/page.tsx` (commits **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**):
 
-1. `EmocionalAlertasGestao` (só quem tem permissão)
-2. **`DesdeUltimaVisitaHome`** — card *Para você* (personalizado; some se vazio)
-3. **`FacaAgoraHome`** — pendências acionáveis (some se vazio)
-4. **`DestaqueSection`** — título *Destaques da semana* + `ReconhecimentoSemanal compacto`
-5. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
-6. **Manuais oficiais** — `<details>` recolhido por padrão
-7. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
-8. **Mural** — preview mensal (`MuralPreview`)
+1. `PortalDecoracaoRamosPagina` — ramos de café decorativos (fundo)
+2. `EmocionalAlertasGestao` (só quem tem permissão)
+3. **`PortalBoasVindas`** — hero com imagem `/portal/xicara-hero.png` (latte + grãos; degradê integrado, sem recorte «colado»)
+4. **`DesdeUltimaVisitaHome`** — card *Para você* (personalizado; some se vazio)
+5. **`FacaAgoraHome`** — pendências acionáveis (some se vazio)
+6. **`AvisosHome`** — comunicado ativo; **megafone animado** quando há aviso pendente de confirmação
+7. **`GraosHomeBanner`** — saldo / missões Grãos (link `/portal/graos`)
+8. **`DestaqueSection`** — título *Reconhecimentos*; tabs Semanal/Mensal; `DestaquesHome` (pódios + chips unidade)
+9. **`SugestoesEquipeHome`** — balão de sugestões da unidade (reclamações só sócios/admin/Daniel na API)
+10. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
+11. **Manuais oficiais** — `<details>` recolhido por padrão
+12. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
+13. **`PortalRodapeFrase variant="home"`** — frase de fechamento + **logo** `/logo-gabi-fontes.png` (mesmo do login; **não** usar `IlustracaoCafe` SVG)
+
+**Sem preview de mural na home** — rankings mensais completos ficam em `/portal/mural`.
+
+### Bloco Reconhecimentos (`DestaqueSection` + `DestaquesHome`)
+
+| Peça | Comportamento |
+|------|----------------|
+| Período | Tabs **Semanal** / **Mensal** (estado no `DestaqueSection`) |
+| Unidade | Chips: Geral, Mesquita, Barra, Nova Iguaçu, Fábrica, Administração (`DESTAQUE_ABAS_UNIDADE` em `destaques-home-unidades.ts`) |
+| Avaliação | **Pódio top 3** — `PodioTop3.tsx` |
+| Troféus entre pares | **Pódio top 3** — `PodioTop3Trofeus.tsx`; **Ver mais** revela lista (`LinhaRankingTrofeu`) do 4.º em diante |
+| CTA | Link *Ver ranking completo no mural* → `/portal/mural` |
+| APIs | `GET /api/portal/reconhecimento-semanal`, `GET /api/portal/destaque` |
 
 **Onboarding:** inalterado — `PortalLayout.tsx` continua obrigando CPF → perfil → vídeo/manual/quiz antes do portal.
 
@@ -499,7 +520,7 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | **`044_graos_cafe.sql`** | Grãos de café: ledger, catálogo, resgates, quinta |
 | **`045_sugestao_graos_destaque.sql`** | Destaque gestão em sugestões (+7 Grãos) |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**. **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**.
 
 ---
 
@@ -591,8 +612,8 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 
 ### Reorganização UX home + mural (jun/2026, `9e143e2` … `6db61c9`)
 
-- **Semanal vs mensal:** reconhecimento semanal na home (`ReconhecimentoSemanal`, API `reconhecimento-semanal`); rankings mensais no mural (`MuralRankingsMensais`).
-- **Home:** bloco *Faça agora* no topo; *Destaques da semana* compactos; gaveta *Mais atalhos*; manuais recolhidos; termômetro e mural abaixo.
+- **Semanal vs mensal:** reconhecimentos na home via `DestaquesHome` (tabs + chips unidade); rankings mensais no mural (`MuralRankingsMensais`).
+- **Home:** hero, avisos, Grãos, *Reconhecimentos* (pódios), sugestões equipe; gaveta *Mais atalhos*; manuais recolhidos; termômetro; rodapé com logo (sem preview mural).
 - **Removidos** atalhos de relatórios sócio/admin da home (`b2d0c5c`).
 - **Mobile mural:** nomes sem corte, fontes maiores, menu inferior enxuto (`6fab362`).
 
@@ -608,7 +629,7 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 ### Remoção destaque manual Admin (jun/2026)
 
 - Removidos `/admin/destaque`, `/api/admin/destaque` e item *Destaque* do menu (RH e Gestão).
-- Home e mural usam só reconhecimento **automático** (avaliações + troféus); `DestaqueSection` = *Destaques da semana*, não cadastro manual.
+- Home e mural usam só reconhecimento **automático** (avaliações + troféus); `DestaqueSection` = *Reconhecimentos*, não cadastro manual.
 
 ### Reset cadastro (primeiro acesso) no Admin
 
@@ -672,9 +693,19 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 
 - `/admin/avaliacao-entre-pares`: aba **Ranking** + **Detalhe**; `trofeus-pares-ranking.ts`, `AdminTrofeusRanking.tsx`.
 
-### Home — paginação ranking de troféus (jun/2026, `80cf893`)
+### Home viva — hero, reconhecimentos, rodapé (jun/2026, `4d9aea4`, `4baa15b`, `4d7523d`, `5cc1015`)
 
-- `BlocoRankingTrofeus`: 4 iniciais, Ver mais +6/+10; em `ReconhecimentoSemanal` e `MuralRankingsMensais`.
+- **Hero:** `PortalBoasVindas.tsx` + `/portal/xicara-hero.png` (substitui SVG genérico).
+- **Avisos:** `AvisosHome.tsx` + `MegafoneAnimado.tsx` quando há comunicado a confirmar.
+- **Grãos na home:** `GraosHomeBanner.tsx` abaixo do Faça agora.
+- **Sugestões:** `SugestoesEquipeHome.tsx` — balão da unidade; reclamações restritas na API.
+- **Reconhecimentos:** `DestaqueSection` → `DestaquesHome` — tabs Semanal/Mensal + chips unidade; **pódio** avaliação (`PodioTop3`) e **pódio** troféus (`PodioTop3Trofeus`); lista troféus detalhada só após **Ver mais** (4.º+).
+- **Rodapé home:** `PortalRodapeFrase variant="home"` com logo `/logo-gabi-fontes.png` (não `IlustracaoCafe`); `RodapeIcone` com `switch` por variant (fix build TS `5cc1015`).
+- **Removido da home:** preview `MuralPreview`; troféus deixam de usar lista no topo (`BlocoRankingTrofeus` só no mural mensal).
+
+### Home — paginação ranking de troféus no mural (jun/2026, `80cf893`)
+
+- `BlocoRankingTrofeus`: 4 iniciais, Ver mais +6/+10; em `MuralRankingsMensais.tsx` (home usa pódio desde `4d7523d`).
 
 ### Home — card «Para você» / desde última visita (jun/2026, `c2549e6`)
 
@@ -763,8 +794,11 @@ src/app/api/admin/avaliacoes-lideranca/, api/admin/lideres-por-setor/migration-s
 src/app/api/portal/avaliacao-lideranca/
 src/app/api/admin/avaliacoes-pendentes/, api/portal/avaliacoes-pendentes/
 src/components/portal/FacaAgoraHome.tsx, PortalAtalhosPerfil.tsx
-src/components/destaque/DestaqueSection.tsx
-src/components/mural/ReconhecimentoSemanal.tsx, MuralRankingsMensais.tsx, MuralPreview.tsx, ranking-ui.tsx
+src/components/destaque/DestaqueSection.tsx, DestaquesHome.tsx
+src/components/portal/vivo/PodioTop3.tsx, PodioTop3Trofeus.tsx, PortalBoasVindas.tsx, PortalRodapeFrase.tsx, PortalBalaoCard.tsx (PortalDecoracaoRamosPagina)
+src/components/portal/AvisosHome.tsx, MegafoneAnimado.tsx, GraosHomeBanner.tsx, SugestoesEquipeHome.tsx
+src/lib/destaques-home-unidades.ts
+src/components/mural/MuralRankingsMensais.tsx, MuralUnidade.tsx, ranking-ui.tsx
 src/app/api/portal/reconhecimento-semanal/
 src/components/portal/AvaliacoesPortalHome.tsx, ManualPortalViewer.tsx, TrofeusParesPanel.tsx
 src/components/portal/avaliacao-master/StarRating.tsx, ColaboradorAvaliacaoCard.tsx, AvaliacaoSemanalChecklist.tsx

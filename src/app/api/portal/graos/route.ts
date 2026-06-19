@@ -109,7 +109,7 @@ export async function GET(req: Request) {
     });
     const saldoTotal = await calcularSaldoGraos(supabase, colaboradorId);
     const saldoSemana = await calcularSaldoGraos(supabase, colaboradorId, { semanaInicio });
-    const extrato = await listarExtratoGraos(supabase, colaboradorId, 15);
+    const extrato = await listarExtratoGraos(supabase, colaboradorId, 15, { ocultarCancelados: true });
     const nivel = nivelGraosPorTotal(saldoTotal.total_ganho_confirmado);
 
     const { data: catalogo } = await supabase

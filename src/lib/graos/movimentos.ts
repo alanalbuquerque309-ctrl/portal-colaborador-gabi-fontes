@@ -4,6 +4,9 @@ import type { GraosMissaoId } from '@/lib/graos/constants';
 
 export type GraosEstadoMovimento = 'pendente' | 'confirmado' | 'cancelado';
 
+/** Missões que não entram na elegibilidade semanal (débitos/ajustes). */
+const MISSOES_FORA_ELEGIBILIDADE = new Set(['debito_resgate', 'ajuste_rh']);
+
 export type GraosSaldo = {
   confirmado: number;
   pendente: number;
@@ -94,7 +97,10 @@ export async function encerrarPendentesSemanasPassadas(
 
   const { error: updErr } = await supabase
     .from('graos_movimentos')
-    .update({ estado: 'cancelado' })
+    .update({
+      estado: 'cancelado',
+      meta: { ajuste_sistema: 'encerramento_pendente_semana_anterior', oculto_colaborador: true },
+    })
     .in('id', ids);
 
   if (updErr) throw new Error(updErr.message);
@@ -140,7 +146,10 @@ export async function deduplicarLoginSemanaColaborador(
 
   const { error: updErr } = await supabase
     .from('graos_movimentos')
-    .update({ estado: 'cancelado' })
+    .update({
+      estado: 'cancelado',
+      meta: { ajuste_sistema: 'deduplicacao_login_semana', oculto_colaborador: true },
+    })
     .in('id', cancelarIds);
 
   if (updErr) throw new Error(updErr.message);
@@ -166,13 +175,16 @@ export async function creditarMissaoGraos(
 
   const { data: existente } = await supabase
     .from('graos_movimentos')
-    .select('id, estado')
+    .select('id, estado, meta')
     .eq('ref_key', opts.refKey)
     .maybeSingle();
 
   if (existente) {
     const est = existente.estado as GraosEstadoMovimento;
-    if (est === 'cancelado' && opts.reabrirSeCancelado) {
+    const meta = (existente.meta as Record<string, unknown> | null) ?? {};
+    const reabrirAjusteInterno =
+      meta.oculto_colaborador === true || typeof meta.ajuste_sistema === 'string';
+    if (est === 'cancelado' && (opts.reabrirSeCancelado || reabrirAjusteInterno)) {
       await supabase
         .from('graos_movimentos')
         .update({ estado: 'pendente', graos: opts.graos, descricao: opts.descricao, meta: opts.meta ?? {} })
@@ -202,7 +214,29 @@ export async function creditarMissaoGraos(
   return { ok: true, criado: true, estado: 'pendente' };
 }
 
-/** Confirma pendentes da semana ou cancela se inelegível. */
+async function listarMovimentosMissaoSemana(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string,
+  estados: GraosEstadoMovimento[]
+) {
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('id, ref_key, estado, missao')
+    .eq('colaborador_id', colaboradorId)
+    .eq('semana_inicio', semanaInicio)
+    .in('estado', estados)
+    .gt('graos', 0);
+
+  if (error) {
+    if (tabelaAusente(error.message)) return [];
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).filter((m) => !MISSOES_FORA_ELEGIBILIDADE.has(String(m.missao ?? '')));
+}
+
+/** Confirma pendentes (e reabre cancelados) da semana ou cancela se inelegível. */
 export async function processarElegibilidadeSemanaGraos(
   supabase: SupabaseClient,
   colaboradorId: string,
@@ -210,46 +244,38 @@ export async function processarElegibilidadeSemanaGraos(
 ): Promise<void> {
   const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
 
-  const { data: pendentes, error } = await supabase
-    .from('graos_movimentos')
-    .select('id, ref_key')
-    .eq('colaborador_id', colaboradorId)
-    .eq('semana_inicio', semanaInicio)
-    .eq('estado', 'pendente')
-    .gt('graos', 0);
+  const movimentos = await listarMovimentosMissaoSemana(supabase, colaboradorId, semanaInicio, [
+    'pendente',
+    'cancelado',
+  ]);
 
-  if (error) {
-    if (tabelaAusente(error.message)) return;
-    throw new Error(error.message);
-  }
-
-  if (!pendentes?.length) return;
+  if (!movimentos.length) return;
 
   if (!eleg.elegivel) {
     if (eleg.estado === 'aguardando_lider' || eleg.estado === 'aguardando_outro_lider') {
       return;
     }
-    for (const p of pendentes) {
+    for (const p of movimentos.filter((m) => m.estado === 'pendente')) {
       await supabase.from('graos_movimentos').update({ estado: 'cancelado' }).eq('id', p.id);
     }
     return;
   }
 
-  for (const p of pendentes) {
+  for (const p of movimentos) {
     await supabase.from('graos_movimentos').update({ estado: 'confirmado' }).eq('id', p.id);
   }
 }
 
-/** Reprocessa elegibilidade em todas as semanas com créditos pendentes. */
+/** Reprocessa elegibilidade em semanas com créditos pendentes ou cancelados (missões). */
 export async function processarElegibilidadeTodasSemanasPendentesGraos(
   supabase: SupabaseClient,
   colaboradorId: string
 ): Promise<void> {
   const { data, error } = await supabase
     .from('graos_movimentos')
-    .select('semana_inicio')
+    .select('semana_inicio, missao, estado')
     .eq('colaborador_id', colaboradorId)
-    .eq('estado', 'pendente')
+    .in('estado', ['pendente', 'cancelado'])
     .gt('graos', 0);
 
   if (error) {
@@ -260,6 +286,7 @@ export async function processarElegibilidadeTodasSemanasPendentesGraos(
   const semanas = Array.from(
     new Set(
       (data ?? [])
+        .filter((r) => !MISSOES_FORA_ELEGIBILIDADE.has(String(r.missao ?? '')))
         .map((r) => (r.semana_inicio ? String(r.semana_inicio) : ''))
         .filter(Boolean)
     )
@@ -307,19 +334,24 @@ export async function debitarResgateGraos(
 export async function listarExtratoGraos(
   supabase: SupabaseClient,
   colaboradorId: string,
-  limite = 20
+  limite = 20,
+  opts?: { ocultarCancelados?: boolean }
 ) {
   const { data, error } = await supabase
     .from('graos_movimentos')
     .select('id, missao, graos, estado, descricao, created_at, semana_inicio')
     .eq('colaborador_id', colaboradorId)
     .order('created_at', { ascending: false })
-    .limit(limite);
+    .limit(opts?.ocultarCancelados ? limite * 3 : limite);
 
   if (error) {
     if (tabelaAusente(error.message)) return [];
     throw new Error(error.message);
   }
 
-  return data ?? [];
+  let rows = data ?? [];
+  if (opts?.ocultarCancelados) {
+    rows = rows.filter((r) => String(r.estado) !== 'cancelado');
+  }
+  return rows.slice(0, limite);
 }

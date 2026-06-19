@@ -116,6 +116,25 @@ export function avaliarElegibilidadeDeLinha(row: AvaliacaoRow | null): GraosEleg
   };
 }
 
+/** Preferir avaliação que fecha a semana (presente/falta) em vez de «fora do plantão». */
+function escolherAvaliacaoParaGraos(rows: AvaliacaoRow[]): AvaliacaoRow | null {
+  const ativos = rows.filter((r) => !(r as { ignorada?: boolean }).ignorada);
+  if (!ativos.length) return null;
+
+  const comFechamento = ativos.filter((r) => {
+    const a = assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa);
+    return a !== 'fora_plantao';
+  });
+  const pool = comFechamento.length > 0 ? comFechamento : ativos;
+
+  pool.sort((a, b) => {
+    const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+    return tb - ta;
+  });
+  return pool[0] ?? null;
+}
+
 /** Avaliação mais recente do colaborador na semana (qualquer avaliador). */
 export async function buscarAvaliacaoSemanaColaborador(
   supabase: SupabaseClient,
@@ -148,7 +167,7 @@ export async function buscarAvaliacaoSemanaColaborador(
     rows = (prim.data ?? []) as Record<string, unknown>[];
   }
 
-  const row = rows.find((r) => !(r as { ignorada?: boolean }).ignorada);
+  const row = escolherAvaliacaoParaGraos(rows as AvaliacaoRow[]);
   if (!row) return null;
   return row as AvaliacaoRow;
 }

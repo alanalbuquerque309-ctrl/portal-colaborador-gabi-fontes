@@ -30,7 +30,8 @@ function statusDeMovimento(
   if (!m) return 'disponivel';
   if (m.estado === 'confirmado') return 'feito_confirmado';
   if (m.estado === 'pendente') return 'feito_pendente';
-  if (m.estado === 'cancelado') return 'bloqueado';
+  /** Cancelamentos (ajuste interno ou inelegível) não aparecem como bloqueio na UI. */
+  if (m.estado === 'cancelado') return 'disponivel';
   return 'disponivel';
 }
 
@@ -40,7 +41,6 @@ export async function sincronizarMissoesSemanaGraos(
   semanaInicio: string,
   opts?: { creditarLogin?: boolean }
 ): Promise<void> {
-  await encerrarPendentesSemanasPassadas(supabase, colaboradorId, semanaInicio);
   await deduplicarLoginSemanaColaborador(supabase, colaboradorId);
 
   // Entrada no portal: 1 crédito/semana, só quando o colaborador acessa o portal (sync explícito).
@@ -156,6 +156,7 @@ export async function sincronizarMissoesSemanaGraos(
   }
 
   await processarElegibilidadeTodasSemanasPendentesGraos(supabase, colaboradorId);
+  await encerrarPendentesSemanasPassadas(supabase, colaboradorId, semanaInicio);
 }
 
 export async function montarMissoesUi(
@@ -175,7 +176,10 @@ export async function montarMissoesUi(
 
   for (const m of movs ?? []) {
     const rk = String(m.ref_key);
-    map.set(rk, { estado: String(m.estado), graos: Number(m.graos) || 0 });
+    const est = String(m.estado);
+    /** Ignora cancelados na UI de missões (ajuste interno não bloqueia nem assusta). */
+    if (est === 'cancelado') continue;
+    map.set(rk, { estado: est, graos: Number(m.graos) || 0 });
     if (String(m.missao) === 'quinta') {
       map.set('__quinta__', { estado: String(m.estado), graos: Number(m.graos) || 0 });
     }
@@ -269,7 +273,7 @@ export async function montarMissoesUi(
         const m = map.get('__quinta__');
         if (m?.estado === 'confirmado') return 'feito_confirmado' as const;
         if (m?.estado === 'pendente') return 'feito_pendente' as const;
-        if (m?.estado === 'cancelado') return 'bloqueado' as const;
+        if (m?.estado === 'cancelado') return 'disponivel' as const;
         return quintaIndisponivel ? ('indisponivel' as const) : ('disponivel' as const);
       })(),
     },

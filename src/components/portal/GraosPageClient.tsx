@@ -531,7 +531,6 @@ export function GraosPageClient() {
                 <span className="text-cafeteria-800">
                   {e.descricao}{' '}
                   {e.estado === 'pendente' && <span className="text-amber-700">(pendente)</span>}
-                  {e.estado === 'cancelado' && <span className="text-red-700">(cancelado)</span>}
                 </span>
                 <span className={e.graos < 0 ? 'text-red-700' : 'text-emerald-800'}>
                   {e.graos > 0 ? '+' : ''}
