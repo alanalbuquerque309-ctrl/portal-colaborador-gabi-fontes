@@ -68,6 +68,7 @@ export function AvaliacoesPendentesPainel({
   const [itens, setItens] = useState<ItemPendenciaSemana[]>([]);
   const [filtroLider, setFiltroLider] = useState('');
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [marcandoFeriasId, setMarcandoFeriasId] = useState<string | null>(null);
   const [modalAviso, setModalAviso] = useState(false);
   const [previewAviso, setPreviewAviso] = useState<{
     titulo: string;
@@ -221,6 +222,40 @@ export function AvaliacoesPendentesPainel({
       alert('Erro ao excluir.');
     } finally {
       setExcluindoId(null);
+    }
+  };
+
+  const handleMarcarFerias = async (id: string, nome: string) => {
+    if (!dataRef) {
+      alert('Aguarde o carregamento da semana ou selecione a segunda-feira de referência.');
+      return;
+    }
+    if (
+      !confirm(
+        `${nome} está de férias na semana ${intervalo || dataRef}?\n\nA semana não recebe nota, sai da lista de pendências e trava avaliação de liderança.`
+      )
+    ) {
+      return;
+    }
+    setMarcandoFeriasId(id);
+    try {
+      const res = await fetch(`${apiBase}/ferias`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colaborador_id: id, data_referencia: dataRef }),
+      });
+      const data = (await res.json()) as { ok?: boolean; erro?: string; mensagem?: string };
+      if (data.ok) {
+        setItens((prev) => prev.filter((i) => i.colaborador_id !== id));
+        if (data.mensagem) alert(data.mensagem);
+      } else {
+        alert(data.erro || 'Não foi possível registrar férias.');
+      }
+    } catch {
+      alert('Erro de conexão.');
+    } finally {
+      setMarcandoFeriasId(null);
     }
   };
 
@@ -438,6 +473,17 @@ export function AvaliacoesPendentesPainel({
                       {rotuloTipo(item.tipo)}
                     </span>
                     <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => void handleMarcarFerias(item.colaborador_id, item.colaborador_nome)}
+                        disabled={marcandoFeriasId === item.colaborador_id || !dataRef}
+                        className="text-xs font-semibold text-sky-700 hover:text-sky-900 disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {marcandoFeriasId === item.colaborador_id ? 'Salvando…' : 'Férias'}
+                      </button>
+                      <span className="text-coffee-100 text-xs" aria-hidden>
+                        ·
+                      </span>
                       <Link
                         href={`/admin/colaboradores/${item.colaborador_id}/editar`}
                         className="text-xs font-semibold text-dourado-base hover:text-dourado-600 underline underline-offset-2 whitespace-nowrap"
@@ -526,7 +572,8 @@ export function AvaliacoesPendentesPainel({
       )}
 
       <p className="text-[10px] text-coffee-100">
-        Responsável pelo mapa de liderança atual (admin → Liderança por setor). Erro de cadastro: use{' '}
+        Responsável pelo mapa de liderança atual (admin → Liderança por setor).{' '}
+        <strong className="font-medium">Férias</strong> registra a semana sem nota e remove da lista. Erro de cadastro:{' '}
         <strong className="font-medium">Editar perfil</strong>; quem saiu da empresa:{' '}
         <strong className="font-medium">Excluir perfil</strong> (só sócios e administrador).
         {autoRefresh

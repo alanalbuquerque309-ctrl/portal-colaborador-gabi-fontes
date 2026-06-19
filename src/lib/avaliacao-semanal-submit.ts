@@ -27,6 +27,7 @@ export function isAssiduidadeSemanal(s: string): s is AssiduidadeTipo {
   return (
     s === 'presente' ||
     s === 'fora_plantao' ||
+    s === 'ferias' ||
     s === 'falta_injustificada' ||
     s === 'folga' ||
     s === 'outra_escala' ||

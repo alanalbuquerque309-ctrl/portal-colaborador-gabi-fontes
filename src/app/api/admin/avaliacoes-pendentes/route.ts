@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   calcularPendenciasSemana,
   type FiltroPendenciasSemana,
 } from '@/lib/avaliacao-pendentes-semana';
-import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
-import { getAdminViewerContext } from '@/lib/admin-auth';
+import { autorizadoPendenciasRede } from '@/lib/avaliacoes-pendentes-auth';
 import { isDateIsoAvaliacao } from '@/lib/semana-referencia';
 
 export const dynamic = 'force-dynamic';
@@ -26,37 +24,6 @@ function parseFiltro(raw: string | null): FiltroPendenciasSemana {
     return v;
   }
   return 'pendentes';
-}
-
-async function autorizadoPendenciasRede(): Promise<
-  { ok: true; rhAvaliadorId?: string } | { ok: false; status: number; erro: string }
-> {
-  const ctx = await getAdminViewerContext();
-  if (ctx) {
-    if (ctx.kind === 'password_session') return { ok: true };
-    if (podeVerPendenciasSemanaRede(ctx.role)) return { ok: true };
-    return { ok: false, status: 403, erro: 'Acesso restrito a sócios e administrador.' };
-  }
-
-  const cookieStore = await cookies();
-  const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
-  if (!colaboradorId || colaboradorId === 'pending') {
-    return { ok: false, status: 401, erro: 'Faça login no portal' };
-  }
-
-  const supabase = createAdminClient();
-  const { data: eu } = await supabase
-    .from('colaboradores')
-    .select('role')
-    .eq('id', colaboradorId)
-    .maybeSingle();
-
-  const role = (eu as { role?: string } | null)?.role ?? '';
-  if (!podeVerPendenciasSemanaRede(role)) {
-    return { ok: false, status: 403, erro: 'Acesso restrito a sócios e administrador.' };
-  }
-
-  return { ok: true, rhAvaliadorId: colaboradorId };
 }
 
 export async function GET(req: Request) {
