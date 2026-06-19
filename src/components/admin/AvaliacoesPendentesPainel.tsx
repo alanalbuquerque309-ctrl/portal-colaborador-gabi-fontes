@@ -10,11 +10,13 @@ type Props = {
   autoRefresh?: boolean;
   intervaloMs?: number;
   compacto?: boolean;
+  filtroInicial?: FiltroPendenciasSemana;
 };
 
 const FILTROS: { id: FiltroPendenciasSemana; label: string }[] = [
   { id: 'pendentes', label: 'Pendentes (líder ou RH)' },
   { id: 'gerente', label: 'Sem líder' },
+  { id: 'critico_sexta', label: 'Crítico sexta' },
   { id: 'rh_complemento', label: 'RH (com gerente)' },
   { id: 'rh_rede', label: 'Sem Visita RH' },
 ];
@@ -28,10 +30,16 @@ function rotuloTipo(tipo: ItemPendenciaSemana['tipo']): string {
     case 'sem_lider_e_rh':
       return 'Líder + RH';
     case 'critico_fora_plantao':
-      return 'Crítico';
+      return 'Crítico (fora plantão)';
+    case 'critico_sem_avaliacao':
+      return 'Crítico sexta';
     default:
       return tipo;
   }
+}
+
+function itemCritico(item: ItemPendenciaSemana): boolean {
+  return item.tipo === 'critico_fora_plantao' || item.tipo === 'critico_sem_avaliacao';
 }
 
 export function AvaliacoesPendentesPainel({
@@ -39,19 +47,40 @@ export function AvaliacoesPendentesPainel({
   autoRefresh = false,
   intervaloMs = 30000,
   compacto = false,
+  filtroInicial,
 }: Props) {
   const [dataRef, setDataRef] = useState('');
   const [unidadeSlug, setUnidadeSlug] = useState('');
-  const [filtro, setFiltro] = useState<FiltroPendenciasSemana>('pendentes');
+  const [filtro, setFiltro] = useState<FiltroPendenciasSemana>(filtroInicial ?? 'pendentes');
   const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [intervalo, setIntervalo] = useState('');
   const [atualizadoEm, setAtualizadoEm] = useState('');
-  const [resumo, setResumo] = useState({ sem_lider: 0, sem_rh_complemento: 0, sem_rh_rede: 0, criticos: 0 });
+  const [resumo, setResumo] = useState({
+    sem_lider: 0,
+    sem_rh_complemento: 0,
+    sem_rh_rede: 0,
+    criticos: 0,
+    criticos_sem_avaliacao: 0,
+  });
+  const [meta, setMeta] = useState({ eh_sexta: false, alerta_critico_sexta: false });
   const [itens, setItens] = useState<ItemPendenciaSemana[]>([]);
   const [filtroLider, setFiltroLider] = useState('');
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [modalAviso, setModalAviso] = useState(false);
+  const [previewAviso, setPreviewAviso] = useState<{
+    titulo: string;
+    conteudo: string;
+    lideres: Array<{ lider_nome: string; total: number; colaboradores: Array<{ nome: string }> }>;
+    total_pendentes_lider: number;
+  } | null>(null);
+  const [exigeConfirmacaoAviso, setExigeConfirmacaoAviso] = useState(true);
+  const [gerandoAviso, setGerandoAviso] = useState(false);
+  const [erroAviso, setErroAviso] = useState<string | null>(null);
+
+  const podeGerarAviso =
+    apiBase === '/api/admin/avaliacoes-pendentes' || apiBase === '/api/portal/avaliacoes-pendentes';
 
   const porLider = useMemo(() => {
     const mapa = new Map<string, number>();
@@ -91,7 +120,16 @@ export function AvaliacoesPendentesPainel({
       }
       setIntervalo(String(data.intervalo ?? ''));
       if (data.data_referencia) setDataRef(String(data.data_referencia));
-      setResumo(data.resumo ?? { sem_lider: 0, sem_rh_complemento: 0, sem_rh_rede: 0, criticos: 0 });
+      setResumo(
+        data.resumo ?? {
+          sem_lider: 0,
+          sem_rh_complemento: 0,
+          sem_rh_rede: 0,
+          criticos: 0,
+          criticos_sem_avaliacao: 0,
+        }
+      );
+      setMeta(data.meta ?? { eh_sexta: false, alerta_critico_sexta: false });
       setItens(Array.isArray(data.itens) ? data.itens : []);
       setAtualizadoEm(
         new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -103,6 +141,61 @@ export function AvaliacoesPendentesPainel({
       setCarregando(false);
     }
   }, [apiBase, busca, dataRef, filtro, unidadeSlug]);
+
+  const abrirPreviewAviso = async () => {
+    setErroAviso(null);
+    setGerandoAviso(true);
+    try {
+      const q = new URLSearchParams();
+      if (dataRef) q.set('data', dataRef);
+      const res = await fetch(`/api/admin/avisos/lembrete-lideres?${q}`, { credentials: 'include' });
+      const data = await res.json();
+      if (!data.ok) {
+        setErroAviso(data.erro || 'Erro ao preparar aviso.');
+        return;
+      }
+      setPreviewAviso(data.preview ?? null);
+      setModalAviso(true);
+    } catch {
+      setErroAviso('Erro de conexão.');
+    } finally {
+      setGerandoAviso(false);
+    }
+  };
+
+  const publicarAvisoLideres = async () => {
+    if (!previewAviso) return;
+    setGerandoAviso(true);
+    setErroAviso(null);
+    try {
+      const res = await fetch('/api/admin/avisos/lembrete-lideres', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          confirmar: true,
+          data: dataRef || undefined,
+          titulo: previewAviso.titulo,
+          conteudo: previewAviso.conteudo,
+          exige_confirmacao: exigeConfirmacaoAviso,
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErroAviso(data.erro || 'Erro ao publicar aviso.');
+        return;
+      }
+      setModalAviso(false);
+      setPreviewAviso(null);
+      alert(
+        `Aviso publicado para liderança (${data.lideres_avisados ?? '?'} líder(es), ${data.total_pendentes ?? '?'} pendência(s)).`
+      );
+    } catch {
+      setErroAviso('Erro de conexão.');
+    } finally {
+      setGerandoAviso(false);
+    }
+  };
 
   const handleExcluir = async (id: string, nome: string) => {
     if (
@@ -166,15 +259,40 @@ export function AvaliacoesPendentesPainel({
               <p className="text-[11px] text-coffee-100 mt-0.5">Atualizado às {atualizadoEm}</p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => void carregar()}
-            disabled={carregando}
-            className="rounded-lg border border-dourado-base px-3 py-1.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 disabled:opacity-50 shrink-0"
-          >
-            {carregando ? '…' : 'Atualizar'}
-          </button>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {podeGerarAviso && (
+              <button
+                type="button"
+                onClick={() => void abrirPreviewAviso()}
+                disabled={gerandoAviso || resumo.sem_lider === 0}
+                className="rounded-lg border border-amber-500 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+              >
+                {gerandoAviso ? '…' : 'Gerar aviso p/ líderes'}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void carregar()}
+              disabled={carregando}
+              className="rounded-lg border border-dourado-base px-3 py-1.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 disabled:opacity-50 shrink-0"
+            >
+              {carregando ? '…' : 'Atualizar'}
+            </button>
+          </div>
         </div>
+
+        {meta.alerta_critico_sexta && (
+          <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2.5 text-sm text-red-900">
+            <p className="font-semibold">Alerta crítico — sexta-feira</p>
+            <p className="mt-1 text-red-800">
+              {resumo.criticos_sem_avaliacao} colaborador(es) sem avaliação de líder
+              {resumo.sem_rh_rede > 0 ? ' e sem Visita RH' : ''}. Busque esclarecimentos com a liderança
+              antes de fechar a semana.
+            </p>
+          </div>
+        )}
+
+        {erroAviso && !modalAviso && <p className="text-sm text-red-600">{erroAviso}</p>}
 
         <div className="flex flex-wrap gap-2 text-xs">
           <span className="rounded-full bg-amber-100 text-amber-900 px-2.5 py-1">
@@ -188,7 +306,16 @@ export function AvaliacoesPendentesPainel({
           </span>
           {resumo.criticos > 0 && (
             <span className="rounded-full bg-red-100 text-red-800 px-2.5 py-1">
-              {resumo.criticos} crítico(s)
+              {resumo.criticos} fora plantão
+            </span>
+          )}
+          {resumo.criticos_sem_avaliacao > 0 && (
+            <span
+              className={`rounded-full px-2.5 py-1 ${
+                meta.eh_sexta ? 'bg-red-100 text-red-800 font-semibold' : 'bg-orange-100 text-orange-900'
+              }`}
+            >
+              {resumo.criticos_sem_avaliacao} sem ninguém{meta.eh_sexta ? ' · crítico sexta' : ''}
             </span>
           )}
           <span className="rounded-full bg-dourado-base/20 text-coffee-base px-2.5 py-1 font-medium">
@@ -294,7 +421,7 @@ export function AvaliacoesPendentesPainel({
               <li
                 key={item.colaborador_id}
                 className={`rounded-lg border px-3 py-2.5 text-sm ${
-                  item.tipo === 'critico_fora_plantao'
+                  itemCritico(item)
                     ? 'border-red-200 bg-red-50/80'
                     : 'border-cream-200 bg-cream-50/50'
                 }`}
@@ -347,6 +474,56 @@ export function AvaliacoesPendentesPainel({
           </ul>
         )}
       </div>
+
+      {modalAviso && previewAviso && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-w-lg w-full rounded-xl bg-white shadow-xl border border-cream-200 p-5 space-y-4">
+            <h3 className="text-lg font-display font-semibold text-coffee-base">Publicar aviso para líderes</h3>
+            <p className="text-sm text-coffee-100">
+              Só gerentes, masters e sócios com equipe verão este aviso no portal. Daniel/administrador de rede não
+              recebe.
+            </p>
+            <div className="rounded-lg bg-cream-50 border border-cream-200 p-3 text-sm space-y-2 max-h-48 overflow-y-auto">
+              <p className="font-semibold text-coffee-base">{previewAviso.titulo}</p>
+              <p className="text-coffee-base whitespace-pre-wrap text-xs">{previewAviso.conteudo}</p>
+            </div>
+            <p className="text-xs text-coffee-100">
+              {previewAviso.lideres.length} líder(es) · {previewAviso.total_pendentes_lider} pendência(s)
+            </p>
+            <label className="flex items-center gap-2 text-sm text-coffee-base cursor-pointer">
+              <input
+                type="checkbox"
+                checked={exigeConfirmacaoAviso}
+                onChange={(e) => setExigeConfirmacaoAviso(e.target.checked)}
+                className="rounded border-cream-300"
+              />
+              Exigir confirmação «Li e confirmo» no portal
+            </label>
+            {erroAviso && <p className="text-sm text-red-600">{erroAviso}</p>}
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalAviso(false);
+                  setPreviewAviso(null);
+                  setErroAviso(null);
+                }}
+                className="rounded-lg border border-cream-300 px-4 py-2 text-sm text-coffee-base"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => void publicarAvisoLideres()}
+                disabled={gerandoAviso}
+                className="rounded-lg bg-dourado-base px-4 py-2 text-sm font-semibold text-cream-100 disabled:opacity-50"
+              >
+                {gerandoAviso ? 'Publicando…' : 'Confirmar e publicar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <p className="text-[10px] text-coffee-100">
         Responsável pelo mapa de liderança atual (admin → Liderança por setor). Erro de cadastro: use{' '}

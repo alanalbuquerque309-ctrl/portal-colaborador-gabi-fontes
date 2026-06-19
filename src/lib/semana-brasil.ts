@@ -79,6 +79,12 @@ export function ehQuintaSaoPaulo(ref: Date = new Date()): boolean {
   return wd.startsWith('Thu');
 }
 
+/** `true` na sexta-feira (0h–23:59 SP). */
+export function ehSextaSaoPaulo(ref: Date = new Date()): boolean {
+  const { wd } = partesSaoPaulo(ref);
+  return wd.startsWith('Fri');
+}
+
 /** Data ISO de hoje em São Paulo. */
 export function hojeIsoSaoPaulo(ref: Date = new Date()): string {
   return partesSaoPaulo(ref).iso;

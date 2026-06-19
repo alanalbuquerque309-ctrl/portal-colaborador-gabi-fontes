@@ -152,6 +152,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [pendenciasSemana, setPendenciasSemana] = useState(0);
+  const [pendenciasSemanaCriticas, setPendenciasSemanaCriticas] = useState(false);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
   const [perfilRoleLocal, setPerfilRoleLocal] = useState<string | null>(null);
   const [colaboradorIdNav, setColaboradorIdNav] = useState<string | null>(null);
@@ -209,9 +210,10 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
         cache: 'no-store',
       })
         .then((r) => r.json())
-        .then((d: { ok?: boolean; total?: number }) => {
+        .then((d: { ok?: boolean; total?: number; meta?: { alerta_critico_sexta?: boolean } }) => {
           if (cancel || d.ok !== true) return;
           setPendenciasSemana(Math.max(0, Number(d.total ?? 0)));
+          setPendenciasSemanaCriticas(d.meta?.alerta_critico_sexta === true);
         })
         .catch(() => {});
     };
@@ -537,8 +539,14 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                 Pendências
                 {pendenciasSemana > 0 && (
                   <span
-                    className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-orange-500 text-white text-xs font-bold items-center justify-center align-middle"
-                    title={`${pendenciasSemana} pendência(s) na semana`}
+                    className={`ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full text-white text-xs font-bold items-center justify-center align-middle ${
+                      pendenciasSemanaCriticas ? 'bg-red-600 animate-pulse' : 'bg-orange-500'
+                    }`}
+                    title={
+                      pendenciasSemanaCriticas
+                        ? `${pendenciasSemana} pendência(s) — alerta crítico de sexta`
+                        : `${pendenciasSemana} pendência(s) na semana`
+                    }
                   >
                     {pendenciasSemana > 99 ? '99+' : pendenciasSemana}
                   </span>

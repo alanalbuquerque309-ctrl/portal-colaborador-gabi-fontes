@@ -6,7 +6,8 @@ export type PublicoAvisoKey =
   | 'fabrica-doce'
   | 'mesquita'
   | 'nova-iguacu'
-  | 'barra';
+  | 'barra'
+  | 'lideranca';
 
 export type PublicoAvisoOpcao = {
   key: PublicoAvisoKey;
@@ -33,6 +34,11 @@ export const PUBLICOS_AVISO: PublicoAvisoOpcao[] = [
   },
   { key: 'nova-iguacu', label: 'Nova Iguaçu', hint: 'Loja Nova Iguaçu' },
   { key: 'barra', label: 'Barra', hint: 'Loja Barra' },
+  {
+    key: 'lideranca',
+    label: 'Liderança',
+    hint: 'Gerentes, masters e sócios com equipe (avaliação semanal)',
+  },
 ];
 
 const PUBLICO_KEYS = new Set<string>(PUBLICOS_AVISO.map((p) => p.key));
@@ -71,6 +77,7 @@ export function slugUnidadeReferenciaPublico(publico: PublicoAvisoKey): string {
     mesquita: 'mesquita',
     'nova-iguacu': 'nova-iguacu',
     barra: 'barra',
+    lideranca: 'matriz',
   };
   return map[publico];
 }
@@ -98,12 +105,25 @@ export function resolverPublicoAviso(
 export type ColaboradorPublicoAviso = {
   unidade_slug: string;
   setor: string | null;
+  role?: string | null;
 };
+
+/** Gerentes/masters/sócios com equipe; admin de rede não recebe aviso de liderança. */
+export function roleRecebeAvisoLideranca(role: string | null | undefined): boolean {
+  const r = String(role ?? '')
+    .trim()
+    .toLowerCase();
+  return r === 'gerente' || r === 'master' || r === 'socio';
+}
 
 export function colaboradorRecebeAvisoPublico(
   colaborador: ColaboradorPublicoAviso,
   publico: PublicoAvisoKey
 ): boolean {
+  if (publico === 'lideranca') {
+    return roleRecebeAvisoLideranca(colaborador.role);
+  }
+
   const slug = normTxt(colaborador.unidade_slug);
   const setor = normTxt(colaborador.setor);
 

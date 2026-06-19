@@ -26,6 +26,7 @@ import {
   semanaAvaliacaoEquipePadraoISO,
 } from '@/lib/semana-referencia';
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
+import { ehSextaSaoPaulo } from '@/lib/semana-brasil';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -35,7 +36,8 @@ export type TipoPendenciaItem =
   | 'sem_lider'
   | 'sem_rh'
   | 'sem_lider_e_rh'
-  | 'critico_fora_plantao';
+  | 'critico_fora_plantao'
+  | 'critico_sem_avaliacao';
 
 export type ResponsavelLider = {
   lider_id: string;
@@ -67,7 +69,14 @@ export type ResultadoPendenciasSemana = {
     sem_lider: number;
     sem_rh_complemento: number;
     sem_rh_rede: number;
+    /** Todos os líderes marcaram fora do plantão e ninguém fechou a semana. */
     criticos: number;
+    /** Sem avaliação de líder e (quando couber) sem Visita RH — alerta de sexta. */
+    criticos_sem_avaliacao: number;
+  };
+  meta: {
+    eh_sexta: boolean;
+    alerta_critico_sexta: boolean;
   };
   itens: ItemPendenciaSemana[];
 };
@@ -80,6 +89,7 @@ type AvaliacaoRow = {
   justificativa_nota_baixa?: string | null;
   ignorada?: boolean | null;
   avaliador_role?: string | null;
+  updated_at?: string | null;
 };
 
 type ColabInfo = {
@@ -310,7 +320,10 @@ async function carregarAvaliacoesSemana(
 ): Promise<AvaliacaoRow[]> {
   if (colaboradorIds.length === 0) return [];
 
-  const selects = [SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR];
+  const selects = [
+    `${SELECT_AVALIACAO_META}, updated_at`,
+    `${SELECT_AVALIACAO_META_SEM_IGNORAR}, updated_at`,
+  ];
   let rawRows: Record<string, unknown>[] | null = null;
 
   for (const sel of selects) {
@@ -333,7 +346,7 @@ async function carregarAvaliacoesSemana(
   if (!rawRows) {
     const fallback = await supabase
       .from('avaliacoes_diarias')
-      .select('colaborador_id, avaliador_id, assiduidade, media_dia, justificativa_nota_baixa')
+      .select('colaborador_id, avaliador_id, assiduidade, media_dia, justificativa_nota_baixa, updated_at')
       .eq('data_referencia', dataRef)
       .in('colaborador_id', colaboradorIds);
     if (fallback.error) throw new Error(fallback.error.message);
@@ -357,6 +370,7 @@ async function carregarAvaliacoesSemana(
     justificativa_nota_baixa: (raw.justificativa_nota_baixa as string | null) ?? null,
     ignorada: raw.ignorada as boolean | null | undefined,
     avaliador_role: rolesPorId.get(String(raw.avaliador_id)) ?? null,
+    updated_at: raw.updated_at != null ? String(raw.updated_at) : null,
   }));
 }
 
@@ -393,18 +407,52 @@ async function carregarColaboradoresInfo(
   return out;
 }
 
+function escolherMelhorAvaliacaoDoLider(rows: AvaliacaoRow[], liderId: string): AvaliacaoRow | null {
+  const doLider = rows.filter((r) => r.avaliador_id === liderId && !avaliacaoEstaIgnorada(r));
+  if (doLider.length === 0) return null;
+
+  const comFechamento = doLider.filter((r) => {
+    const a = assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa);
+    return a !== 'fora_plantao';
+  });
+  const pool = comFechamento.length > 0 ? comFechamento : doLider;
+
+  pool.sort((a, b) => {
+    const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+    return tb - ta;
+  });
+  return pool[0] ?? null;
+}
+
 function statusResponsavel(
   liderId: string,
   rows: AvaliacaoRow[],
   rhIds: Set<string>
 ): StatusResponsavelLider {
-  const doLider = rows.filter((r) => r.avaliador_id === liderId);
-  if (doLider.some((r) => avaliacaoFechaSemanaLider(r, rhIds))) return 'ja_avaliou';
-  if (doLider.some((r) => avaliacaoForaPlantaoLider(r, rhIds))) return 'marcou_fora_plantao';
+  const melhor = escolherMelhorAvaliacaoDoLider(rows, liderId);
+  if (!melhor) return 'pendente';
+  if (avaliacaoFechaSemanaLider(melhor, rhIds)) return 'ja_avaliou';
+  if (avaliacaoForaPlantaoLider(melhor, rhIds)) return 'marcou_fora_plantao';
   return 'pendente';
 }
 
-export type FiltroPendenciasSemana = 'pendentes' | 'gerente' | 'rh_complemento' | 'rh_rede' | 'todos';
+function colaboradorSemAvaliacaoAlguma(
+  semLider: boolean,
+  semRhVisita: boolean,
+  elegivelRh: boolean
+): boolean {
+  if (!semLider) return false;
+  return elegivelRh ? semRhVisita : true;
+}
+
+export type FiltroPendenciasSemana =
+  | 'pendentes'
+  | 'gerente'
+  | 'rh_complemento'
+  | 'rh_rede'
+  | 'critico_sexta'
+  | 'todos';
 
 /** Semana com dados reais quando a operacional (semana passada) ainda está vazia. */
 export async function resolverDataRefPendentes(
@@ -492,8 +540,15 @@ export async function calcularPendenciasSemana(
 
   const filtro = opts.filtro ?? 'pendentes';
   const buscaNorm = opts.busca?.trim().toLowerCase() ?? '';
+  const ehSexta = ehSextaSaoPaulo();
   const itens: ItemPendenciaSemana[] = [];
-  const resumo = { sem_lider: 0, sem_rh_complemento: 0, sem_rh_rede: 0, criticos: 0 };
+  const resumo = {
+    sem_lider: 0,
+    sem_rh_complemento: 0,
+    sem_rh_rede: 0,
+    criticos: 0,
+    criticos_sem_avaliacao: 0,
+  };
 
   for (const cid of colaboradorIds) {
     const info = colabInfo.get(cid);
@@ -507,7 +562,9 @@ export async function calcularPendenciasSemana(
     const rows = avalPorColab.get(cid) ?? [];
     const esperados = mapaEsperados.get(cid) ?? [];
 
-    const temNotaGerente = rows.some((r) => avaliacaoFechaSemanaLider(r, rhIds));
+    const temNotaGerente =
+      esperados.some((e) => statusResponsavel(e.lider_id, rows, rhIds) === 'ja_avaliou') ||
+      rows.some((r) => avaliacaoFechaSemanaLider(r, rhIds));
     const temRh = rows.some((r) => avaliacaoFechaSemanaRh(r, rhIds));
     const elegivelRh = colaboradorElegivelVisitaRh(
       { id: cid, role: info.role, nome: info.nome },
@@ -535,8 +592,12 @@ export async function calcularPendenciasSemana(
     if (semRhVisita) resumo.sem_rh_rede++;
     if (semLider && critico) resumo.criticos++;
 
+    const semAvaliacao = colaboradorSemAvaliacaoAlguma(semLider, semRhVisita, elegivelRh);
+    if (semAvaliacao) resumo.criticos_sem_avaliacao++;
+
     let tipo: TipoPendenciaItem | null = null;
     if (semLider && critico) tipo = 'critico_fora_plantao';
+    else if (semAvaliacao && ehSexta) tipo = 'critico_sem_avaliacao';
     else if (semLider && semRhVisita) tipo = 'sem_lider_e_rh';
     else if (semLider) tipo = 'sem_lider';
     else if (semRhVisita) tipo = 'sem_rh';
@@ -544,11 +605,13 @@ export async function calcularPendenciasSemana(
     const incluir =
       filtro === 'pendentes' || filtro === 'todos'
         ? true
-        : filtro === 'gerente'
-          ? semLider
-          : filtro === 'rh_complemento'
-            ? semRhComplemento
-            : semRhVisita;
+        : filtro === 'critico_sexta'
+          ? semAvaliacao && ehSexta
+          : filtro === 'gerente'
+            ? semLider
+            : filtro === 'rh_complemento'
+              ? semRhComplemento
+              : semRhVisita;
 
     if (!incluir || !tipo) continue;
 
@@ -580,6 +643,10 @@ export async function calcularPendenciasSemana(
     data_referencia: dataRef,
     intervalo: formatarIntervaloSemanaPtBR(dataRef),
     resumo,
+    meta: {
+      eh_sexta: ehSexta,
+      alerta_critico_sexta: ehSexta && resumo.criticos_sem_avaliacao > 0,
+    },
     itens,
   };
 }

@@ -20,6 +20,7 @@ function parseFiltro(raw: string | null): FiltroPendenciasSemana {
     v === 'gerente' ||
     v === 'rh_complemento' ||
     v === 'rh_rede' ||
+    v === 'critico_sexta' ||
     v === 'todos'
   ) {
     return v;
@@ -91,6 +92,7 @@ export async function GET(req: Request) {
           ok: true,
           total: resultado.itens.length,
           resumo: resultado.resumo,
+          meta: resultado.meta,
           data_referencia: resultado.data_referencia,
           intervalo: resultado.intervalo,
         },

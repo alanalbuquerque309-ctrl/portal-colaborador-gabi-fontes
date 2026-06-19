@@ -215,13 +215,19 @@ export function FacaAgoraHome() {
             .then((r) => (r.ok ? r.json() : null))
             .catch(() => null);
           const total = Number(pend?.total ?? 0);
+          const alertaSexta = pend?.meta?.alerta_critico_sexta === true;
+          const criticosSemAvaliacao = Number(pend?.resumo?.criticos_sem_avaliacao ?? 0);
           if (!cancelado && pend?.ok && total > 0) {
             lista.push({
               id: 'pendentes-rede',
-              titulo: `${total} pendência${total === 1 ? '' : 's'} na rede`,
-              detalhe: 'Avaliações da semana ainda não concluídas — quem falta e qual líder cobrar.',
-              href: '/portal/pendencias-semana',
-              urgente: pend.resumo?.criticos > 0,
+              titulo: alertaSexta
+                ? `${criticosSemAvaliacao} crítico(s) — sexta sem avaliação`
+                : `${total} pendência${total === 1 ? '' : 's'} na rede`,
+              detalhe: alertaSexta
+                ? 'Colaborador(es) sem avaliação de líder e RH. Busque esclarecimentos com a liderança.'
+                : 'Avaliações da semana ainda não concluídas — quem falta e qual líder cobrar.',
+              href: alertaSexta ? '/portal/pendencias-semana?filtro=critico_sexta' : '/portal/pendencias-semana',
+              urgente: alertaSexta || pend.resumo?.criticos > 0,
               hero: true,
               acaoLabel: 'Clique para ver →',
             });

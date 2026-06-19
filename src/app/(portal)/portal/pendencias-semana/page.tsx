@@ -1,14 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { AvaliacoesPendentesPainel } from '@/components/admin/AvaliacoesPendentesPainel';
 import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import type { FiltroPendenciasSemana } from '@/lib/avaliacao-pendentes-semana';
 
 export default function PendenciasSemanaPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const filtroInicial = (searchParams.get('filtro')?.trim() ?? '') as FiltroPendenciasSemana;
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -59,7 +62,11 @@ export default function PendenciasSemanaPage() {
         </Link>
       </div>
 
-      <AvaliacoesPendentesPainel apiBase="/api/portal/avaliacoes-pendentes" autoRefresh />
+      <AvaliacoesPendentesPainel
+        apiBase="/api/portal/avaliacoes-pendentes"
+        autoRefresh
+        filtroInicial={filtroInicial === 'critico_sexta' ? 'critico_sexta' : undefined}
+      />
     </main>
   );
 }

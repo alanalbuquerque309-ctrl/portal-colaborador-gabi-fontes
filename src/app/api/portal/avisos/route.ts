@@ -27,7 +27,7 @@ export async function GET() {
 
     const { data: colab, error: errColab } = await supabase
       .from('colaboradores')
-      .select('id, setor, unidade_id, unidades(slug)')
+      .select('id, setor, role, unidade_id, unidades(slug)')
       .eq('id', colaboradorId)
       .maybeSingle();
 
@@ -72,7 +72,28 @@ export async function GET() {
           unidadeAviso?.slug
         );
         return colaboradorRecebeAvisoPublico(
-          { unidade_slug: unidadeSlug, setor: (colab as { setor?: string | null }).setor ?? null },
+          {
+            unidade_slug: unidadeSlug,
+            setor: (colab as { setor?: string | null }).setor ?? null,
+            role: (colab as { role?: string | null }).role ?? role,
+          },
+          publico
+        );
+      });
+    } else {
+      avisos = avisos.filter((a: Record<string, unknown>) => {
+        const unidadeAviso = a.unidades as { slug?: string } | null;
+        const publico = resolverPublicoAviso(
+          a.publico_alvo as string | null | undefined,
+          unidadeAviso?.slug
+        );
+        if (publico !== 'lideranca') return true;
+        return colaboradorRecebeAvisoPublico(
+          {
+            unidade_slug: unidadeSlug,
+            setor: (colab as { setor?: string | null }).setor ?? null,
+            role: (colab as { role?: string | null }).role ?? role,
+          },
           publico
         );
       });
