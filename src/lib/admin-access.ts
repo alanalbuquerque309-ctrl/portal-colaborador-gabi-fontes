@@ -69,6 +69,16 @@ export function podeEditarLiderancaMapaCompleto(
   return r === 'socio' || r === 'admin';
 }
 
+/** Sócios, admin (Daniel) e login por senha: editar CPF no cadastro de colaborador. */
+export function podeEditarCpfColaboradorAdmin(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): boolean {
+  if (senhaAdmin) return true;
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin';
+}
+
 /** Sócios, admin (Daniel) e login por senha: detalhe item a item das notas no admin. */
 export function podeVerDetalheNotasAvaliacaoAdmin(
   role: string | null | undefined,

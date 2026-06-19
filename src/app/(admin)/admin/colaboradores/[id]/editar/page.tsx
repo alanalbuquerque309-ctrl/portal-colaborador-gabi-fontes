@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { normalizePortalRole } from '@/lib/roles';
+import { formatCpf, validateCpf } from '@/lib/utils/cpf';
 
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — portal' },
@@ -88,6 +89,7 @@ export default function EditarColaboradorPage() {
   >([]);
   const [lideresIds, setLideresIds] = useState<string[]>([]);
   const [podeRedefinirSenhaPadrao, setPodeRedefinirSenhaPadrao] = useState(false);
+  const [podeEditarCpf, setPodeEditarCpf] = useState(false);
   const [redefinindoSenha, setRedefinindoSenha] = useState(false);
   const [msgRedefinir, setMsgRedefinir] = useState('');
 
@@ -98,6 +100,13 @@ export default function EditarColaboradorPage() {
     }
     return base;
   }, [unidadeLegado]);
+
+  useEffect(() => {
+    fetch('/api/admin/auth', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setPodeEditarCpf(d?.pode_editar_cpf === true))
+      .catch(() => setPodeEditarCpf(false));
+  }, []);
 
   useEffect(() => {
     fetch('/api/portal/perfil', { credentials: 'include' })
@@ -162,7 +171,7 @@ export default function EditarColaboradorPage() {
         const roleNormalizado = rawRole === 'master' ? 'gerente' : rawRole;
         setForm({
           nome: String(c.nome ?? ''),
-          cpf: String(c.cpf ?? ''),
+          cpf: String(c.cpf ?? '').replace(/\D/g, ''),
           email: c.email != null ? String(c.email) : '',
           telefone: c.telefone != null ? String(c.telefone) : '',
           endereco: c.endereco != null ? String(c.endereco) : '',
@@ -195,6 +204,13 @@ export default function EditarColaboradorPage() {
       setErro('Selecione uma unidade.');
       return;
     }
+    if (podeEditarCpf && form.cpf.trim()) {
+      const cpfDigits = form.cpf.replace(/\D/g, '');
+      if (cpfDigits.length !== 11 || !validateCpf(cpfDigits)) {
+        setErro('CPF inválido. Verifique os 11 dígitos.');
+        return;
+      }
+    }
     setEnviando(true);
     const body: Record<string, unknown> = {
       nome: form.nome.trim(),
@@ -211,6 +227,9 @@ export default function EditarColaboradorPage() {
       body.unidade_id = form.unidade;
     } else {
       body.unidade_slug = form.unidade;
+    }
+    if (podeEditarCpf) {
+      body.cpf = form.cpf.replace(/\D/g, '') || null;
     }
     body.lideres_ids = form.role === 'colaborador' ? lideresIds : [];
     try {
@@ -305,13 +324,35 @@ export default function EditarColaboradorPage() {
           <input
             id="cpf"
             type="text"
-            readOnly
-            value={form.cpf}
+            inputMode="numeric"
+            autoComplete="off"
+            readOnly={!podeEditarCpf}
+            value={podeEditarCpf ? formatCpf(form.cpf) : form.cpf ? formatCpf(form.cpf) : ''}
             placeholder="Pendente — colaborador informa no portal"
-            className="w-full rounded-lg border border-cream-200 bg-cream-100 px-3 py-2 text-coffee-100 cursor-not-allowed placeholder:text-coffee-100/70"
+            onChange={
+              podeEditarCpf
+                ? (e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11);
+                    setForm((f) => ({ ...f, cpf: digits }));
+                  }
+                : undefined
+            }
+            className={
+              podeEditarCpf
+                ? 'w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none'
+                : 'w-full rounded-lg border border-cream-200 bg-cream-100 px-3 py-2 text-coffee-100 cursor-not-allowed placeholder:text-coffee-100/70'
+            }
           />
-          {!form.cpf?.trim() && (
-            <p className="text-xs text-coffee-100 mt-1">Sem CPF: o colaborador completa no primeiro acesso ao portal.</p>
+          {podeEditarCpf ? (
+            <p className="text-xs text-coffee-100 mt-1">
+              Só sócios e administrador podem corrigir CPF. Confira duplicatas antes de salvar.
+            </p>
+          ) : (
+            !form.cpf?.trim() && (
+              <p className="text-xs text-coffee-100 mt-1">
+                Sem CPF: o colaborador completa no primeiro acesso ao portal.
+              </p>
+            )
           )}
         </div>
         <div>

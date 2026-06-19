@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import {
   ADMIN_NAV_RH,
   labelNivelAdmin,
+  podeEditarCpfColaboradorAdmin,
   podeEditarEscalasAdmin,
   podeEditarLiderancaMapaCompleto,
   podeVerDetalheNotasAvaliacaoAdmin,
@@ -153,6 +154,8 @@ export async function GET() {
     pode_editar_escalas: podeEditarEscalasAdmin(role, senhaAdmin),
 
     pode_ver_detalhe_notas_avaliacao: podeVerDetalheNotasAvaliacaoAdmin(role, senhaAdmin),
+
+    pode_editar_cpf: podeEditarCpfColaboradorAdmin(role, senhaAdmin),
 
     podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
 

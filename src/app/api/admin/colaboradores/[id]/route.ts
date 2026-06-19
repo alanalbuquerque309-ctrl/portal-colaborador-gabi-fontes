@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { getAdminViewerContext, isAdminAuthorized } from '@/lib/admin-auth';
+import { podeEditarCpfColaboradorAdmin } from '@/lib/admin-access';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
+import { validateCpf } from '@/lib/utils/cpf';
 import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
 import { normalizePortalRole } from '@/lib/roles';
 import { podeSerLider } from '@/lib/pode-ser-lider';
@@ -111,6 +113,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   let body: {
     nome?: string;
+    cpf?: string | null;
     email?: string | null;
     telefone?: string | null;
     endereco?: string | null;
@@ -155,6 +158,51 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
       payload.nome = n;
     }
+
+    if (body.cpf !== undefined) {
+      const ctx = await getAdminViewerContext();
+      const senhaAdmin = ctx?.kind === 'password_session';
+      const roleViewer = ctx?.kind === 'portal' ? ctx.role : null;
+      if (!podeEditarCpfColaboradorAdmin(roleViewer, senhaAdmin)) {
+        return NextResponse.json(
+          { ok: false, erro: 'Somente sócios ou administrador podem alterar CPF.' },
+          { status: 403 }
+        );
+      }
+
+      const cpfRaw =
+        body.cpf === null || String(body.cpf).trim() === ''
+          ? ''
+          : String(body.cpf).replace(/\D/g, '');
+
+      if (!cpfRaw) {
+        payload.cpf = null;
+      } else {
+        if (!validateCpf(cpfRaw)) {
+          return NextResponse.json(
+            { ok: false, erro: 'CPF inválido. Verifique os dígitos.' },
+            { status: 400 }
+          );
+        }
+        const { data: outroCpf } = await supabase
+          .from('colaboradores')
+          .select('id, nome')
+          .eq('cpf', cpfRaw)
+          .neq('id', id)
+          .maybeSingle();
+        if (outroCpf) {
+          return NextResponse.json(
+            {
+              ok: false,
+              erro: `Este CPF já está cadastrado para ${String((outroCpf as { nome?: string }).nome ?? 'outro colaborador')}.`,
+            },
+            { status: 400 }
+          );
+        }
+        payload.cpf = cpfRaw;
+      }
+    }
+
     if (body.email !== undefined) payload.email = body.email?.trim() || null;
     if (body.telefone !== undefined) {
       const telRaw = body.telefone?.trim() || null;
@@ -296,6 +344,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         if (msg.includes('telefone_login') || msg.includes('uq_colaboradores_telefone_login')) {
           return NextResponse.json(
             { ok: false, erro: 'Já existe outro colaborador com este celular (login).' },
+            { status: 400 }
+          );
+        }
+        if (msg.includes('cpf')) {
+          return NextResponse.json(
+            { ok: false, erro: 'Este CPF já está cadastrado para outro colaborador.' },
             { status: 400 }
           );
         }
