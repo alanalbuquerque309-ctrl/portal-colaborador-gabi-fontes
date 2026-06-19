@@ -6,6 +6,7 @@ import {
   creditarMissaoGraos,
   deduplicarLoginSemanaColaborador,
   deduplicarEnvioSugestaoSemanaColaborador,
+  deduplicarBonusSugestaoSemanaColaborador,
   encerrarPendentesSemanasPassadas,
   processarElegibilidadeTodasSemanasPendentesGraos,
   refKeyGraos,
@@ -121,6 +122,7 @@ export async function sincronizarMissoesSemanaGraos(
       descricao: 'Enviar sugestão',
     });
     await deduplicarEnvioSugestaoSemanaColaborador(supabase, colaboradorId, semanaInicio);
+    await deduplicarBonusSugestaoSemanaColaborador(supabase, colaboradorId, semanaInicio);
   }
 
   const { count: trofCount } = await supabase
@@ -224,9 +226,13 @@ export async function montarMissoesUi(
       : sugestoesEnviadas.length > 0
         ? GRAOS_ENVIO_SUGESTAO
         : 0;
-  const graosBonus = (movs ?? [])
-    .filter((m) => String(m.missao) === 'sugestao_destaque' && String(m.estado) !== 'cancelado')
-    .reduce((n, m) => n + (Number(m.graos) || 0), 0);
+  const graosBonus = (() => {
+    const vals = (movs ?? [])
+      .filter((m) => String(m.missao) === 'sugestao_destaque' && String(m.estado) !== 'cancelado')
+      .map((m) => Number(m.graos) || 0)
+      .filter((g) => g > 0);
+    return vals.length ? Math.max(...vals) : 0;
+  })();
   const graosSugestaoGanhos = graosEnvio + graosBonus;
   let statusSugestao: MissaoGraosUi['status'] = 'disponivel';
   if (sugestoesEnviadas.length > 0) {
@@ -291,7 +297,7 @@ export async function montarMissoesUi(
     mk(
       'trofeu_semana',
       'Enviar troféu entre pares',
-      5,
+      map.get(refKeyGraos(colaboradorId, 'trofeu_semana', semanaInicio))?.graos ?? 0,
       5,
       refKeyGraos(colaboradorId, 'trofeu_semana', semanaInicio),
       '/portal/mural',

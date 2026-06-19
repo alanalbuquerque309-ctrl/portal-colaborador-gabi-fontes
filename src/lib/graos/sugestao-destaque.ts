@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { creditarMissaoGraos, processarElegibilidadeSemanaGraos } from '@/lib/graos/movimentos';
+import { creditarMissaoGraos, deduplicarBonusSugestaoSemanaColaborador, processarElegibilidadeSemanaGraos } from '@/lib/graos/movimentos';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { podeVerBonificacaoInterna } from '@/lib/bonificacao-access';
 import type { AdminViewerContext } from '@/lib/admin-auth';
@@ -47,6 +47,7 @@ export async function aplicarRespostaSugestaoGraos(
     });
 
     if (!cred.ok) return cred;
+    await deduplicarBonusSugestaoSemanaColaborador(supabase, opts.colaboradorId, opts.semanaInicio);
   }
 
   const now = new Date().toISOString();

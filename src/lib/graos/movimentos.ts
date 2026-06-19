@@ -219,6 +219,50 @@ export async function deduplicarEnvioSugestaoSemanaColaborador(
   return cancelarIds.length;
 }
 
+/** Um único bônus de resposta à sugestão por semana (maior valor; empate favorece pendente). */
+export async function deduplicarBonusSugestaoSemanaColaborador(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('id, graos, estado, created_at')
+    .eq('colaborador_id', colaboradorId)
+    .eq('semana_inicio', semanaInicio)
+    .eq('missao', 'sugestao_destaque')
+    .neq('estado', 'cancelado');
+
+  if (error) {
+    if (tabelaAusente(error.message)) return 0;
+    throw new Error(error.message);
+  }
+
+  const rows = data ?? [];
+  if (rows.length <= 1) return 0;
+
+  const rank = (est: string) => (est === 'pendente' ? 2 : est === 'confirmado' ? 1 : 0);
+  const sorted = [...rows].sort((a, b) => {
+    const dg = (Number(b.graos) || 0) - (Number(a.graos) || 0);
+    if (dg !== 0) return dg;
+    const dr = rank(String(b.estado)) - rank(String(a.estado));
+    if (dr !== 0) return dr;
+    return String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''));
+  });
+
+  const cancelarIds = sorted.slice(1).map((r) => r.id);
+  const { error: updErr } = await supabase
+    .from('graos_movimentos')
+    .update({
+      estado: 'cancelado',
+      meta: { ajuste_sistema: 'deduplicacao_sugestao_destaque_semana', oculto_colaborador: true },
+    })
+    .in('id', cancelarIds);
+
+  if (updErr) throw new Error(updErr.message);
+  return cancelarIds.length;
+}
+
 /** Credita missão (pendente). Idempotente via ref_key. */
 export async function creditarMissaoGraos(
   supabase: SupabaseClient,
@@ -249,10 +293,13 @@ export async function creditarMissaoGraos(
     const est = existente.estado as GraosEstadoMovimento;
     const meta = (existente.meta as Record<string, unknown> | null) ?? {};
     const graosAtual = Number(existente.graos) || 0;
-    if (opts.missao === 'sugestao_semana' && graosAtual !== opts.graos) {
+    if (
+      (opts.missao === 'sugestao_semana' || opts.missao === 'trofeu_semana') &&
+      graosAtual !== opts.graos
+    ) {
       await supabase
         .from('graos_movimentos')
-        .update({ graos: opts.graos, descricao: opts.descricao })
+        .update({ graos: opts.graos, descricao: opts.descricao, meta: opts.meta ?? meta })
         .eq('id', existente.id);
     }
     const reabrirAjusteInterno =
