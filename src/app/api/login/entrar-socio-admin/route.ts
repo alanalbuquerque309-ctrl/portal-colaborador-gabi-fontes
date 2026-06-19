@@ -5,10 +5,10 @@ import { selectColaboradorLoginRowByLogin } from '@/lib/colaborador-forca-troca-
 import { normalizePortalRole } from '@/lib/roles';
 import { parseManterLogado } from '@/lib/portal-login-persist';
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
+import { sincronizarOnboardingGestaoNoBanco } from '@/lib/onboarding-access';
 
 /**
  * Legado: sessão sócio/admin após senha validada.
- * Não marca onboarding como concluído (todos passam pelo fluxo de primeiro acesso quando pendente).
  */
 export async function POST(req: Request) {
   let body: { login?: string; telefone?: string; senha?: string; manter_logado?: boolean };
@@ -49,14 +49,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Senha incorreta.' }, { status: 401 });
     }
 
-    const onboardingCompleto = !!(col as { onboarding_completo?: boolean }).onboarding_completo;
+    const onboardingCompleto = await sincronizarOnboardingGestaoNoBanco(
+      supabase,
+      col.id,
+      role,
+      (col as { onboarding_completo?: boolean }).onboarding_completo
+    );
 
     const res = NextResponse.json({
       ok: true,
       colaborador: { id: col.id, unidade_id: col.unidade_id, role },
-      redirect: onboardingCompleto
-        ? '/portal'
-        : `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
+      redirect: onboardingCompleto ? '/portal' : `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
     });
 
     const persistent = parseManterLogado(body);

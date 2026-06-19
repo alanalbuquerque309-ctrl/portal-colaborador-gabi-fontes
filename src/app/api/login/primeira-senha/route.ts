@@ -12,6 +12,7 @@ import {
   rolesComAcessoAdmin,
 } from '@/lib/portal-session-cookies';
 import { normalizePortalRole } from '@/lib/roles';
+import { sincronizarOnboardingGestaoNoBanco } from '@/lib/onboarding-access';
 
 /**
  * Primeiro acesso: define senha quando ainda não existe hash no banco.
@@ -74,12 +75,19 @@ export async function POST(req: Request) {
 
     const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
     const perfilCompleto = await perfilPessoalCompletoPorId(supabase, col.id);
+    const roleNorm = normalizePortalRole((col as { role?: string }).role);
+    const onboardingCompleto = await sincronizarOnboardingGestaoNoBanco(
+      supabase,
+      col.id,
+      roleNorm,
+      (col as { onboarding_completo?: boolean }).onboarding_completo
+    );
 
     const colRow = {
       id: col.id,
       unidade_id: col.unidade_id,
       role: (col as { role?: string }).role,
-      onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
+      onboarding_completo: onboardingCompleto,
       perfil_completo: perfilCompleto,
     };
 
@@ -90,7 +98,6 @@ export async function POST(req: Request) {
     );
 
     const res = NextResponse.json(payload);
-    const roleNorm = normalizePortalRole(colRow.role);
     const persistent = parseManterLogado(body);
     if (payload.ok && !('needsPassword' in payload) && !('mustCompleteCpf' in payload)) {
       applyPortalSessionCookies(

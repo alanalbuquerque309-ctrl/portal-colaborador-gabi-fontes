@@ -5,6 +5,7 @@
  */
 
 import { normalizePortalRole } from '@/lib/roles';
+import { roleExigeOnboarding } from '@/lib/onboarding-access';
 
 
 
@@ -82,9 +83,8 @@ export function buildPortalLoginJson(
 
 
 
-  const onboardingCompleto = !!col.onboarding_completo;
-
-
+  const onboardingCompleto =
+    !!col.onboarding_completo || !roleExigeOnboarding(role);
 
   if (!onboardingCompleto) {
 

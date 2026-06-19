@@ -8,6 +8,8 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { salvarUltimoLogin } from '@/lib/portal-remember-login';
 import { getPortalSession, setPortalSession, clearPortalSession } from '@/lib/utils/session';
 import { LogoCarregando } from '@/components/ui/LogoCarregando';
+import { roleExigeOnboarding } from '@/lib/onboarding-access';
+import { normalizePortalRole } from '@/lib/roles';
 
 async function processarRespostaLogin(
   data: Record<string, unknown>,
@@ -78,8 +80,11 @@ function LoginContent() {
             return;
           }
           if (c.onboarding_completo === false && c.id && c.unidade_id) {
-            router.replace(`/onboarding?colaborador_id=${c.id}&unidade_id=${c.unidade_id}`);
-            return;
+            const role = normalizePortalRole(c.role);
+            if (roleExigeOnboarding(role)) {
+              router.replace(`/onboarding?colaborador_id=${c.id}&unidade_id=${c.unidade_id}`);
+              return;
+            }
           }
           router.replace('/portal');
           return;

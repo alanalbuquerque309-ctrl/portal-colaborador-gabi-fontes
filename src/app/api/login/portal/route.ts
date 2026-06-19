@@ -6,6 +6,7 @@ import { selectColaboradorLoginRowByLogin } from '@/lib/colaborador-forca-troca-
 import { perfilPessoalCompletoPorId } from '@/lib/colaborador-perfil-login';
 import { normalizePortalRole } from '@/lib/roles';
 import { parseManterLogado } from '@/lib/portal-login-persist';
+import { sincronizarOnboardingGestaoNoBanco } from '@/lib/onboarding-access';
 import {
   applyAdminSessionCookie,
   applyPortalSessionCookies,
@@ -82,12 +83,19 @@ export async function POST(req: Request) {
 
     const cpfPendente = !String((col as { cpf?: string | null }).cpf ?? '').trim();
     const perfilCompleto = await perfilPessoalCompletoPorId(supabase, col.id);
+    const roleNorm = normalizePortalRole((col as { role?: string }).role);
+    const onboardingCompleto = await sincronizarOnboardingGestaoNoBanco(
+      supabase,
+      col.id,
+      roleNorm,
+      (col as { onboarding_completo?: boolean }).onboarding_completo
+    );
 
     const colRow = {
       id: col.id,
       unidade_id: col.unidade_id,
       role: (col as { role?: string }).role,
-      onboarding_completo: (col as { onboarding_completo?: boolean }).onboarding_completo,
+      onboarding_completo: onboardingCompleto,
       perfil_completo: perfilCompleto,
     };
 
@@ -98,7 +106,6 @@ export async function POST(req: Request) {
     );
 
     const res = NextResponse.json(payload);
-    const roleNorm = normalizePortalRole(colRow.role);
     const persistent = parseManterLogado(body);
     if (
       payload.ok &&

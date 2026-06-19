@@ -17,6 +17,8 @@ import {
   PERGUNTAS_QUIZ_MANUAL_GERAL_B,
 } from '@/content/onboarding-quizzes';
 import { inferOnboardingEtapaIndex } from '@/lib/onboarding-step';
+import { roleExigeOnboarding } from '@/lib/onboarding-access';
+import { normalizePortalRole } from '@/lib/roles';
 
 const MSG_SEGUNDO_ERRO_VIDEO =
   'É necessário assistir ao vídeo novamente do início. Você será redirecionado para a primeira etapa.';
@@ -99,7 +101,7 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '' }: OnboardingFlow
       .then(
         (data: {
           ok?: boolean;
-          colaborador?: Flags & { role?: string };
+          colaborador?: Flags & { role?: string; nome?: string };
         }) => {
           if (cancel) return;
           if (!data.ok || !data.colaborador) {
@@ -108,6 +110,16 @@ export function OnboardingFlow({ colaboradorId, unidadeId = '' }: OnboardingFlow
             return;
           }
           const c = data.colaborador;
+          const role = normalizePortalRole(c.role);
+          if (!roleExigeOnboarding(role)) {
+            void fetch('/api/portal/onboarding/pular-gestao', {
+              method: 'POST',
+              credentials: 'include',
+            })
+              .catch(() => undefined)
+              .finally(() => router.replace('/portal'));
+            return;
+          }
           if (c.onboarding_completo) {
             router.replace('/portal');
             return;
