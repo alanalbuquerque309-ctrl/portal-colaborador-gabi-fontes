@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { calcularElegibilidadeSemana } from '@/lib/graos/elegibilidade';
 import type { GraosMissaoId } from '@/lib/graos/constants';
+import { GRAOS_PRIMEIRA_SEMANA_INICIO } from '@/lib/graos/constants';
+import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
 
 export type GraosEstadoMovimento = 'pendente' | 'confirmado' | 'cancelado';
 
@@ -54,6 +56,9 @@ export async function calcularSaldoGraos(
   let total_ganho_confirmado = 0;
 
   for (const row of data ?? []) {
+    const sem = row.semana_inicio ? String(row.semana_inicio) : null;
+    if (sem && !semanaVigenteParaGraos(sem)) continue;
+
     const g = Number(row.graos) || 0;
     const est = String(row.estado) as GraosEstadoMovimento;
     const missao = String(row.missao ?? '');
@@ -85,6 +90,7 @@ export async function encerrarPendentesSemanasPassadas(
     .eq('colaborador_id', colaboradorId)
     .eq('estado', 'pendente')
     .gt('graos', 0)
+    .gte('semana_inicio', GRAOS_PRIMEIRA_SEMANA_INICIO)
     .lt('semana_inicio', semanaCorrenteInicio);
 
   if (error) {
@@ -127,7 +133,7 @@ export async function deduplicarLoginSemanaColaborador(
   const porSemana = new Map<string, typeof data>();
   for (const row of data ?? []) {
     const sem = String(row.semana_inicio ?? '');
-    if (!sem) continue;
+    if (!sem || !semanaVigenteParaGraos(sem)) continue;
     const lista = porSemana.get(sem) ?? [];
     lista.push(row);
     porSemana.set(sem, lista);
@@ -171,6 +177,9 @@ export async function creditarMissaoGraos(
     reabrirSeCancelado?: boolean;
   }
 ): Promise<{ ok: true; criado: boolean; estado: GraosEstadoMovimento } | { ok: false; erro: string }> {
+  if (!semanaVigenteParaGraos(opts.semanaInicio)) {
+    return { ok: true, criado: false, estado: 'cancelado' };
+  }
   if (opts.graos <= 0) return { ok: false, erro: 'Grãos inválidos' };
 
   const { data: existente } = await supabase
@@ -242,6 +251,8 @@ export async function processarElegibilidadeSemanaGraos(
   colaboradorId: string,
   semanaInicio: string
 ): Promise<void> {
+  if (!semanaVigenteParaGraos(semanaInicio)) return;
+
   const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
 
   const movimentos = await listarMovimentosMissaoSemana(supabase, colaboradorId, semanaInicio, [
@@ -287,6 +298,7 @@ export async function processarElegibilidadeTodasSemanasPendentesGraos(
     new Set(
       (data ?? [])
         .filter((r) => !MISSOES_FORA_ELEGIBILIDADE.has(String(r.missao ?? '')))
+        .filter((r) => semanaVigenteParaGraos(r.semana_inicio ? String(r.semana_inicio) : null))
         .map((r) => (r.semana_inicio ? String(r.semana_inicio) : ''))
         .filter(Boolean)
     )
@@ -353,5 +365,9 @@ export async function listarExtratoGraos(
   if (opts?.ocultarCancelados) {
     rows = rows.filter((r) => String(r.estado) !== 'cancelado');
   }
+  rows = rows.filter((r) => {
+    const sem = r.semana_inicio ? String(r.semana_inicio) : null;
+    return sem ? semanaVigenteParaGraos(sem) : true;
+  });
   return rows.slice(0, limite);
 }

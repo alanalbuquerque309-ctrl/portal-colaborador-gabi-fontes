@@ -25,6 +25,8 @@ export async function reprocessarGraosAposAvaliacaoEquipe(
   try {
     const { processarElegibilidadeSemanaGraos, processarElegibilidadeTodasSemanasPendentesGraos } =
       await import('@/lib/graos/movimentos');
+    const { semanaVigenteParaGraos } = await import('@/lib/graos/semana-vigencia');
+    if (!semanaVigenteParaGraos(semanaInicio)) return;
     await processarElegibilidadeSemanaGraos(supabase, colaboradorAlvoId, semanaInicio);
     await processarElegibilidadeTodasSemanasPendentesGraos(supabase, colaboradorAlvoId);
   } catch {

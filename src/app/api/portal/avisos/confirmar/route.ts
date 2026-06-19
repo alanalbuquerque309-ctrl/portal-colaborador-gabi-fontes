@@ -25,7 +25,11 @@ export async function POST(req: Request) {
   try {
     const supabase = createAdminClient();
     const { error } = await supabase.from('aviso_confirmacoes').upsert(
-      { aviso_id: avisoId, colaborador_id: colaboradorId },
+      {
+        aviso_id: avisoId,
+        colaborador_id: colaboradorId,
+        confirmado_em: new Date().toISOString(),
+      },
       { onConflict: 'aviso_id,colaborador_id' }
     );
 

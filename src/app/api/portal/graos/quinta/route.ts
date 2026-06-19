@@ -6,6 +6,7 @@ import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/
 import { creditarMissaoGraos, refKeyGraos } from '@/lib/graos/movimentos';
 import { GRAOS_MISSAO } from '@/lib/graos/constants';
 import { processarElegibilidadeSemanaGraos } from '@/lib/graos/movimentos';
+import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,13 @@ export async function POST() {
 
     const dataQuinta = hojeIsoSaoPaulo();
     const semanaInicio = segundaSemanaSaoPaulo();
+
+    if (!semanaVigenteParaGraos(semanaInicio)) {
+      return NextResponse.json(
+        { ok: false, erro: 'Grãos de café ainda não estavam ativos nesta semana.' },
+        { status: 403, headers: NO_STORE }
+      );
+    }
 
     const { error: errIns } = await supabase.from('graos_quinta_conclusoes').upsert(
       { colaborador_id: colaboradorId, data_quinta: dataQuinta },

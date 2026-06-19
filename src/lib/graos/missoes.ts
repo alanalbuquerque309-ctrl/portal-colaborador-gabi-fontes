@@ -10,7 +10,8 @@ import {
   refKeyGraos,
 } from '@/lib/graos/movimentos';
 import { graosPorTrofeusEnviadosNaSemana } from '@/lib/graos/trofeus-graos';
-import { ehQuintaSaoPaulo, hojeIsoSaoPaulo } from '@/lib/semana-brasil';
+import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, semanaFimExclusiveUtcIsoSp, semanaInicioUtcIsoSp } from '@/lib/semana-brasil';
+import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
 
 export type MissaoGraosUi = {
   id: GraosMissaoId | 'quinta';
@@ -41,6 +42,8 @@ export async function sincronizarMissoesSemanaGraos(
   semanaInicio: string,
   opts?: { creditarLogin?: boolean }
 ): Promise<void> {
+  if (!semanaVigenteParaGraos(semanaInicio)) return;
+
   await deduplicarLoginSemanaColaborador(supabase, colaboradorId);
 
   // Entrada no portal: 1 crédito/semana, só quando o colaborador acessa o portal (sync explícito).
@@ -55,13 +58,16 @@ export async function sincronizarMissoesSemanaGraos(
     });
   }
 
-  // Aviso confirmado (1/semana)
+  // Aviso confirmado (1/semana) — coluna confirmado_em (não created_at)
+  const inicioUtc = semanaInicioUtcIsoSp(semanaInicio);
+  const fimUtc = semanaFimExclusiveUtcIsoSp(semanaInicio);
   const { data: confs } = await supabase
     .from('aviso_confirmacoes')
-    .select('aviso_id, created_at')
+    .select('aviso_id, confirmado_em')
     .eq('colaborador_id', colaboradorId)
-    .gte('created_at', `${semanaInicio}T00:00:00`)
-    .order('created_at', { ascending: true })
+    .gte('confirmado_em', inicioUtc)
+    .lt('confirmado_em', fimUtc)
+    .order('confirmado_em', { ascending: true })
     .limit(1);
 
   if (confs?.length) {
@@ -100,7 +106,8 @@ export async function sincronizarMissoesSemanaGraos(
     .select('id', { count: 'exact', head: true })
     .eq('colaborador_id', colaboradorId)
     .eq('tipo', 'sugestao')
-    .gte('created_at', `${semanaInicio}T00:00:00`);
+    .gte('created_at', semanaInicioUtcIsoSp(semanaInicio))
+    .lt('created_at', semanaFimExclusiveUtcIsoSp(semanaInicio));
 
   if ((sugCount ?? 0) > 0) {
     await creditarMissaoGraos(supabase, {
@@ -164,6 +171,10 @@ export async function montarMissoesUi(
   colaboradorId: string,
   semanaInicio: string
 ): Promise<{ missoes: MissaoGraosUi[]; graos_semana_possivel: number; graos_semana_ganhos: number }> {
+  if (!semanaVigenteParaGraos(semanaInicio)) {
+    return { missoes: [], graos_semana_possivel: GRAOS_MAX_SEMANA, graos_semana_ganhos: 0 };
+  }
+
   const { data: movs } = await supabase
     .from('graos_movimentos')
     .select('ref_key, estado, graos, missao')

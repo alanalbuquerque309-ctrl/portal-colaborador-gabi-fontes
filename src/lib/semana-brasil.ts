@@ -61,6 +61,18 @@ export function partesSaoPaulo(ref: Date = new Date()) {
   return { y, mo, day, wd, iso: `${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}` };
 }
 
+/** Fim exclusivo da semana (próxima segunda 00:00 SP) em UTC ISO, para queries timestamptz. */
+export function semanaFimExclusiveUtcIsoSp(semanaInicioYmd: string): string {
+  const [y, m, d] = semanaInicioYmd.split('-').map((x) => parseInt(x, 10));
+  const next = new Date(Date.UTC(y, (m || 1) - 1, (d || 1) + 7, 3, 0, 0, 0));
+  return next.toISOString();
+}
+
+/** Início da semana (segunda 00:00 SP) em UTC ISO. SP = UTC−3 (sem horário de verão). */
+export function semanaInicioUtcIsoSp(semanaInicioYmd: string): string {
+  return `${semanaInicioYmd}T03:00:00.000Z`;
+}
+
 /** `true` na quinta-feira (0h–23:59 SP). */
 export function ehQuintaSaoPaulo(ref: Date = new Date()): boolean {
   const { wd } = partesSaoPaulo(ref);

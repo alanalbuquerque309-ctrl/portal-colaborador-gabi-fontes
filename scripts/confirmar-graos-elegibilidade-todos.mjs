@@ -10,6 +10,7 @@ import { loadEnvFile } from './lib/resolve-database-url.mjs';
 const portalRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const env = { ...loadEnvFile(portalRoot), ...process.env };
 const confirmar = process.argv.includes('--confirmar');
+const CORTE = '2026-06-15';
 
 const sb = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
@@ -113,6 +114,7 @@ async function processarColaborador(colaboradorId, nome) {
   let reconfirmados = 0;
 
   for (const [sem, movsSem] of porSemana) {
+    if (sem < CORTE) continue;
     const av = await buscarAvaliacao(colaboradorId, sem);
     const { elegivel, motivo } = elegivelDeLinha(av);
     const graos = movsSem.reduce((s, m) => s + Number(m.graos), 0);

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
 import { nivelGraosPorTotal } from '@/lib/graos/nivel';
 
 export type GraosLinhaGestao = {
@@ -56,6 +57,9 @@ export async function listarGraosGestao(
   const porId = new Map<string, Acc>();
 
   for (const row of movs ?? []) {
+    const semRow = row.semana_inicio ? String(row.semana_inicio) : null;
+    if (semRow && !semanaVigenteParaGraos(semRow)) continue;
+
     const cid = String(row.colaborador_id);
     const acc = porId.get(cid) ?? { confirmado: 0, pendente: 0, total_ganho: 0, semana: 0 };
     const g = Number(row.graos) || 0;
