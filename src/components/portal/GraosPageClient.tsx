@@ -175,10 +175,17 @@ export function GraosPageClient() {
 
   if (listaGestao) {
     const termo = buscaGestao.trim().toLowerCase();
-    const linhas = (data.colaboradores ?? []).filter((c) => {
-      if (!termo) return true;
-      return c.nome.toLowerCase().includes(termo) || (c.setor ?? '').toLowerCase().includes(termo);
-    });
+    const linhas = (data.colaboradores ?? [])
+      .filter((c) => {
+        if (!termo) return true;
+        return c.nome.toLowerCase().includes(termo) || (c.setor ?? '').toLowerCase().includes(termo);
+      })
+      .sort(
+        (a, b) =>
+          b.saldo_confirmado - a.saldo_confirmado ||
+          b.saldo_pendente - a.saldo_pendente ||
+          a.nome.localeCompare(b.nome, 'pt-BR')
+      );
 
     return (
       <div className="max-w-lg mx-auto px-4 pb-28 pt-4 space-y-5">
