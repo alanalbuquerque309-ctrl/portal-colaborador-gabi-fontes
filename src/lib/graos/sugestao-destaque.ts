@@ -49,30 +49,45 @@ export async function aplicarRespostaSugestaoGraos(
     if (!cred.ok) return cred;
   }
 
-  const updatePayload: Record<string, unknown> = {
-    graos_destaque_em: new Date().toISOString(),
-    graos_destaque_por: opts.respondidoPorId,
-    graos_resposta_bonus: opts.graos,
-    visualizado_em: new Date().toISOString(),
-  };
+  const now = new Date().toISOString();
+  const payloads: Record<string, unknown>[] = [
+    {
+      graos_destaque_em: now,
+      graos_destaque_por: opts.respondidoPorId,
+      graos_resposta_bonus: opts.graos,
+      visualizado_em: now,
+    },
+    {
+      graos_destaque_em: now,
+      graos_destaque_por: opts.respondidoPorId,
+      graos_resposta_bonus: opts.graos,
+    },
+    {
+      graos_destaque_em: now,
+      graos_destaque_por: opts.respondidoPorId,
+      visualizado_em: now,
+    },
+    {
+      graos_destaque_em: now,
+      graos_destaque_por: opts.respondidoPorId,
+    },
+  ];
 
-  let errUp = (
-    await supabase
+  let errUp: { message: string } | null = null;
+  for (const payload of payloads) {
+    const { error } = await supabase
       .from('sugestoes_reclamacoes')
-      .update(updatePayload)
+      .update(payload)
       .eq('id', opts.sugestaoId)
-      .is('graos_destaque_em', null)
-  ).error;
-
-  if (errUp && /graos_resposta_bonus|does not exist|schema cache/i.test(errUp.message)) {
-    const { graos_resposta_bonus: _omit, ...fallback } = updatePayload;
-    errUp = (
-      await supabase
-        .from('sugestoes_reclamacoes')
-        .update(fallback)
-        .eq('id', opts.sugestaoId)
-        .is('graos_destaque_em', null)
-    ).error;
+      .is('graos_destaque_em', null);
+    if (!error) {
+      errUp = null;
+      break;
+    }
+    errUp = error;
+    if (!/graos_resposta|graos_destaque|visualizado_em|does not exist|schema cache/i.test(error.message)) {
+      break;
+    }
   }
 
   if (errUp) return { ok: false, erro: errUp.message };

@@ -146,6 +146,9 @@ export async function PATCH(
       .eq('id', id);
 
     if (error) {
+      if (/visualizado_em|does not exist|schema cache/i.test(error.message)) {
+        return NextResponse.json({ ok: true, visualizado_em_indisponivel: true });
+      }
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
     return NextResponse.json({ ok: true });

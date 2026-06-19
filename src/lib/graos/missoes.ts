@@ -5,6 +5,7 @@ import {
   calcularSaldoGraos,
   creditarMissaoGraos,
   deduplicarLoginSemanaColaborador,
+  deduplicarEnvioSugestaoSemanaColaborador,
   encerrarPendentesSemanasPassadas,
   processarElegibilidadeTodasSemanasPendentesGraos,
   refKeyGraos,
@@ -119,6 +120,7 @@ export async function sincronizarMissoesSemanaGraos(
       refKey: refKeyGraos(colaboradorId, 'sugestao_semana', semanaInicio),
       descricao: 'Enviar sugestão',
     });
+    await deduplicarEnvioSugestaoSemanaColaborador(supabase, colaboradorId, semanaInicio);
   }
 
   const { count: trofCount } = await supabase
@@ -218,7 +220,7 @@ export async function montarMissoesUi(
   const movEnvio = map.get(refSugestaoSemana);
   const graosEnvio =
     movEnvio && movEnvio.estado !== 'cancelado'
-      ? movEnvio.graos
+      ? Math.min(Number(movEnvio.graos) || 0, GRAOS_ENVIO_SUGESTAO)
       : sugestoesEnviadas.length > 0
         ? GRAOS_ENVIO_SUGESTAO
         : 0;
@@ -303,7 +305,7 @@ export async function montarMissoesUi(
         GRAOS_SUGESTAO_MAX_SEMANA,
         refKeyGraos(colaboradorId, 'sugestao_semana', semanaInicio),
         '/portal/sugestoes',
-        'A gestão responde com bônus de 0, 3, 5 ou 9 Grãos (+1 no envio)'
+        '1 Grão no envio (único na semana, qualquer quantidade de sugestões); bônus 0–9 na resposta da gestão'
       ),
       status: statusSugestao,
     },

@@ -117,7 +117,7 @@ async function processarColaboradorSemana(ctx, c, semana) {
 
   if (nLid > 0) await upsert('lideranca_semana', 10, `${cid}:lideranca_semana:${semana}`, 'Avaliar liderança');
 
-  if (nSug > 0) await upsert('sugestao_semana', 3, `${cid}:sugestao_semana:${semana}`, 'Enviar sugestão');
+  if (nSug > 0) await upsert('sugestao_semana', 1, `${cid}:sugestao_semana:${semana}`, 'Enviar sugestão');
 
   const gt = nTrof <= 0 ? 0 : nTrof === 1 ? 1 : nTrof === 2 ? 2 : 5;
   if (gt > 0) await upsert('trofeu_semana', gt, `${cid}:trofeu_semana:${semana}`, `Troféus entre pares (${nTrof} enviado(s))`);

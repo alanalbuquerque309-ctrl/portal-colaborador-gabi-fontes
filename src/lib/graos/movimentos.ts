@@ -163,6 +163,62 @@ export async function deduplicarLoginSemanaColaborador(
   return cancelarIds.length;
 }
 
+/** Um único crédito de envio de sugestão por semana (1 Grão). */
+export async function deduplicarEnvioSugestaoSemanaColaborador(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string
+): Promise<number> {
+  const canonRef = refKeyGraos(colaboradorId, 'sugestao_semana', semanaInicio);
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('id, ref_key, estado, graos, created_at')
+    .eq('colaborador_id', colaboradorId)
+    .eq('semana_inicio', semanaInicio)
+    .eq('missao', 'sugestao_semana')
+    .neq('estado', 'cancelado');
+
+  if (error) {
+    if (tabelaAusente(error.message)) return 0;
+    throw new Error(error.message);
+  }
+
+  const rows = data ?? [];
+  if (rows.length === 0) return 0;
+
+  const rank = (est: string) => (est === 'confirmado' ? 2 : est === 'pendente' ? 1 : 0);
+  const sorted = [...rows].sort((a, b) => {
+    const dr = rank(String(b.estado)) - rank(String(a.estado));
+    if (dr !== 0) return dr;
+    if (a.ref_key === canonRef && b.ref_key !== canonRef) return -1;
+    if (b.ref_key === canonRef && a.ref_key !== canonRef) return 1;
+    return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''));
+  });
+
+  const manter = sorted[0];
+  const cancelarIds: string[] = sorted.slice(1).map((r) => r.id);
+
+  if (cancelarIds.length > 0) {
+    const { error: updErr } = await supabase
+      .from('graos_movimentos')
+      .update({
+        estado: 'cancelado',
+        meta: { ajuste_sistema: 'deduplicacao_envio_sugestao', oculto_colaborador: true },
+      })
+      .in('id', cancelarIds);
+    if (updErr) throw new Error(updErr.message);
+  }
+
+  if (Number(manter.graos) !== 1 || manter.ref_key !== canonRef) {
+    await supabase
+      .from('graos_movimentos')
+      .update({ graos: 1, descricao: 'Enviar sugestão', ref_key: canonRef })
+      .eq('id', manter.id);
+  }
+
+  return cancelarIds.length;
+}
+
 /** Credita missão (pendente). Idempotente via ref_key. */
 export async function creditarMissaoGraos(
   supabase: SupabaseClient,
@@ -185,13 +241,20 @@ export async function creditarMissaoGraos(
 
   const { data: existente } = await supabase
     .from('graos_movimentos')
-    .select('id, estado, meta')
+    .select('id, estado, graos, meta')
     .eq('ref_key', opts.refKey)
     .maybeSingle();
 
   if (existente) {
     const est = existente.estado as GraosEstadoMovimento;
     const meta = (existente.meta as Record<string, unknown> | null) ?? {};
+    const graosAtual = Number(existente.graos) || 0;
+    if (opts.missao === 'sugestao_semana' && graosAtual !== opts.graos) {
+      await supabase
+        .from('graos_movimentos')
+        .update({ graos: opts.graos, descricao: opts.descricao })
+        .eq('id', existente.id);
+    }
     const reabrirAjusteInterno =
       meta.oculto_colaborador === true || typeof meta.ajuste_sistema === 'string';
     if (est === 'cancelado' && (opts.reabrirSeCancelado || reabrirAjusteInterno)) {
