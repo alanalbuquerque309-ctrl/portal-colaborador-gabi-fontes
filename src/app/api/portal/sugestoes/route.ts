@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
 import { podeEnviarReclamacaoPortal } from '@/lib/bonificacao-access';
 
-const TIPOS = ['sugestao', 'reclamacao'] as const;
+const TIPOS = ['sugestao', 'reclamacao', 'elogio'] as const;
 
 /** GET: Minhas mensagens + feed de sugestões da unidade (para curtir). */
 export async function GET() {
@@ -19,8 +19,8 @@ export async function GET() {
     const supabase = createAdminClient();
 
     const selectsMinhas = [
+      'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas',
       'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas',
-      'id, tipo, texto, anonimo, created_at, visualizado_em, curtidas',
       'id, tipo, texto, anonimo, created_at',
     ];
 
@@ -40,7 +40,7 @@ export async function GET() {
         break;
       }
       errMinhas = error.message;
-      if (!/graos_destaque|visualizado_em|curtidas|does not exist|schema cache/i.test(error.message)) {
+      if (!/graos_destaque|graos_resposta|visualizado_em|curtidas|does not exist|schema cache/i.test(error.message)) {
         return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
       }
     }
@@ -57,6 +57,8 @@ export async function GET() {
       created_at: r.created_at,
       visualizado_em: r.visualizado_em ?? null,
       graos_destaque_em: r.graos_destaque_em ?? null,
+      graos_resposta_bonus:
+        typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
       curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
     }));
 
@@ -67,6 +69,7 @@ export async function GET() {
       curtidas: number;
       autor: string;
       curtiu: boolean;
+      tipo: string;
     }> = [];
 
     let feed_reclamacoes: Array<{
@@ -87,9 +90,9 @@ export async function GET() {
     if (unidadeId) {
       const { data: feedRaw, error: errFeed } = await supabase
         .from('sugestoes_reclamacoes')
-        .select('id, texto, created_at, curtidas, colaborador_id, anonimo, colaboradores(nome)')
+        .select('id, texto, created_at, curtidas, colaborador_id, anonimo, tipo, colaboradores(nome)')
         .eq('unidade_id', unidadeId)
-        .eq('tipo', 'sugestao')
+        .in('tipo', ['sugestao', 'elogio'])
         .order('created_at', { ascending: false })
         .limit(30);
 
@@ -104,16 +107,16 @@ export async function GET() {
         const curtiuSet = new Set((minhasCurtidas ?? []).map((c) => c.sugestao_id));
 
         feed = feedRaw.map((r: Record<string, unknown>) => {
-          const anon = r.anonimo === true;
+          const tipoFeed = String(r.tipo ?? 'sugestao');
           const nome = (r.colaboradores as { nome?: string } | null)?.nome;
-          const autor = anon ? 'Colega' : nome ?? 'Colega';
           return {
             id: String(r.id ?? ''),
             texto: String(r.texto ?? ''),
             created_at: String(r.created_at ?? ''),
             curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
-            autor,
+            autor: nome ?? 'Colega',
             curtiu: curtiuSet.has(String(r.id)),
+            tipo: tipoFeed,
           };
         });
       }
@@ -166,7 +169,10 @@ export async function POST(req: Request) {
 
   const tipo = body.tipo?.toLowerCase();
   if (!tipo || !TIPOS.includes(tipo as (typeof TIPOS)[number])) {
-    return NextResponse.json({ ok: false, erro: 'Tipo inválido. Use: sugestao ou reclamacao.' }, { status: 400 });
+    return NextResponse.json(
+      { ok: false, erro: 'Tipo inválido. Use: sugestao, reclamacao ou elogio.' },
+      { status: 400 }
+    );
   }
 
   const texto = body.texto?.trim();
@@ -174,7 +180,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, erro: 'Escreva pelo menos 5 caracteres.' }, { status: 400 });
   }
 
-  const anonimo = body.anonimo === true;
+  const anonimo = tipo === 'reclamacao' && body.anonimo === true;
 
   if (tipo === 'reclamacao') {
     try {

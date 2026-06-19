@@ -267,6 +267,7 @@ export default function AvaliacaoMasterPage() {
                   carregar();
                 }}
                 mostrarForaPlantao={colaboradorPermiteMarcarForaPlantao(m.tipo_escala)}
+                mostrarFerias
               />
             </li>
           ))}

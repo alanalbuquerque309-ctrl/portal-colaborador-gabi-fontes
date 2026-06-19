@@ -116,6 +116,7 @@ function avaliacaoFechaSemanaLider(row: AvaliacaoRow, rhIds: Set<string>): boole
   const a = assiduidadeDoBanco(row.assiduidade, row.justificativa_nota_baixa);
   if (a === 'fora_plantao') return false;
   if (assiduidadeLegacySemanalRemovida(a)) return false;
+  if (a === 'ferias') return true;
   if (a === 'falta_injustificada') return true;
   return row.media_dia != null && !Number.isNaN(Number(row.media_dia));
 }

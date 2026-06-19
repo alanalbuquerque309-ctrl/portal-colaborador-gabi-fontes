@@ -8,13 +8,14 @@ export type SugestaoAdminItem = {
   created_at: string;
   visualizado_em: string | null;
   graos_destaque_em: string | null;
+  graos_resposta_bonus: number | null;
   curtidas: number;
   autor: string;
   unidade: string;
 };
 
 function colunaAusente(msg: string): boolean {
-  return /does not exist|schema cache|graos_destaque|visualizado_em|curtidas/i.test(msg);
+  return /does not exist|schema cache|graos_destaque|graos_resposta|visualizado_em|curtidas/i.test(msg);
 }
 
 type RowBase = {
@@ -25,6 +26,7 @@ type RowBase = {
   created_at: string;
   visualizado_em?: string | null;
   graos_destaque_em?: string | null;
+  graos_resposta_bonus?: number | null;
   curtidas?: number | null;
   colaborador_id?: string | null;
   unidade_id?: string | null;
@@ -66,8 +68,13 @@ async function enriquecerNomes(
     created_at: String(r.created_at ?? ''),
     visualizado_em: r.visualizado_em ?? null,
     graos_destaque_em: r.graos_destaque_em ?? null,
+    graos_resposta_bonus:
+      typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
     curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
-    autor: r.anonimo ? 'Anônimo' : nomesColab.get(String(r.colaborador_id ?? '')) || '—',
+    autor:
+      r.tipo === 'reclamacao' && r.anonimo
+        ? 'Anônimo'
+        : nomesColab.get(String(r.colaborador_id ?? '')) || '—',
     unidade: nomesUnidade.get(String(r.unidade_id ?? '')) || '—',
   }));
 }
@@ -76,15 +83,15 @@ async function enriquecerNomes(
 export async function listarSugestoesAdmin(
   supabase: SupabaseClient,
   opts: {
-    tipo?: 'sugestao' | 'reclamacao' | null;
+    tipo?: 'sugestao' | 'reclamacao' | 'elogio' | null;
     somenteSugestoes?: boolean;
     limite?: number;
   }
 ): Promise<{ itens: SugestaoAdminItem[]; aviso?: string }> {
   const limite = opts.limite ?? 100;
   const selects = [
+    'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas, colaborador_id, unidade_id',
-    'id, tipo, texto, anonimo, created_at, visualizado_em, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, colaborador_id, unidade_id',
   ];
 
@@ -95,10 +102,10 @@ export async function listarSugestoesAdmin(
   for (const sel of selects) {
     let query = supabase.from('sugestoes_reclamacoes').select(sel).order('created_at', { ascending: false }).limit(limite);
 
-    if (opts.somenteSugestoes || opts.tipo === 'sugestao') {
-      query = query.eq('tipo', 'sugestao');
-    } else if (opts.tipo === 'reclamacao') {
-      query = query.eq('tipo', 'reclamacao');
+    if (opts.somenteSugestoes) {
+      query = query.neq('tipo', 'reclamacao');
+    } else if (opts.tipo === 'sugestao' || opts.tipo === 'reclamacao' || opts.tipo === 'elogio') {
+      query = query.eq('tipo', opts.tipo);
     }
 
     const { data, error } = await query;

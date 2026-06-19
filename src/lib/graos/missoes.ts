@@ -11,6 +11,7 @@ import {
 } from '@/lib/graos/movimentos';
 import { graosPorTrofeusEnviadosNaSemana } from '@/lib/graos/trofeus-graos';
 import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, semanaFimExclusiveUtcIsoSp, semanaInicioUtcIsoSp } from '@/lib/semana-brasil';
+import { GRAOS_ENVIO_SUGESTAO } from '@/lib/sugestao-resposta-graos';
 import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
 
 export type MissaoGraosUi = {
@@ -100,14 +101,14 @@ export async function sincronizarMissoesSemanaGraos(
     });
   }
 
-  // Sugestão
+  // Sugestão: +1 no envio; bônus 0–9 na resposta da gestão.
   const { count: sugCount } = await supabase
     .from('sugestoes_reclamacoes')
     .select('id', { count: 'exact', head: true })
     .eq('colaborador_id', colaboradorId)
     .eq('tipo', 'sugestao')
-    .gte('created_at', semanaInicioUtcIsoSp(semanaInicio))
-    .lt('created_at', semanaFimExclusiveUtcIsoSp(semanaInicio));
+    .gte('created_at', inicioUtc)
+    .lt('created_at', fimUtc);
 
   if ((sugCount ?? 0) > 0) {
     await creditarMissaoGraos(supabase, {
@@ -120,7 +121,6 @@ export async function sincronizarMissoesSemanaGraos(
     });
   }
 
-  // Troféus
   const { count: trofCount } = await supabase
     .from('trofeus_entre_pares')
     .select('id', { count: 'exact', head: true })
@@ -202,6 +202,41 @@ export async function montarMissoesUi(
 
   const quintaIndisponivel = !ehQuintaSaoPaulo();
 
+  const inicioUtc = semanaInicioUtcIsoSp(semanaInicio);
+  const fimUtc = semanaFimExclusiveUtcIsoSp(semanaInicio);
+  const { data: sugsSemana } = await supabase
+    .from('sugestoes_reclamacoes')
+    .select('id, graos_destaque_em, graos_resposta_bonus')
+    .eq('colaborador_id', colaboradorId)
+    .eq('tipo', 'sugestao')
+    .gte('created_at', inicioUtc)
+    .lt('created_at', fimUtc);
+
+  const sugestoesEnviadas = sugsSemana ?? [];
+  const sugestoesRespondidas = sugestoesEnviadas.filter((s) => s.graos_destaque_em);
+  const refSugestaoSemana = refKeyGraos(colaboradorId, 'sugestao_semana', semanaInicio);
+  const movEnvio = map.get(refSugestaoSemana);
+  const graosEnvio =
+    movEnvio && movEnvio.estado !== 'cancelado'
+      ? movEnvio.graos
+      : sugestoesEnviadas.length > 0
+        ? GRAOS_ENVIO_SUGESTAO
+        : 0;
+  const graosBonus = (movs ?? [])
+    .filter((m) => String(m.missao) === 'sugestao_destaque' && String(m.estado) !== 'cancelado')
+    .reduce((n, m) => n + (Number(m.graos) || 0), 0);
+  const graosSugestaoGanhos = graosEnvio + graosBonus;
+  let statusSugestao: MissaoGraosUi['status'] = 'disponivel';
+  if (sugestoesEnviadas.length > 0) {
+    if (sugestoesRespondidas.length < sugestoesEnviadas.length) {
+      statusSugestao = 'feito_pendente';
+    } else {
+      const destaqueMovs = (movs ?? []).filter((m) => String(m.missao) === 'sugestao_destaque');
+      if (destaqueMovs.some((m) => m.estado === 'pendente')) statusSugestao = 'feito_pendente';
+      else statusSugestao = 'feito_confirmado';
+    }
+  }
+
   const mk = (
     id: GraosMissaoId | 'quinta',
     label: string,
@@ -260,15 +295,18 @@ export async function montarMissoesUi(
       '/portal/mural',
       '1 troféu = 1 · 2 = 2 · 3+ = 5 Grãos'
     ),
-    mk(
-      'sugestao_semana',
-      'Enviar sugestão',
-      GRAOS_MISSAO.sugestao_semana,
-      GRAOS_SUGESTAO_MAX_SEMANA,
-      refKeyGraos(colaboradorId, 'sugestao_semana', semanaInicio),
-      '/portal/sugestoes',
-      '+7 se a gestão destacar: gostamos, vamos analisar'
-    ),
+    {
+      ...mk(
+        'sugestao_semana',
+        'Enviar sugestão',
+        graosSugestaoGanhos,
+        GRAOS_SUGESTAO_MAX_SEMANA,
+        refKeyGraos(colaboradorId, 'sugestao_semana', semanaInicio),
+        '/portal/sugestoes',
+        'A gestão responde com bônus de 0, 3, 5 ou 9 Grãos (+1 no envio)'
+      ),
+      status: statusSugestao,
+    },
     {
       ...mk(
         'quinta',

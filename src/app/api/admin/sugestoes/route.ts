@@ -32,8 +32,8 @@ export async function GET(req: Request) {
     const filtroTipo =
       !podeReclamacoes
         ? { somenteSugestoes: true as const }
-        : tipo === 'sugestao' || tipo === 'reclamacao'
-          ? { tipo: tipo as 'sugestao' | 'reclamacao' }
+        : tipo === 'sugestao' || tipo === 'reclamacao' || tipo === 'elogio'
+          ? { tipo: tipo as 'sugestao' | 'reclamacao' | 'elogio' }
           : {};
 
     const { itens, aviso } = await listarSugestoesAdmin(supabase, filtroTipo);

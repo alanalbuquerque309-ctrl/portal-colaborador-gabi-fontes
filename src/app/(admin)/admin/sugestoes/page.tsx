@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
+import {
+  OPCOES_RESPOSTA_SUGESTAO,
+  rotuloRespostaAdmin,
+  type GraosRespostaSugestao,
+} from '@/lib/sugestao-resposta-graos';
 
 interface Item {
   id: string;
@@ -12,9 +17,22 @@ interface Item {
   created_at: string;
   visualizado_em: string | null;
   graos_destaque_em: string | null;
+  graos_resposta_bonus: number | null;
   curtidas: number;
   autor: string;
   unidade: string;
+}
+
+function rotuloTipo(tipo: string): string {
+  if (tipo === 'reclamacao') return 'Reclamação';
+  if (tipo === 'elogio') return 'Elogio';
+  return 'Sugestão';
+}
+
+function classesCard(tipo: string): string {
+  if (tipo === 'reclamacao') return 'border-amber-200 bg-amber-50/50';
+  if (tipo === 'elogio') return 'border-emerald-200 bg-emerald-50/40';
+  return 'border-dourado-200 bg-cream-50';
 }
 
 export default function SugestoesPage() {
@@ -22,7 +40,7 @@ export default function SugestoesPage() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<string>('');
   const [marcando, setMarcando] = useState<string | null>(null);
-  const [destacando, setDestacando] = useState<string | null>(null);
+  const [respondendo, setRespondendo] = useState<string | null>(null);
   const [podeReclamacoes, setPodeReclamacoes] = useState(true);
   const [podeDestacarGraos, setPodeDestacarGraos] = useState(false);
   const [pendentesAnalise, setPendentesAnalise] = useState(0);
@@ -109,21 +127,22 @@ export default function SugestoesPage() {
     }
   };
 
-  const destacarGraos = async (id: string) => {
+  const responderSugestao = async (id: string, graos: GraosRespostaSugestao) => {
+    const op = OPCOES_RESPOSTA_SUGESTAO.find((o) => o.graos === graos);
     if (
       !window.confirm(
-        'Destacar esta sugestão?\n\nO colaborador recebe +7 Grãos (além dos 3 do envio) e verá: «Gostamos — vamos analisar».'
+        `Responder esta sugestão?\n\n«${op?.labelAdmin ?? 'Resposta'}» — bônus +${graos} Grãos (+1 já creditado no envio).`
       )
     ) {
       return;
     }
-    setDestacando(id);
+    setRespondendo(`${id}:${graos}`);
     try {
       const res = await fetch(`/api/admin/sugestoes/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ destaque_graos: true }),
+        body: JSON.stringify({ resposta_graos: graos }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -133,6 +152,7 @@ export default function SugestoesPage() {
               ? {
                   ...i,
                   graos_destaque_em: new Date().toISOString(),
+                  graos_resposta_bonus: graos,
                   visualizado_em: i.visualizado_em ?? new Date().toISOString(),
                 }
               : i
@@ -141,10 +161,10 @@ export default function SugestoesPage() {
         emitSugestoesAtualizado();
         carregarPendentes();
       } else {
-        alert(data.erro || 'Não foi possível destacar.');
+        alert(data.erro || 'Não foi possível responder.');
       }
     } finally {
-      setDestacando(null);
+      setRespondendo(null);
     }
   };
 
@@ -153,7 +173,7 @@ export default function SugestoesPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-display font-semibold text-coffee-base">
-            {podeReclamacoes ? 'Sugestões e Reclamações' : 'Sugestões'}
+            {podeReclamacoes ? 'Sugestões, Elogios e Reclamações' : 'Sugestões e Elogios'}
           </h1>
           {!podeReclamacoes && (
             <p className="text-sm text-coffee-100 mt-1 max-w-xl">
@@ -163,7 +183,8 @@ export default function SugestoesPage() {
           )}
           {podeDestacarGraos && (
             <p className="text-sm text-coffee-100 mt-1 max-w-xl">
-              Sugestões: envio dá 3 Grãos ao colaborador. Use «Gostamos — vamos analisar» para +7 Grãos extras.
+              Sugestões: +1 Grão no envio. Responda com bônus de 0, 3, 5 ou 9 Grãos conforme a qualidade da ideia
+              (reprovada = +0 de bônus).
             </p>
           )}
         </div>
@@ -172,8 +193,9 @@ export default function SugestoesPage() {
           onChange={(e) => setFiltro(e.target.value)}
           className="rounded-lg border border-cream-300 px-3 py-2 text-sm w-full sm:w-auto"
         >
-          <option value="">{podeReclamacoes ? 'Todos' : 'Todas as sugestões'}</option>
+          <option value="">{podeReclamacoes ? 'Todos' : 'Sugestões e elogios'}</option>
           <option value="sugestao">Sugestões</option>
+          <option value="elogio">Elogios</option>
           {podeReclamacoes ? <option value="reclamacao">Reclamações</option> : null}
         </select>
       </div>
@@ -181,7 +203,7 @@ export default function SugestoesPage() {
       {podeDestacarGraos && pendentesAnalise > 0 && (
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <strong>{pendentesAnalise}</strong> sugestão{pendentesAnalise === 1 ? '' : 'ões'} aguardando análise.
-          Marque como visto ou use «Gostamos — vamos analisar» quando fizer sentido.
+          Marque como visto ou responda com a quantidade de Grãos adequada.
         </div>
       )}
 
@@ -203,20 +225,18 @@ export default function SugestoesPage() {
         </div>
       ) : itens.length === 0 ? (
         <div className="rounded-xl border border-cream-300 bg-cream-50 p-8">
-          <p className="text-coffee-base">Nenhuma sugestão ou reclamação registrada.</p>
+          <p className="text-coffee-base">Nenhuma mensagem registrada.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {itens.map((i) => (
             <div
               key={i.id}
-              className={`rounded-xl border p-4 ${
-                i.tipo === 'reclamacao' ? 'border-amber-200 bg-amber-50/50' : 'border-dourado-200 bg-cream-50'
-              }`}
+              className={`rounded-xl border p-4 ${classesCard(i.tipo)}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                 <span className="text-xs font-medium text-coffee-100 uppercase">
-                  {i.tipo === 'sugestao' ? 'Sugestão' : 'Reclamação'}
+                  {rotuloTipo(i.tipo)}
                 </span>
                 <span className="text-coffee-100 text-xs">
                   {new Date(i.created_at).toLocaleString('pt-BR')}
@@ -225,42 +245,64 @@ export default function SugestoesPage() {
               </div>
               <p className="text-coffee-base whitespace-pre-wrap">{i.texto}</p>
               <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
-                <p className="text-coffee-100 text-xs">— {i.autor}</p>
-                <div className="flex flex-wrap items-center gap-2">
+                <p className="text-coffee-base text-sm font-medium">
+                  {i.tipo === 'reclamacao' && i.anonimo ? 'Anônimo' : i.autor}
+                </p>
+                <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
                   {i.tipo === 'sugestao' && (
-                    <span className="text-xs text-coffee-100">
+                    <span className="text-xs text-coffee-100 self-end">
                       {i.curtidas} curtida{i.curtidas === 1 ? '' : 's'}
                     </span>
                   )}
                   {i.tipo === 'sugestao' && i.graos_destaque_em ? (
                     <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">
-                      Gostamos — vamos analisar (+7 Grãos)
+                      {rotuloRespostaAdmin(i.graos_resposta_bonus ?? 7)}
                     </span>
                   ) : null}
                   {i.tipo === 'sugestao' && podeDestacarGraos && !i.graos_destaque_em ? (
-                    <button
-                      type="button"
-                      onClick={() => void destacarGraos(i.id)}
-                      disabled={destacando === i.id}
-                      className="text-xs rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-1 text-emerald-900 hover:bg-emerald-100 disabled:opacity-50 font-medium"
-                    >
-                      {destacando === i.id ? '…' : 'Gostamos — vamos analisar (+7 Grãos)'}
-                    </button>
+                    <div className="flex flex-wrap justify-end gap-1.5 max-w-md">
+                      {OPCOES_RESPOSTA_SUGESTAO.map((op) => {
+                        const busy = respondendo === `${i.id}:${op.graos}`;
+                        return (
+                          <button
+                            key={op.graos}
+                            type="button"
+                            onClick={() => void responderSugestao(i.id, op.graos)}
+                            disabled={!!respondendo}
+                            className={`text-xs rounded-lg border px-2.5 py-1.5 font-medium min-h-[36px] disabled:opacity-50 ${
+                              op.graos === 0
+                                ? 'border-cream-400 bg-white text-coffee-base hover:bg-cream-50'
+                                :                               op.graos === 9
+                                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+                                  : 'border-dourado-base bg-dourado-50 text-coffee-base hover:bg-dourado-100'
+                            }`}
+                          >
+                            {busy ? '…' : `${op.labelAdmin} (+${op.graos})`}
+                          </button>
+                        );
+                      })}
+                    </div>
                   ) : null}
-                  {!i.visualizado_em ? (
-                    <button
-                      type="button"
-                      onClick={() => marcarVisto(i.id)}
-                      disabled={marcando === i.id}
-                      className="text-xs rounded-lg border border-dourado-base px-3 py-1 text-dourado-base hover:bg-dourado-50 disabled:opacity-50"
-                    >
-                      {marcando === i.id ? '…' : 'Marcar como visto / em análise'}
-                    </button>
-                  ) : (
+                  {i.tipo !== 'sugestao' || !podeDestacarGraos ? (
+                    !i.visualizado_em ? (
+                      <button
+                        type="button"
+                        onClick={() => marcarVisto(i.id)}
+                        disabled={marcando === i.id}
+                        className="text-xs rounded-lg border border-dourado-base px-3 py-1 text-dourado-base hover:bg-dourado-50 disabled:opacity-50"
+                      >
+                        {marcando === i.id ? '…' : 'Marcar como visto'}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-green-700">
+                        Visto em {new Date(i.visualizado_em).toLocaleString('pt-BR')}
+                      </span>
+                    )
+                  ) : i.graos_destaque_em ? (
                     <span className="text-xs text-green-700">
-                      Visto em {new Date(i.visualizado_em).toLocaleString('pt-BR')}
+                      Respondido em {new Date(i.graos_destaque_em).toLocaleString('pt-BR')}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>

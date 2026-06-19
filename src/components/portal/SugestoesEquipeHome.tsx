@@ -66,7 +66,7 @@ export function SugestoesEquipeHome() {
         <div className="min-w-0">
           <h2 className="text-lg font-display font-semibold text-cafeteria-900">Sugestões da Equipe</h2>
           <p className="text-sm text-cafeteria-600 mt-0.5 leading-relaxed">
-            Ideias dos colegas da sua unidade. Envie a sua e ganhe +3 Grãos na semana.
+            Ideias dos colegas da sua unidade. Envio dá 1 Grão; bônus de 0 a 9 depende da análise da gestão.
           </p>
         </div>
         <IlustracaoMegafone className="w-20 h-16 shrink-0 opacity-90" />

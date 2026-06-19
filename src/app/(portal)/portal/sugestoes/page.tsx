@@ -9,6 +9,7 @@ import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { PortalDecoracaoRamosPagina } from '@/components/portal/vivo/PortalBalaoCard';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
 import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
+import { mensagemRespostaColaborador } from '@/lib/sugestao-resposta-graos';
 
 interface MinhaMsg {
   id: string;
@@ -18,6 +19,7 @@ interface MinhaMsg {
   created_at: string;
   visualizado_em: string | null;
   graos_destaque_em: string | null;
+  graos_resposta_bonus: number | null;
   curtidas: number;
 }
 
@@ -28,6 +30,7 @@ interface FeedItem {
   curtidas: number;
   autor: string;
   curtiu: boolean;
+  tipo?: string;
 }
 
 interface ReclamacaoFeedItem {
@@ -37,13 +40,22 @@ interface ReclamacaoFeedItem {
   autor: string;
 }
 
-function mensagemAcolhimento(tipo: string, visualizado: boolean, destaqueGraos: boolean): string | null {
-  if (destaqueGraos) {
-    return 'Gostamos da sua sugestão — vamos analisar com carinho.';
+function rotuloTipo(tipo: string): string {
+  if (tipo === 'reclamacao') return 'Reclamação';
+  if (tipo === 'elogio') return 'Elogio';
+  return 'Sugestão';
+}
+
+function mensagemAcolhimento(m: MinhaMsg): string | null {
+  if (m.tipo === 'sugestao' && m.graos_destaque_em) {
+    return mensagemRespostaColaborador(m.graos_resposta_bonus, true);
   }
-  if (!visualizado) return null;
-  if (tipo === 'sugestao') {
+  if (!m.visualizado_em) return null;
+  if (m.tipo === 'sugestao') {
     return 'Obrigado pela ideia. Já vimos sua sugestão e estamos em análise.';
+  }
+  if (m.tipo === 'elogio') {
+    return 'Obrigado pelo carinho. Sua mensagem foi registrada.';
   }
   return 'Recebemos sua mensagem e estamos acompanhando.';
 }
@@ -54,7 +66,7 @@ export default function SugestoesPage() {
 
   const [session, setSession] = useState<ReturnType<typeof getPortalSession>>(null);
   const [podeReclamacao, setPodeReclamacao] = useState(false);
-  const [tipo, setTipo] = useState<'sugestao' | 'reclamacao'>('sugestao');
+  const [tipo, setTipo] = useState<'sugestao' | 'reclamacao' | 'elogio'>('sugestao');
   const [texto, setTexto] = useState('');
   const [anonimo, setAnonimo] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -172,7 +184,11 @@ export default function SugestoesPage() {
   if (!session.colaboradorId) return null;
 
   const tituloPagina =
-    podeReclamacao && tipo === 'reclamacao' ? 'Registrar reclamação' : 'Sugestões da Equipe';
+    podeReclamacao && tipo === 'reclamacao'
+      ? 'Registrar reclamação'
+      : tipo === 'elogio'
+        ? 'Elogios à equipe'
+        : 'Sugestões da Equipe';
 
   return (
     <main className="relative">
@@ -185,8 +201,10 @@ export default function SugestoesPage() {
               <h1 className="text-2xl font-display font-semibold text-cafeteria-800">{tituloPagina}</h1>
               <p className="text-sm text-cafeteria-600 mt-1 leading-relaxed">
                 {podeReclamacao && tipo === 'reclamacao'
-                  ? 'Canal confidencial para sócios e administração.'
-                  : 'Compartilhe ideias para melhorar a operação. Pode ser anônimo.'}
+                  ? 'Canal confidencial para sócios e administração. Reclamações podem ser anônimas.'
+                  : tipo === 'elogio'
+                    ? 'Reconheça colegas, líderes ou a operação. Seu nome aparece na mensagem.'
+                    : 'Compartilhe ideias para melhorar a operação. Sugestões são sempre identificadas.'}
               </p>
             </div>
             <IlustracaoMegafone className="w-24 h-20 shrink-0 opacity-95" />
@@ -197,7 +215,7 @@ export default function SugestoesPage() {
           <div className="rounded-xl border border-green-200 bg-green-50 p-6">
             <p className="text-green-800 font-medium">Enviado com sucesso!</p>
             <p className="text-green-700 text-sm mt-1">
-              Obrigado pelo seu feedback. Sua {tipo === 'sugestao' ? 'sugestão' : 'reclamação'} foi registrada.
+              Obrigado pelo seu feedback. Seu {rotuloTipo(tipo).toLowerCase()} foi registrado.
             </p>
             <button
               type="button"
@@ -209,21 +227,38 @@ export default function SugestoesPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
-            {podeReclamacao && (
-              <div>
-                <span className="block text-sm font-medium text-coffee-base mb-2">Tipo</span>
-                <div className="flex flex-wrap gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
-                    <input
-                      type="radio"
-                      name="tipo"
-                      value="sugestao"
-                      checked={tipo === 'sugestao'}
-                      onChange={() => setTipo('sugestao')}
-                      className="text-dourado-base"
-                    />
-                    <span className="text-coffee-base">Sugestão</span>
-                  </label>
+            <div>
+              <span className="block text-sm font-medium text-coffee-base mb-2">Tipo</span>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                  <input
+                    type="radio"
+                    name="tipo"
+                    value="sugestao"
+                    checked={tipo === 'sugestao'}
+                    onChange={() => {
+                      setTipo('sugestao');
+                      setAnonimo(false);
+                    }}
+                    className="text-dourado-base"
+                  />
+                  <span className="text-coffee-base">Sugestão</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                  <input
+                    type="radio"
+                    name="tipo"
+                    value="elogio"
+                    checked={tipo === 'elogio'}
+                    onChange={() => {
+                      setTipo('elogio');
+                      setAnonimo(false);
+                    }}
+                    className="text-dourado-base"
+                  />
+                  <span className="text-coffee-base">Elogio</span>
+                </label>
+                {podeReclamacao && (
                   <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
                     <input
                       type="radio"
@@ -235,13 +270,13 @@ export default function SugestoesPage() {
                     />
                     <span className="text-coffee-base">Reclamação (gestão)</span>
                   </label>
-                </div>
+                )}
               </div>
-            )}
+            </div>
 
             {tipo === 'sugestao' && (
               <p className="text-sm text-coffee-100">
-                Envio vale 3 Grãos na semana. Se a gestão destacar a ideia («gostamos, vamos analisar»), mais 7 Grãos.
+                Envio vale 1 Grão. A gestão pode dar bônus de 0 a 9 Grãos após analisar.
               </p>
             )}
 
@@ -257,7 +292,9 @@ export default function SugestoesPage() {
                 placeholder={
                   tipo === 'sugestao'
                     ? 'O que você sugeriria para melhorar?'
-                    : 'Descreva o que aconteceu...'
+                    : tipo === 'elogio'
+                      ? 'Quem ou o que você quer elogiar?'
+                      : 'Descreva o que aconteceu...'
                 }
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
@@ -265,15 +302,17 @@ export default function SugestoesPage() {
               />
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
-              <input
-                type="checkbox"
-                checked={anonimo}
-                onChange={(e) => setAnonimo(e.target.checked)}
-                className="rounded border-cream-300 text-dourado-base"
-              />
-              <span className="text-sm text-coffee-base">Enviar de forma anônima</span>
-            </label>
+            {tipo === 'reclamacao' && (
+              <label className="flex items-center gap-2 cursor-pointer min-h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={anonimo}
+                  onChange={(e) => setAnonimo(e.target.checked)}
+                  className="rounded border-cream-300 text-dourado-base"
+                />
+                <span className="text-sm text-coffee-base">Enviar reclamação de forma anônima</span>
+              </label>
+            )}
 
             {erro && <p className="text-red-600 text-sm">{erro}</p>}
 
@@ -298,18 +337,14 @@ export default function SugestoesPage() {
           ) : (
             <ul className="space-y-3">
               {minhas.map((m) => {
-                const visto = !!m.visualizado_em;
-                const destaque = !!m.graos_destaque_em;
-                const extra = mensagemAcolhimento(m.tipo, visto, destaque);
+                const extra = mensagemAcolhimento(m);
                 return (
                   <li
                     key={m.id}
                     className="rounded-lg border border-cream-300 bg-cream-50 p-3 text-sm"
                   >
                     <div className="flex justify-between gap-2 text-xs text-coffee-100 mb-1">
-                      <span className="uppercase font-medium">
-                        {m.tipo === 'sugestao' ? 'Sugestão' : 'Reclamação'}
-                      </span>
+                      <span className="uppercase font-medium">{rotuloTipo(m.tipo)}</span>
                       <span>{new Date(m.created_at).toLocaleString('pt-BR')}</span>
                     </div>
                     <p className="text-coffee-base whitespace-pre-wrap break-words">{m.texto}</p>
@@ -352,14 +387,14 @@ export default function SugestoesPage() {
         <PortalBalaoCard tom="creme" ramoCanto="direita" className="max-w-xl p-5">
           <h2 className="text-lg font-semibold text-cafeteria-800 mb-2">Feed da unidade</h2>
           <p className="text-sm text-coffee-100 mb-3">
-            Curta as ideias dos colegas. Só sugestões da mesma unidade aparecem aqui.
+            Sugestões e elogios da mesma unidade. Curta as ideias dos colegas.
           </p>
           {carregandoMural ? (
             <div className="flex justify-center py-6">
               <XicaraCarregando size="sm" label="Carregando…" />
             </div>
           ) : feed.length === 0 ? (
-            <p className="text-sm text-coffee-100">Nenhuma sugestão para exibir aqui.</p>
+            <p className="text-sm text-coffee-100">Nenhuma sugestão ou elogio para exibir aqui.</p>
           ) : (
             <ul className="space-y-3">
               {feed.map((f) => (
@@ -369,23 +404,30 @@ export default function SugestoesPage() {
                 >
                   <p className="text-coffee-base text-sm whitespace-pre-wrap break-words">{f.texto}</p>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-coffee-100">
-                    <span>— {f.autor}</span>
+                    <span>
+                      {f.tipo === 'elogio' ? (
+                        <span className="text-emerald-800 font-medium">Elogio · </span>
+                      ) : null}
+                      — {f.autor}
+                    </span>
                     <span>{new Date(f.created_at).toLocaleString('pt-BR')}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => curtir(f.id)}
-                      disabled={curtindo === f.id}
-                      className={`text-xs rounded-lg px-3 py-1.5 border min-h-[36px] ${
-                        f.curtiu
-                          ? 'border-dourado-base bg-dourado-50 text-dourado-800'
-                          : 'border-cream-300 text-coffee-base hover:bg-cream-100'
-                      } disabled:opacity-50`}
-                    >
-                      {curtindo === f.id ? '…' : f.curtiu ? 'Curtiu' : 'Curtir'} · {f.curtidas}
-                    </button>
-                  </div>
+                  {(f.tipo ?? 'sugestao') === 'sugestao' && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => curtir(f.id)}
+                        disabled={curtindo === f.id}
+                        className={`text-xs rounded-lg px-3 py-1.5 border min-h-[36px] ${
+                          f.curtiu
+                            ? 'border-dourado-base bg-dourado-50 text-dourado-800'
+                            : 'border-cream-300 text-coffee-base hover:bg-cream-100'
+                        } disabled:opacity-50`}
+                      >
+                        {curtindo === f.id ? '…' : f.curtiu ? 'Curtiu' : 'Curtir'} · {f.curtidas}
+                      </button>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

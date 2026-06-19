@@ -207,8 +207,9 @@ export function ColaboradorAvaliacaoCard({
   const ferias = assiduidade === 'ferias';
   const semNotaSemanal = foraPlantao || ferias;
   const estrelasDesabilitadas = somenteLeitura || injustificada;
-  /** Linha enxuta com 3 ações antes de abrir as estrelas. */
-  const acoesCompactas = !somenteLeitura && !semNotaSemanal && !injustificada && !avaliando;
+  /** Painel de atalhos antes de abrir estrelas. */
+  const mostrarAcoesRapidas =
+    !somenteLeitura && !avaliando && !foraPlantao && !ferias && !injustificada;
   /** Bloco de notas: presente ou falta justificada (com critérios). */
   const mostrarNotas = !semNotaSemanal && !injustificada && (somenteLeitura || avaliando);
   const temNotaBaixa = temNotaBaixaEquipe(assiduidade, {
@@ -325,6 +326,72 @@ export function ColaboradorAvaliacaoCard({
     } finally {
       setSalvando(false);
     }
+  };
+
+  const marcarFaltaInjustificada = async () => {
+    if (somenteLeitura) return;
+    if (
+      !window.confirm(
+        `${nome} faltou sem aviso na semana ${semanaLabel ?? 'selecionada'}?\n\nRegistra média 0 e sem Grãos na semana.`
+      )
+    ) {
+      return;
+    }
+    setAssiduidade('falta_injustificada');
+    setV(0);
+    setP(0);
+    setE(0);
+    setD(0);
+    setPr(0);
+    setJustificativaNotaBaixa('');
+    setErro(null);
+    setMsg(null);
+    setSalvando(true);
+    try {
+      const payload = {
+        data_referencia: dataReferencia,
+        colaborador_id: colaboradorId,
+        assiduidade: 'falta_injustificada' as const,
+        nota_vestimenta: 0,
+        nota_pontualidade: 0,
+        nota_trabalho_equipe: 0,
+        nota_desempenho_tarefas: 0,
+        nota_proatividade: 0,
+        justificativa_nota_baixa: '',
+      };
+      const res = await fetch(postUrl, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível registrar.');
+        return;
+      }
+      setMsg('Registrado: falta injustificada (média 0).');
+      onSalvo();
+    } catch {
+      setErro('Erro de conexão.');
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const abrirFaltaJustificada = (motivoPreset?: string) => {
+    if (somenteLeitura) return;
+    setAssiduidade('falta_justificada');
+    setJustificativaNotaBaixa(motivoPreset ?? '');
+    setV(null);
+    setP(null);
+    setE(null);
+    setD(null);
+    setPr(null);
+    setRegistroLegado(false);
+    setErro(null);
+    setMsg(null);
+    setAvaliando(true);
   };
 
   const marcarFerias = async () => {
@@ -504,50 +571,89 @@ export function ColaboradorAvaliacaoCard({
       </div>
 
       <div className="p-4 space-y-5">
-        {acoesCompactas && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={salvando}
-              onClick={() => {
-                setAvaliando(true);
-                setMsg(null);
-                setErro(null);
-              }}
-              className="flex-1 min-w-[7.5rem] rounded-lg bg-cafeteria-700 text-cream-50 text-sm font-semibold px-3 py-2.5 min-h-[44px] hover:bg-cafeteria-800 disabled:opacity-50"
-            >
-              Avaliar
-            </button>
-            {mostrarForaPlantao && (
+        {mostrarAcoesRapidas && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-cafeteria-900">O que aconteceu nesta semana?</p>
+            <div className="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 disabled={salvando}
-                onClick={() => void marcarForaPlantao()}
-                className="flex-1 min-w-[7.5rem] rounded-lg border border-violet-400 bg-violet-50 text-violet-900 text-sm font-semibold px-3 py-2.5 min-h-[44px] hover:bg-violet-100 disabled:opacity-50"
-                title="Não trabalhou com você nesta semana — o outro líder avalia"
+                onClick={() => {
+                  setAvaliando(true);
+                  setMsg(null);
+                  setErro(null);
+                }}
+                className="text-left rounded-xl border-2 border-cafeteria-600 bg-cafeteria-700 text-cream-50 px-3 py-3 min-h-[44px] hover:bg-cafeteria-800 disabled:opacity-50"
               >
-                Outro plantão
+                <span className="block text-sm font-semibold">Trabalhou na semana</span>
+                <span className="block text-xs mt-0.5 opacity-90">Lançar nota dos 5 critérios</span>
               </button>
-            )}
-            {mostrarFerias && (
+              {mostrarForaPlantao && (
+                <button
+                  type="button"
+                  disabled={salvando}
+                  onClick={() => void marcarForaPlantao()}
+                  className="text-left rounded-xl border border-violet-400 bg-violet-50 text-violet-950 px-3 py-3 min-h-[44px] hover:bg-violet-100 disabled:opacity-50"
+                >
+                  <span className="block text-sm font-semibold">Outro plantão</span>
+                  <span className="block text-xs mt-0.5 text-violet-800">
+                    Não estava com você; o outro gerente (12x36) avalia
+                  </span>
+                </button>
+              )}
+              {mostrarFerias && (
+                <button
+                  type="button"
+                  disabled={salvando}
+                  onClick={() => void marcarFerias()}
+                  className="text-left rounded-xl border border-sky-400 bg-sky-50 text-sky-950 px-3 py-3 min-h-[44px] hover:bg-sky-100 disabled:opacity-50"
+                >
+                  <span className="block text-sm font-semibold">Férias</span>
+                  <span className="block text-xs mt-0.5 text-sky-800">Sem nota; fora da média do mês</span>
+                </button>
+              )}
               <button
                 type="button"
                 disabled={salvando}
-                onClick={() => void marcarFerias()}
-                className="flex-1 min-w-[7.5rem] rounded-lg border border-sky-400 bg-sky-50 text-sky-900 text-sm font-semibold px-3 py-2.5 min-h-[44px] hover:bg-sky-100 disabled:opacity-50"
-                title="De férias nesta semana — fora da média"
+                onClick={() => abrirFaltaJustificada()}
+                className="text-left rounded-xl border border-amber-400 bg-amber-50 text-amber-950 px-3 py-3 min-h-[44px] hover:bg-amber-100 disabled:opacity-50"
               >
-                Férias
+                <span className="block text-sm font-semibold">Falta justificada</span>
+                <span className="block text-xs mt-0.5 text-amber-900">
+                  Atestado ou motivo válido; você lança a nota dos critérios
+                </span>
               </button>
-            )}
+              <button
+                type="button"
+                disabled={salvando}
+                onClick={() => abrirFaltaJustificada('Licença médica / afastamento')}
+                className="text-left rounded-xl border border-amber-300 bg-white text-amber-950 px-3 py-3 min-h-[44px] hover:bg-amber-50 disabled:opacity-50"
+              >
+                <span className="block text-sm font-semibold">Licença / afastamento</span>
+                <span className="block text-xs mt-0.5 text-amber-900">
+                  Afastamento com atestado; lançar nota normalmente
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={salvando}
+                onClick={() => void marcarFaltaInjustificada()}
+                className="text-left rounded-xl border border-red-400 bg-red-50 text-red-950 px-3 py-3 min-h-[44px] hover:bg-red-100 disabled:opacity-50 sm:col-span-2"
+              >
+                <span className="block text-sm font-semibold">Falta injustificada</span>
+                <span className="block text-xs mt-0.5 text-red-900">
+                  Faltou sem aviso; média 0 e sem Grãos na semana
+                </span>
+              </button>
+            </div>
           </div>
         )}
-        {cadastroPortalPendente && !acoesCompactas && (
+        {cadastroPortalPendente && !mostrarAcoesRapidas && !avaliando && (
           <p className="text-sm text-cafeteria-800 bg-cafeteria-50 border border-cafeteria-200 rounded-lg px-3 py-2">
             Cadastro no portal ainda não concluído. Você pode avaliar a operação da semana normalmente.
           </p>
         )}
-        {!apto && !somenteLeitura && !acoesCompactas && (
+        {!apto && !somenteLeitura && !mostrarAcoesRapidas && !avaliando && (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
             <p className="text-sm text-sky-950 flex-1 min-w-[200px]">
               Quando estiver 100% apto para trabalhar sem acompanhamento constante, registre abaixo.

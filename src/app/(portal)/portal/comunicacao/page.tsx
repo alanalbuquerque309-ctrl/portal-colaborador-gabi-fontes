@@ -107,9 +107,9 @@ export default function ComunicacaoPage() {
           </svg>
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-semibold text-coffee-base text-base">Sugestões e reclamações</span>
+          <span className="block font-semibold text-coffee-base text-base">Sugestões, elogios e reclamações</span>
           <span className="block text-sm text-coffee-100 mt-1">
-            Envie ideias para melhorar a operação ou registre uma reclamação. Pode ser anônimo.
+            Envie ideias, elogios ou registre uma reclamação. Apenas reclamações podem ser anônimas.
           </span>
           <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir caixa →</span>
         </span>
@@ -140,7 +140,7 @@ export default function ComunicacaoPage() {
               ) : null}
             </span>
             <span className="block text-sm text-coffee-100 mt-1">
-              Ideias enviadas pelos colaboradores. Marque como visto ou «Gostamos — vamos analisar» (+7 Grãos).
+              Ideias enviadas pelos colaboradores. Responda com bônus de 0, 3, 5 ou 9 Grãos (+1 no envio).
             </span>
             <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir gestão →</span>
           </span>
