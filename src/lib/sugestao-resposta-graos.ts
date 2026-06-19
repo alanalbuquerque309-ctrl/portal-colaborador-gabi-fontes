@@ -11,6 +11,13 @@ export type OpcaoRespostaSugestao = {
   labelColaborador: string;
 };
 
+/** Rótulos para exibição (inclui respostas legadas no banco, ex.: +7). */
+export type RespostaSugestaoInfo = {
+  graos: number;
+  labelAdmin: string;
+  labelColaborador: string;
+};
+
 export const OPCOES_RESPOSTA_SUGESTAO: OpcaoRespostaSugestao[] = [
   {
     graos: 0,
@@ -35,7 +42,7 @@ export const OPCOES_RESPOSTA_SUGESTAO: OpcaoRespostaSugestao[] = [
 ];
 
 /** Respostas antigas (7 Grãos) antes da escala 0/3/5/9. */
-const LEGADO_RESPOSTA_7: OpcaoRespostaSugestao = {
+const LEGADO_RESPOSTA_7: RespostaSugestaoInfo = {
   graos: 7,
   labelAdmin: 'Gostamos — vamos analisar',
   labelColaborador: 'Gostamos da sua sugestão — vamos analisar com carinho.',
@@ -45,7 +52,7 @@ export function graosRespostaSugestaoValidos(v: unknown): v is GraosRespostaSuge
   return typeof v === 'number' && (GRAOS_RESPOSTA_SUGESTAO as readonly number[]).includes(v);
 }
 
-export function opcaoRespostaSugestao(graos: number | null | undefined): OpcaoRespostaSugestao | null {
+export function opcaoRespostaSugestao(graos: number | null | undefined): RespostaSugestaoInfo | null {
   if (graos == null) return null;
   const op = OPCOES_RESPOSTA_SUGESTAO.find((o) => o.graos === graos);
   if (op) return op;
