@@ -18,7 +18,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 | Dev local | `npm run dev` → porta **3001** |
 | Produção | https://portal-colaborador-gabi-fontes.vercel.app |
 | Git remoto | **`portal-colaborador-gabi-fontes`** (repo **nesta pasta**, não na raiz `ISA AI/`), branch `main` → deploy Vercel |
-| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `045_` e seguintes) |
+| Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `047_` e seguintes) |
 | Docs operacionais | `BACKUP_RESTORE.md`, `SECURITY_ROADMAP.md` (backlog segurança, não duplicar aqui em detalhe) |
 
 ## Vocabulário e tom
@@ -46,7 +46,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 ### Líder (gerente / master / admin)
 
 - **Rota:** `/portal/avaliacao-master` — menu **Avaliação da equipe**.
-- **UI compacta (jun/2026):** card por colaborador mostra **nome, cargo, setor, unidade**; ações legíveis (**Avaliar**, **Outro plantão**, **Férias**, **Falta justificada**, **Falta injustificada**); formulário com estrelas e justificativa **só** após clicar **Avaliar** (`ColaboradorAvaliacaoCard.tsx`).
+- **UI compacta (jun/2026):** card por colaborador mostra **nome, cargo, setor, unidade**; painel **«O que aconteceu nesta semana?»** com **Trabalhou na semana**, **Outro plantão** (12x36), **Férias**, **Falta justificada**, **Licença/afastamento**, **Falta injustificada** (1 clique); formulário com estrelas e justificativa **só** após **Trabalhou na semana** / **Avaliar** (`ColaboradorAvaliacaoCard.tsx`, `5e929d3`).
 - **Perfil não ativado:** banner no topo da página lista colaboradores com `onboarding_completo === false` (cadastro portal pendente).
 - **Obrigatório:** uma avaliação por colaborador da equipe **por semana**; após salvar, **uma correção** via botão **Editar** (ícone ✏️ no checklist ou no card); depois só leitura (`edicao_utilizada`, migration `038`).
 - **Equipe Nova Iguaçu:** gerentes no mapa operacional (`config-lideranca-operacional.ts` — Nathália, Cristina); lista também via `resolver-unidades-equipe-avaliacao.ts` se `lideres_por_setor` ainda não estiver aplicado.
@@ -241,12 +241,12 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 | Entrada no portal na semana | 5 | `login_semana` |
 | Confirmar aviso/comunicado | 5 | `aviso_semana` |
 | Avaliar liderança | 10 | `lideranca_semana` |
-| Enviar sugestão | 3 | `sugestao_semana` |
-| Destaque da gestão na sugestão | +7 | `sugestao_destaque_bonus` — só sócio/admin |
+| Enviar sugestão / elogio | 1 | `sugestao_semana` |
+| Resposta da gestão na sugestão | +0, +3, +5 ou +9 | `graos_resposta_bonus` — só sócio/admin (`sugestao-resposta-graos.ts`, migration **047**) |
 | Quinta do café (treino) | 5 | `quinta` — só na quinta |
 | Troféus entre pares | até 5 | proporcional ao envio na semana |
 
-- **Teto sugestão/semana:** 3 + 7 = 10 (`GRAOS_SUGESTAO_MAX_SEMANA`).
+- **Teto sugestão/semana:** 1 + 9 = **10** (`GRAOS_SUGESTAO_MAX_SEMANA`).
 - **Complemento caixa (interno):** `GRAOS_CENTAVOS_POR_GRAO` — 35 grãos ≈ R$ 15 (`graos/constants.ts`).
 
 ### Elegibilidade semanal (`src/lib/graos/elegibilidade.ts`, `movimentos.ts`)
@@ -298,7 +298,9 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 | Arquivo | Para quê |
 |---------|----------|
 | **`044_graos_cafe.sql`** | Ledger, catálogo, resgates, quinta |
-| **`045_sugestao_graos_destaque.sql`** | `graos_destaque_em`, `graos_destaque_por` em `sugestoes_reclamacoes` |
+| **`045_sugestao_graos_destaque.sql`** | `graos_destaque_em`, `graos_destaque_por` em `sugestoes_reclamacoes` (legado +7) |
+| **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato **só** em `reclamacao` |
+| **`047_sugestao_resposta_graos.sql`** | Coluna `graos_resposta_bonus` (0 \| 3 \| 5 \| 9) |
 
 - SQL pronto editor: `supabase/APLIQUE_045_SUGESTAO_GRAOS_SQL_EDITOR.sql`.
 
@@ -323,14 +325,15 @@ Página única que agrupa os canais de feedback e contato:
 - **Botão flutuante «Preciso de ajuda»:** `BotaoAjuda.tsx` — **só desktop** (`hidden md:flex`); no celular o canal fica em **Comunicação** (evita duplicar FAB sobre a barra inferior). **Alerta pendentes (jun/2026):** para Daniel/sócios/admin autorizados, FAB pulsa em vermelho com badge de contagem (`GET /api/admin/ajuda-chat?somente_pendentes=1`).
 - **Desktop (header):** link único **Comunicação** substitui «Sugestões» e «Inbox ajuda» separados; sub-rotas (`/portal/sugestoes`, `/portal/ajuda-inbox`) mantêm item **Comunicação** ativo no menu (`navAtivo` em `Header.tsx`). **Mobile/desktop:** ícone Comunicação com badge vermelho (ajuda) e/ou **âmbar (sugestões pendentes)** quando aplicável.
 
-### Caixa de sugestões e reclamações (`/portal/sugestoes`)
+### Caixa de sugestões, elogios e reclamações (`/portal/sugestoes`)
 
-- **Tipos:** `sugestao` | `reclamacao` (radio no formulário); opção **anônimo** (autor oculto no feed; **`colaborador_id` sempre gravado** no servidor para Grãos).
-- **Grãos (jun/2026):** envio de sugestão → **3 Grãos** (`pendente` até elegibilidade da semana). Gestão (**sócio/admin** ou senha admin) pode **«Gostamos — vamos analisar»** → **+7 Grãos** (`sugestao-destaque.ts`, migration **045**). **Não** usar copy «ideia aprovada»; colaborador vê acolhimento *Gostamos da sua sugestão — vamos analisar com carinho.*
+- **Tipos:** `sugestao` | `elogio` | `reclamacao` (radio no formulário); **anônimo só em reclamação** — sugestões e elogios são **sempre identificados** (nome visível no feed e no admin).
+- **Grãos (jun/2026):** envio → **+1 Grão** (`pendente` até elegibilidade). Gestão (**sócio/admin**) responde com botões **0 / +3 / +5 / +9** (`sugestao-resposta-graos.ts`, `PATCH /api/admin/sugestoes/[id]`, migration **047**). Legado +7 ainda exibido via `RespostaSugestaoInfo` se existir no banco.
+- **Admin:** `/admin/sugestoes` — nomes dos autores visíveis; botões de resposta com rótulos configurados em `OPCOES_RESPOSTA_SUGESTAO`.
 - **API:** `GET/POST /api/portal/sugestoes`; curtidas só em sugestões (`POST .../curtir`).
-- **Feed público na unidade:** só **sugestões** (reclamações não entram no mural de curtidas).
-- **Admin:** `/admin/sugestoes` — marcar visto / destacar Grãos; faixa **N sugestões aguardando análise**; gestão completa; **reclamações** visíveis só para quem passa em `canViewReclamacoesAdmin` (sócio; **RH limitado não vê**).
-- **Líderes:** **não** destacam sugestões; foco na **avaliação da equipe** (impacto direto nos Grãos).
+- **Feed público na unidade:** **sugestões** e **elogios** (reclamações não entram no mural de curtidas).
+- **Admin:** faixa **N sugestões aguardando análise**; gestão completa; **reclamações** visíveis só para quem passa em `canViewReclamacoesAdmin` (sócio; **RH limitado não vê**).
+- **Líderes:** **não** respondem sugestões; foco na **avaliação da equipe** (impacto direto nos Grãos).
 
 ### Canal de ajuda (suporte ADM/RH)
 
@@ -364,7 +367,7 @@ Página única que agrupa os canais de feedback e contato:
 
 ### Pódio e «Ver mais» — troféus na home (jun/2026, `4d7523d`, `5cc1015`)
 
-- **Home (`DestaquesHome.tsx`):** troféus entre pares no **mesmo formato visual** das avaliações — `PodioTop3Trofeus.tsx` (medalhas, foto, total de troféus).
+- **Home (`DestaquesHome.tsx`):** troféus entre pares no **mesmo formato visual** das avaliações — `PodioTop3Trofeus.tsx` (medalhas, foto, total de troféus). **Tabs Semanal/Mensal próprias** no bloco de troféus (independentes do período das avaliações; `5e929d3`).
 - **Lista detalhada** (`LinhaRankingTrofeu` em `ranking-ui.tsx`, badges Postura / Braço Direito / Eficiência): **só após** botão **Ver mais**, abaixo do pódio, a partir do **4.º colocado**.
 - **Paginação da lista expandida:** lotes via `proximoLoteRankingTrofeus` (+6 no 1.º clique, depois +10); estado reseta ao trocar aba **Semanal/Mensal** ou chip de unidade.
 - **Mural mensal:** `BlocoRankingTrofeus` em `MuralRankingsMensais.tsx` mantém lista paginada (4 iniciais + Ver mais) — **não** usa pódio.
@@ -383,23 +386,40 @@ Página única que agrupa os canais de feedback e contato:
 
 **Legado removido:** tela Admin *Colaborador em Destaque* (`/admin/destaque`, `POST/GET /api/admin/destaque`) — destaque manual por título/descrição **não** alimentava mais a home após reconhecimentos automáticos. Tabela Supabase `destaque` (migration `008`) pode permanecer no banco sem UI; reconhecimento visível = bloco *Reconhecimentos* na home + mural mensal.
 
+## Ambiente visual do portal (jun/2026, `72cc877`)
+
+**Não** usar PNGs fixos nos cantos da página (`public/decoracao/*` removidos; tentativa `0df77c7` descartada: invisível no mobile, mal recortado no desktop, ~3,5 MB).
+
+| Peça | Comportamento |
+|------|----------------|
+| **`PortalAmbientePagina`** | Fundo **CSS** em todo o portal — gradientes radiais café (inferior esquerdo), verde cafezal (superior direito), dourado suave (centro). Classe `.portal-ambiente-fundo` em `globals.css`; **mais intenso no mobile** (`@media max-width 639px`). |
+| **Onde monta** | `PortalLayout.tsx` — `fixed inset-0 z-0`; conteúdo em `main` com `relative z-[1]`. **Não** repetir por página. |
+| **`PortalBoasVindas`** | Hero com `/portal/xicara-hero.png` (única foto integrada no card); faixa dourada no topo; borda esquerda verde; sombra reforçada no mobile. |
+| **`FacaAgoraHome`** | Cabeçalho da seção com faixa verde/creme **só no mobile** (`sm:` transparente). |
+| **`PortalBalaoCard`** | Cards com gradiente (`tom`: creme, verde, dourado, branco); prop `ramoCanto` legado **ignorada**. |
+
+**Princípio:** vida visual no telefone via **CSS leve** + cards com contraste; fotos decorativas de canto **não** voltam sem pedido explícito do Alan.
+
 ## Home do portal (contrato UX — jun/2026)
 
-**Ordem fixa** em `src/app/(portal)/portal/page.tsx` (commits **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**):
+**Ordem fixa** em `src/app/(portal)/portal/page.tsx` (commits **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**, **`72cc877`**):
 
-1. `PortalDecoracaoRamosPagina` — ramos de café decorativos (fundo)
-2. `EmocionalAlertasGestao` (só quem tem permissão)
-3. **`PortalBoasVindas`** — hero com imagem `/portal/xicara-hero.png` (latte + grãos; degradê integrado, sem recorte «colado»)
-4. **`DesdeUltimaVisitaHome`** — card *Para você* (personalizado; some se vazio)
-5. **`FacaAgoraHome`** — pendências acionáveis (some se vazio)
-6. **`AvisosHome`** — comunicado ativo; **megafone animado** quando há aviso pendente de confirmação
-7. **`GraosHomeBanner`** — saldo / missões Grãos (link `/portal/graos`)
-8. **`DestaqueSection`** — título *Reconhecimentos*; tabs Semanal/Mensal; `DestaquesHome` (pódios + chips unidade)
-9. **`SugestoesEquipeHome`** — balão de sugestões da unidade (reclamações só sócios/admin/Daniel na API)
-10. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
-11. **Manuais oficiais** — `<details>` recolhido por padrão
-12. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
-13. **`PortalRodapeFrase variant="home"`** — frase de fechamento + **logo** `/logo-gabi-fontes.png` (mesmo do login; **não** usar `IlustracaoCafe` SVG)
+1. `EmocionalAlertasGestao` (só quem tem permissão)
+2. **`PortalBoasVindas`** — hero com imagem `/portal/xicara-hero.png` (latte + grãos; degradê integrado; faixa dourada + borda verde no mobile)
+3. **`DesdeUltimaVisitaHome`** — card *Para você* (personalizado; some se vazio)
+4. **`FacaAgoraHome`** — pendências acionáveis (some se vazio); **alerta crítico na sexta** para ADM/sócio (`7659cd3`)
+5. **`AvisosHome`** — comunicado ativo; **megafone animado** quando há aviso pendente de confirmação
+6. **`GraosHomeBanner`** — saldo / missões Grãos (link `/portal/graos`)
+7. **`DestaqueSection`** — título *Reconhecimentos*; tabs Semanal/Mensal; `DestaquesHome` (pódios + chips unidade; troféus com tabs Semanal/Mensal próprias)
+8. **`SugestoesEquipeHome`** — balão da unidade (sugestões + elogios; reclamações restritas na API)
+9. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
+10. **Manuais oficiais** — `<details>` recolhido por padrão
+11. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
+12. **`PortalRodapeFrase variant="home"`** — frase de fechamento + **logo** `/logo-gabi-fontes.png` (mesmo do login; **não** usar `IlustracaoCafe` SVG)
+
+**Fundo ambiente:** `PortalAmbientePagina` no **`PortalLayout`**, não na `page.tsx` (ver secção **Ambiente visual** acima).
+
+**Removido da ordem da home:** `PortalDecoracaoRamosPagina` / PNGs de canto (`0df77c7` → revertido `72cc877`).
 
 **Sem preview de mural na home** — rankings mensais completos ficam em `/portal/mural`.
 
@@ -410,7 +430,7 @@ Página única que agrupa os canais de feedback e contato:
 | Período | Tabs **Semanal** / **Mensal** (estado no `DestaqueSection`) |
 | Unidade | Chips: Geral, Mesquita, Barra, Nova Iguaçu, Fábrica, Administração (`DESTAQUE_ABAS_UNIDADE` em `destaques-home-unidades.ts`) |
 | Avaliação | **Pódio top 3** — `PodioTop3.tsx` |
-| Troféus entre pares | **Pódio top 3** — `PodioTop3Trofeus.tsx`; **Ver mais** revela lista (`LinhaRankingTrofeu`) do 4.º em diante |
+| Troféus entre pares | **Pódio top 3** — `PodioTop3Trofeus.tsx`; **tabs Semanal/Mensal** no próprio bloco de troféus; **Ver mais** revela lista (`LinhaRankingTrofeu`) do 4.º em diante |
 | CTA | Link *Ver ranking completo no mural* → `/portal/mural` |
 | APIs | `GET /api/portal/reconhecimento-semanal`, `GET /api/portal/destaque` |
 
@@ -447,14 +467,14 @@ Personalização leve no topo da home (abaixo dos alertas emocionais, acima do F
 
 ### Faça agora (`FacaAgoraHome.tsx`)
 
-Bloco no topo; **só renderiza se houver pendências**; até **6 cards**; CTA padrão **«Clique para ver →»** (termômetro: *Responder agora →*).
+Bloco no topo; **só renderiza se houver pendências**; até **6 cards**; CTA padrão **«Clique para ver →»** (termômetro: *Responder agora →*). Cabeçalho com faixa verde/creme **no mobile** (`72cc877`).
 
 | Perfil | Cards (quando aplicável) | Destino |
 |--------|--------------------------|---------|
 | **Colaborador** | Termômetro do dia; **líderes pendentes** (nomes na copy); **troféus restantes** (até 3/semana) | `#termometro-emocoes`; `/portal/avaliacao-lideranca?aba=lideranca&pendentes=1`; `/portal/avaliacao-lideranca?aba=pares` |
 | **Gerente / master / `pode_avaliacao_equipe`** (não ADM rede) | Avaliação da equipe — contagem + preview de nomes | `/portal/avaliacao-master?pendentes=1` |
 | **`pode_visita_rh`** (Keila) | Visita RH — contagem real da API + preview | `/portal/avaliacao-rh-visita?pendentes=1` |
-| **ADM / sócio** (`podeVerRelatoriosAvaliacoesCompletos`) | Pendências na rede | `/admin/avaliacoes-diarias` |
+| **ADM / sócio** (`podeVerRelatoriosAvaliacoesCompletos`) | Pendências na rede; **sexta:** card hero **«N crítico(s) — sexta sem avaliação»** (`alerta_critico_sexta`, `7659cd3`) | `/portal/pendencias-semana` ou `?filtro=critico_sexta` |
 
 **APIs usadas na montagem:** `/api/portal/perfil`, `/api/portal/emocional`, `/api/portal/avaliacao-lideranca`, `/api/portal/trofeus-pares`, `/api/portal/avaliacao-master?data=`, `/api/portal/avaliacao-rh-visita?data=`, `/api/portal/avaliacoes-pendentes`.
 
@@ -518,13 +538,42 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | `041_aniversario_dia_acao.sql` | Ações do balão de aniversário (parabéns/dispensar) |
 | `042_plantao_12x36_paridade.sql` | Paridade de plantão 12x36 por função de liderança |
 | **`044_graos_cafe.sql`** | Grãos de café: ledger, catálogo, resgates, quinta |
-| **`045_sugestao_graos_destaque.sql`** | Destaque gestão em sugestões (+7 Grãos) |
+| **`045_sugestao_graos_destaque.sql`** | Destaque gestão em sugestões (+7 legado) |
+| **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato só em reclamação |
+| **`047_sugestao_resposta_graos.sql`** | Resposta gestão com Grãos 0/3/5/9 |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**. **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`** (elogio, resposta 0/3/5/9, +1 envio). **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`** (reverte PNGs `0df77c7`).
 
 ---
 
 ## Evoluções entregues (registro — 2026)
+
+### Ambiente visual mobile — CSS, sem PNGs de canto (jun/2026, `72cc877`)
+
+- **`PortalAmbientePagina`** no `PortalLayout`: gradientes café/verde/dourado via `.portal-ambiente-fundo` (`globals.css`); visível em **mobile e desktop**; mais intenso no telefone.
+- **Removidos** `public/decoracao/graos-cafe-canto.png` e `folhagem-cafezal-canto.png` (~3,5 MB); tentativa fotográfica `0df77c7` descartada (cortada no desktop, `hidden sm:block` no mobile).
+- **`PortalBoasVindas`:** faixa dourada, borda verde, sombra mobile.
+- **`FacaAgoraHome`:** cabeçalho com faixa verde/creme só no mobile.
+
+### Sugestões — elogio, anonimato, resposta Grãos (jun/2026, `5e929d3`, migrations **046**, **047**)
+
+- **Tipos:** `sugestao` | **`elogio`** | `reclamacao`; **anônimo só em reclamação**; nomes visíveis no admin e no feed de sugestões/elogios.
+- **Envio:** **+1 Grão** (`sugestao_semana` em `constants.ts`).
+- **Resposta gestão:** botões **0 / +3 / +5 / +9** (`sugestao-resposta-graos.ts`, `graos_resposta_bonus`); admin UI em `/admin/sugestoes`; legado +7 ainda legível no banco.
+- **Fix build:** tipo `RespostaSugestaoInfo` para valores legados (`5bd5c4c`).
+
+### Troféus — tabs Semanal/Mensal no bloco da home (jun/2026, `5e929d3`)
+
+- `DestaquesHome.tsx`: período dos troféus **independente** das tabs de avaliação no `DestaqueSection`.
+
+### Avaliação líder — atalhos expandidos (jun/2026, `5e929d3`)
+
+- Painel **«O que aconteceu nesta semana?»:** Trabalhou, Outro plantão, Férias, Falta justificada, Licença/afastamento, Falta injustificada (1 clique).
+- **Férias** fecha pendência do líder na semana (`avaliacao-pendentes-semana.ts`).
+
+### Pendências — alerta crítico na sexta (jun/2026, `7659cd3`)
+
+- `FacaAgoraHome` + `avaliacao-pendentes-semana.ts`: card hero para ADM/sócio com `criticos_sem_avaliacao` e `alerta_critico_sexta`; link `?filtro=critico_sexta`.
 
 ### Grãos de café + sugestões 3+7 + contador pendentes (jun/2026, `e6852d6`, `a7f61a9`)
 
@@ -532,7 +581,7 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 - **Avaliação equipe:** falta justificada (nota vale, sem Grãos na semana) e injustificada (média zera, sem Grãos); card líder com botões dedicados.
 - **Gestão Grãos:** sócio/admin vê equipe toda; colaborador só o próprio; API `403` em consulta alheia.
 - **Quinta:** bloqueio portal para líder com avaliações pendentes (`lider-quinta-bloqueio.ts`).
-- **Sugestões:** 3 Grãos no envio; destaque gestão «Gostamos — vamos analisar» +7 (`sugestao-destaque.ts`, migration **045**).
+- **Sugestões (era 3+7):** evoluiu para **+1 envio** e resposta **0/3/5/9** — ver secção **Sugestões — elogio** acima (`5e929d3`).
 - **Contador:** sugestões não vistas — badge Comunicação/Admin, sidebar admin, card hub Comunicação, faixa em `/admin/sugestoes` (`sugestoes-pendentes.ts`, `GET /api/admin/sugestoes/pendentes`).
 
 ### Mural e dados de teste
@@ -740,7 +789,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
-| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045** destaque sugestão |
+| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`**, **`046`**, **`047`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos |
 | I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par); após migration 042 |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
@@ -775,7 +824,8 @@ src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
 src/lib/ajuda-chat-threads.ts
 src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/, graos/
 src/lib/graos/constants.ts, elegibilidade.ts, movimentos.ts, missoes.ts, sugestao-destaque.ts, graos-access.ts, lider-quinta-bloqueio.ts
-src/lib/sugestoes-pendentes.ts, sugestoes-events.ts
+src/lib/sugestoes-pendentes.ts, sugestoes-events.ts, sugestao-resposta-graos.ts
+src/app/globals.css (`.portal-ambiente-fundo`, `.hero-xicara-*`)
 src/components/portal/GraosPageClient.tsx, GraosHomeBanner.tsx
 src/app/api/portal/graos/, api/admin/sugestoes/pendentes/
 src/lib/avaliacao-ranking.ts, semana-referencia.ts, avaliacao-semanal-agregacao.ts
@@ -795,7 +845,7 @@ src/app/api/portal/avaliacao-lideranca/
 src/app/api/admin/avaliacoes-pendentes/, api/portal/avaliacoes-pendentes/
 src/components/portal/FacaAgoraHome.tsx, PortalAtalhosPerfil.tsx
 src/components/destaque/DestaqueSection.tsx, DestaquesHome.tsx
-src/components/portal/vivo/PodioTop3.tsx, PodioTop3Trofeus.tsx, PortalBoasVindas.tsx, PortalRodapeFrase.tsx, PortalBalaoCard.tsx (PortalDecoracaoRamosPagina)
+src/components/portal/vivo/PodioTop3.tsx, PodioTop3Trofeus.tsx, PortalBoasVindas.tsx, PortalRodapeFrase.tsx, PortalBalaoCard.tsx (PortalAmbientePagina)
 src/components/portal/AvisosHome.tsx, MegafoneAnimado.tsx, GraosHomeBanner.tsx, SugestoesEquipeHome.tsx
 src/lib/destaques-home-unidades.ts
 src/components/mural/MuralRankingsMensais.tsx, MuralUnidade.tsx, ranking-ui.tsx
@@ -820,7 +870,7 @@ src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
 supabase/migrations/041_aniversario_dia_acao.sql, 042_plantao_12x36_paridade.sql
-supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql
+supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql, 046_sugestoes_tipo_elogio.sql, 047_sugestao_resposta_graos.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
 scripts/backfill-graos-semanas.mjs, aplicar-graos-044.mjs
 scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
