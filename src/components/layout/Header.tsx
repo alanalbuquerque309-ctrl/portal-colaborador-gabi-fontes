@@ -13,7 +13,7 @@ import {
   podeVerGraosCafePortal,
 } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
-import { podeVerBonificacaoInterna } from '@/lib/bonificacao-access';
+import { podeVerBonificacaoInterna, podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 
@@ -151,6 +151,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [podeVisualizarAjuda, setPodeVisualizarAjuda] = useState(false);
   const [pendenciasAjuda, setPendenciasAjuda] = useState(0);
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
+  const [pendenciasSemana, setPendenciasSemana] = useState(0);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
   const [perfilRoleLocal, setPerfilRoleLocal] = useState<string | null>(null);
   const [colaboradorIdNav, setColaboradorIdNav] = useState<string | null>(null);
@@ -195,6 +196,39 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
       window.removeEventListener(SUGESTOES_ATUALIZADO, carregar);
     };
   }, [perfilCarregado, podeContadorSugestoes, pathname]);
+
+  useEffect(() => {
+    if (!perfilCarregado || !podeVerPendenciasSemanaRede(roleNav)) {
+      setPendenciasSemana(0);
+      return;
+    }
+    let cancel = false;
+    const carregar = () => {
+      fetch(`/api/portal/avaliacoes-pendentes?resumo=1&_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+        .then((r) => r.json())
+        .then((d: { ok?: boolean; total?: number }) => {
+          if (cancel || d.ok !== true) return;
+          setPendenciasSemana(Math.max(0, Number(d.total ?? 0)));
+        })
+        .catch(() => {});
+    };
+    carregar();
+    const timer = window.setInterval(carregar, 30000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') carregar();
+    };
+    window.addEventListener('focus', carregar);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancel = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', carregar);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [perfilCarregado, roleNav, pathname]);
 
   useEffect(() => {
     if (!perfilCarregado || !podeVerGraosCafePortal(roleNav, colaboradorIdEfetivo)) {
@@ -493,6 +527,24 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                 </Link>
               );
             })}
+            {podeVerPendenciasSemanaRede(roleNav) && (
+              <Link
+                href="/portal/pendencias-semana"
+                className={`relative hover:text-cafeteria-900 ${
+                  navAtivo(pathname, '/portal/pendencias-semana') ? 'font-semibold text-cafeteria-800' : ''
+                }`}
+              >
+                Pendências
+                {pendenciasSemana > 0 && (
+                  <span
+                    className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-orange-500 text-white text-xs font-bold items-center justify-center align-middle"
+                    title={`${pendenciasSemana} pendência(s) na semana`}
+                  >
+                    {pendenciasSemana > 99 ? '99+' : pendenciasSemana}
+                  </span>
+                )}
+              </Link>
+            )}
             {podeAdmin && (
               <Link
                 href="/admin/sugestoes"

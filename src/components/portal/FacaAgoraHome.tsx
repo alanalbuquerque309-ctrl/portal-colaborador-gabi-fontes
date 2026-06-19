@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
+import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
 import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 
 type Tarefa = {
@@ -206,16 +207,20 @@ export function FacaAgoraHome() {
           }
         }
 
-        if (podeVerRelatoriosAvaliacoesCompletos(nr)) {
-          const pend = await fetch('/api/portal/avaliacoes-pendentes', { credentials: 'include', cache: 'no-store' })
+        if (podeVerPendenciasSemanaRede(nr)) {
+          const pend = await fetch('/api/portal/avaliacoes-pendentes?resumo=1', {
+            credentials: 'include',
+            cache: 'no-store',
+          })
             .then((r) => (r.ok ? r.json() : null))
             .catch(() => null);
-          if (!cancelado && pend?.ok && Array.isArray(pend.itens) && pend.itens.length > 0) {
+          const total = Number(pend?.total ?? 0);
+          if (!cancelado && pend?.ok && total > 0) {
             lista.push({
               id: 'pendentes-rede',
-              titulo: `${pend.itens.length} pendência${pend.itens.length === 1 ? '' : 's'} na rede`,
-              detalhe: 'Avaliações da semana ainda não concluídas — ver no Admin.',
-              href: '/admin/avaliacoes-diarias',
+              titulo: `${total} pendência${total === 1 ? '' : 's'} na rede`,
+              detalhe: 'Avaliações da semana ainda não concluídas — quem falta e qual líder cobrar.',
+              href: '/portal/pendencias-semana',
               urgente: pend.resumo?.criticos > 0,
               hero: true,
               acaoLabel: 'Clique para ver →',

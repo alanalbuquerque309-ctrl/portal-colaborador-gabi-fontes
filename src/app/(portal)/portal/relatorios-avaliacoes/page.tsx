@@ -7,6 +7,7 @@ import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import {
   podeVerRelatoriosAvaliacoesCompletos,
 } from '@/lib/avaliacoes-relatorio-access';
+import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import {
   RelatorioLiderancaPorLider,
@@ -20,7 +21,6 @@ import {
 import { RelatorioEquipePorSemana } from '@/components/portal/RelatorioEquipePorSemana';
 import { AlertaPendenciasVisitaRh } from '@/components/portal/AlertaPendenciasVisitaRh';
 import { calcularPendenciasVisitaRh } from '@/lib/relatorio-equipe-utils';
-import { AvaliacoesPendentesModal } from '@/components/admin/AvaliacoesPendentesModal';
 
 function hojeISO(): string {
   const d = new Date();
@@ -56,7 +56,7 @@ export default function RelatoriosAvaliacoesPage() {
   const [buscaLider, setBuscaLider] = useState('');
   const [somenteNotaBaixaLider, setSomenteNotaBaixaLider] = useState(false);
   const [modoEquipe, setModoEquipe] = useState<ModoEquipe>('semana');
-  const [pendentesAberto, setPendentesAberto] = useState(false);
+  const [viewerRole, setViewerRole] = useState('');
 
   useEffect(() => {
     let cancel = false;
@@ -65,6 +65,7 @@ export default function RelatoriosAvaliacoesPage() {
       .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
         if (cancel) return;
         const role = data.colaborador?.role ?? '';
+        setViewerRole(role);
         if (data.ok && podeVerRelatoriosAvaliacoesCompletos(role)) {
           setAutorizado(true);
         } else {
@@ -220,13 +221,14 @@ export default function RelatoriosAvaliacoesPage() {
           >
             {carregando ? 'Atualizando…' : 'Atualizar'}
           </button>
-          <button
-            type="button"
-            onClick={() => setPendentesAberto(true)}
-            className="rounded-lg border border-dourado-base px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-dourado-50"
-          >
-            Pendentes da semana
-          </button>
+          {podeVerPendenciasSemanaRede(viewerRole) && (
+            <Link
+              href="/portal/pendencias-semana"
+              className="rounded-lg border border-dourado-base px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-dourado-50 inline-flex items-center"
+            >
+              Pendências da semana
+            </Link>
+          )}
         </div>
 
         <div className="flex rounded-lg border border-cafeteria-200 text-sm overflow-hidden">
@@ -426,11 +428,6 @@ export default function RelatoriosAvaliacoesPage() {
           )}
         </section>
       )}
-      <AvaliacoesPendentesModal
-        aberto={pendentesAberto}
-        onFechar={() => setPendentesAberto(false)}
-        apiBase="/api/portal/avaliacoes-pendentes"
-      />
     </main>
   );
 }

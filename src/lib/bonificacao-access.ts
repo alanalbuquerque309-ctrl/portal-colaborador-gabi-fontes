@@ -10,3 +10,8 @@ export function podeVerBonificacaoInterna(role: string | null | undefined): bool
 export function podeEnviarReclamacaoPortal(role: string | null | undefined): boolean {
   return podeVerBonificacaoInterna(role);
 }
+
+/** Pendências da semana (rede inteira): só sócios e administrador (Daniel). */
+export function podeVerPendenciasSemanaRede(role: string | null | undefined): boolean {
+  return podeVerBonificacaoInterna(role);
+}

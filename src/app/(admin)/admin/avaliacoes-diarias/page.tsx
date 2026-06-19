@@ -136,6 +136,9 @@ export default function AdminAvaliacoesDiariasPage() {
               <Link href="/admin/avaliacoes-lideranca" className="text-dourado-500 hover:underline">
                 Feedback sobre liderança →
               </Link>
+              <Link href="/admin/pendencias-semana" className="text-dourado-500 hover:underline">
+                Pendências da semana (ao vivo) →
+              </Link>
               <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">
                 Relatório completo no portal →
               </Link>

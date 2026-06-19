@@ -21,6 +21,7 @@ export default function AdminLayout({
   const [menuNav, setMenuNav] = useState<{ href: string; label: string }[]>([]);
   const [podeVerGorjeta, setPodeVerGorjeta] = useState(false);
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
+  const [pendenciasSemana, setPendenciasSemana] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   type NavItemAdmin = { href: string; label: string; gorjeta?: boolean };
@@ -42,6 +43,7 @@ export default function AdminLayout({
       titulo: 'Avaliações',
       itens: [
         { href: '/admin/avaliacoes-diarias', label: 'Avaliação de Equipe (semanal)' },
+        { href: '/admin/pendencias-semana', label: 'Pendências da semana' },
         { href: '/admin/avaliacoes-lideranca', label: 'Feedback liderança' },
         { href: '/admin/avaliacao-entre-pares', label: 'Avaliação entre pares' },
       ],
@@ -132,6 +134,39 @@ export default function AdminLayout({
       window.clearInterval(timer);
       window.removeEventListener('focus', carregar);
       window.removeEventListener(SUGESTOES_ATUALIZADO, carregar);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [authorized, podeVerGorjeta]);
+
+  useEffect(() => {
+    if (authorized !== true || !podeVerGorjeta) {
+      setPendenciasSemana(0);
+      return;
+    }
+    let cancel = false;
+    const carregar = () => {
+      fetch(`/api/admin/avaliacoes-pendentes?resumo=1&_=${Date.now()}`, {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+        .then((r) => r.json())
+        .then((d: { ok?: boolean; total?: number }) => {
+          if (cancel || d.ok !== true) return;
+          setPendenciasSemana(Math.max(0, Number(d.total ?? 0)));
+        })
+        .catch(() => {});
+    };
+    carregar();
+    const timer = window.setInterval(carregar, 30000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') carregar();
+    };
+    window.addEventListener('focus', carregar);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancel = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', carregar);
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [authorized, podeVerGorjeta]);
@@ -292,7 +327,11 @@ export default function AdminLayout({
                     {navLink(
                       item.href,
                       item.label,
-                      item.href === '/admin/sugestoes' ? sugestoesPendentes : undefined
+                      item.href === '/admin/sugestoes'
+                        ? sugestoesPendentes
+                        : item.href === '/admin/pendencias-semana'
+                          ? pendenciasSemana
+                          : undefined
                     )}
                   </div>
                 ))
@@ -315,7 +354,11 @@ export default function AdminLayout({
                             {navLink(
                               item.href,
                               item.label,
-                              item.href === '/admin/sugestoes' ? sugestoesPendentes : undefined
+                              item.href === '/admin/sugestoes'
+                                ? sugestoesPendentes
+                                : item.href === '/admin/pendencias-semana'
+                                  ? pendenciasSemana
+                                  : undefined
                             )}
                           </div>
                         ))}
