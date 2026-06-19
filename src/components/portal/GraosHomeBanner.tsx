@@ -19,7 +19,7 @@ type GraosResumo = {
   graos_semana_ganhos: number;
   graos_semana_possivel: number;
   nivel?: { emoji: string; label: string };
-  elegibilidade?: { elegivel: boolean; motivo: string | null };
+  elegibilidade?: { elegivel: boolean; motivo: string | null; estado?: string };
   missoes: Missao[];
 };
 
@@ -51,7 +51,7 @@ export function GraosHomeBanner() {
           modo_gestao?: boolean;
           apenas_visualizacao?: boolean;
           missoes?: Missao[];
-          elegibilidade?: { elegivel: boolean; motivo: string | null };
+          elegibilidade?: { elegivel: boolean; motivo: string | null; estado?: string };
         }) => {
           if (cancel || d.ok !== true) return;
           if (d.modo_gestao || d.apenas_visualizacao) return;
@@ -112,7 +112,10 @@ export function GraosHomeBanner() {
         <div className="h-2 rounded-full bg-cafeteria-100 overflow-hidden">
           <div className="h-full bg-orange-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
-        {resumo.elegibilidade && !resumo.elegibilidade.elegivel && resumo.elegibilidade.motivo ? (
+        {resumo.elegibilidade &&
+        !resumo.elegibilidade.elegivel &&
+        resumo.elegibilidade.motivo &&
+        (resumo.elegibilidade.estado !== 'aguardando_lider' || resumo.saldo_pendente > 0) ? (
           <p className="text-xs text-amber-900 mt-2 leading-snug">{resumo.elegibilidade.motivo}</p>
         ) : null}
       </div>

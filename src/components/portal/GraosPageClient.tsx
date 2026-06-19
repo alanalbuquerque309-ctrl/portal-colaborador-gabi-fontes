@@ -40,7 +40,7 @@ type ResumoGraos = {
   saldo_confirmado?: number;
   saldo_pendente?: number;
   nivel?: { emoji: string; label: string };
-  elegibilidade?: { estado: string; motivo: string | null; elegivel: boolean };
+  elegibilidade?: { estado: string; motivo: string | null; elegivel: boolean; mostrar_aviso_cobrar_lider?: boolean };
   missoes?: Missao[];
   graos_semana_possivel?: number;
   graos_semana_ganhos?: number;
@@ -304,7 +304,10 @@ export function GraosPageClient() {
         </p>
       </header>
 
-      {data.elegibilidade && !data.elegibilidade.elegivel && data.elegibilidade.motivo && (
+      {data.elegibilidade &&
+        !data.elegibilidade.elegivel &&
+        data.elegibilidade.motivo &&
+        (data.elegibilidade.estado !== 'aguardando_lider' || (data.saldo_pendente ?? 0) > 0) && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           {data.elegibilidade.motivo}
         </div>

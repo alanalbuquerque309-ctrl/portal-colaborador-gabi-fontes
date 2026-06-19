@@ -225,10 +225,48 @@ export async function processarElegibilidadeSemanaGraos(
 
   if (!pendentes?.length) return;
 
-  const novoEstado: GraosEstadoMovimento = eleg.elegivel ? 'confirmado' : 'cancelado';
+  if (!eleg.elegivel) {
+    if (eleg.estado === 'aguardando_lider' || eleg.estado === 'aguardando_outro_lider') {
+      return;
+    }
+    for (const p of pendentes) {
+      await supabase.from('graos_movimentos').update({ estado: 'cancelado' }).eq('id', p.id);
+    }
+    return;
+  }
 
   for (const p of pendentes) {
-    await supabase.from('graos_movimentos').update({ estado: novoEstado }).eq('id', p.id);
+    await supabase.from('graos_movimentos').update({ estado: 'confirmado' }).eq('id', p.id);
+  }
+}
+
+/** Reprocessa elegibilidade em todas as semanas com créditos pendentes. */
+export async function processarElegibilidadeTodasSemanasPendentesGraos(
+  supabase: SupabaseClient,
+  colaboradorId: string
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('semana_inicio')
+    .eq('colaborador_id', colaboradorId)
+    .eq('estado', 'pendente')
+    .gt('graos', 0);
+
+  if (error) {
+    if (tabelaAusente(error.message)) return;
+    throw new Error(error.message);
+  }
+
+  const semanas = Array.from(
+    new Set(
+      (data ?? [])
+        .map((r) => (r.semana_inicio ? String(r.semana_inicio) : ''))
+        .filter(Boolean)
+    )
+  );
+
+  for (const sem of semanas) {
+    await processarElegibilidadeSemanaGraos(supabase, colaboradorId, sem);
   }
 }
 

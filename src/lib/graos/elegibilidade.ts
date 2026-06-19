@@ -122,18 +122,33 @@ export async function buscarAvaliacaoSemanaColaborador(
   colaboradorId: string,
   semanaInicio: string
 ): Promise<AvaliacaoRow | null> {
-  const { data, error } = await supabase
+  let rows: Record<string, unknown>[] = [];
+  const prim = await supabase
     .from('avaliacoes_diarias')
     .select(
-      'id, assiduidade, justificativa_nota_baixa, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, updated_at'
+      'id, assiduidade, justificativa_nota_baixa, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, updated_at, ignorada'
     )
     .eq('colaborador_id', colaboradorId)
     .eq('data_referencia', semanaInicio)
-    .order('updated_at', { ascending: false })
-    .limit(1);
+    .order('updated_at', { ascending: false });
 
-  if (error) throw new Error(error.message);
-  const row = (data ?? [])[0];
+  if (prim.error && /ignorada/i.test(prim.error.message)) {
+    const retry = await supabase
+      .from('avaliacoes_diarias')
+      .select(
+        'id, assiduidade, justificativa_nota_baixa, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, updated_at'
+      )
+      .eq('colaborador_id', colaboradorId)
+      .eq('data_referencia', semanaInicio)
+      .order('updated_at', { ascending: false });
+    if (retry.error) throw new Error(retry.error.message);
+    rows = (retry.data ?? []) as Record<string, unknown>[];
+  } else {
+    if (prim.error) throw new Error(prim.error.message);
+    rows = (prim.data ?? []) as Record<string, unknown>[];
+  }
+
+  const row = rows.find((r) => !(r as { ignorada?: boolean }).ignorada);
   if (!row) return null;
   return row as AvaliacaoRow;
 }
@@ -145,4 +160,21 @@ export async function calcularElegibilidadeSemana(
 ): Promise<GraosElegibilidadeSemana> {
   const row = await buscarAvaliacaoSemanaColaborador(supabase, colaboradorId, semanaInicio);
   return avaliarElegibilidadeDeLinha(row);
+}
+
+export type GraosResumoElegibilidadeUi = GraosElegibilidadeSemana & {
+  /** Só exibir aviso «cobrar líder» quando há Grãos pendentes nesta semana. */
+  mostrar_aviso_cobrar_lider: boolean;
+};
+
+export async function calcularElegibilidadeSemanaComUi(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string,
+  saldoPendenteSemana: number
+): Promise<GraosResumoElegibilidadeUi> {
+  const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
+  const mostrar_aviso_cobrar_lider =
+    eleg.estado === 'aguardando_lider' && saldoPendenteSemana > 0;
+  return { ...eleg, mostrar_aviso_cobrar_lider };
 }

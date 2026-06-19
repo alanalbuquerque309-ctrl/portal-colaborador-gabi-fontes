@@ -23,7 +23,10 @@ export async function reprocessarGraosAposAvaliacaoEquipe(
   semanaInicio: string
 ): Promise<void> {
   try {
-    await sincronizarMissoesSemanaGraos(supabase, colaboradorAlvoId, semanaInicio, { creditarLogin: false });
+    const { processarElegibilidadeSemanaGraos, processarElegibilidadeTodasSemanasPendentesGraos } =
+      await import('@/lib/graos/movimentos');
+    await processarElegibilidadeSemanaGraos(supabase, colaboradorAlvoId, semanaInicio);
+    await processarElegibilidadeTodasSemanasPendentesGraos(supabase, colaboradorAlvoId);
   } catch {
     /* noop */
   }

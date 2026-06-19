@@ -1,11 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { GRAOS_MISSAO, GRAOS_MAX_SEMANA, GRAOS_SUGESTAO_MAX_SEMANA, type GraosMissaoId } from '@/lib/graos/constants';
-import { calcularElegibilidadeSemana } from '@/lib/graos/elegibilidade';
+import { calcularElegibilidadeSemanaComUi } from '@/lib/graos/elegibilidade';
 import {
+  calcularSaldoGraos,
   creditarMissaoGraos,
   deduplicarLoginSemanaColaborador,
   encerrarPendentesSemanasPassadas,
-  processarElegibilidadeSemanaGraos,
+  processarElegibilidadeTodasSemanasPendentesGraos,
   refKeyGraos,
 } from '@/lib/graos/movimentos';
 import { graosPorTrofeusEnviadosNaSemana } from '@/lib/graos/trofeus-graos';
@@ -154,7 +155,7 @@ export async function sincronizarMissoesSemanaGraos(
     }
   }
 
-  await processarElegibilidadeSemanaGraos(supabase, colaboradorId, semanaInicio);
+  await processarElegibilidadeTodasSemanasPendentesGraos(supabase, colaboradorId);
 }
 
 export async function montarMissoesUi(
@@ -300,7 +301,13 @@ export async function obterResumoGraosColaborador(
       creditarLogin: opts?.creditarLogin ?? true,
     });
   }
-  const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
+  const saldoSemana = await calcularSaldoGraos(supabase, colaboradorId, { semanaInicio });
+  const eleg = await calcularElegibilidadeSemanaComUi(
+    supabase,
+    colaboradorId,
+    semanaInicio,
+    saldoSemana.pendente
+  );
   const { missoes, graos_semana_possivel, graos_semana_ganhos } = await montarMissoesUi(
     supabase,
     colaboradorId,
