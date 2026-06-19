@@ -21,7 +21,7 @@ type NavItem = {
   href: string;
   label: string;
   short: string;
-  icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia' | 'graos';
+  icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia' | 'graos' | 'treinamento';
 };
 
 function navAtivo(pathname: string | null | undefined, href: string): boolean {
@@ -32,6 +32,9 @@ function navAtivo(pathname: string | null | undefined, href: string): boolean {
   }
   if (href === '/portal/meu-manual') {
     return p === href || p.startsWith('/portal/manual');
+  }
+  if (href === '/portal/treinamento') {
+    return p === href || p.startsWith('/portal/treinamento/');
   }
   if (href === '/portal/comunicacao') {
     return (
@@ -44,6 +47,13 @@ function navAtivo(pathname: string | null | undefined, href: string): boolean {
   const base = href.split('?')[0]?.split('#')[0] ?? href;
   return p.startsWith(`${base}/`);
 }
+
+const itemTreinamento: NavItem = {
+  href: '/portal/treinamento',
+  label: 'Treinamento',
+  short: 'Treino',
+  icon: 'treinamento',
+};
 
 const itemComunicacao: NavItem = {
   href: '/portal/comunicacao',
@@ -103,6 +113,13 @@ function NavIcon({ type }: { type: string }) {
       return (
         <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      );
+    case 'treinamento':
+      return (
+        <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       );
     case 'avaliacao':
@@ -432,7 +449,14 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     return [...items.slice(0, at), itemGraos, ...items.slice(at)];
   };
 
-  const navMobile: NavItem[] = injetarGraos(
+  const injetarTreinamento = (items: NavItem[]): NavItem[] => {
+    if (items.some((i) => i.href === '/portal/treinamento')) return items;
+    const idx = items.findIndex((i) => i.href === '/portal/comunicacao');
+    const at = idx >= 0 ? idx + 1 : items.length;
+    return [...items.slice(0, at), itemTreinamento, ...items.slice(at)];
+  };
+
+  const navMobile: NavItem[] = injetarTreinamento(injetarGraos(
     isAdm
     ? [
         { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
@@ -471,11 +495,12 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
           itemComunicacao,
           { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
         ]
-  );
+  ));
 
   const navDesktop: NavItem[] = [
     ...navMobile.filter((i) => i.href !== '/portal/perfil' && i.href !== '/portal/comunicacao'),
     itemComunicacao,
+    itemTreinamento,
     { href: '/portal/manuais', label: 'Manuais', short: 'Manuais', icon: 'manuais' },
     { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
   ];

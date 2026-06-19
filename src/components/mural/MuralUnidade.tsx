@@ -42,6 +42,18 @@ export function MuralUnidade() {
     carregar();
   }, []);
 
+  useEffect(() => {
+    if (avisos.length === 0) return;
+    avisos.forEach((a) => {
+      fetch('/api/portal/avisos/visualizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ aviso_id: a.id }),
+      }).catch(() => undefined);
+    });
+  }, [avisos]);
+
   const handleConfirmar = async (avisoId: string) => {
     setConfirmando(avisoId);
     try {

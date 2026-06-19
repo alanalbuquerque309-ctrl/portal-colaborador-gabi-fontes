@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { ComunicacaoAudienciaGaveta } from '@/components/admin/ComunicacaoAudienciaGaveta';
+import type { ResumoAudienciaComunicacao } from '@/lib/audiencia-comunicacao';
 
 interface Aviso {
   id: string;
@@ -20,6 +22,10 @@ export default function AvisosPage() {
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [loading, setLoading] = useState(true);
   const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [gaveta, setGaveta] = useState<(ResumoAudienciaComunicacao & { titulo: string; publico_label?: string }) | null>(
+    null
+  );
+  const [gavetaTitulo, setGavetaTitulo] = useState('');
 
   const recarregar = () => {
     setLoading(true);
@@ -55,6 +61,17 @@ export default function AvisosPage() {
       alert('Erro ao excluir.');
     } finally {
       setExcluindo(null);
+    }
+  };
+
+  const abrirAudiencia = async (id: string, titulo: string) => {
+    const res = await fetch(`/api/admin/avisos/${id}/audiencia`, { credentials: 'include' });
+    const data = await res.json();
+    if (data.ok) {
+      setGavetaTitulo(titulo);
+      setGaveta(data);
+    } else {
+      alert(data.erro || 'Não foi possível carregar a audiência.');
     }
   };
 
@@ -119,7 +136,7 @@ export default function AvisosPage() {
                 <th className="text-left px-4 py-3 text-coffee-base font-medium">Data</th>
                 <th className="text-left px-4 py-3 text-coffee-base font-medium">Confirmação</th>
                 <th className="text-left px-4 py-3 text-coffee-base font-medium">Status</th>
-                <th className="w-40 px-4 py-3"></th>
+                <th className="w-52 px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -144,7 +161,15 @@ export default function AvisosPage() {
                       <span className="text-coffee-100">Inativo</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 flex gap-2">
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void abrirAudiencia(a.id, a.titulo)}
+                      className="text-dourado-base hover:text-dourado-600 text-xs font-medium"
+                    >
+                      Quem leu
+                    </button>
                     <Link
                       href={`/admin/avisos/${a.id}/editar`}
                       className="text-dourado-base hover:text-dourado-600 text-xs font-medium"
@@ -166,6 +191,7 @@ export default function AvisosPage() {
                     >
                       {excluindo === a.id ? 'Excluindo…' : 'Excluir'}
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -173,6 +199,15 @@ export default function AvisosPage() {
           </table>
         </div>
       )}
+
+      {gaveta ? (
+        <ComunicacaoAudienciaGaveta
+          titulo={gavetaTitulo}
+          tipo="aviso"
+          dados={gaveta}
+          onFechar={() => setGaveta(null)}
+        />
+      ) : null}
     </div>
   );
 }

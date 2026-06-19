@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { MegafoneAnimado } from '@/components/portal/vivo/MegafoneAnimado';
@@ -140,6 +140,18 @@ export function AvisosHome() {
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [recolhidosLocal, setRecolhidosLocal] = useState<Set<string>>(() => new Set());
   const [gavetaId, setGavetaId] = useState<string | null>(null);
+  const visualizadosRef = useRef<Set<string>>(new Set());
+
+  const registrarVisualizacao = useCallback((avisoId: string) => {
+    if (visualizadosRef.current.has(avisoId)) return;
+    visualizadosRef.current.add(avisoId);
+    fetch('/api/portal/avisos/visualizar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ aviso_id: avisoId }),
+    }).catch(() => undefined);
+  }, []);
 
   const carregar = useCallback(() => {
     fetch('/api/portal/avisos', { credentials: 'include', cache: 'no-store' })
@@ -164,6 +176,20 @@ export function AvisosHome() {
       return ids;
     });
   }, [avisos]);
+
+  useEffect(() => {
+    if (!gavetaId) return;
+    registrarVisualizacao(gavetaId);
+  }, [gavetaId, registrarVisualizacao]);
+
+  useEffect(() => {
+    if (loading || avisos.length === 0) return;
+    avisos.forEach((a, index) => {
+      if (!estaRecolhido(a, index, recolhidosLocal)) {
+        registrarVisualizacao(a.id);
+      }
+    });
+  }, [avisos, loading, recolhidosLocal, registrarVisualizacao]);
 
   const marcarRecolhido = (id: string) => {
     setRecolhidosLocal((prev) => {
@@ -229,7 +255,14 @@ export function AvisosHome() {
             if (recolhido) {
               return (
                 <li key={a.id}>
-                  <LinhaRecolhida aviso={a} pendente={pendente} onAbrir={() => setGavetaId(a.id)} />
+                  <LinhaRecolhida
+                    aviso={a}
+                    pendente={pendente}
+                    onAbrir={() => {
+                      setGavetaId(a.id);
+                      registrarVisualizacao(a.id);
+                    }}
+                  />
                 </li>
               );
             }
