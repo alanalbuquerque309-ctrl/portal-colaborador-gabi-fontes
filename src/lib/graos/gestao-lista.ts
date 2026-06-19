@@ -93,7 +93,7 @@ export async function listarGraosGestao(
       colaborador_id: cid,
       nome: String(c.nome ?? ''),
       setor: (c as { setor?: string | null }).setor ?? null,
-      saldo_confirmado: acc.confirmado,
+      saldo_confirmado: Math.max(0, acc.confirmado),
       saldo_pendente: acc.pendente,
       graos_semana_ganhos: acc.semana,
       nivel: nivelGraosPorTotal(acc.total_ganho),

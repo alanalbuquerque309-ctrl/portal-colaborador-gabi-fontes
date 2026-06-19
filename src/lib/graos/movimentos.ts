@@ -72,7 +72,8 @@ export async function calcularSaldoGraos(
     }
   }
 
-  return { confirmado, pendente, total_ganho_confirmado };
+  // Saldo nunca negativo: não existe banco de dívidas. Resgate não pode deixar débito.
+  return { confirmado: Math.max(0, confirmado), pendente, total_ganho_confirmado };
 }
 
 /**
