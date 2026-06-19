@@ -49,6 +49,7 @@ export default function AvaliacaoLiderancaPage() {
   const [anonimo, setAnonimo] = useState(true);
   const [bloqueadoFerias, setBloqueadoFerias] = useState(false);
   const [motivoBloqueioFerias, setMotivoBloqueioFerias] = useState('');
+  const [filtroPendentes, setFiltroPendentes] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

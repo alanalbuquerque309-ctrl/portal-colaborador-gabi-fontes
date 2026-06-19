@@ -76,7 +76,7 @@ export function ComunicacaoAudienciaGaveta({ titulo, tipo, dados, onFechar }: Pr
               </p>
               <h2 className="text-lg font-display font-semibold text-coffee-base leading-snug">{titulo}</h2>
               <p className="text-xs text-coffee-100 mt-1">
-                Público: {dados.publico_label ?? dados.publico} · {dados.total_esperado} esperado(s)
+                Público: {dados.publico_label ?? '—'} · {dados.total_esperado} esperado(s)
               </p>
             </div>
             <button
