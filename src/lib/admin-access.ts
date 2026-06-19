@@ -6,6 +6,7 @@ export type AdminNivelAcesso = 'full' | 'rh_limitado' | 'senha';
 export const ADMIN_NAV_RH: readonly { href: string; label: string }[] = [
   { href: '/admin/dashboard', label: 'Dashboard' },
   { href: '/admin/colaboradores', label: 'Colaboradores' },
+  { href: '/admin/termometro-emocoes', label: 'Termômetro de emoções' },
   { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
   { href: '/admin/avisos', label: 'Avisos' },
   { href: '/admin/treinamento', label: 'Treinamento' },

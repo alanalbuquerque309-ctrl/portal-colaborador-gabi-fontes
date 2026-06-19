@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
-import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
+import { EMOCOES_TERMOMETRO, metaEmocao } from '@/lib/emocional-opcoes';
 
 export function TermometroEmocional() {
   const [emocaoAtual, setEmocaoAtual] = useState<string | null>(null);
@@ -47,10 +47,10 @@ export function TermometroEmocional() {
         {emocaoAtual ? (
           <div className="flex items-center gap-2">
             <span className="text-2xl">
-              {EMOCOES_TERMOMETRO.find((e) => e.id === emocaoAtual)?.emoji ?? '✓'}
+              {metaEmocao(emocaoAtual)?.emoji ?? '✓'}
             </span>
             <span className="text-sm text-coffee-base font-medium">
-              {EMOCOES_TERMOMETRO.find((e) => e.id === emocaoAtual)?.label ?? emocaoAtual}
+              {metaEmocao(emocaoAtual)?.label ?? emocaoAtual}
             </span>
           </div>
         ) : (
@@ -67,17 +67,17 @@ export function TermometroEmocional() {
 
       {mostrar && (
         <div className="mt-4 pt-4 border-t border-cream-200">
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {EMOCOES_TERMOMETRO.map((e) => (
               <button
                 key={e.id}
                 type="button"
                 onClick={() => handleEscolha(e.id)}
                 disabled={enviando}
-                className="flex items-center gap-2 rounded-xl border-2 border-cream-300 bg-white px-4 py-2 text-sm hover:border-dourado-200 hover:bg-dourado-50 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 rounded-xl border-2 border-cream-300 bg-white px-3 py-2 text-sm hover:border-dourado-200 hover:bg-dourado-50 disabled:opacity-50 transition-colors text-left"
               >
-                <span className="text-xl">{e.emoji}</span>
-                <span className="text-coffee-base">{e.label}</span>
+                <span className="text-xl shrink-0">{e.emoji}</span>
+                <span className="text-coffee-base leading-tight">{e.label}</span>
               </button>
             ))}
           </div>

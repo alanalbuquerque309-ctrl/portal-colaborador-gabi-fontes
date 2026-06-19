@@ -244,7 +244,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       <AniversarioBalaoPortal ativo={gateOk} />
       {perfilRole === 'colaborador' && abrirEmocionalObrigatorio && (
         <div className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-[1px] flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl border border-dourado-200 bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-dourado-200 bg-white p-5 shadow-2xl">
             <h2 className="font-display text-xl text-coffee-base font-semibold">Termômetro de emoções</h2>
             <p className="text-sm text-coffee-100 mt-1">
               Primeiro acesso do dia: selecione como você está se sentindo para continuar no portal.

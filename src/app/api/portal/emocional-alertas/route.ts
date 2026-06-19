@@ -1,54 +1,14 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole } from '@/lib/roles';
-import { canVisualizarAlertasEmocional } from '@/lib/emocional-alertas-access';
+import { authGestorEmocional } from '@/lib/emocional-gestao-auth';
 import { EMOCOES_ALERTA_GESTAO, metaEmocao } from '@/lib/emocional-opcoes';
 import { dataCivilBr } from '@/lib/data-civil-br';
-
-async function resolverRoleGestorEmocional(
-  colaboradorId: string,
-  cookieRole: string | null | undefined
-): Promise<string> {
-  const cookieNorm = normalizePortalRole(cookieRole);
-  const cookieRaw = String(cookieRole ?? '').trim();
-  if (cookieRaw && cookieNorm !== 'colaborador') return cookieNorm;
-
-  try {
-    const supabase = createAdminClient();
-    const { data } = await supabase
-      .from('colaboradores')
-      .select('role')
-      .eq('id', colaboradorId)
-      .maybeSingle();
-    if (data?.role) return normalizePortalRole((data as { role?: string }).role);
-  } catch {
-    /* fallback cookie */
-  }
-  return cookieNorm;
-}
-
-async function authGestorEmocional() {
-  const cookieStore = await cookies();
-  const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
-  if (!colaboradorId || colaboradorId === 'pending') {
-    return { erro: NextResponse.json({ ok: false, erro: 'Faça login no portal' }, { status: 401 }) };
-  }
-  const role = await resolverRoleGestorEmocional(
-    colaboradorId,
-    cookieStore.get('portal_role')?.value
-  );
-  if (!canVisualizarAlertasEmocional(role, colaboradorId)) {
-    return { erro: NextResponse.json({ ok: false, erro: 'Sem permissão' }, { status: 403 }) };
-  }
-  return { colaboradorId, role };
-}
 
 /** Alertas do dia: colaboradores que marcaram emoção que pede atenção da gestão. */
 export async function GET() {
   const auth = await authGestorEmocional();
-  if ('erro' in auth && auth.erro) return auth.erro;
-  const { colaboradorId } = auth as { colaboradorId: string };
+  if (!auth.ok) return auth.response;
+  const { colaboradorId } = auth;
 
   const hoje = dataCivilBr();
 
@@ -79,24 +39,24 @@ export async function GET() {
     const alertas = (data ?? [])
       .filter((row) => !idsVistos.has(String((row as { colaborador_id?: string }).colaborador_id ?? '')))
       .map((row: Record<string, unknown>) => {
-      const col = row.colaboradores as
-        | { nome?: string; setor?: string | null; unidades?: { nome?: string } | { nome?: string }[] }
-        | null;
-      const un = col?.unidades;
-      const unidadeNome = Array.isArray(un) ? un[0]?.nome : un?.nome;
-      const meta = metaEmocao(String(row.emocao ?? ''));
-      return {
-        colaborador_id: String(row.colaborador_id ?? ''),
-        nome: String(col?.nome ?? 'Colaborador'),
-        setor: col?.setor ? String(col.setor) : null,
-        unidade_nome: unidadeNome ? String(unidadeNome) : null,
-        emocao: String(row.emocao ?? ''),
-        emocao_label: meta?.label ?? String(row.emocao ?? ''),
-        emoji: meta?.emoji ?? '⚠️',
-        data: String(row.data ?? hoje),
-        registrado_em: row.created_at ? String(row.created_at) : null,
-      };
-    });
+        const col = row.colaboradores as
+          | { nome?: string; setor?: string | null; unidades?: { nome?: string } | { nome?: string }[] }
+          | null;
+        const un = col?.unidades;
+        const unidadeNome = Array.isArray(un) ? un[0]?.nome : un?.nome;
+        const meta = metaEmocao(String(row.emocao ?? ''));
+        return {
+          colaborador_id: String(row.colaborador_id ?? ''),
+          nome: String(col?.nome ?? 'Colaborador'),
+          setor: col?.setor ? String(col.setor) : null,
+          unidade_nome: unidadeNome ? String(unidadeNome) : null,
+          emocao: String(row.emocao ?? ''),
+          emocao_label: meta?.label ?? String(row.emocao ?? ''),
+          emoji: meta?.emoji ?? '⚠️',
+          data: String(row.data ?? hoje),
+          registrado_em: row.created_at ? String(row.created_at) : null,
+        };
+      });
 
     return NextResponse.json({
       ok: true,
@@ -113,8 +73,8 @@ export async function GET() {
 /** Marca alertas do dia como vistos para quem clicou em OK (só some para esse gestor). */
 export async function POST(req: Request) {
   const auth = await authGestorEmocional();
-  if ('erro' in auth && auth.erro) return auth.erro;
-  const { colaboradorId: viewerId } = auth as { colaboradorId: string };
+  if (!auth.ok) return auth.response;
+  const { colaboradorId: viewerId } = auth;
 
   const hoje = dataCivilBr();
   let body: { colaborador_ids?: string[] } = {};

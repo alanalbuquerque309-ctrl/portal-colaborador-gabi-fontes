@@ -35,6 +35,7 @@ export default function AdminLayout({
       titulo: 'Pessoas',
       itens: [
         { href: '/admin/colaboradores', label: 'Colaboradores' },
+        { href: '/admin/termometro-emocoes', label: '🌡 Termômetro de emoções' },
         { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
         { href: '/admin/escalas', label: 'Escalas' },
       ],

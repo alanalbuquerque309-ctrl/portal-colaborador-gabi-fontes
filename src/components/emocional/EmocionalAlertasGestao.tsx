@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { rotuloAlertasEmocionalResumido } from '@/lib/emocional-opcoes';
 
 type Alerta = {
   colaborador_id: string;
@@ -102,7 +103,7 @@ export function EmocionalAlertasGestao() {
             ? '1 colaborador precisa de atenção.'
             : `${alertas.length} colaboradores precisam de atenção.`}{' '}
           <span className="text-xs text-amber-900/80">
-            Marcaram cansado, frustrado ou triste. Use OK em cada um quando já tiver visto.
+            Marcaram reações que pedem atenção ({rotuloAlertasEmocionalResumido()}). Use OK em cada um quando já tiver visto.
           </span>
         </p>
       </div>
@@ -141,16 +142,14 @@ export function EmocionalAlertasGestao() {
         })}
       </ul>
 
-      {alertas.length > 1 && (
-        <p className="mt-2 pt-2 border-t border-amber-200/80">
-          <Link
-            href="/admin/colaboradores"
-            className="text-xs font-medium text-dourado-base hover:underline"
-          >
-            Abrir cadastro no admin →
-          </Link>
-        </p>
-      )}
+      <p className="mt-2 pt-2 border-t border-amber-200/80">
+        <Link
+          href="/admin/termometro-emocoes"
+          className="text-xs font-medium text-dourado-base hover:underline"
+        >
+          Ver termômetro completo no admin →
+        </Link>
+      </p>
     </section>
   );
 }
