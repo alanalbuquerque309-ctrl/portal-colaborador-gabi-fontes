@@ -2,36 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getPortalSession } from '@/lib/utils/session';
-import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
-import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
-import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
+import type { PortalHomeTarefa } from '@/lib/portal-home-types';
 
-type Tarefa = {
-  id: string;
-  titulo: string;
-  detalhe: string;
-  href: string;
-  urgente?: boolean;
-  acaoLabel?: string;
-  hero?: boolean;
-};
-
-function normalizarRole(raw: unknown): string {
-  if (typeof raw !== 'string') return 'colaborador';
-  const t = raw.trim().toLowerCase();
-  return t || 'colaborador';
-}
-
-function formatarNomes(nomes: string[], max = 3): string {
-  if (nomes.length === 0) return '';
-  if (nomes.length === 1) return nomes[0];
-  if (nomes.length === 2) return `${nomes[0]} e ${nomes[1]}`;
-  if (nomes.length <= max) {
-    return `${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`;
-  }
-  return `${nomes.slice(0, max).join(', ')} e mais ${nomes.length - max}`;
-}
+type Tarefa = PortalHomeTarefa;
 
 function CardHeroPendencia({ t }: { t: Tarefa }) {
   return (
@@ -58,218 +31,41 @@ function CardHeroPendencia({ t }: { t: Tarefa }) {
   );
 }
 
-export function FacaAgoraHome() {
-  const [fase, setFase] = useState<'loading' | 'pronto'>('loading');
-  const [tarefas, setTarefas] = useState<Tarefa[]>([]);
+type Props = {
+  /** Quando vindo de /api/portal/home-resumo — evita fetch duplicado. */
+  tarefasExternas?: PortalHomeTarefa[] | null;
+};
+
+export function FacaAgoraHome({ tarefasExternas }: Props) {
+  const usaExterno = tarefasExternas !== undefined && tarefasExternas !== null;
+  const [fase, setFase] = useState<'loading' | 'pronto'>(usaExterno ? 'pronto' : 'loading');
+  const [tarefas, setTarefas] = useState<Tarefa[]>(usaExterno ? tarefasExternas : []);
 
   useEffect(() => {
+    if (usaExterno) {
+      setTarefas(tarefasExternas);
+      setFase('pronto');
+      return;
+    }
+
     let cancelado = false;
-    const lembreteLider = lembreteAvaliacaoSemanaPassada();
-    const semanaRef = semanaAvaliacaoEquipePadraoISO();
-
     const montar = async () => {
-      const lista: Tarefa[] = [];
-
       try {
-        const res = await fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' });
-        const data = (await res.json()) as {
-          ok?: boolean;
-          pode_visita_rh?: boolean;
-          pode_avaliacao_equipe?: boolean;
-          colaborador?: { role?: string | null };
-        };
-
-        if (cancelado) return;
-
-        const nr = data.ok && data.colaborador ? normalizarRole(data.colaborador.role) : 'colaborador';
-        const isAdm = nr === 'admin' || nr === 'socio';
-        const podeEquipe =
-          nr === 'gerente' ||
-          nr === 'master' ||
-          nr === 'admin' ||
-          data.pode_avaliacao_equipe === true;
-        const isColaborador = nr === 'colaborador';
-
-        if (isColaborador) {
-          const emo = await fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' })
-            .then((r) => r.json())
-            .catch(() => null);
-          if (!cancelado && emo?.ok && !emo.emocao) {
-            lista.push({
-              id: 'termometro',
-              titulo: 'Responder termômetro de emoções',
-              detalhe: 'Primeiro passo do dia — resposta anônima no resumo.',
-              href: '#termometro-emocoes',
-              urgente: true,
-              acaoLabel: 'Responder agora →',
-            });
-          }
-
-          const lid = await fetch('/api/portal/avaliacao-lideranca', { credentials: 'include', cache: 'no-store' })
-            .then((r) => r.json())
-            .catch(() => null);
-          if (!cancelado && lid?.ok && lid.bloqueado_ferias !== true) {
-            const avaliados = Array.isArray(lid.avaliados) ? lid.avaliados : [];
-            const lideresPendentes = avaliados.filter(
-              (a: { ja_avaliado_esta_semana?: boolean }) => a.ja_avaliado_esta_semana !== true
-            );
-            if (lideresPendentes.length > 0) {
-              const nomes = lideresPendentes.map((a: { nome?: string }) => a.nome ?? 'Líder').filter(Boolean);
-              lista.push({
-                id: 'lideranca',
-                titulo: 'Avaliar liderança',
-                detalhe: `Falta${lideresPendentes.length === 1 ? '' : 'm'} avaliar: ${formatarNomes(nomes)}.`,
-                href: '/portal/avaliacao-lideranca?aba=lideranca&pendentes=1',
-                urgente: lid.alerta_ultimo_dia === true,
-                acaoLabel: 'Clique para ver →',
-              });
-            }
-          }
-
-          const trof = await fetch('/api/portal/trofeus-pares', { credentials: 'include', cache: 'no-store' })
-            .then((r) => r.json())
-            .catch(() => null);
-          if (!cancelado && trof?.ok) {
-            const creditos = Number(trof.creditos_restantes ?? 0);
-            if (creditos > 0) {
-              lista.push({
-                id: 'trofeus',
-                titulo: 'Enviar troféus entre pares',
-                detalhe: `Você ainda pode dar ${creditos} troféu${creditos === 1 ? '' : 's'} esta semana (Postura, Braço Direito, Eficiência).`,
-                href: '/portal/avaliacao-lideranca?aba=pares',
-                acaoLabel: 'Clique para ver →',
-              });
-            }
-          }
-        }
-
-        if (podeEquipe && (nr === 'gerente' || nr === 'master' || nr === 'admin')) {
-          const d2 = await fetch(`/api/portal/avaliacao-master?data=${semanaRef}`, {
-            credentials: 'include',
-            cache: 'no-store',
-          })
-            .then((r) => r.json())
-            .catch(() => null);
-
-          if (!cancelado && d2?.ok && Array.isArray(d2.equipe)) {
-            const total = d2.equipe.length;
-            const pendentesMembros = d2.equipe.filter((m: { avaliacao?: unknown }) => m.avaliacao == null);
-            const pendentes = pendentesMembros.length;
-            if (total > 0 && pendentes > 0) {
-              const nomesPreview = pendentesMembros
-                .map((m: { nome?: string }) => m.nome ?? '')
-                .filter(Boolean)
-                .slice(0, 3);
-              const preview =
-                nomesPreview.length > 0
-                  ? ` Pendente${pendentes === 1 ? '' : 's'}: ${formatarNomes(nomesPreview, 3)}${pendentes > nomesPreview.length ? ` (+${pendentes - nomesPreview.length})` : ''}.`
-                  : '';
-              lista.push({
-                id: 'equipe',
-                titulo: lembreteLider.titulo,
-                detalhe: `${pendentes} de ${total} avaliação${total === 1 ? '' : 'ões'} da equipe ainda não feita${pendentes === 1 ? '' : 's'}.${preview}`,
-                href: '/portal/avaliacao-master?pendentes=1',
-                urgente: true,
-                acaoLabel: 'Clique para ver →',
-              });
-            }
-          }
-        }
-
-        if (data.pode_visita_rh === true) {
-          const rh = await fetch(`/api/portal/avaliacao-rh-visita?data=${semanaRef}`, {
-            credentials: 'include',
-            cache: 'no-store',
-          })
-            .then((r) => r.json())
-            .catch(() => null);
-
-          if (!cancelado && rh?.ok && Array.isArray(rh.equipe)) {
-            const pendentesMembros = rh.equipe.filter((m: { avaliacao?: unknown }) => m.avaliacao == null);
-            const pendentes = pendentesMembros.length;
-            if (pendentes > 0) {
-              const nomesPreview = pendentesMembros
-                .map((m: { nome?: string }) => m.nome ?? '')
-                .filter(Boolean)
-                .slice(0, 3);
-              const preview =
-                nomesPreview.length > 0
-                  ? ` Ex.: ${formatarNomes(nomesPreview, 3)}${pendentes > nomesPreview.length ? ` e mais ${pendentes - nomesPreview.length}` : ''}.`
-                  : '';
-              lista.push({
-                id: 'visita-rh',
-                titulo: 'Visita RH',
-                detalhe: `${pendentes} visita${pendentes === 1 ? '' : 's'} RH pendente${pendentes === 1 ? '' : 's'} na rede.${preview}`,
-                href: '/portal/avaliacao-rh-visita?pendentes=1',
-                acaoLabel: 'Clique para ver →',
-              });
-            }
-          }
-        }
-
-        if (podeVerPendenciasSemanaRede(nr)) {
-          const pend = await fetch('/api/portal/avaliacoes-pendentes?resumo=1', {
-            credentials: 'include',
-            cache: 'no-store',
-          })
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null);
-          const total = Number(pend?.total ?? 0);
-          const alertaSexta = pend?.meta?.alerta_critico_sexta === true;
-          const criticosSemAvaliacao = Number(pend?.resumo?.criticos_sem_avaliacao ?? 0);
-          if (!cancelado && pend?.ok && total > 0) {
-            lista.push({
-              id: 'pendentes-rede',
-              titulo: alertaSexta
-                ? `${criticosSemAvaliacao} crítico(s) — sexta sem avaliação`
-                : `${total} pendência${total === 1 ? '' : 's'} na rede`,
-              detalhe: alertaSexta
-                ? 'Colaborador(es) sem avaliação de líder e RH. Busque esclarecimentos com a liderança.'
-                : 'Avaliações da semana ainda não concluídas — quem falta e qual líder cobrar.',
-              href: alertaSexta ? '/portal/pendencias-semana?filtro=critico_sexta' : '/portal/pendencias-semana',
-              urgente: alertaSexta || pend.resumo?.criticos > 0,
-              hero: true,
-              acaoLabel: 'Clique para ver →',
-            });
-          }
-        }
-
-        if (isAdm && lista.filter((t) => t.id === 'pendentes-rede').length === 0) {
-          lista.push({
-            id: 'admin',
-            titulo: 'Painel Admin',
-            detalhe: 'Avaliações, avisos, colaboradores e relatórios.',
-            href: '/admin/dashboard',
-          });
+        const res = await fetch('/api/portal/home-resumo', { credentials: 'include', cache: 'no-store' });
+        const data = (await res.json()) as { ok?: boolean; tarefas?: Tarefa[] };
+        if (!cancelado && data.ok && Array.isArray(data.tarefas)) {
+          setTarefas(data.tarefas);
         }
       } catch {
-        if (!cancelado) {
-          const s = getPortalSession();
-          if (s?.colaboradorId && s.colaboradorId !== 'pending') {
-            const nr = normalizarRole(s.role);
-            if (nr === 'colaborador') {
-              lista.push({
-                id: 'desempenho',
-                titulo: 'Ver meu desempenho',
-                detalhe: 'Sua nota e destaques da unidade no mês.',
-                href: '/portal/desempenho',
-              });
-            }
-          }
-        }
+        /* fallback vazio */
       }
-
-      if (!cancelado) {
-        setTarefas(lista.slice(0, 6));
-        setFase('pronto');
-      }
+      if (!cancelado) setFase('pronto');
     };
-
     void montar();
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [usaExterno, tarefasExternas]);
 
   if (fase === 'loading') {
     return (
@@ -289,8 +85,8 @@ export function FacaAgoraHome() {
 
   return (
     <section aria-labelledby="titulo-faca-agora" className="space-y-4">
-      <div className="rounded-xl border border-portal-action/15 bg-gradient-to-r from-portal-actionLight/50 via-white/80 to-emerald-50/40 px-4 py-3 sm:bg-transparent sm:border-0 sm:p-0">
-        <h2 id="titulo-faca-agora" className="text-lg font-display font-semibold text-cafeteria-900">
+      <div className="rounded-xl border border-portal-action/25 bg-gradient-to-r from-portal-actionLight/60 via-white/90 to-emerald-50/50 px-4 py-3">
+        <h2 id="titulo-faca-agora" className="text-lg font-display font-semibold text-portal-action">
           Faça agora
         </h2>
         <p className="text-sm text-cafeteria-600 mt-1">O que precisa da sua atenção neste momento.</p>
