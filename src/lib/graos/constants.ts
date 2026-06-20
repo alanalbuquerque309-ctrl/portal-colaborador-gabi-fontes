@@ -1,3 +1,5 @@
+export const GRAOS_RESGATE_SAIR_CEDO_MEDIA_MIN = 4;
+
 /** Segunda-feira da 1ª semana com Grãos ativos (piloto operação). Anterior = sem crédito. */
 
 export const GRAOS_PRIMEIRA_SEMANA_INICIO = '2026-06-15';

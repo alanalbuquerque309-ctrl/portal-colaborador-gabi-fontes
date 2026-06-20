@@ -4,6 +4,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { GRAOS_CENTAVOS_POR_GRAO } from '@/lib/graos/constants';
 import { calcularSaldoGraos, debitarResgateGraos } from '@/lib/graos/movimentos';
+import {
+  avaliarElegibilidadeResgateSairCedo,
+  itemCatalogoEhSairCedo,
+} from '@/lib/graos/resgate-sair-cedo-elegibilidade';
 import { randomBytes } from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -57,12 +61,14 @@ export async function POST(req: Request) {
     const porId = Object.fromEntries((catalogo ?? []).map((c) => [String(c.id), c]));
     const itensResgate: Array<{ catalogo_id: string; nome: string; graos: number; qtd: number }> = [];
     let totalGraos = 0;
+    let pedeSairCedo = false;
 
     for (const linha of linhas) {
       const item = porId[linha.catalogo_id];
       if (!item || !item.ativo) {
         return NextResponse.json({ ok: false, erro: 'Item inválido ou indisponível.' }, { status: 400, headers: NO_STORE });
       }
+      if (itemCatalogoEhSairCedo(String(item.nome))) pedeSairCedo = true;
       const qtd = Math.min(10, Math.max(1, linha.quantidade ?? 1));
       const sub = Number(item.graos) * qtd;
       totalGraos += sub;
@@ -72,6 +78,16 @@ export async function POST(req: Request) {
         graos: Number(item.graos),
         qtd,
       });
+    }
+
+    if (pedeSairCedo) {
+      const elegSairCedo = await avaliarElegibilidadeResgateSairCedo(supabase, colaboradorId);
+      if (!elegSairCedo.elegivel) {
+        return NextResponse.json(
+          { ok: false, erro: elegSairCedo.motivo ?? 'Sair 1h mais cedo não disponível para seu desempenho neste mês.' },
+          { status: 403, headers: NO_STORE }
+        );
+      }
     }
 
     const saldo = await calcularSaldoGraos(supabase, colaboradorId);

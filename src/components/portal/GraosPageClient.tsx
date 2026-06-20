@@ -17,7 +17,22 @@ type Missao = {
   detalhe: string | null;
 };
 
-type CatalogoItem = { id: string; nome: string; graos: number };
+type CatalogoItem = {
+  id: string;
+  nome: string;
+  graos: number;
+  exige_desempenho_alto?: boolean;
+  bloqueado?: boolean;
+  motivo_bloqueio?: string | null;
+};
+
+type ResgateSairCedoInfo = {
+  elegivel: boolean;
+  media_mensal: number | null;
+  semanas_com_nota: number;
+  teve_nota_3_no_mes: boolean;
+  motivo: string | null;
+};
 
 type LinhaGestao = {
   colaborador_id: string;
@@ -63,6 +78,7 @@ type ResumoGraos = {
     lider?: NonNullable<ResumoGraos['quinta_treino']>;
   } | null;
   catalogo?: CatalogoItem[];
+  resgate_sair_cedo?: ResgateSairCedoInfo | null;
   extrato?: Array<{ descricao: string; graos: number; estado: string; created_at: string }>;
 };
 
@@ -101,6 +117,7 @@ export function GraosPageClient() {
   }, [carregar, colaboradorGestaoId]);
 
   const toggleItem = (item: CatalogoItem) => {
+    if (item.bloqueado) return;
     setCarrinho((prev) => {
       const ix = prev.findIndex((p) => p.catalogo_id === item.id);
       if (ix >= 0) return prev.filter((p) => p.catalogo_id !== item.id);
@@ -311,6 +328,35 @@ export function GraosPageClient() {
         </p>
       </header>
 
+      {data.resgate_sair_cedo && !modoVisualizacao && (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            data.resgate_sair_cedo.elegivel
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-950'
+              : 'border-cafeteria-200 bg-cream-50 text-cafeteria-800'
+          }`}
+        >
+          <p className="font-semibold text-cafeteria-900">Sair 1h mais cedo (privilégio)</p>
+          <p className="mt-1">
+            Média mensal ≥ 4,0 e nenhuma nota 3 no mês.
+            {data.resgate_sair_cedo.media_mensal != null && (
+              <>
+                {' '}
+                Sua média:{' '}
+                <strong>{data.resgate_sair_cedo.media_mensal.toFixed(2).replace('.', ',')}</strong>
+                {data.resgate_sair_cedo.semanas_com_nota > 0 && (
+                  <> ({data.resgate_sair_cedo.semanas_com_nota} semana{data.resgate_sair_cedo.semanas_com_nota === 1 ? '' : 's'})</>
+                )}
+                .
+              </>
+            )}
+          </p>
+          {!data.resgate_sair_cedo.elegivel && data.resgate_sair_cedo.motivo && (
+            <p className="mt-1 text-amber-900">{data.resgate_sair_cedo.motivo}</p>
+          )}
+        </div>
+      )}
+
       {data.elegibilidade &&
         !data.elegibilidade.elegivel &&
         data.elegibilidade.motivo &&
@@ -466,17 +512,35 @@ export function GraosPageClient() {
           <ul className="space-y-2">
             {(data.catalogo ?? []).map((item) => {
               const sel = carrinho.some((c) => c.catalogo_id === item.id);
+              const bloqueado = item.bloqueado === true;
               return (
                 <li key={item.id}>
                   <button
                     type="button"
+                    disabled={bloqueado}
                     onClick={() => toggleItem(item)}
-                    className={`w-full text-left rounded-xl border-2 px-4 py-3 flex justify-between items-center min-h-[52px] ${
-                      sel ? 'border-orange-400 bg-orange-50' : 'border-cafeteria-200 bg-white'
+                    className={`w-full text-left rounded-xl border-2 px-4 py-3 flex justify-between items-start gap-3 min-h-[52px] disabled:cursor-not-allowed disabled:opacity-60 ${
+                      bloqueado
+                        ? 'border-cafeteria-100 bg-cafeteria-50'
+                        : sel
+                          ? 'border-orange-400 bg-orange-50'
+                          : 'border-cafeteria-200 bg-white'
                     }`}
                   >
-                    <span className="text-cafeteria-900">{item.nome}</span>
-                    <span className="font-bold text-dourado-base">{item.graos}</span>
+                    <span className="min-w-0">
+                      <span className={`block ${bloqueado ? 'text-cafeteria-500' : 'text-cafeteria-900'}`}>
+                        {item.nome}
+                      </span>
+                      {bloqueado && item.motivo_bloqueio && (
+                        <span className="block text-xs text-amber-900 mt-1 leading-snug">{item.motivo_bloqueio}</span>
+                      )}
+                      {item.exige_desempenho_alto && !bloqueado && (
+                        <span className="block text-xs text-emerald-800 mt-1">Desempenho mensal liberado</span>
+                      )}
+                    </span>
+                    <span className={`font-bold shrink-0 ${bloqueado ? 'text-cafeteria-400' : 'text-dourado-base'}`}>
+                      {item.graos}
+                    </span>
                   </button>
                 </li>
               );

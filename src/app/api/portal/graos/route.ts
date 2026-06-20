@@ -9,6 +9,10 @@ import { obterResumoGraosColaborador } from '@/lib/graos/missoes';
 import { listarGraosGestao } from '@/lib/graos/gestao-lista';
 import { nivelGraosPorTotal } from '@/lib/graos/nivel';
 import { resolverQuintaTreino, resolverParTreinosQuinta } from '@/lib/graos/quinta-treino';
+import {
+  avaliarElegibilidadeResgateSairCedo,
+  enriquecerCatalogoResgateSairCedo,
+} from '@/lib/graos/resgate-sair-cedo-elegibilidade';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,6 +122,12 @@ export async function GET(req: Request) {
       .eq('ativo', true)
       .order('ordem', { ascending: true });
 
+    const elegSairCedo =
+      colaboradorOperacao && colaboradorId === viewerId
+        ? await avaliarElegibilidadeResgateSairCedo(supabase, colaboradorId)
+        : null;
+    const catalogoEnriquecido = enriquecerCatalogoResgateSairCedo(catalogo ?? [], elegSairCedo);
+
     let colaboradorNome: string | undefined;
     if (gestao && colaboradorId !== viewerId) {
       const { data: alvoNome } = await supabase
@@ -149,7 +159,8 @@ export async function GET(req: Request) {
         eh_quinta: ehQuinta,
         quinta_treino: quintaTreino,
         treinos_quinta: verTodosTreinos ? treinosQuinta ?? resolverParTreinosQuinta(origin) : null,
-        catalogo: catalogo ?? [],
+        catalogo: catalogoEnriquecido,
+        resgate_sair_cedo: elegSairCedo,
         extrato,
       },
       { headers: NO_STORE }
