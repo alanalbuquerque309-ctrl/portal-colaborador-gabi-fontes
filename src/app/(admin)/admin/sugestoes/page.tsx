@@ -232,7 +232,8 @@ export default function SugestoesPage() {
 
       {podeDestacarGraos && pendentesAnalise > 0 && (
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          <strong>{pendentesAnalise}</strong> sugestão{pendentesAnalise === 1 ? '' : 'ões'} aguardando análise.
+          <strong>{pendentesAnalise}</strong>{' '}
+          {pendentesAnalise === 1 ? 'sugestão aguardando' : 'sugestões aguardando'} análise.
           Marque como visto ou responda com a quantidade de Grãos adequada.
         </div>
       )}

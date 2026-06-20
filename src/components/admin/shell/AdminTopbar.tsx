@@ -47,7 +47,7 @@ export function AdminTopbar({ nivelLabel, pendenciasSemana = 0, sugestoesPendent
               href="/admin/sugestoes"
               className="inline-flex items-center gap-1.5 rounded-full bg-dourado-50 border border-dourado-200 px-3 py-1 text-xs font-semibold text-coffee-base hover:bg-dourado-100"
             >
-              {sugestoesPendentes} sugestão{sugestoesPendentes === 1 ? '' : 'ões'}
+              {sugestoesPendentes === 1 ? '1 sugestão' : `${sugestoesPendentes} sugestões`}
             </Link>
           )}
           <Link

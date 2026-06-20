@@ -6,6 +6,20 @@ import { podeEnviarReclamacaoPortal } from '@/lib/bonificacao-access';
 
 const TIPOS = ['sugestao', 'reclamacao', 'elogio'] as const;
 
+async function mapaNomesColaboradores(
+  supabase: ReturnType<typeof createAdminClient>,
+  ids: string[]
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unicos = Array.from(new Set(ids.filter(Boolean)));
+  if (unicos.length === 0) return map;
+  const { data } = await supabase.from('colaboradores').select('id, nome').in('id', unicos);
+  for (const c of data ?? []) {
+    map.set(String((c as { id: string }).id), String((c as { nome?: string }).nome ?? ''));
+  }
+  return map;
+}
+
 /** GET: Minhas mensagens + feed de sugestões da unidade (para curtir). */
 export async function GET() {
   const cookieStore = await cookies();
@@ -90,7 +104,7 @@ export async function GET() {
     if (unidadeId) {
       const { data: feedRaw, error: errFeed } = await supabase
         .from('sugestoes_reclamacoes')
-        .select('id, texto, created_at, curtidas, colaborador_id, anonimo, tipo, colaboradores(nome)')
+        .select('id, texto, created_at, curtidas, colaborador_id, anonimo, tipo')
         .eq('unidade_id', unidadeId)
         .in('tipo', ['sugestao', 'elogio'])
         .order('created_at', { ascending: false })
@@ -98,6 +112,10 @@ export async function GET() {
 
       if (!errFeed && feedRaw?.length) {
         const ids = feedRaw.map((r: { id: string }) => r.id);
+        const nomesFeed = await mapaNomesColaboradores(
+          supabase,
+          feedRaw.map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
+        );
         const { data: minhasCurtidas } = await supabase
           .from('sugestao_curtidas')
           .select('sugestao_id')
@@ -108,13 +126,14 @@ export async function GET() {
 
         feed = feedRaw.map((r: Record<string, unknown>) => {
           const tipoFeed = String(r.tipo ?? 'sugestao');
-          const nome = (r.colaboradores as { nome?: string } | null)?.nome;
+          const cid = r.colaborador_id ? String(r.colaborador_id) : '';
+          const nome = cid ? nomesFeed.get(cid) : undefined;
           return {
             id: String(r.id ?? ''),
             texto: String(r.texto ?? ''),
             created_at: String(r.created_at ?? ''),
             curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
-            autor: nome ?? 'Colega',
+            autor: nome?.trim() || 'Colega',
             curtiu: curtiuSet.has(String(r.id)),
             tipo: tipoFeed,
           };
@@ -124,16 +143,22 @@ export async function GET() {
       if (gestaoVeReclamacoes) {
         const { data: reclRaw } = await supabase
           .from('sugestoes_reclamacoes')
-          .select('id, texto, created_at, anonimo, colaboradores(nome)')
+          .select('id, texto, created_at, anonimo, colaborador_id')
           .eq('unidade_id', unidadeId)
           .eq('tipo', 'reclamacao')
           .order('created_at', { ascending: false })
           .limit(40);
 
+        const nomesRecl = await mapaNomesColaboradores(
+          supabase,
+          (reclRaw ?? []).map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
+        );
+
         feed_reclamacoes = (reclRaw ?? []).map((r: Record<string, unknown>) => {
           const anon = r.anonimo === true;
-          const nome = (r.colaboradores as { nome?: string } | null)?.nome;
-          const autor = anon ? 'Anônimo' : nome ?? '—';
+          const cid = r.colaborador_id ? String(r.colaborador_id) : '';
+          const nome = cid ? nomesRecl.get(cid) : undefined;
+          const autor = anon ? 'Anônimo' : nome?.trim() || '—';
           return {
             id: String(r.id ?? ''),
             texto: String(r.texto ?? ''),

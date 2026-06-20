@@ -24,7 +24,9 @@ function embedOne<T>(v: T | T[] | null | undefined): T | null {
 }
 
 function colunaAusente(msg: string): boolean {
-  return /does not exist|schema cache|graos_destaque|graos_resposta|visualizado_em|curtidas/i.test(msg);
+  return /does not exist|schema cache|graos_destaque|graos_resposta|visualizado_em|curtidas|could not embed|more than one relationship/i.test(
+    msg
+  );
 }
 
 type RowBase = {
@@ -68,12 +70,15 @@ async function enriquecerNomes(
   );
 
   const nomesColab = new Map<string, string>();
+  const setoresColab = new Map<string, string>();
   const nomesUnidade = new Map<string, string>();
 
   if (colabIds.length > 0) {
-    const { data } = await supabase.from('colaboradores').select('id, nome').in('id', colabIds);
+    const { data } = await supabase.from('colaboradores').select('id, nome, setor').in('id', colabIds);
     for (const c of data ?? []) {
-      nomesColab.set(String(c.id), String((c as { nome?: string }).nome ?? ''));
+      const row = c as { id: string; nome?: string; setor?: string | null };
+      nomesColab.set(String(row.id), String(row.nome ?? ''));
+      if (row.setor) setoresColab.set(String(row.id), String(row.setor));
     }
   }
 
@@ -102,7 +107,7 @@ async function enriquecerNomes(
         typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
       curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
       autor: nomeAutorAdmin(r, nomesColab),
-      autor_setor: col?.setor ? String(col.setor) : null,
+      autor_setor: col?.setor ? String(col.setor) : setoresColab.get(String(cid ?? '')) ?? null,
       colaborador_id: cid,
       unidade:
         (un?.nome ? String(un.nome) : null) ??
@@ -123,7 +128,6 @@ export async function listarSugestoesAdmin(
 ): Promise<{ itens: SugestaoAdminItem[]; aviso?: string }> {
   const limite = opts.limite ?? 100;
   const selects = [
-    'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, colaborador_id, unidade_id, colaboradores(nome, setor), unidades(nome)',
     'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, colaborador_id, unidade_id',
