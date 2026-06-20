@@ -69,14 +69,25 @@ export function podeEditarLiderancaMapaCompleto(
   return r === 'socio' || r === 'admin';
 }
 
-/** Sócios, admin (Daniel) e login por senha: editar CPF no cadastro de colaborador. */
-export function podeEditarCpfColaboradorAdmin(
+/**
+ * Admin (Daniel), RH (Keila), sócios e login por senha podem criar/editar/excluir cadastros.
+ * Gerentes/líderes ficam de fora — permissão por cargo, não por pessoa.
+ */
+export function podeEditarCadastroColaborador(
   role: string | null | undefined,
   senhaAdmin: boolean
 ): boolean {
   if (senhaAdmin) return true;
   const r = normalizePortalRole(role);
-  return r === 'socio' || r === 'admin';
+  return r === 'socio' || r === 'admin' || r === 'rh';
+}
+
+/** Admin (Daniel), RH (Keila), sócios e login por senha podem corrigir CPF. */
+export function podeEditarCpfColaboradorAdmin(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): boolean {
+  return podeEditarCadastroColaborador(role, senhaAdmin);
 }
 
 /** Sócios, admin (Daniel) e login por senha: detalhe item a item das notas no admin. */

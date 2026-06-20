@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isAdminAuthorized } from '@/lib/admin-auth';
+import { isAdminAuthorized, requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { isSetorValido, ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
@@ -84,11 +84,10 @@ export async function GET() {
   }
 }
 
-/** Cadastra colaborador. Apenas admins autenticados. */
+/** Cadastra colaborador. Apenas admin, RH e sócios. */
 export async function POST(req: Request) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const authPost = await requireAdminCadastroEditApi();
+  if (!authPost.ok) return authPost.response;
 
   let body: {
     nome?: string; cpf?: string; email?: string; telefone?: string;
@@ -180,8 +179,8 @@ export async function POST(req: Request) {
     if (!unidadeIdResolvido) {
       return NextResponse.json({ ok: false, erro: 'Unidade inválida' }, { status: 400 });
     }
-    // Sócios e admins: acesso total desde o primeiro login (sem onboarding obrigatório)
-    const acessoSemOnboarding = roleFinal === 'socio' || roleFinal === 'admin';
+    // Apenas sócios pulam o onboarding; todos os demais fazem vídeo + quizzes + manuais.
+    const acessoSemOnboarding = roleFinal === 'socio';
 
     const senhaPadraoHash = hashPassword(SENHA_PADRAO_INICIAL);
     const obrigaOnboarding = !acessoSemOnboarding;

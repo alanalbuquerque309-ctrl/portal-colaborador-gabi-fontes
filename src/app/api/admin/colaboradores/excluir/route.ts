@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminFullApi } from '@/lib/admin-auth';
+import { requireAdminCadastroEditApi } from '@/lib/admin-auth';
 
-/** Exclui colaborador. Apenas sócios e admins. */
+/** Exclui colaborador. Admin, RH e sócios. */
 export async function DELETE(req: Request) {
-  const auth = await requireAdminFullApi();
+  const auth = await requireAdminCadastroEditApi();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);

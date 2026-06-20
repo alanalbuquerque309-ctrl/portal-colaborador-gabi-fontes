@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { requireAdminFullApi } from '@/lib/admin-auth';
+import { requireAdminCadastroEditApi } from '@/lib/admin-auth';
 
 const ROLES = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
 
 /** Altera o role de um colaborador. Sócios recebem onboarding_completo=true. */
 export async function PATCH(req: Request) {
-  const auth = await requireAdminFullApi();
+  const auth = await requireAdminCadastroEditApi();
   if (!auth.ok) return auth.response;
 
   const { searchParams } = new URL(req.url);
@@ -23,7 +23,7 @@ export async function PATCH(req: Request) {
   try {
     const supabase = createAdminClient();
     const payload: Record<string, unknown> = { role };
-    if (role === 'socio' || role === 'admin') {
+    if (role === 'socio') {
       payload.onboarding_completo = true;
       payload.termo_aceite_em = new Date().toISOString();
     }

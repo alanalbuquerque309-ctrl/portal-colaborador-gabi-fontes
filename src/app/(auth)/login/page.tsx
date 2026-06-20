@@ -104,7 +104,6 @@ function LoginContent() {
 
   const handleTrocarSenhaObrigatoria = async (
     login: string,
-    senhaAtual: string,
     senhaNova: string,
     senhaConfirmacao: string,
     opts?: { manterLogado: boolean }
@@ -117,7 +116,6 @@ function LoginContent() {
         credentials: 'include',
         body: JSON.stringify({
           login,
-          senha_atual: senhaAtual,
           senha_nova: senhaNova,
           senha_confirmacao: senhaConfirmacao,
           manter_logado: opts?.manterLogado !== false,

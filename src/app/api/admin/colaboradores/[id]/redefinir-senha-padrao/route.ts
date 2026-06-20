@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isMasterPortalSession } from '@/lib/admin-auth';
+import { requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
 
 /**
- * Master redefine a senha do colaborador para a padrão (123456) e exige troca no próximo login.
+ * Admin, RH ou sócios redefinem a senha do colaborador para a padrão (123456) e exigem troca no próximo login.
  */
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
-  if (!(await isMasterPortalSession())) {
-    return NextResponse.json({ ok: false, erro: 'Apenas perfil master pode redefinir senha.' }, { status: 403 });
-  }
+  const auth = await requireAdminCadastroEditApi();
+  if (!auth.ok) return auth.response;
 
   const id = params.id;
   if (!id) {

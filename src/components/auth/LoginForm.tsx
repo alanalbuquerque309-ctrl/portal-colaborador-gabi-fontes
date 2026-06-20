@@ -16,10 +16,9 @@ interface LoginFormProps {
     senhaConfirmacao?: string,
     opts?: { manterLogado: boolean }
   ) => void;
-  /** Troca obrigatória após senha padrão 123456 */
+  /** Troca obrigatória após senha padrão 123456 — não exige senha atual */
   onTrocarSenhaObrigatoria?: (
     login: string,
-    senhaAtual: string,
     senhaNova: string,
     senhaConfirmacao: string,
     opts?: { manterLogado: boolean }
@@ -43,7 +42,6 @@ export function LoginForm({
   const [login, setLogin] = useState('');
   const [senha, setSenha] = useState('');
   const [senha2, setSenha2] = useState('');
-  const [senhaAtual, setSenhaAtual] = useState('');
   const [showSenha, setShowSenha] = useState(false);
   const [showSenha2, setShowSenha2] = useState(false);
   const [manterLogado, setManterLogado] = useState(true);
@@ -75,7 +73,7 @@ export function LoginForm({
     e.preventDefault();
     const opts = { manterLogado };
     if (trocarObrigatoria && onTrocarSenhaObrigatoria) {
-      onTrocarSenhaObrigatoria(loginBloqueado, senhaAtual, senha, senha2, opts);
+      onTrocarSenhaObrigatoria(loginBloqueado, senha, senha2, opts);
       return;
     }
     if (primeiraSenha) {
@@ -135,16 +133,6 @@ export function LoginForm({
 
         {trocarObrigatoria && (
           <>
-            <label className="block text-sm font-medium text-cafeteria-700">Senha atual</label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={senhaAtual}
-              onChange={(e) => setSenhaAtual(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="123456"
-              inputMode="numeric"
-              className="w-full rounded-lg border border-cafeteria-200 bg-cream-50 px-4 py-3 text-base text-cafeteria-800 placeholder:text-cafeteria-300 focus:border-cafeteria-500 focus:outline-none focus:ring-1 focus:ring-cafeteria-500 min-h-[44px] touch-manipulation"
-            />
             <label className="block text-sm font-medium text-cafeteria-700">Nova senha (6 números)</label>
             <input
               type={showSenha ? 'text' : 'password'}

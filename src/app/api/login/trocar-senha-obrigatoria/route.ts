@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { hashPassword, verifyPassword } from '@/lib/password';
+import { hashPassword } from '@/lib/password';
 import { buildPortalLoginJson } from '@/lib/portal-login-response';
 import { senhaNumerica6Valida } from '@/lib/senha-portal';
 import {
@@ -17,14 +17,14 @@ import {
 import { normalizePortalRole } from '@/lib/roles';
 
 /**
- * Troca senha quando `forca_troca_senha` ou senha atual é a padrão (123456).
+ * Troca senha quando `forca_troca_senha` está ativo (ex.: senha padrão 123456).
+ * Não exige confirmação da senha atual — quem chega aqui já foi autenticado e está em troca obrigatória.
  * Nova senha: exatamente 6 dígitos numéricos.
  */
 export async function POST(req: Request) {
   let body: {
     login?: string;
     telefone?: string;
-    senha_atual?: string;
     senha_nova?: string;
     senha_confirmacao?: string;
     manter_logado?: boolean;
@@ -36,15 +36,11 @@ export async function POST(req: Request) {
   }
 
   const loginInput = String(body.login ?? body.telefone ?? '').trim();
-  const senhaAtual = String(body.senha_atual ?? '').trim();
   const senhaNova = String(body.senha_nova ?? '').trim();
   const senha2 = String(body.senha_confirmacao ?? '').trim();
 
   if (!loginInput) {
     return NextResponse.json({ ok: false, erro: 'Informe celular ou e-mail.' }, { status: 400 });
-  }
-  if (!senhaAtual) {
-    return NextResponse.json({ ok: false, erro: 'Informe a senha atual.' }, { status: 400 });
   }
   if (!senhaNumerica6Valida(senhaNova)) {
     return NextResponse.json(
@@ -68,11 +64,6 @@ export async function POST(req: Request) {
     }
     if (!col) {
       return NextResponse.json({ ok: false, erro: 'Login não cadastrado.' }, { status: 404 });
-    }
-
-    const senhaHash = (col as { senha_hash?: string | null }).senha_hash;
-    if (!senhaHash || !verifyPassword(senhaAtual, senhaHash)) {
-      return NextResponse.json({ ok: false, erro: 'Senha atual incorreta.' }, { status: 401 });
     }
 
     const hash = hashPassword(senhaNova);

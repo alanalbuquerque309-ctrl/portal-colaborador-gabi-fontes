@@ -1,9 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalizePortalRole } from '@/lib/roles';
 
-/** Só colaborador de chão faz onboarding completo (vídeo, manuais, quiz). */
+/**
+ * Todos os cargos, exceto sócio, passam pelo onboarding (vídeo institucional, quizzes, manuais).
+ * Sócios têm acesso direto desde o primeiro login.
+ */
 export function roleExigeOnboarding(role: string | null | undefined): boolean {
-  return normalizePortalRole(role) === 'colaborador';
+  return normalizePortalRole(role) !== 'socio';
 }
 
 export const PAYLOAD_ONBOARDING_GESTAO_COMPLETO = {

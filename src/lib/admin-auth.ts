@@ -5,6 +5,7 @@ import {
   adminPathPermitidoRh,
   isRoleAdminCompleto,
   isRoleAdminRh,
+  podeEditarCadastroColaborador,
   podeEditarEscalasAdmin,
   podeEditarLiderancaMapaCompleto,
   resolveAdminNivel,
@@ -100,6 +101,35 @@ export async function requireAdminFullApi(): Promise<
 /** RH limitado só nas rotas permitidas (uso opcional em páginas). */
 export function rhPodeAcessarAdminPath(pathname: string): boolean {
   return adminPathPermitidoRh(pathname);
+}
+
+/**
+ * Criar, editar e excluir cadastros de colaboradores:
+ * admin (Daniel), RH (Keila), sócios e login por senha.
+ * Gerentes/líderes não têm acesso de escrita.
+ */
+export async function requireAdminCadastroEditApi(): Promise<
+  { ok: true; ctx: AdminViewerContext } | { ok: false; response: NextResponse }
+> {
+  const ctx = await getAdminViewerContext();
+  if (!ctx) {
+    return {
+      ok: false,
+      response: NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 }),
+    };
+  }
+  const senha = ctx.kind === 'password_session';
+  const role = ctx.kind === 'portal' ? ctx.role : null;
+  if (!podeEditarCadastroColaborador(role, senha)) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { ok: false, erro: 'Somente admin, RH ou sócios podem criar e editar cadastros.' },
+        { status: 403 }
+      ),
+    };
+  }
+  return { ok: true, ctx };
 }
 
 /** Editar escalas/folgas: sócios, admin, RH ou senha. */

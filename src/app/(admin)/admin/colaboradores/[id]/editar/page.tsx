@@ -90,6 +90,7 @@ export default function EditarColaboradorPage() {
   const [lideresIds, setLideresIds] = useState<string[]>([]);
   const [podeRedefinirSenhaPadrao, setPodeRedefinirSenhaPadrao] = useState(false);
   const [podeEditarCpf, setPodeEditarCpf] = useState(false);
+  const [podeEditarCadastro, setPodeEditarCadastro] = useState(false);
   const [redefinindoSenha, setRedefinindoSenha] = useState(false);
   const [msgRedefinir, setMsgRedefinir] = useState('');
 
@@ -104,8 +105,14 @@ export default function EditarColaboradorPage() {
   useEffect(() => {
     fetch('/api/admin/auth', { credentials: 'include' })
       .then((r) => r.json())
-      .then((d) => setPodeEditarCpf(d?.pode_editar_cpf === true))
-      .catch(() => setPodeEditarCpf(false));
+      .then((d) => {
+        setPodeEditarCpf(d?.pode_editar_cpf === true);
+        setPodeEditarCadastro(d?.pode_editar_cadastro === true);
+      })
+      .catch(() => {
+        setPodeEditarCpf(false);
+        setPodeEditarCadastro(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -572,13 +579,19 @@ export default function EditarColaboradorPage() {
         )}
 
         <div className="flex flex-wrap gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={enviando}
-            className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 font-medium hover:bg-dourado-400 transition-colors disabled:opacity-50"
-          >
-            {enviando ? 'Salvando…' : 'Salvar alterações'}
-          </button>
+          {podeEditarCadastro ? (
+            <button
+              type="submit"
+              disabled={enviando}
+              className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 font-medium hover:bg-dourado-400 transition-colors disabled:opacity-50"
+            >
+              {enviando ? 'Salvando…' : 'Salvar alterações'}
+            </button>
+          ) : (
+            <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Somente admin, RH ou sócios podem alterar o cadastro.
+            </p>
+          )}
           <Link
             href="/admin/colaboradores"
             replace

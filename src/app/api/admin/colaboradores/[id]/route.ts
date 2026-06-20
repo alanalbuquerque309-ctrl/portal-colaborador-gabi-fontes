@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getAdminViewerContext, isAdminAuthorized } from '@/lib/admin-auth';
+import { getAdminViewerContext, requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { podeEditarCpfColaboradorAdmin } from '@/lib/admin-access';
 import { isSetorValido } from '@/lib/constants/colaborador-org';
 import { validateCpf } from '@/lib/utils/cpf';
@@ -61,9 +61,8 @@ async function resolverUnidadeId(
 
 /** Detalhe de um colaborador para edição. */
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const authGet = await requireAdminCadastroEditApi();
+  if (!authGet.ok) return authGet.response;
   const id = params.id;
   if (!id) {
     return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });
@@ -103,9 +102,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
 /** Atualiza colaborador (incluindo função / admin). */
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  if (!(await isAdminAuthorized())) {
-    return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
-  }
+  const authPatch = await requireAdminCadastroEditApi();
+  if (!authPatch.ok) return authPatch.response;
   const id = params.id;
   if (!id) {
     return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });
@@ -261,7 +259,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         return NextResponse.json({ ok: false, erro: 'Função inválida' }, { status: 400 });
       }
       payload.role = role;
-      if (role === 'socio' || role === 'admin') {
+      if (role === 'socio') {
         payload.onboarding_completo = true;
         payload.termo_aceite_em = new Date().toISOString();
       }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 
@@ -24,6 +24,14 @@ export default function NovoColaboradorPage() {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
+  const [podeEditarCadastro, setPodeEditarCadastro] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/auth', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((d) => setPodeEditarCadastro(d?.pode_editar_cadastro === true))
+      .catch(() => setPodeEditarCadastro(false));
+  }, []);
   const [form, setForm] = useState({
     nome: '',
     cpf: '',
@@ -273,13 +281,19 @@ export default function NovoColaboradorPage() {
         </div>
         {erro && <p className="text-red-600 text-sm">{erro}</p>}
         <div className="flex gap-3">
-          <button
-            type="submit"
-            disabled={enviando}
-            className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 font-medium hover:bg-dourado-400 transition-colors disabled:opacity-50"
-          >
-            {enviando ? 'Cadastrando…' : 'Cadastrar'}
-          </button>
+          {podeEditarCadastro === false ? (
+            <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Somente admin, RH ou sócios podem cadastrar colaboradores.
+            </p>
+          ) : (
+            <button
+              type="submit"
+              disabled={enviando || podeEditarCadastro === null}
+              className="rounded-lg bg-dourado-base px-4 py-2 text-cream-100 font-medium hover:bg-dourado-400 transition-colors disabled:opacity-50"
+            >
+              {enviando ? 'Cadastrando…' : 'Cadastrar'}
+            </button>
+          )}
           <a
             href="/admin/colaboradores"
             className="rounded-lg border border-cream-300 px-4 py-2 text-coffee-base font-medium hover:bg-cream-100 transition-colors"
