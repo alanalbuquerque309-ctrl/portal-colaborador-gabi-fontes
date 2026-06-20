@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
+import { aguardandoAnaliseAdmin } from '@/lib/sugestoes-pendentes';
 import {
   OPCOES_RESPOSTA_SUGESTAO,
   rotuloRespostaAdmin,
@@ -40,7 +41,7 @@ function classesCard(tipo: string): string {
 export default function SugestoesPage() {
   const [itens, setItens] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtro, setFiltro] = useState<string>('');
+  const [filtro, setFiltro] = useState<string>('aguardando');
   const [marcando, setMarcando] = useState<string | null>(null);
   const [respondendo, setRespondendo] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState<string | null>(null);
@@ -79,7 +80,8 @@ export default function SugestoesPage() {
     setLoading(true);
     setErroLista(null);
     setAvisoDb(null);
-    const params = filtro ? `?tipo=${filtro}` : '';
+    const params =
+      filtro && filtro !== 'aguardando' ? `?tipo=${encodeURIComponent(filtro)}` : '';
     fetch(`/api/admin/sugestoes${params}`, { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((data: { ok?: boolean; itens?: Item[]; erro?: string; aviso?: string; pode_destacar_graos?: boolean }) => {
@@ -107,6 +109,13 @@ export default function SugestoesPage() {
   useEffect(() => {
     carregar();
   }, [filtro]);
+
+  const itensExibidos = useMemo(() => {
+    if (filtro !== 'aguardando') return itens;
+    return itens.filter((i) =>
+      aguardandoAnaliseAdmin(i, { respostaComGraos: podeDestacarGraos })
+    );
+  }, [itens, filtro, podeDestacarGraos]);
 
   const marcarVisto = async (id: string) => {
     setMarcando(id);
@@ -223,6 +232,7 @@ export default function SugestoesPage() {
           onChange={(e) => setFiltro(e.target.value)}
           className="rounded-lg border border-cream-300 px-3 py-2 text-sm w-full sm:w-auto"
         >
+          <option value="aguardando">Aguardando análise</option>
           <option value="">{podeReclamacoes ? 'Todos' : 'Sugestões e elogios'}</option>
           <option value="sugestao">Sugestões</option>
           <option value="elogio">Elogios</option>
@@ -233,8 +243,8 @@ export default function SugestoesPage() {
       {podeDestacarGraos && pendentesAnalise > 0 && (
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <strong>{pendentesAnalise}</strong>{' '}
-          {pendentesAnalise === 1 ? 'sugestão aguardando' : 'sugestões aguardando'} análise.
-          Marque como visto ou responda com a quantidade de Grãos adequada.
+          {pendentesAnalise === 1 ? 'mensagem aguardando' : 'mensagens aguardando'} análise.
+          Responda sugestões com Grãos ou marque elogios/reclamações como visto.
         </div>
       )}
 
@@ -254,13 +264,17 @@ export default function SugestoesPage() {
         <div className="flex justify-center py-8">
           <XicaraCarregando size="md" label="Carregando…" />
         </div>
-      ) : itens.length === 0 ? (
+      ) : itensExibidos.length === 0 ? (
         <div className="rounded-xl border border-cream-300 bg-cream-50 p-8">
-          <p className="text-coffee-base">Nenhuma mensagem registrada.</p>
+          <p className="text-coffee-base">
+            {filtro === 'aguardando'
+              ? 'Nenhuma mensagem aguardando análise.'
+              : 'Nenhuma mensagem registrada.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {itens.map((i) => (
+          {itensExibidos.map((i) => (
             <div
               key={i.id}
               className={`rounded-xl border p-4 ${classesCard(i.tipo)}`}
