@@ -6,14 +6,14 @@ const CRIT =
   'id, colaborador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas';
 
 const SELECTS_LEITURA: string[] = [
-  `${CRIT}, media_dia, justificativa_nota_baixa`,
-  `${CRIT}, media_dia`,
+  `${CRIT}, nota_proatividade, media_dia, justificativa_nota_baixa, edicao_utilizada`,
+  `${CRIT}, nota_proatividade, media_dia, edicao_utilizada`,
   `${CRIT}, nota_proatividade, media_dia, justificativa_nota_baixa`,
   `${CRIT}, nota_proatividade, media_dia`,
   `${CRIT}, media_dia, justificativa_nota_baixa, edicao_utilizada`,
   `${CRIT}, media_dia, edicao_utilizada`,
-  `${CRIT}, nota_proatividade, media_dia, justificativa_nota_baixa, edicao_utilizada`,
-  `${CRIT}, nota_proatividade, media_dia, edicao_utilizada`,
+  `${CRIT}, media_dia, justificativa_nota_baixa`,
+  `${CRIT}, media_dia`,
 ];
 
 export const SELECT_AVALIACAO_META =
@@ -35,12 +35,12 @@ export const SELECT_AVALIACAO_ADMIN_DETALHE_SEM_IGNORAR = `${SELECT_AVALIACAO_ME
 export const SELECT_AVALIACAO_ADMIN_DETALHE_FULL_SEM_IGNORAR =
   `${SELECT_AVALIACAO_ADMIN_DETALHE_SEM_IGNORAR}, nota_proatividade`;
 
-const SELECTS_RELATORIO = [SELECT_AVALIACAO_RELATORIO_SEM_PROAT, SELECT_AVALIACAO_RELATORIO_COM_PROAT];
+const SELECTS_RELATORIO = [SELECT_AVALIACAO_RELATORIO_COM_PROAT, SELECT_AVALIACAO_RELATORIO_SEM_PROAT];
 const SELECTS_ADMIN_DETALHE = [
-  SELECT_AVALIACAO_ADMIN_DETALHE,
   SELECT_AVALIACAO_ADMIN_DETALHE_FULL,
-  SELECT_AVALIACAO_ADMIN_DETALHE_SEM_IGNORAR,
   SELECT_AVALIACAO_ADMIN_DETALHE_FULL_SEM_IGNORAR,
+  SELECT_AVALIACAO_ADMIN_DETALHE,
+  SELECT_AVALIACAO_ADMIN_DETALHE_SEM_IGNORAR,
 ];
 const SELECTS_ADMIN_RESUMO = [SELECT_AVALIACAO_ADMIN_RESUMO, SELECT_AVALIACAO_META_SEM_IGNORAR];
 
@@ -206,14 +206,18 @@ function stripColunasAusentesInsert(
 export async function insertAvaliacaoDiariaCompat(
   supabase: SupabaseAdmin,
   row: Record<string, unknown>
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; proatividade_omitida?: boolean }> {
   let payload: Record<string, unknown> = { ...row };
+  let proatividadeOmitida = false;
   for (let i = 0; i < 6; i++) {
     const { error } = await supabase.from('avaliacoes_diarias').insert(payload);
-    if (!error) return { error: null };
+    if (!error) return { error: null, proatividade_omitida: proatividadeOmitida };
     if (!erroColunaAusente(error.message)) return { error: error.message };
     const stripped = stripColunasAusentesInsert(payload, error.message);
     if (!stripped) return { error: error.message };
+    if (faltaColunaProatividade(error.message) && payload.nota_proatividade != null) {
+      proatividadeOmitida = true;
+    }
     payload = stripped;
   }
   return { error: 'Não foi possível gravar a avaliação (schema desatualizado).' };
@@ -223,14 +227,18 @@ export async function updateAvaliacaoDiariaCompat(
   supabase: SupabaseAdmin,
   id: string,
   row: Record<string, unknown>
-): Promise<{ error: string | null }> {
+): Promise<{ error: string | null; proatividade_omitida?: boolean }> {
   let payload: Record<string, unknown> = { ...row, edicao_utilizada: true, updated_at: new Date().toISOString() };
+  let proatividadeOmitida = false;
   for (let i = 0; i < 6; i++) {
     const { error } = await supabase.from('avaliacoes_diarias').update(payload).eq('id', id);
-    if (!error) return { error: null };
+    if (!error) return { error: null, proatividade_omitida: proatividadeOmitida };
     if (!erroColunaAusente(error.message)) return { error: error.message };
     const stripped = stripColunasAusentesInsert(payload, error.message);
     if (!stripped) return { error: error.message };
+    if (faltaColunaProatividade(error.message) && payload.nota_proatividade != null) {
+      proatividadeOmitida = true;
+    }
     payload = stripped;
   }
   return { error: 'Não foi possível atualizar a avaliação (schema desatualizado).' };

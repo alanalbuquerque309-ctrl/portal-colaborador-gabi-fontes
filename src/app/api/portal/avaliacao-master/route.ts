@@ -146,10 +146,20 @@ export async function POST(req: Request) {
     }
 
     const row = { ...validado.row, avaliador_id: colaboradorId };
-    const { error: insErr } = await insertAvaliacaoDiariaCompat(supabase, row);
+    const { error: insErr, proatividade_omitida } = await insertAvaliacaoDiariaCompat(supabase, row);
 
     if (insErr) {
       return NextResponse.json({ ok: false, erro: insErr }, { status: 500 });
+    }
+    if (proatividade_omitida) {
+      return NextResponse.json(
+        {
+          ok: false,
+          erro:
+            'Coluna nota_proatividade ausente no banco. Aplique a migration 039 no Supabase (SQL Editor: APLIQUE_038_039_SQL_EDITOR.sql).',
+        },
+        { status: 503 }
+      );
     }
 
     const { reprocessarGraosAposAvaliacaoEquipe } = await import('@/lib/graos/sync-hook');
@@ -248,9 +258,23 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const { error: updErr } = await updateAvaliacaoDiariaCompat(supabase, avaliacaoId, validado.row);
+    const { error: updErr, proatividade_omitida } = await updateAvaliacaoDiariaCompat(
+      supabase,
+      avaliacaoId,
+      validado.row
+    );
     if (updErr) {
       return NextResponse.json({ ok: false, erro: updErr }, { status: 500 });
+    }
+    if (proatividade_omitida) {
+      return NextResponse.json(
+        {
+          ok: false,
+          erro:
+            'Coluna nota_proatividade ausente no banco. Aplique a migration 039 no Supabase (SQL Editor: APLIQUE_038_039_SQL_EDITOR.sql).',
+        },
+        { status: 503 }
+      );
     }
 
     const { reprocessarGraosAposAvaliacaoEquipe } = await import('@/lib/graos/sync-hook');

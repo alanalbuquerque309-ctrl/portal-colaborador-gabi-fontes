@@ -25,6 +25,7 @@ export const LIDER_TRANSVERSAL_CD_NOME = 'Daniel Martins';
 const LIDERES_MESQUITA = ['Joyce', 'Silvia'];
 const LIDERES_BARRA = ['Lucas Diniz', 'Matheus Morais'];
 const LIDERES_NOVA_IGUACU = [
+  'Vanessa',
   'Nathalia Pereira Luna',
   'Nathalia',
   'Nathália',

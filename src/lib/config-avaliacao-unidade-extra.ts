@@ -9,10 +9,5 @@ export type RegraUnidadeExtraTemporaria = {
   motivo?: string;
 };
 
-export const REGRAS_UNIDADE_EXTRA_TEMPORARIA: RegraUnidadeExtraTemporaria[] = [
-  {
-    lideres_nomes: ['Joyce'],
-    unidade_slug: 'nova-iguacu',
-    motivo: 'Cobertura temporária Nova Iguaçu (Alan, jun/2026)',
-  },
-];
+/** Coberturas temporárias — vazio desde jun/2026 (Nova Iguaçu com Vanessa + Nathalia). */
+export const REGRAS_UNIDADE_EXTRA_TEMPORARIA: RegraUnidadeExtraTemporaria[] = [];
