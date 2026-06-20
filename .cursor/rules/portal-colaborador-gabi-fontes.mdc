@@ -302,26 +302,26 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 | **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato **só** em `reclamacao` |
 | **`047_sugestao_resposta_graos.sql`** | Coluna `graos_resposta_bonus` (0 \| 3 \| 5 \| 9) |
 
-- SQL pronto editor: `supabase/APLIQUE_045_SUGESTAO_GRAOS_SQL_EDITOR.sql`.
+- SQL pronto editor: `supabase/APLIQUE_045_047_SUGESTOES_SQL_EDITOR.sql` (completo) ou **blocos menores** (evita diálogo RLS no Supabase): `supabase/PARTE1_SO_COLUNAS.sql`, `supabase/PARTE2_TIPO_ELOGIO.sql` — **só `ALTER TABLE`**, sem `CREATE TABLE`.
 
 ## Comunicação (sugestões, reclamações e suporte)
 
 **Foco mobile:** colaborador acessa tudo pelo item **Comunicação** na barra inferior (`Header.tsx`).
 
-### Hub `/portal/comunicacao` (jun/2026, `f72c779`)
+### Hub `/portal/comunicacao` (jun/2026, `f72c779`; shell `e088bb9`)
 
-Página única que agrupa os canais de feedback e contato:
+Página única que agrupa os canais de feedback e contato. **Layout (jun/2026):** `PortalPageHeader` + grid `PortalActionCard` + `PortalSection` com chat (ver **Portal Shell**).
 
 | Bloco | Quem vê | Destino / comportamento |
 |-------|---------|-------------------------|
-| **Sugestões e reclamações** | Todos logados | Link → `/portal/sugestoes` (formulário existente) |
-| **Analisar sugestões da equipe** | **Sócio / admin** (`podeVerBonificacaoInterna`) | Link → `/admin/sugestoes`; badge **N aguardando** |
-| **Inbox ajuda** | Só quem passa em `canVisualizarAjuda` (**sócio**, **admin**, responsável dedicado por UUID; **RH** só se **não** houver UUID dedicado) | Link → `/portal/ajuda-inbox`; badge com pendentes no card e no menu |
-| **Falar com suporte (ADM/RH)** | Todos (envio); sócios/admin veem atalhos de gestão acima | Chat embutido na própria página |
+| **Sugestões e reclamações** | Todos logados | `PortalActionCard` → `/portal/sugestoes` |
+| **Analisar sugestões da equipe** | **Sócio / admin** (`podeVerBonificacaoInterna`) | `PortalActionCard` tom âmbar → `/admin/sugestoes`; badge **N aguardando** |
+| **Inbox ajuda** | Só quem passa em `canVisualizarAjuda` (**sócio**, **admin**, responsável dedicado por UUID; **RH** só se **não** houver UUID dedicado) | `PortalActionCard` → `/portal/ajuda-inbox`; badge com pendentes no card e no menu |
+| **Falar com suporte (ADM/RH)** | Todos (envio) | `PortalSection` + `CanalAjudaPainel` embutido (`variant="embedded"`) |
 
 - **Badge sugestões (jun/2026):** contagem de sugestões **não vistas** (`tipo = sugestao` + `visualizado_em IS NULL`); âmbar no menu **Comunicação** e link **Admin** (`Header.tsx`, sidebar admin); poll ~15s + evento `SUGESTOES_ATUALIZADO` (`sugestoes-events.ts`); API `GET /api/admin/sugestoes/pendentes` — só sócio/admin/senha admin.
 
-- **Componentes:** `src/app/(portal)/portal/comunicacao/page.tsx`; painel reutilizável `src/components/ajuda/CanalAjudaPainel.tsx`.
+- **Componentes:** `src/app/(portal)/portal/comunicacao/page.tsx`; `src/components/portal/shell/*`; painel reutilizável `src/components/ajuda/CanalAjudaPainel.tsx`.
 - **Botão flutuante «Preciso de ajuda»:** `BotaoAjuda.tsx` — **só desktop** (`hidden md:flex`); no celular o canal fica em **Comunicação** (evita duplicar FAB sobre a barra inferior). **Alerta pendentes (jun/2026):** para Daniel/sócios/admin autorizados, FAB pulsa em vermelho com badge de contagem (`GET /api/admin/ajuda-chat?somente_pendentes=1`).
 - **Desktop (header):** link único **Comunicação** substitui «Sugestões» e «Inbox ajuda» separados; sub-rotas (`/portal/sugestoes`, `/portal/ajuda-inbox`) mantêm item **Comunicação** ativo no menu (`navAtivo` em `Header.tsx`). **Mobile/desktop:** ícone Comunicação com badge vermelho (ajuda) e/ou **âmbar (sugestões pendentes)** quando aplicável.
 
@@ -378,7 +378,9 @@ Página única que agrupa os canais de feedback e contato:
 | Onde | O quê | Componente / API |
 |------|--------|-------------------|
 | **Home** — bloco *Reconhecimentos* | Semanal **ou** mensal (tabs); chips **Geral**, Mesquita, Barra, N. Iguaçu, Fábrica, ADM; **pódio** top 3 avaliação + **pódio** top 3 troféus | `DestaqueSection.tsx` → `DestaquesHome.tsx`, `PodioTop3.tsx`, `PodioTop3Trofeus.tsx`, `destaques-home-unidades.ts`; APIs `reconhecimento-semanal` + `destaque` |
-| **Mural** (`/portal/mural`) | Rankings **mensais cumulativos** (rede + por unidade); avisos da unidade | `MuralRankingsMensais.tsx`, `MuralUnidade.tsx`, `mural-ranking-unidade.ts` |
+| **Mural** (`/portal/mural`) | Rankings **mensais cumulativos** (rede + por unidade); Líder Inspirador; aniversariantes compactos; avisos da unidade — **4 `PortalSection`** (`e088bb9`) | `mural/page.tsx`, `MuralRankingsMensais.tsx`, `MuralUnidade.tsx`, `AniversariantesReconhecimento.tsx`, `mural-ranking-unidade.ts` |
+| **Aniversariantes** (`/portal/aniversariantes`) | Grid + spotlight «hoje»; página dedicada (`variant="full"`) | `aniversariantes/page.tsx`, `AniversarianteCard.tsx` |
+| **Treinamento** (`/portal/treinamento`) | Barra de progresso; um `PortalSection` por vídeo/material | `treinamento/page.tsx`, `QuintaTreinoEmbed.tsx` |
 
 - **Mobile reconhecimentos:** chips de unidade com `labelCurto` (ex.: ADM, N. Iguaçu); link **Ver ranking completo no mural**.
 - **Mobile mural/ranking:** nomes com `break-words` (sem `truncate`); fontes um degrau maiores; menu inferior enxuto (`Header.tsx`).
@@ -399,6 +401,42 @@ Página única que agrupa os canais de feedback e contato:
 | **`PortalBalaoCard`** | Cards com gradiente (`tom`: creme, verde, dourado, branco); prop `ramoCanto` legado **ignorada**. |
 
 **Princípio:** vida visual no telefone via **CSS leve** + cards com contraste; fotos decorativas de canto **não** voltam sem pedido explícito do Alan.
+
+## Portal Shell — UI de páginas internas (jun/2026, `e088bb9`)
+
+**Objetivo:** alinhar páginas secundárias do portal à **gramática visual da Admin** (cards brancos, hierarquia clara, largura consistente), sem alterar APIs nem regras de negócio.
+
+### Kit reutilizável (`src/components/portal/shell/`)
+
+| Componente | Uso |
+|------------|-----|
+| **`PortalPageHeader`** | Título `font-display`, descrição, breadcrumb (`Portal` → …), link **← Voltar**, slot opcional de ilustração (`PortalIlustracao`) |
+| **`PortalSection`** | Invólucro `rounded-2xl border border-cafeteria-200/90 bg-white shadow-sm p-5 md:p-6` — espelho leve de `AdminSection` |
+| **`PortalActionCard`** | Tile de atalho (ícone, título, descrição, CTA, badge de pendência); tons `dourado` \| `ambar` \| `neutro` \| `verde` |
+| **`PortalEmptyState`** | Mensagem vazia padronizada dentro de seções |
+
+**Regras ao criar ou tocar páginas internas:**
+
+- **Largura:** confiar no `PortalLayout` (`max-w-6xl`); **não** usar `max-w-2xl` interno (Treino e Aniversariantes ficavam «apertados»).
+- **Header:** preferir `PortalPageHeader` em vez de hero gradiente ad hoc por página.
+- **Conteúdo:** agrupar blocos em `PortalSection`; atalhos grandes em `PortalActionCard`.
+- **Próximos candidatos** (ainda sem shell): `/portal/sugestoes`, `/portal/graos` — aplicar o mesmo kit quando repaginar.
+
+### Páginas já repaginadas (`e088bb9`)
+
+| Rota | Estrutura |
+|------|-----------|
+| **`/portal/mural`** | `PortalPageHeader` + 4 `PortalSection`: Líder Inspirador · Destaques do mês (`MuralRankingsMensais`) · Aniversariantes (`variant="compact"`) · Avisos (`MuralUnidade`). Aniversariantes **removidos** de dentro de `MuralRankingsMensais` (evita duplicar). |
+| **`/portal/aniversariantes`** | `PortalPageHeader` (voltar ao mural) + `PortalSection` + `AniversariantesReconhecimento` **`variant="full"`** |
+| **`/portal/comunicacao`** | `PortalPageHeader` + **grid 2 colunas** de `PortalActionCard` (Sugestões; Gestão sugestões só sócio/admin; Inbox ajuda só `canVisualizarAjuda`) + `PortalSection` «Falar com suporte» com `CanalAjudaPainel` embutido |
+| **`/portal/treinamento`** | `PortalPageHeader` + **barra de progresso** (X de Y concluídos) + cada item em `PortalSection` com chip de status (Pendente / Visualizado / Concluído) + `PortalActionCard` → manuais |
+
+### Aniversariantes — cards e spotlight (`AniversarianteCard.tsx`)
+
+- **`AniversariantesReconhecimento`:** prop `variant`: `compact` (mural: grid até 6 + link «Ver página completa») \| `full` (página dedicada).
+- **Spotlight:** quem faz aniversário **hoje** (`aniversarioNoDia` em `data-civil-br.ts`) → card destaque grande no topo.
+- **Grid:** 2 colunas mobile, 3–4 desktop; dia do mês em destaque tipográfico; foto circular ou inicial.
+- **Aviso conflito admissão/nascimento:** faixa âmbar quando `possivel_conflito_admissao` (RH corrigir no Admin).
 
 ## Home do portal (contrato UX — jun/2026)
 
@@ -542,11 +580,21 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato só em reclamação |
 | **`047_sugestao_resposta_graos.sql`** | Resposta gestão com Grãos 0/3/5/9 |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`** (elogio, resposta 0/3/5/9, +1 envio). **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`** (reverte PNGs `0df77c7`).
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`** (elogio, resposta 0/3/5/9, +1 envio). **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`** (reverte PNGs `0df77c7`). **Portal Shell (Mural, Aniversariantes, Comunicação, Treino):** **`e088bb9`**. **Admin sugestões + Líder Inspirador + fix comunicados (lote anterior):** **`3590904`**.
 
 ---
 
 ## Evoluções entregues (registro — 2026)
+
+### Portal Shell — Mural, Aniversariantes, Comunicação, Treino (jun/2026, `e088bb9`)
+
+- **Kit:** `PortalPageHeader`, `PortalSection`, `PortalActionCard`, `PortalEmptyState` em `src/components/portal/shell/`.
+- **Mural:** quatro seções brancas (Líder Inspirador, Destaques, Aniversariantes, Avisos); rankings sem bloco duplicado de aniversariantes.
+- **Aniversariantes:** página dedicada com grid + spotlight «hoje» (`AniversarianteCard.tsx`, `variant` compact/full).
+- **Comunicação:** hub em grid de atalhos + chat ADM/RH dentro de `PortalSection`.
+- **Treinamento:** barra de progresso + card por treino com chips Pendente/Visualizado/Concluído; link manuais em `PortalActionCard`.
+- **SQL Supabase (auxiliar):** `PARTE1_SO_COLUNAS.sql` / `PARTE2_TIPO_ELOGIO.sql` — migrations 045–047 em blocos sem `CREATE TABLE` (evita prompt RLS no editor).
+- **Pendente visual:** `/portal/sugestoes` e `/portal/graos` ainda fora do shell.
 
 ### Ambiente visual mobile — CSS, sem PNGs de canto (jun/2026, `72cc877`)
 
@@ -820,6 +868,8 @@ src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts
 src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, mural-unidade-grupo.ts, manual-por-setor.ts
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
+src/components/portal/shell/PortalPageHeader.tsx, PortalSection.tsx, PortalActionCard.tsx, PortalEmptyState.tsx
+src/components/mural/AniversarianteCard.tsx
 src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
 src/lib/ajuda-chat-threads.ts
 src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/, graos/
@@ -862,7 +912,7 @@ src/components/admin/AdminAvaliacoesEquipeAgrupado.tsx, AdminAvaliacaoIgnorarAca
 src/app/api/admin/avaliacoes-diarias/ignorar/
 src/lib/portal-login-response.ts, onboarding-reabrir.ts, mural-unidade-grupo.ts
 src/lib/video-boas-vindas.ts, config-lideranca-operacional.ts
-src/app/(portal)/portal/page.tsx, comunicacao/, avaliacao-master/, avaliacao-rh-visita/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
+src/app/(portal)/portal/page.tsx, mural/, aniversariantes/, comunicacao/, treinamento/, avaliacao-master/, avaliacao-rh-visita/, avaliacao-lideranca/, escala/, manuais/, meu-manual/, manual/, video-boas-vindas/
 src/app/(auth)/login/page.tsx
 src/app/api/portal/sugestoes/, ajuda-chat/
 src/app/api/admin/auth/, lideres-por-setor/, escalas/, colaboradores-para-escala/
@@ -877,4 +927,5 @@ scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
 scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs
 scripts/aplicar-migrations-038-039.mjs, aplicar-migration-040.mjs, ignorar-avaliacoes-vinculo-incorreto.mjs
 APLIQUE_040_SQL_EDITOR.sql
+supabase/APLIQUE_045_047_SUGESTOES_SQL_EDITOR.sql, PARTE1_SO_COLUNAS.sql, PARTE2_TIPO_ELOGIO.sql
 ```
