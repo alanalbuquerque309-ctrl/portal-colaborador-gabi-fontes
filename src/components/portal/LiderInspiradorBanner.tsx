@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { LiderInspiradorVencedor } from '@/lib/portal-home-types';
 
-export function LiderInspiradorBanner() {
+type Props = {
+  /** Dentro da secção Reconhecimentos — visual mais compacto, sem link para o mural. */
+  embedded?: boolean;
+};
+
+export function LiderInspiradorBanner({ embedded = false }: Props) {
   const [vencedor, setVencedor] = useState<LiderInspiradorVencedor | null>(null);
   const [semanaRotulo, setSemanaRotulo] = useState('');
   const [loading, setLoading] = useState(true);
@@ -39,7 +44,11 @@ export function LiderInspiradorBanner() {
   return (
     <section
       aria-labelledby="lider-inspirador-titulo"
-      className="rounded-2xl border-2 border-emerald-300/70 bg-gradient-to-br from-emerald-50 via-white to-dourado-50/40 p-5 sm:p-6 shadow-md"
+      className={
+        embedded
+          ? 'rounded-xl border border-emerald-200/80 bg-white/95 p-4 sm:p-5 mb-4 shadow-sm'
+          : 'rounded-2xl border-2 border-emerald-300/70 bg-gradient-to-br from-emerald-50 via-white to-dourado-50/40 p-5 sm:p-6 shadow-md'
+      }
     >
       <div className="flex flex-col sm:flex-row sm:items-start gap-4">
         <div className="flex items-center gap-3 shrink-0">
@@ -90,12 +99,14 @@ export function LiderInspiradorBanner() {
             Liderança é formar pessoas melhores que nós. Quando a equipe cresce, todos crescem.
           </p>
 
-          <Link
-            href="/portal/mural"
-            className="inline-block mt-3 text-sm font-medium text-emerald-800 hover:underline"
-          >
-            Ver mural →
-          </Link>
+          {!embedded ? (
+            <Link
+              href="/portal/mural"
+              className="inline-block mt-3 text-sm font-medium text-emerald-800 hover:underline"
+            >
+              Ver mural →
+            </Link>
+          ) : null}
         </div>
 
         <span className="hidden sm:block text-4xl shrink-0 opacity-90" aria-hidden>

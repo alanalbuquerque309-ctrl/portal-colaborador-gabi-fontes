@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { DestaquesHome } from '@/components/destaque/DestaquesHome';
+import { LiderInspiradorBanner } from '@/components/portal/LiderInspiradorBanner';
 
 /** Resumo na home: ranking semanal (top 3) + mensal compacto. */
 export function DestaqueSection() {
@@ -49,6 +50,7 @@ export function DestaqueSection() {
           </button>
         </div>
       </div>
+      <LiderInspiradorBanner embedded />
       <DestaquesHome aba={aba} />
     </section>
   );

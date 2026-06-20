@@ -38,7 +38,6 @@ export async function montarPendenciasPortalHome(
 ): Promise<PortalHomeTarefa[]> {
   const lista: PortalHomeTarefa[] = [];
   const nr = normalizePortalRole(ctx.role);
-  const isAdm = nr === 'admin' || nr === 'socio';
   const podeEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, ctx.colaboradorId, ctx.role);
   const isColaborador = nr === 'colaborador';
   const lembreteLider = lembreteAvaliacaoSemanaPassada();
@@ -277,15 +276,6 @@ export async function montarPendenciasPortalHome(
     } catch {
       /* pendências opcionais */
     }
-  }
-
-  if (isAdm && lista.filter((t) => t.id === 'pendentes-rede').length === 0) {
-    lista.push({
-      id: 'admin',
-      titulo: 'Painel Admin',
-      detalhe: 'Avaliações, avisos, colaboradores e relatórios.',
-      href: '/admin/dashboard',
-    });
   }
 
   return lista.slice(0, 6);

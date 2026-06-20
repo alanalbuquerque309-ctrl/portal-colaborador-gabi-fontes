@@ -128,7 +128,7 @@ export function PainelLiderHome({ painel }: Props) {
             gaveta={
               <p className="text-sm text-cafeteria-700">
                 {painel.elegivel
-                  ? 'O Líder Inspirador da semana (maior ILI) aparece para todos na home. Os demais veem só o destaque público.'
+                  ? 'Quem tiver o maior ILI da semana aparece em Reconhecimentos na home. Só você vê sua posição aqui.'
                   : 'Complete os mínimos da semana para entrar na disputa.'}
               </p>
             }
