@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
+import { AdminTopbar } from '@/components/admin/shell/AdminTopbar';
 import { adminPathPermitidoRh } from '@/lib/admin-access';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 
@@ -303,6 +304,9 @@ export default function AdminLayout({
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
+        <div className="px-3 py-2 border-b border-white/10 shrink-0 hidden md:block">
+          <p className="text-[10px] uppercase tracking-widest text-cream-200/70 font-semibold">Gabi Fontes</p>
+        </div>
         <div className="flex items-center justify-between p-4 pb-0 shrink-0">
           <div>
             <h2 className="font-display font-semibold text-lg">Admin</h2>
@@ -403,7 +407,7 @@ export default function AdminLayout({
         </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="md:hidden sticky top-0 z-30 bg-cream-100 border-b border-cream-300 px-4 py-3">
+        <header className="md:hidden sticky top-0 z-30 bg-cream-100 border-b border-cafeteria-200 px-4 py-3 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -414,9 +418,21 @@ export default function AdminLayout({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+          <span className="text-sm font-display font-semibold text-coffee-base truncate">Admin</span>
+          <Link
+            href="/portal"
+            className="text-xs font-medium text-dourado-base shrink-0"
+          >
+            Portal
+          </Link>
         </header>
         <main className="flex-1 p-4 md:p-6 overflow-auto">
           <div className="max-w-6xl mx-auto space-y-4">
+            <AdminTopbar
+              nivelLabel={nivelLabel}
+              pendenciasSemana={podeVerGorjeta ? pendenciasSemana : 0}
+              sugestoesPendentes={podeVerGorjeta ? sugestoesPendentes : 0}
+            />
             <EmocionalAlertasGestao />
             {children}
           </div>
