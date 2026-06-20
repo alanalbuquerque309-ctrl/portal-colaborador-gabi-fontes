@@ -6,7 +6,7 @@ import { podeAvaliarRhVisitaGeral } from '@/lib/avaliacao-rh-visita-access';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { listarEquipeParaAvaliacaoSemanal, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
-import { colaboradorDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
+import { colaboradorDeFeriasNaSemana, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { TROFEUS_PARES_CREDITOS_SEMANA } from '@/lib/trofeus-pares';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
@@ -130,10 +130,13 @@ export async function montarPendenciasPortalHome(
   if (podeEquipe && (nr === 'gerente' || nr === 'master' || nr === 'admin')) {
     const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, ctx.colaboradorId, ctx.unidadeId);
     const ids = equipe.map((c) => c.id);
+    const dataRef = inicioSemanaSegundaFeiraLocal(semanaRef);
 
     const avaliacoesPorColab: Record<string, unknown> = {};
+    const feriasIds =
+      ids.length > 0 ? await idsColaboradoresDeFeriasNaSemana(supabase, ids, dataRef) : new Set<string>();
+
     if (ids.length > 0) {
-      const dataRef = inicioSemanaSegundaFeiraLocal(semanaRef);
       const { data: avalRows } = await supabase
         .from('avaliacoes_diarias')
         .select('colaborador_id')
@@ -146,9 +149,10 @@ export async function montarPendenciasPortalHome(
       }
     }
 
-    const pendentesMembros = equipe.filter((m) => !avaliacoesPorColab[m.id]);
+    const equipeElegivel = equipe.filter((m) => !feriasIds.has(m.id));
+    const pendentesMembros = equipeElegivel.filter((m) => !avaliacoesPorColab[m.id]);
     const pendentes = pendentesMembros.length;
-    const total = equipe.length;
+    const total = equipeElegivel.length;
 
     if (total > 0 && pendentes > 0) {
       const nomesPreview = pendentesMembros
@@ -179,6 +183,8 @@ export async function montarPendenciasPortalHome(
 
     const idsRh = (rhEquipe ?? []).map((c) => String(c.id));
     const dataRef = inicioSemanaSegundaFeiraLocal(semanaRef);
+    const feriasRhIds =
+      idsRh.length > 0 ? await idsColaboradoresDeFeriasNaSemana(supabase, idsRh, dataRef) : new Set<string>();
 
     let avaliadosRh = new Set<string>();
     if (idsRh.length > 0) {
@@ -192,7 +198,9 @@ export async function montarPendenciasPortalHome(
       avaliadosRh = new Set((avalRh ?? []).map((r) => String(r.colaborador_id)));
     }
 
-    const pendentesMembros = (rhEquipe ?? []).filter((m) => !avaliadosRh.has(String(m.id)));
+    const pendentesMembros = (rhEquipe ?? []).filter(
+      (m) => !avaliadosRh.has(String(m.id)) && !feriasRhIds.has(String(m.id))
+    );
     const pendentes = pendentesMembros.length;
 
     if (pendentes > 0) {

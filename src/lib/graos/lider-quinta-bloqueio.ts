@@ -1,9 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
 import { selectAvaliacoesDiariasPorColaboradores } from '@/lib/avaliacoes-justificativa-compat';
+import { idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { ehQuintaSaoPaulo } from '@/lib/semana-brasil';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
-import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 
 export type LiderBloqueioQuinta = {
   bloqueado: boolean;
@@ -35,23 +35,11 @@ export async function verificarBloqueioQuintaLider(
     liderId
   );
 
-  const avaliados = new Set(rows.map((r) => String(r.colaborador_id)));
+  const feriasIds = await idsColaboradoresDeFeriasNaSemana(supabase, ids, dataRef);
+
   let pendentes = 0;
-
   for (const membro of equipe) {
-    const row = rows.find((r) => String(r.colaborador_id) === membro.id);
-    if (!row) {
-      pendentes += 1;
-      continue;
-    }
-    const a = assiduidadeDoBanco(row.assiduidade, row.justificativa_nota_baixa);
-    if (a === 'fora_plantao') continue;
-    if (!avaliados.has(membro.id)) pendentes += 1;
-  }
-
-  // Recount: pending = no row from THIS leader for this week
-  pendentes = 0;
-  for (const membro of equipe) {
+    if (feriasIds.has(membro.id)) continue;
     const row = rows.find((r) => String(r.colaborador_id) === membro.id);
     if (!row) pendentes += 1;
   }

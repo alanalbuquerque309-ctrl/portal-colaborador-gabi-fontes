@@ -27,6 +27,7 @@ import {
 } from '@/lib/semana-referencia';
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
 import { ehSextaSaoPaulo } from '@/lib/semana-brasil';
+import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -561,6 +562,8 @@ export async function calcularPendenciasSemana(
     }
 
     const rows = avalPorColab.get(cid) ?? [];
+    if (colaboradorDeFeriasNasLinhas(rows)) continue;
+
     const esperados = mapaEsperados.get(cid) ?? [];
 
     const temNotaGerente =

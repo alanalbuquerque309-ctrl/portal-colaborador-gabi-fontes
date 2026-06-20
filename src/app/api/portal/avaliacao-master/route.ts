@@ -10,7 +10,7 @@ import {
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { isDateIsoAvaliacao, assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
-import { aplicarEfeitosFeriasSemanaColaborador } from '@/lib/avaliacao-ferias-semana';
+import { aplicarEfeitosFeriasSemanaColaborador, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 
 /** Equipe do gerente + avaliações já salvas na semana (segunda de `data`); leitura após envio. */
 export async function GET(req: Request) {
@@ -66,6 +66,18 @@ export async function GET(req: Request) {
           },
         ])
       );
+
+      const idsSemAval = ids.filter((id) => !avaliacoesPorColab[id]);
+      if (idsSemAval.length > 0) {
+        const feriasIds = await idsColaboradoresDeFeriasNaSemana(supabase, idsSemAval, dataRef);
+        for (const id of Array.from(feriasIds)) {
+          avaliacoesPorColab[id] = {
+            colaborador_id: id,
+            assiduidade: 'ferias',
+            media_dia: null,
+          };
+        }
+      }
     }
 
     return NextResponse.json({
