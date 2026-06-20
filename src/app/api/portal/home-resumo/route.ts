@@ -5,6 +5,8 @@ import { normalizePortalRole } from '@/lib/roles';
 import { montarPendenciasPortalHome } from '@/lib/portal-pendencias-home';
 import { derivarSituacaoHome } from '@/lib/portal-situacao-home';
 import { montarPainelPessoalColaborador } from '@/lib/portal-painel-pessoal';
+import { montarPainelLiderInspirador } from '@/lib/lider-inspirador';
+import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import type { PortalHomeResumo } from '@/lib/portal-home-types';
 
 export const dynamic = 'force-dynamic';
@@ -46,17 +48,32 @@ export async function GET() {
     const situacao = derivarSituacaoHome(tarefas);
 
     let painel = null;
+    let painel_lider = null;
     if (role === 'colaborador') {
       painel = await montarPainelPessoalColaborador(supabase, colaboradorId);
+    } else {
+      const podeEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, colaboradorId, role);
+      if (podeEquipe) {
+        painel_lider = await montarPainelLiderInspirador(
+          supabase,
+          colaboradorId,
+          String((col as { nome?: string }).nome ?? ''),
+          role
+        );
+      }
     }
+
+    const isLider = painel_lider != null;
 
     const body: PortalHomeResumo = {
       ok: true,
       role,
       is_colaborador: role === 'colaborador',
+      is_lider: isLider,
       situacao,
       tarefas,
       painel,
+      painel_lider,
     };
 
     return NextResponse.json(body, { headers: NO_STORE });

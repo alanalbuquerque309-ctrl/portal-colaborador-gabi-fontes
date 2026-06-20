@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { MegafoneAnimado } from '@/components/portal/vivo/MegafoneAnimado';
+import { emitPortalHomeAtualizado } from '@/lib/portal-home-events';
 
 type Aviso = {
   id: string;
@@ -170,6 +171,13 @@ export function AvisosHome() {
   }, [carregar]);
 
   useEffect(() => {
+    if (loading || typeof window === 'undefined') return;
+    if (window.location.hash === '#comunicados-home') {
+      document.getElementById('comunicados-home')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [loading]);
+
+  useEffect(() => {
     setRecolhidosLocal((prev) => {
       const ids = new Set(Array.from(prev).filter((id) => avisos.some((a) => a.id === id)));
       gravarRecolhidosLocal(ids);
@@ -215,6 +223,7 @@ export function AvisosHome() {
           prev.map((a) => (a.id === avisoId ? { ...a, confirmado: true } : a))
         );
         setGavetaId((atual) => (atual === avisoId ? null : atual));
+        emitPortalHomeAtualizado();
       }
     } finally {
       setConfirmando(null);
@@ -240,6 +249,7 @@ export function AvisosHome() {
 
   return (
     <>
+      <div id="comunicados-home">
       <PortalBalaoCard tom="branco" ramoCanto="esquerda" className="p-4 sm:p-5 space-y-2">
         {algumAberto ? (
           <p className="text-xs text-cafeteria-600 px-1 pb-1">
@@ -296,6 +306,7 @@ export function AvisosHome() {
           Ver todos no mural →
         </Link>
       </PortalBalaoCard>
+      </div>
 
       {avisoGaveta ? (
         <div

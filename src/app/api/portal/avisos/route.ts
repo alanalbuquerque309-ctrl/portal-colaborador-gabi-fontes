@@ -104,7 +104,7 @@ export async function GET() {
       .select('aviso_id')
       .eq('colaborador_id', colaboradorId);
 
-    const confirmadosSet = new Set((confirmacoes ?? []).map((c) => c.aviso_id));
+    const confirmadosSet = new Set((confirmacoes ?? []).map((c) => String(c.aviso_id)));
 
     const resultado = avisos.map((a: Record<string, unknown>) => ({
       id: a.id,
@@ -112,7 +112,7 @@ export async function GET() {
       conteudo: a.conteudo,
       data_publicacao: a.data_publicacao,
       exige_confirmacao: a.exige_confirmacao === true,
-      confirmado: confirmadosSet.has(a.id as string),
+      confirmado: confirmadosSet.has(String(a.id)),
     }));
 
     return NextResponse.json({ ok: true, avisos: resultado });

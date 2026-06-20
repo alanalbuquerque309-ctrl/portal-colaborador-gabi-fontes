@@ -14,12 +14,14 @@ interface Item {
   tipo: string;
   texto: string;
   anonimo: boolean;
+  anonimo_no_portal?: boolean;
   created_at: string;
   visualizado_em: string | null;
   graos_destaque_em: string | null;
   graos_resposta_bonus: number | null;
   curtidas: number;
   autor: string;
+  autor_setor?: string | null;
   unidade: string;
 }
 
@@ -41,6 +43,7 @@ export default function SugestoesPage() {
   const [filtro, setFiltro] = useState<string>('');
   const [marcando, setMarcando] = useState<string | null>(null);
   const [respondendo, setRespondendo] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
   const [podeReclamacoes, setPodeReclamacoes] = useState(true);
   const [podeDestacarGraos, setPodeDestacarGraos] = useState(false);
   const [pendentesAnalise, setPendentesAnalise] = useState(0);
@@ -124,6 +127,33 @@ export default function SugestoesPage() {
       }
     } finally {
       setMarcando(null);
+    }
+  };
+
+  const excluirItem = async (id: string, autor: string, tipo: string) => {
+    if (
+      !window.confirm(
+        `Excluir ${rotuloTipo(tipo).toLowerCase()} de «${autor}»?\n\nEsta ação não pode ser desfeita.`
+      )
+    ) {
+      return;
+    }
+    setExcluindo(id);
+    try {
+      const res = await fetch(`/api/admin/sugestoes/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setItens((prev) => prev.filter((i) => i.id !== id));
+        emitSugestoesAtualizado();
+        carregarPendentes();
+      } else {
+        alert(data.erro || 'Não foi possível excluir.');
+      }
+    } finally {
+      setExcluindo(null);
     }
   };
 
@@ -244,10 +274,20 @@ export default function SugestoesPage() {
                 </span>
               </div>
               <p className="text-coffee-base whitespace-pre-wrap">{i.texto}</p>
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
-                <p className="text-coffee-base text-sm font-medium">
-                  {i.tipo === 'reclamacao' && i.anonimo ? 'Anônimo' : i.autor}
-                </p>
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-cafeteria-200/60">
+                <div className="min-w-0">
+                  <p className="text-coffee-base text-sm font-semibold">
+                    {i.autor}
+                    {(i.anonimo_no_portal ?? i.anonimo) && (
+                      <span className="ml-2 inline-flex items-center rounded-md bg-amber-100 border border-amber-300 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-950 align-middle">
+                        Anônimo no portal
+                      </span>
+                    )}
+                  </p>
+                  {i.autor_setor ? (
+                    <p className="text-xs text-cafeteria-600 mt-0.5">{i.autor_setor}</p>
+                  ) : null}
+                </div>
                 <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
                   {i.tipo === 'sugestao' && (
                     <span className="text-xs text-coffee-100 self-end">
@@ -303,6 +343,14 @@ export default function SugestoesPage() {
                       Respondido em {new Date(i.graos_destaque_em).toLocaleString('pt-BR')}
                     </span>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => void excluirItem(i.id, i.autor, i.tipo)}
+                    disabled={!!excluindo}
+                    className="text-xs rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-red-800 hover:bg-red-100 disabled:opacity-50 min-h-[36px]"
+                  >
+                    {excluindo === i.id ? 'Excluindo…' : 'Excluir'}
+                  </button>
                 </div>
               </div>
             </div>

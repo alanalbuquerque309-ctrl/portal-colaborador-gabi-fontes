@@ -10,6 +10,7 @@ import { colaboradorDeFeriasNaSemana, idsColaboradoresDeFeriasNaSemana } from '@
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { TROFEUS_PARES_CREDITOS_SEMANA } from '@/lib/trofeus-pares';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
+import { listarComunicadosPendenteConfirmacao } from '@/lib/avisos-pendencias';
 
 function formatarNomes(nomes: string[], max = 3): string {
   if (nomes.length === 0) return '';
@@ -50,6 +51,31 @@ export async function montarPendenciasPortalHome(
     setor: ctx.setor,
     nome: ctx.nome,
   });
+
+  const comunicadosPendentes = await listarComunicadosPendenteConfirmacao(supabase, {
+    colaboradorId: ctx.colaboradorId,
+    role: ctx.role,
+    setor: ctx.setor,
+    unidadeSlug: ctx.unidadeSlug,
+  });
+  if (comunicadosPendentes.length > 0) {
+    const titulos = comunicadosPendentes.map((a) => a.titulo).slice(0, 2);
+    const extra =
+      comunicadosPendentes.length > titulos.length
+        ? ` (+${comunicadosPendentes.length - titulos.length})`
+        : '';
+    lista.push({
+      id: 'comunicados-confirmacao',
+      titulo:
+        comunicadosPendentes.length === 1
+          ? 'Confirmar comunicado'
+          : 'Confirmar comunicados',
+      detalhe: `Aguardando «${titulos.join('», «')}»${extra}.`,
+      href: '/portal#comunicados-home',
+      urgente: false,
+      acaoLabel: 'Ver comunicados →',
+    });
+  }
 
   if (isColaborador) {
     const hoje = new Date().toISOString().slice(0, 10);

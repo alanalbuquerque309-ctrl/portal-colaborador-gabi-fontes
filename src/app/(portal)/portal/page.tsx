@@ -7,6 +7,7 @@ import { TermometroEmocional } from '@/components/emocional/TermometroEmocional'
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { PortalHomeEntrada } from '@/components/portal/home/PortalHomeEntrada';
+import { LiderInspiradorBanner } from '@/components/portal/LiderInspiradorBanner';
 
 export default function PortalHomePage() {
   return (
@@ -14,6 +15,7 @@ export default function PortalHomePage() {
       <div className="space-y-8">
         <EmocionalAlertasGestao />
         <PortalHomeEntrada />
+        <LiderInspiradorBanner />
         <AvisosHome />
         <DestaqueSection />
         <SugestoesEquipeHome />

@@ -10,6 +10,7 @@ import {
   aplicarRespostaSugestaoGraos,
   graosRespostaSugestaoValidos,
   podeDestacarSugestaoGraos,
+  refKeySugestaoDestaqueGraos,
   semanaInicioDeCreatedAt,
 } from '@/lib/graos/sugestao-destaque';
 
@@ -151,6 +152,64 @@ export async function PATCH(
       }
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Erro';
+    return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+  }
+}
+
+/** Remove sugestão/reclamação/elogio (gestão completa). */
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const auth = await requireAdminFullApi();
+  if (!auth.ok) return auth.response;
+  const ctx = auth.ctx;
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });
+  }
+
+  try {
+    const supabase = createAdminClient();
+    const { data: row, error: errRow } = await supabase
+      .from('sugestoes_reclamacoes')
+      .select('id, tipo, colaborador_id')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (errRow || !row) {
+      return NextResponse.json({ ok: false, erro: 'Registro não encontrado' }, { status: 404 });
+    }
+
+    const tipo = String((row as { tipo?: string }).tipo ?? '');
+    if (tipo === 'reclamacao' && !canViewReclamacoesAdmin(ctx)) {
+      return NextResponse.json({ ok: false, erro: 'Sem permissão para reclamações' }, { status: 403 });
+    }
+
+    const colaboradorId = String((row as { colaborador_id?: string | null }).colaborador_id ?? '');
+
+    await supabase.from('sugestao_curtidas').delete().eq('sugestao_id', id);
+
+    if (colaboradorId) {
+      const refDestaque = refKeySugestaoDestaqueGraos(colaboradorId, id);
+      await supabase
+        .from('graos_movimentos')
+        .update({
+          estado: 'cancelado',
+          meta: { ajuste_sistema: 'sugestao_excluida_admin', oculto_colaborador: true },
+        })
+        .eq('ref_key', refDestaque)
+        .neq('estado', 'cancelado');
+    }
+
+    const { error: delErr } = await supabase.from('sugestoes_reclamacoes').delete().eq('id', id);
+    if (delErr) {
+      return NextResponse.json({ ok: false, erro: delErr.message }, { status: 500 });
+    }
+
     return NextResponse.json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

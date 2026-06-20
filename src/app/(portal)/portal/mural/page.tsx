@@ -1,5 +1,6 @@
 import { MuralUnidade } from '@/components/mural/MuralUnidade';
 import { MuralRankingsMensais } from '@/components/mural/MuralRankingsMensais';
+import { LiderInspiradorBanner } from '@/components/portal/LiderInspiradorBanner';
 import { IlustracaoTrofeu } from '@/components/portal/vivo/PortalIlustracao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 
@@ -17,6 +18,10 @@ export default function MuralPage() {
           <IlustracaoTrofeu className="w-20 h-20 shrink-0 opacity-95" />
         </div>
       </div>
+      <section>
+        <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-3">Líder Inspirador</h2>
+        <LiderInspiradorBanner />
+      </section>
       <section>
         <h2 className="text-xl font-display font-semibold text-cafeteria-800 mb-1">Destaques do mês</h2>
         <p className="text-sm text-cafeteria-600 mb-4">

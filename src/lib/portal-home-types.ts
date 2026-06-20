@@ -63,11 +63,48 @@ export type PortalHomePainel = {
   };
 };
 
+export type ILIComponente = {
+  label: string;
+  pontos: number;
+  peso: number;
+  contribuicao: number;
+};
+
+export type PainelLider = {
+  primeiro_nome: string;
+  ili: number;
+  componentes: ILIComponente[];
+  n_equipe: number;
+  n_avaliados_semana: number;
+  n_feedback_semana: number;
+  semana_rotulo: string;
+  semana_inicio: string;
+  elegivel: boolean;
+  motivos_elegibilidade: string[];
+  posicao_entre_lideres: number | null;
+  total_lideres_elegiveis: number;
+  eh_vencedor_semana: boolean;
+};
+
+export type LiderInspiradorVencedor = {
+  lider_id: string;
+  nome: string;
+  foto_url: string | null;
+  unidade_nome: string;
+  setor: string | null;
+  ili: number;
+  motivos: string[];
+  semana_rotulo: string;
+  semana_inicio: string;
+};
+
 export type PortalHomeResumo = {
   ok: true;
   role: string;
   is_colaborador: boolean;
+  is_lider: boolean;
   situacao: PortalHomeSituacao;
   tarefas: PortalHomeTarefa[];
   painel: PortalHomePainel | null;
+  painel_lider: PainelLider | null;
 };

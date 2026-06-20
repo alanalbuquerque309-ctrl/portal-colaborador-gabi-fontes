@@ -4,15 +4,24 @@ export type SugestaoAdminItem = {
   id: string;
   tipo: string;
   texto: string;
+  /** Legado: reclamação marcada anônima no portal (admin ainda vê o nome). */
   anonimo: boolean;
+  anonimo_no_portal: boolean;
   created_at: string;
   visualizado_em: string | null;
   graos_destaque_em: string | null;
   graos_resposta_bonus: number | null;
   curtidas: number;
   autor: string;
+  autor_setor: string | null;
+  colaborador_id: string | null;
   unidade: string;
 };
+
+function embedOne<T>(v: T | T[] | null | undefined): T | null {
+  if (v == null) return null;
+  return Array.isArray(v) ? v[0] ?? null : v;
+}
 
 function colunaAusente(msg: string): boolean {
   return /does not exist|schema cache|graos_destaque|graos_resposta|visualizado_em|curtidas/i.test(msg);
@@ -30,7 +39,22 @@ type RowBase = {
   curtidas?: number | null;
   colaborador_id?: string | null;
   unidade_id?: string | null;
+  colaboradores?: { nome?: string | null; setor?: string | null } | { nome?: string | null; setor?: string | null }[] | null;
+  unidades?: { nome?: string | null } | { nome?: string | null }[] | null;
 };
+
+function nomeAutorAdmin(r: RowBase, nomesColab: Map<string, string>): string {
+  const col = embedOne(r.colaboradores);
+  const doJoin = String(col?.nome ?? '').trim();
+  if (doJoin) return doJoin;
+  const cid = r.colaborador_id ? String(r.colaborador_id) : '';
+  if (cid && nomesColab.has(cid)) {
+    const n = nomesColab.get(cid)?.trim();
+    if (n) return n;
+  }
+  if (cid) return 'Colaborador (nome indisponível)';
+  return 'Sem autor no cadastro';
+}
 
 async function enriquecerNomes(
   supabase: SupabaseClient,
@@ -60,23 +84,32 @@ async function enriquecerNomes(
     }
   }
 
-  return rows.map((r) => ({
-    id: String(r.id),
-    tipo: String(r.tipo ?? 'sugestao'),
-    texto: String(r.texto ?? ''),
-    anonimo: r.anonimo === true,
-    created_at: String(r.created_at ?? ''),
-    visualizado_em: r.visualizado_em ?? null,
-    graos_destaque_em: r.graos_destaque_em ?? null,
-    graos_resposta_bonus:
-      typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
-    curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
-    autor:
-      r.tipo === 'reclamacao' && r.anonimo
-        ? 'Anônimo'
-        : nomesColab.get(String(r.colaborador_id ?? '')) || '—',
-    unidade: nomesUnidade.get(String(r.unidade_id ?? '')) || '—',
-  }));
+  return rows.map((r) => {
+    const col = embedOne(r.colaboradores);
+    const un = embedOne(r.unidades);
+    const cid = r.colaborador_id ? String(r.colaborador_id) : null;
+    const anonimoPortal = r.anonimo === true && String(r.tipo ?? '') === 'reclamacao';
+    return {
+      id: String(r.id),
+      tipo: String(r.tipo ?? 'sugestao'),
+      texto: String(r.texto ?? ''),
+      anonimo: anonimoPortal,
+      anonimo_no_portal: anonimoPortal,
+      created_at: String(r.created_at ?? ''),
+      visualizado_em: r.visualizado_em ?? null,
+      graos_destaque_em: r.graos_destaque_em ?? null,
+      graos_resposta_bonus:
+        typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
+      curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
+      autor: nomeAutorAdmin(r, nomesColab),
+      autor_setor: col?.setor ? String(col.setor) : null,
+      colaborador_id: cid,
+      unidade:
+        (un?.nome ? String(un.nome) : null) ??
+        nomesUnidade.get(String(r.unidade_id ?? '')) ??
+        '—',
+    };
+  });
 }
 
 /** Lista sugestões/reclamações para o admin, com fallback se colunas novas ainda não existirem no Supabase. */
@@ -90,6 +123,7 @@ export async function listarSugestoesAdmin(
 ): Promise<{ itens: SugestaoAdminItem[]; aviso?: string }> {
   const limite = opts.limite ?? 100;
   const selects = [
+    'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, colaborador_id, unidade_id, colaboradores(nome, setor), unidades(nome)',
     'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, colaborador_id, unidade_id',
