@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { AniversariantesReconhecimento } from '@/components/mural/AniversariantesReconhecimento';
+import { PortalEmptyState } from '@/components/portal/shell/PortalEmptyState';
 import {
   BlocoTop3PorUnidade,
   BlocoRankingTrofeus,
@@ -60,13 +60,9 @@ export function MuralRankingsMensais() {
 
   if (!temAvaliacoes && !temTrofeus) {
     return (
-      <div className="space-y-6">
-        <p className="text-sm text-cafeteria-700 rounded-xl border border-dourado-200 bg-cream-50 p-4">
-          Os destaques do mês aparecem aqui conforme as avaliações semanais vão entrando (mínimo de{' '}
-          {minSemanas} semana por colaborador) e os troféus entre pares se acumulam até o fechamento do mês.
-        </p>
-        <AniversariantesReconhecimento />
-      </div>
+      <PortalEmptyState
+        message={`Os destaques do mês aparecem aqui conforme as avaliações semanais vão entrando (mínimo de ${minSemanas} semana por colaborador) e os troféus entre pares se acumulam até o fechamento do mês.`}
+      />
     );
   }
 
@@ -96,7 +92,6 @@ export function MuralRankingsMensais() {
         itens={trofeus}
         periodo="mensal"
       />
-      <AniversariantesReconhecimento />
     </div>
   );
 }

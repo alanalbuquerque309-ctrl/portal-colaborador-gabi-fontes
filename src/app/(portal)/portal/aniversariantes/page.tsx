@@ -1,48 +1,25 @@
-'use client';
-
-
-
-import Link from 'next/link';
-
 import { AniversariantesReconhecimento } from '@/components/mural/AniversariantesReconhecimento';
-
-
+import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
+import { PortalSection } from '@/components/portal/shell/PortalSection';
 
 export default function AniversariantesPage() {
-
   return (
+    <main className="space-y-6">
+      <PortalPageHeader
+        title="Aniversariantes do mês"
+        description="Lista com base na data de nascimento cadastrada (não confundir com data de admissão). Sócios e administradores também aparecem quando o nascimento está no perfil."
+        backHref="/portal/mural"
+        backLabel="Voltar ao mural"
+        breadcrumb={[
+          { label: 'Portal', href: '/portal' },
+          { label: 'Mural', href: '/portal/mural' },
+          { label: 'Aniversariantes' },
+        ]}
+      />
 
-    <main className="space-y-6 max-w-2xl">
-
-      <div>
-
-        <Link href="/portal/mural" className="text-sm text-dourado-base hover:underline font-medium">
-
-          ← Voltar ao mural
-
-        </Link>
-
-        <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
-
-          Aniversariantes do mês
-
-        </h1>
-
-        <p className="text-sm md:text-base text-cafeteria-600 mt-2">
-
-          Lista com base na <strong>data de nascimento</strong> cadastrada (não confundir com data de admissão).
-
-          Sócios e administradores também aparecem aqui quando o nascimento está no perfil ou no cadastro RH.
-
-        </p>
-
-      </div>
-
-      <AniversariantesReconhecimento />
-
+      <PortalSection title="Equipe que celebra este mês">
+        <AniversariantesReconhecimento variant="full" />
+      </PortalSection>
     </main>
-
   );
-
 }
-

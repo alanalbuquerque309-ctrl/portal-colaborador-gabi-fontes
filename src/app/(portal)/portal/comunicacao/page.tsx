@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CanalAjudaPainel, NOME_ATENDIMENTO_AJUDA } from '@/components/ajuda/CanalAjudaPainel';
@@ -11,6 +10,42 @@ import { AJUDA_CHAT_ATUALIZADO, emitAjudaChatAtualizado } from '@/lib/ajuda-chat
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
+import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
+import { PortalSection } from '@/components/portal/shell/PortalSection';
+import { PortalActionCard } from '@/components/portal/shell/PortalActionCard';
+
+const IconBalao = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+    />
+  </svg>
+);
+
+const IconClipboard = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+    />
+  </svg>
+);
+
+const IconInbox = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+    />
+  </svg>
+);
 
 export default function ComunicacaoPage() {
   const router = useRouter();
@@ -80,115 +115,67 @@ export default function ComunicacaoPage() {
 
   return (
     <main className="space-y-6">
-      <div className="rounded-2xl border border-dourado-200/70 bg-gradient-to-br from-cream-50 via-white to-portal-actionLight/30 p-5 overflow-hidden">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-display font-semibold text-cafeteria-800">Comunicação</h1>
-            <p className="text-sm text-cafeteria-600 mt-1 leading-relaxed">
-              Sugestões, reclamações e contato com ADM/RH em um só lugar.
-            </p>
-          </div>
-          <IlustracaoMegafone className="w-24 h-20 shrink-0 opacity-95" />
-        </div>
-      </div>
+      <PortalPageHeader
+        title="Comunicação"
+        description="Sugestões, reclamações e contato com ADM/RH em um só lugar."
+        breadcrumb={[{ label: 'Portal', href: '/portal' }, { label: 'Comunicação' }]}
+        illustration={<IlustracaoMegafone className="w-24 h-20 opacity-95" />}
+      />
 
-      <Link
-        href="/portal/sugestoes"
-        className="flex items-start gap-4 rounded-2xl border border-dourado-200 bg-gradient-to-br from-cream-50 to-white p-5 hover:border-dourado-base transition-colors min-h-[44px]"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-dourado-base/15 text-dourado-base">
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
-            />
-          </svg>
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-semibold text-coffee-base text-base">Sugestões, elogios e reclamações</span>
-          <span className="block text-sm text-coffee-100 mt-1">
-            Envie ideias, elogios ou registre uma reclamação. Apenas reclamações podem ser anônimas.
-          </span>
-          <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir caixa →</span>
-        </span>
-      </Link>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <PortalActionCard
+          href="/portal/sugestoes"
+          title="Sugestões, elogios e reclamações"
+          description="Envie ideias, elogios ou registre uma reclamação. Apenas reclamações podem ser anônimas."
+          cta="Abrir caixa →"
+          icon={<IconBalao />}
+          tom="dourado"
+        />
 
-      {podeGestaoSugestoes && (
-        <Link
-          href="/admin/sugestoes"
-          className="flex items-start gap-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 hover:border-amber-400 transition-colors min-h-[44px]"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-200/80 text-amber-950">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-              />
-            </svg>
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-coffee-base text-base">
-              Analisar sugestões da equipe
-              {sugestoesPendentes > 0 ? (
+        {podeGestaoSugestoes && (
+          <PortalActionCard
+            href="/admin/sugestoes"
+            title="Analisar sugestões da equipe"
+            description="Ideias enviadas pelos colaboradores. Responda com bônus de 0, 3, 5 ou 9 Grãos (+1 no envio)."
+            cta="Abrir gestão →"
+            icon={<IconClipboard />}
+            tom="ambar"
+            badge={
+              sugestoesPendentes > 0 ? (
                 <span className="ml-2 inline-flex rounded-full bg-amber-400 px-2 py-0.5 text-xs font-bold text-coffee-base">
                   {sugestoesPendentes} aguardando
                 </span>
-              ) : null}
-            </span>
-            <span className="block text-sm text-coffee-100 mt-1">
-              Ideias enviadas pelos colaboradores. Responda com bônus de 0, 3, 5 ou 9 Grãos (+1 no envio).
-            </span>
-            <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir gestão →</span>
-          </span>
-        </Link>
-      )}
+              ) : undefined
+            }
+          />
+        )}
 
-      {podeInboxAjuda && (
-        <Link
-          href="/portal/ajuda-inbox"
-          className="flex items-start gap-4 rounded-2xl border border-cafeteria-200 bg-white p-5 hover:border-dourado-base transition-colors min-h-[44px]"
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-cafeteria-100 text-cafeteria-800">
-            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-              />
-            </svg>
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-coffee-base text-base">
-              Inbox ajuda
-              {pendenciasInbox > 0 ? (
+        {podeInboxAjuda && (
+          <PortalActionCard
+            href="/portal/ajuda-inbox"
+            title="Inbox ajuda"
+            description="Responder pedidos dos colaboradores (acesso só sócios e administração)."
+            cta="Abrir inbox →"
+            icon={<IconInbox />}
+            tom="neutro"
+            badge={
+              pendenciasInbox > 0 ? (
                 <span className="ml-2 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
                   {pendenciasInbox} pendente{pendenciasInbox === 1 ? '' : 's'}
                 </span>
-              ) : null}
-            </span>
-            <span className="block text-sm text-coffee-100 mt-1">
-              Responder pedidos dos colaboradores (acesso só sócios e administração).
-            </span>
-            <span className="inline-block mt-2 text-sm font-medium text-dourado-base">Abrir inbox →</span>
-          </span>
-        </Link>
-      )}
+              ) : undefined
+            }
+          />
+        )}
+      </div>
 
-      <section id="suporte" aria-labelledby="suporte-titulo">
-        <h2 id="suporte-titulo" className="text-lg font-display font-semibold text-coffee-base mb-3">
-          Falar com suporte (ADM/RH)
-        </h2>
-        <p className="text-sm text-coffee-100 mb-3">
-          Dúvidas operacionais, pedidos urgentes ou assuntos do dia a dia com {NOME_ATENDIMENTO_AJUDA} e a
-          administração.
-        </p>
+      <PortalSection
+        id="suporte"
+        title="Falar com suporte (ADM/RH)"
+        description={`Dúvidas operacionais, pedidos urgentes ou assuntos do dia a dia com ${NOME_ATENDIMENTO_AJUDA} e a administração.`}
+      >
         <CanalAjudaPainel variant="embedded" onChatAtualizado={emitAjudaChatAtualizado} />
-      </section>
+      </PortalSection>
 
       <PortalRodapeFrase variant="comunicacao" />
     </main>
