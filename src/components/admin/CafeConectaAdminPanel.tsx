@@ -13,29 +13,15 @@ import {
   AdminTableTh,
 } from '@/components/admin/shell/AdminTable';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import type { CafeConectaDashboardPayload, CafeConectaMotivoInelegivel } from '@/lib/cafe-conecta/types';
+import type { CafeConectaDashboardPayload } from '@/lib/cafe-conecta/types';
 import { CAFE_CONECTA_REACOES } from '@/lib/cafe-conecta/feedback';
+import {
+  CAFE_CONECTA_AVISO_VIRADA_SEMANA,
+  descricaoMotivoInelegibilidadeCafeConecta,
+  rotuloMotivoInelegibilidadeCafeConecta,
+} from '@/lib/cafe-conecta/motivos';
 
 type GrupoTab = { slug: string; label: string; sorteio_liberado: boolean };
-
-function rotuloMotivo(m: CafeConectaMotivoInelegivel | null): string {
-  switch (m) {
-    case 'ferias':
-      return 'Férias';
-    case 'afastado':
-      return 'Afastado';
-    case 'folga_quarta':
-      return 'Folga na quarta';
-    case 'sem_acesso_portal':
-      return 'Sem acesso ao portal';
-    case 'onboarding_pendente':
-      return 'Cadastro pendente';
-    case 'perfil_nao_participa':
-      return 'Perfil não participa';
-    default:
-      return '—';
-  }
-}
 
 export function CafeConectaAdminPanel() {
   const [loading, setLoading] = useState(true);
@@ -280,6 +266,10 @@ export function CafeConectaAdminPanel() {
         </p>
       )}
 
+      <div className="rounded-xl border border-cream-200 bg-cream-50/80 px-4 py-3 text-sm text-cafeteria-800">
+        {CAFE_CONECTA_AVISO_VIRADA_SEMANA}
+      </div>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <AdminStatCard label="Colaboradores (base)" valor={data.elegibilidade.total_base} tom="neutro" />
         <AdminStatCard label="Elegíveis hoje" valor={data.elegibilidade.elegiveis} tom="verde" />
@@ -317,7 +307,10 @@ export function CafeConectaAdminPanel() {
         </AdminSection>
       )}
 
-      <AdminSection title="Elegíveis" description="Quem pode ser sorteado nesta semana (acesso ao portal = Grãos login_semana).">
+      <AdminSection
+        title="Elegíveis"
+        description="Quem pode ser sorteado nesta semana — entrou no portal (Grãos login_semana), sem férias, folga na quarta ou afastamento."
+      >
         <AdminTable>
           <AdminTableHead>
             <AdminTableRow>
@@ -336,7 +329,9 @@ export function CafeConectaAdminPanel() {
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
                   <AdminTableTd>{l.unidade_nome}</AdminTableTd>
-                  <AdminTableTd className="text-emerald-700 font-medium">Elegível</AdminTableTd>
+                  <AdminTableTd className="text-emerald-700 font-medium">
+                    Elegível · entrou no portal esta semana
+                  </AdminTableTd>
                 </AdminTableRow>
               ))}
           </AdminTableBody>
@@ -357,6 +352,7 @@ export function CafeConectaAdminPanel() {
                 <AdminTableTh>Nome</AdminTableTh>
                 <AdminTableTh>Setor</AdminTableTh>
                 <AdminTableTh>Unidade</AdminTableTh>
+                <AdminTableTh>Motivo</AdminTableTh>
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
@@ -365,6 +361,9 @@ export function CafeConectaAdminPanel() {
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
                   <AdminTableTd>{l.unidade_nome}</AdminTableTd>
+                  <AdminTableTd className="text-sm text-cafeteria-700">
+                    {descricaoMotivoInelegibilidadeCafeConecta(l.motivo)}
+                  </AdminTableTd>
                 </AdminTableRow>
               ))}
             </AdminTableBody>
@@ -379,6 +378,7 @@ export function CafeConectaAdminPanel() {
               <AdminTableRow>
                 <AdminTableTh>Nome</AdminTableTh>
                 <AdminTableTh>Setor</AdminTableTh>
+                <AdminTableTh>Motivo</AdminTableTh>
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
@@ -386,6 +386,9 @@ export function CafeConectaAdminPanel() {
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                  <AdminTableTd className="text-sm text-cafeteria-700">
+                    {descricaoMotivoInelegibilidadeCafeConecta(l.motivo)}
+                  </AdminTableTd>
                 </AdminTableRow>
               ))}
             </AdminTableBody>
@@ -406,6 +409,7 @@ export function CafeConectaAdminPanel() {
               <AdminTableRow>
                 <AdminTableTh>Nome</AdminTableTh>
                 <AdminTableTh>Setor</AdminTableTh>
+                <AdminTableTh>Motivo</AdminTableTh>
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
@@ -413,6 +417,9 @@ export function CafeConectaAdminPanel() {
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                  <AdminTableTd className="text-sm text-cafeteria-700">
+                    {descricaoMotivoInelegibilidadeCafeConecta(l.motivo)}
+                  </AdminTableTd>
                 </AdminTableRow>
               ))}
             </AdminTableBody>
@@ -430,6 +437,7 @@ export function CafeConectaAdminPanel() {
               <AdminTableRow>
                 <AdminTableTh>Nome</AdminTableTh>
                 <AdminTableTh>Setor</AdminTableTh>
+                <AdminTableTh>Motivo</AdminTableTh>
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
@@ -437,6 +445,9 @@ export function CafeConectaAdminPanel() {
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                  <AdminTableTd className="text-sm text-cafeteria-700">
+                    {descricaoMotivoInelegibilidadeCafeConecta(l.motivo)}
+                  </AdminTableTd>
                 </AdminTableRow>
               ))}
             </AdminTableBody>
@@ -457,7 +468,9 @@ export function CafeConectaAdminPanel() {
               {outrosInelegiveis.map((l) => (
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
-                  <AdminTableTd>{rotuloMotivo(l.motivo)}</AdminTableTd>
+                  <AdminTableTd className="text-sm text-cafeteria-700">
+                    {descricaoMotivoInelegibilidadeCafeConecta(l.motivo)}
+                  </AdminTableTd>
                 </AdminTableRow>
               ))}
             </AdminTableBody>
