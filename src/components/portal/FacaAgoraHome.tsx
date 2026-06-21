@@ -70,7 +70,7 @@ export function FacaAgoraHome({ tarefasExternas }: Props) {
   if (fase === 'loading') {
     return (
       <section aria-busy="true" className="rounded-2xl border border-portal-action/20 bg-portal-actionLight p-5">
-        <h2 className="text-lg font-display font-semibold text-portal-action">Faça agora</h2>
+        <h2 className="text-lg font-display font-semibold text-portal-action">O que fazer agora</h2>
         <p className="text-sm text-portal-actionMuted mt-2">Carregando pendências…</p>
       </section>
     );
@@ -84,10 +84,10 @@ export function FacaAgoraHome({ tarefasExternas }: Props) {
   const demais = tarefas.filter((t) => t !== hero);
 
   return (
-    <section aria-labelledby="titulo-faca-agora" className="space-y-4">
+    <section aria-labelledby="titulo-o-que-fazer-agora" className="space-y-4">
       <div className="rounded-xl border border-portal-action/25 bg-gradient-to-r from-portal-actionLight/60 via-white/90 to-emerald-50/50 px-4 py-3">
-        <h2 id="titulo-faca-agora" className="text-lg font-display font-semibold text-portal-action">
-          Faça agora
+        <h2 id="titulo-o-que-fazer-agora" className="text-lg font-display font-semibold text-portal-action">
+          O que fazer agora
         </h2>
         <p className="text-sm text-cafeteria-600 mt-1">O que precisa da sua atenção neste momento.</p>
       </div>

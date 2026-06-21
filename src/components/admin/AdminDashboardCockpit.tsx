@@ -14,8 +14,6 @@ import {
   AdminTableTh,
 } from '@/components/admin/shell/AdminTable';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import type { SituacaoEvolucao } from '@/lib/evolucao';
-import { emojiSituacao, formatarIli, formatarNota, tomSituacao } from '@/lib/evolucao';
 
 type Colaborador = { id: string; nome: string; onboarding_completo: boolean };
 type Aviso = { id: string; titulo: string; ativo?: boolean };
@@ -34,24 +32,6 @@ type PendenciasResumo = {
   itens?: PendenciaItem[];
 };
 
-type IliRapido = {
-  top_lider?: { nome: string; ili: number; elegivel?: boolean } | null;
-  media_ili?: number | null;
-  elegiveis?: number;
-  total_lideres?: number;
-};
-
-type EvolucaoResumo = {
-  resumo?: {
-    evoluindo?: number;
-    regredindo?: number;
-    media_rede?: number | null;
-    delta_rede?: number | null;
-    situacao_rede?: SituacaoEvolucao;
-    total_colaboradores?: number;
-  };
-};
-
 export function AdminDashboardCockpit() {
   const [loading, setLoading] = useState(true);
   const [acessoRh, setAcessoRh] = useState(false);
@@ -62,8 +42,6 @@ export function AdminDashboardCockpit() {
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [alertasEmocional, setAlertasEmocional] = useState(0);
   const [redefinicoesPendentes, setRedefinicoesPendentes] = useState(0);
-  const [evolucao, setEvolucao] = useState<EvolucaoResumo | null>(null);
-  const [iliRapido, setIliRapido] = useState<IliRapido | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
 
@@ -126,20 +104,6 @@ export function AdminDashboardCockpit() {
               setRedefinicoesPendentes(Array.isArray(red.solicitacoes) ? red.solicitacoes.length : 0);
             })
             .catch(() => {}),
-          fetch('/api/admin/evolucao?resumo=1&criterios=0', { credentials: 'include', cache: 'no-store' })
-            .then((r) => (r.status === 401 ? null : r.json()))
-            .then((ev) => {
-              if (cancel || !ev?.ok) return;
-              setEvolucao(ev as EvolucaoResumo);
-            })
-            .catch(() => {}),
-          fetch('/api/admin/evolucao/lideranca?rapido=1', { credentials: 'include', cache: 'no-store' })
-            .then((r) => (r.status === 401 ? null : r.json()))
-            .then((ili) => {
-              if (cancel || !ili?.ok) return;
-              setIliRapido(ili as IliRapido);
-            })
-            .catch(() => {}),
         ];
 
         if (full && !rh) {
@@ -185,9 +149,6 @@ export function AdminDashboardCockpit() {
     return 'verde' as const;
   }, [alertaSexta, totalPendencias]);
 
-  const evo = evolucao?.resumo;
-  const tomEvolucao = evo?.situacao_rede ? tomSituacao(evo.situacao_rede) : 'neutro';
-
   const loginUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : '/login';
 
   if (loading) {
@@ -223,25 +184,17 @@ export function AdminDashboardCockpit() {
         <AdminStatCard
           emoji="📈"
           label="Saúde da equipe"
-          valor={formatarNota(evo?.media_rede ?? null)}
-          sub={
-            evo
-              ? `🟢 ${evo.evoluindo ?? 0} · 🔴 ${evo.regredindo ?? 0} · rede`
-              : 'Evolução semanal'
-          }
-          tom={tomEvolucao}
+          valor="—"
+          sub="Abrir painel →"
+          tom="neutro"
           href="/admin/evolucao"
         />
 
         <AdminStatCard
           emoji="⭐"
           label="Líder inspirador"
-          valor={iliRapido?.top_lider ? formatarIli(iliRapido.top_lider.ili) : '—'}
-          sub={
-            iliRapido?.top_lider
-              ? `${iliRapido.top_lider.nome.split(/\s+/)[0] ?? 'Líder'} · ILI semana`
-              : 'ILI da liderança'
-          }
+          valor="—"
+          sub="ILI · abrir painel"
           tom="dourado"
           href="/admin/evolucao?aba=lideranca"
         />
@@ -313,19 +266,6 @@ export function AdminDashboardCockpit() {
           href="/admin/redefinicoes-senha"
         />
       </div>
-
-      {(evo?.regredindo ?? 0) > 0 && (
-        <Link
-          href="/admin/evolucao"
-          className="block rounded-2xl border-2 border-red-300/80 bg-gradient-to-r from-red-50 via-white to-orange-50 p-5 shadow-sm hover:shadow-md transition-shadow"
-        >
-          <p className="text-xs font-semibold uppercase tracking-wide text-red-800">Saúde da equipe</p>
-          <p className="text-lg font-display font-semibold text-coffee-base mt-1">
-            {evo!.regredindo} colaborador(es) com tendência de queda nas últimas semanas
-          </p>
-          <p className="text-sm text-cafeteria-600 mt-1">Abrir painel de evolução →</p>
-        </Link>
-      )}
 
       {gestaoCompleta && totalPendencias > 0 && (
         <Link

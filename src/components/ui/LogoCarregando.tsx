@@ -9,6 +9,8 @@ interface LogoCarregandoProps {
   fullscreen?: boolean;
   /** Largura máxima da logo */
   size?: 'sm' | 'md' | 'lg';
+  /** Logo em cinza pulsando até ganhar cor (estado de carregamento) */
+  revelarCor?: boolean;
   className?: string;
 }
 
@@ -22,6 +24,7 @@ export function LogoCarregando({
   label,
   fullscreen = false,
   size = 'lg',
+  revelarCor = false,
   className = '',
 }: LogoCarregandoProps) {
   const maxW = maxWidths[size];
@@ -37,7 +40,9 @@ export function LogoCarregando({
         alt="Gabi Fontes — Cafeteria & Doceria"
         width={maxW}
         height={Math.round(maxW * 0.72)}
-        className="h-auto w-full max-w-[min(88vw,320px)] object-contain"
+        className={`h-auto w-full max-w-[min(88vw,320px)] object-contain ${
+          revelarCor ? 'animate-logo-revelar-cor' : ''
+        }`}
         style={{ maxWidth: maxW }}
         priority
       />

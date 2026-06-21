@@ -78,11 +78,16 @@ const config: Config = {
           '0%': { transform: 'translateY(24px) scale(0.96)', opacity: '0' },
           '100%': { transform: 'translateY(0) scale(1)', opacity: '1' },
         },
+        'logo-revelar-cor': {
+          '0%, 100%': { filter: 'grayscale(1)', opacity: '0.42' },
+          '50%': { filter: 'grayscale(0)', opacity: '1' },
+        },
       },
       animation: {
         'xicara-encher': 'xicara-encher 2s ease-in-out infinite',
         'aniversario-confetti': 'aniversario-confetti 2.2s ease-out infinite',
         'aniversario-balao-in': 'aniversario-balao-in 0.35s ease-out forwards',
+        'logo-revelar-cor': 'logo-revelar-cor 2.2s ease-in-out infinite',
       },
     },
   },

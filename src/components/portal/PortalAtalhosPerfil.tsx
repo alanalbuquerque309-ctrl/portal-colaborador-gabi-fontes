@@ -1,86 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { normalizePortalRole } from '@/lib/roles';
-
-type Atalho = { href: string; titulo: string; descricao: string };
+import { useMemo, useState } from 'react';
+import { montarAtalhosPerfil } from '@/lib/portal-atalhos-perfil';
+import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 
 export function PortalAtalhosPerfil() {
-  const [atalhos, setAtalhos] = useState<Atalho[]>([]);
+  const { role, podeVisitaRh, carregado } = usePortalPerfil();
   const [aberto, setAberto] = useState(false);
 
-  useEffect(() => {
-    let cancelado = false;
-    fetch('/api/portal/perfil', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data: { ok?: boolean; pode_visita_rh?: boolean; colaborador?: { role?: string | null } }) => {
-        if (cancelado) return;
-        const nr = data.ok && data.colaborador ? normalizePortalRole(data.colaborador.role) : 'colaborador';
-        const lista: Atalho[] = [];
+  const atalhos = useMemo(
+    () => (carregado ? montarAtalhosPerfil(role, podeVisitaRh) : []),
+    [carregado, role, podeVisitaRh]
+  );
 
-        if (nr === 'colaborador' || nr === 'socio' || nr === 'admin') {
-          lista.push({
-            href: '/portal/graos',
-            titulo: 'Grãos de café',
-            descricao:
-              nr === 'colaborador'
-                ? 'Missões da semana, saldo e resgate na cafeteria.'
-                : 'Visualizar missões, catálogo e regras da gamificação.',
-          });
-        }
-        if (nr === 'colaborador') {
-          lista.push({
-            href: '/portal/desempenho',
-            titulo: 'Meu desempenho',
-            descricao: 'Sua nota no mês e destaques da unidade.',
-          });
-        }
-        if (nr === 'gerente' || nr === 'master' || nr === 'admin') {
-          if (nr === 'admin') {
-            lista.push({
-              href: '/portal/avaliacao-master',
-              titulo: 'Avaliação da equipe',
-              descricao: 'Notas semanais (assiduidade, vestimenta, desempenho).',
-            });
-          }
-          lista.push({
-            href: '/portal/gerente-equipe',
-            titulo: 'Equipe no mês',
-            descricao: 'Visão da sua equipe no período.',
-          });
-          lista.push({
-            href: '/portal/minha-lideranca',
-            titulo: 'Minha liderança',
-            descricao: 'Média por pilar e feedback de melhoria.',
-          });
-        }
-        if (nr === 'colaborador' || nr === 'admin' || nr === 'rh') {
-          lista.push({
-            href: '/portal/avaliacao-lideranca',
-            titulo: 'Avaliar liderança',
-            descricao: 'Feedback sobre seus líderes.',
-          });
-        }
-        if (data.pode_visita_rh === true) {
-          lista.push({
-            href: '/portal/avaliacao-rh-visita',
-            titulo: 'Visita RH',
-            descricao: 'Avaliação complementar na rede.',
-          });
-        }
-
-        setAtalhos(lista);
-      })
-      .catch(() => {
-        if (!cancelado) setAtalhos([]);
-      });
-    return () => {
-      cancelado = true;
-    };
-  }, []);
-
-  if (atalhos.length === 0) return null;
+  if (!carregado || atalhos.length === 0) return null;
 
   return (
     <section className="rounded-2xl border border-cafeteria-200 bg-white/80 overflow-hidden">

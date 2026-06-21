@@ -7,6 +7,7 @@ import { MeuPainelHome } from '@/components/portal/home/MeuPainelHome';
 import { PainelLiderHome } from '@/components/portal/home/PainelLiderHome';
 import { FacaAgoraHome } from '@/components/portal/FacaAgoraHome';
 import { PORTAL_HOME_ATUALIZADO } from '@/lib/portal-home-events';
+import { LogoCarregando } from '@/components/ui/LogoCarregando';
 
 export function PortalHomeEntrada() {
   const [dados, setDados] = useState<PortalHomeResumo | null>(null);
@@ -65,14 +66,8 @@ export function PortalHomeEntrada() {
 
   if (!dados) {
     return (
-      <section className="rounded-2xl border border-cafeteria-200 bg-white/80 p-5 animate-pulse">
-        <div className="h-10 bg-cream-200 rounded-lg mb-4" />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="h-24 bg-cream-200 rounded-xl" />
-          <div className="h-24 bg-cream-200 rounded-xl" />
-          <div className="h-24 bg-cream-200 rounded-xl" />
-          <div className="h-24 bg-cream-200 rounded-xl" />
-        </div>
+      <section className="rounded-2xl border border-cafeteria-200 bg-white/80 p-8 flex justify-center">
+        <LogoCarregando size="sm" revelarCor label="Preparando sua home…" />
       </section>
     );
   }

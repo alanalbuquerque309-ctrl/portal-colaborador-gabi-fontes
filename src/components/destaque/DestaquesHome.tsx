@@ -34,7 +34,9 @@ type Props = {
 
 /** Home: pódio avaliação + pódio troféus; lista detalhada só após «Ver mais». */
 export function DestaquesHome({ aba }: Props) {
-  const [loading, setLoading] = useState(true);
+  const [mensalCarregado, setMensalCarregado] = useState(false);
+  const [loadingSemanal, setLoadingSemanal] = useState(true);
+  const [loadingMensal, setLoadingMensal] = useState(false);
   const [abaUnidade, setAbaUnidade] = useState<DestaqueAbaUnidadeId>('geral');
   const [trofeusExpandido, setTrofeusExpandido] = useState(false);
   const [trofeusVisiveis, setTrofeusVisiveis] = useState(4);
@@ -51,35 +53,55 @@ export function DestaquesHome({ aba }: Props) {
   useEffect(() => {
     const session = getPortalSession();
     if (!session?.colaboradorId) {
-      setLoading(false);
+      setLoadingSemanal(false);
       return;
     }
 
-    void Promise.all([
-      fetch('/api/portal/reconhecimento-semanal', { credentials: 'include' }).then((r) => r.json()),
-      fetch('/api/portal/destaque', { credentials: 'include' }).then((r) => r.json()),
-    ])
-      .then(([sem, mes]) => {
+    fetch('/api/portal/reconhecimento-semanal', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((sem) => {
         if (sem?.ok === true) {
           setSemanaRotulo(String(sem.semana_rotulo ?? ''));
           setSemanalGeral(normalizarTop3Geral(sem.ranking_geral_top3));
           setSemanalPorUnidade(normalizarPorUnidade(sem.ranking_por_unidade));
           setSemanalTrofeus(normalizarTrofeus(sem.ranking_trofeus));
         }
-        if (mes?.ok === true) {
-          setMesRef(String(mes.mes_referencia ?? ''));
-          setMensalGeral(normalizarTop3Geral(mes.ranking_geral_top3));
-          setMensalPorUnidade(normalizarPorUnidade(mes.ranking_por_unidade));
-          setMensalTrofeus(normalizarTrofeus(mes.ranking_trofeus));
-        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingSemanal(false));
   }, []);
+
+  useEffect(() => {
+    if (aba !== 'mensal' || mensalCarregado) return;
+    const session = getPortalSession();
+    if (!session?.colaboradorId) return;
+
+    let cancel = false;
+    setLoadingMensal(true);
+    fetch('/api/portal/destaque', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((mes) => {
+        if (cancel || mes?.ok !== true) return;
+        setMesRef(String(mes.mes_referencia ?? ''));
+        setMensalGeral(normalizarTop3Geral(mes.ranking_geral_top3));
+        setMensalPorUnidade(normalizarPorUnidade(mes.ranking_por_unidade));
+        setMensalTrofeus(normalizarTrofeus(mes.ranking_trofeus));
+        setMensalCarregado(true);
+      })
+      .finally(() => {
+        if (!cancel) setLoadingMensal(false);
+      });
+
+    return () => {
+      cancel = true;
+    };
+  }, [aba, mensalCarregado]);
 
   useEffect(() => {
     setTrofeusExpandido(false);
     setTrofeusVisiveis(4);
   }, [aba, abaUnidade, periodoTrofeusAba]);
+
+  const loading = aba === 'mensal' ? loadingMensal : loadingSemanal;
 
   if (loading) {
     return (
