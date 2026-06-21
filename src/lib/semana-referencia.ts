@@ -40,6 +40,25 @@ export function hojeInicioSemanaISO(): string {
   return inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(new Date()));
 }
 
+/** Últimas N segundas-feiras (ordem cronológica), respeitando `desde` inclusive. */
+export function listarUltimasSemanasSegunda(
+  quantidade: number,
+  opts?: { ate?: string; desde?: string }
+): string[] {
+  const desde = opts?.desde ? inicioSemanaSegundaFeiraLocal(opts.desde) : null;
+  let cur = inicioSemanaSegundaFeiraLocal(opts?.ate ?? formatarDataLocalISO(new Date()));
+  const out: string[] = [];
+  while (out.length < quantidade) {
+    if (desde && cur < desde) break;
+    out.unshift(cur);
+    const d = parseDataLocalISO(cur);
+    if (Number.isNaN(d.getTime())) break;
+    d.setDate(d.getDate() - 7);
+    cur = formatarDataLocalISO(d);
+  }
+  return out;
+}
+
 /** Segunda-feira da semana anterior (operacional: avaliar a semana que acabou no domingo). */
 export function semanaAnteriorInicioISO(ref: Date = new Date()): string {
   const segAtual = parseDataLocalISO(inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(ref)));

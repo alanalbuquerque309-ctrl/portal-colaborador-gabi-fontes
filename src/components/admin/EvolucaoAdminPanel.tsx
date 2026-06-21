@@ -11,14 +11,16 @@ import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import {
   formatarDelta,
+  formatarIli,
   formatarNota,
   rotuloSituacao,
   tomSituacao,
   type SituacaoEvolucao,
 } from '@/lib/evolucao';
 import type { ColaboradorEvolucao, PayloadEvolucaoRede, UnidadeEvolucao } from '@/lib/evolucao-rede';
+import type { LiderEvolucao, PayloadEvolucaoLideranca } from '@/lib/evolucao-lideranca';
 
-type Aba = 'rede' | 'colaboradores' | 'unidades';
+type Aba = 'rede' | 'colaboradores' | 'unidades' | 'lideranca';
 type ModoRanking = 'atual' | 'evolucao';
 
 function filtrarColaboradores(
@@ -36,6 +38,112 @@ function filtrarColaboradores(
       (c.unidade_nome ?? '').toLowerCase().includes(q)
     );
   });
+}
+
+function filtrarLideres(
+  lista: LiderEvolucao[],
+  busca: string,
+  situacao: SituacaoEvolucao | ''
+): LiderEvolucao[] {
+  const q = busca.trim().toLowerCase();
+  return lista.filter((l) => {
+    if (situacao && l.situacao !== situacao) return false;
+    if (!q) return true;
+    return (
+      l.nome.toLowerCase().includes(q) ||
+      (l.setor ?? '').toLowerCase().includes(q) ||
+      (l.unidade_nome ?? '').toLowerCase().includes(q)
+    );
+  });
+}
+
+function LinhaLider({
+  l,
+  expandido,
+  onToggle,
+}: {
+  l: LiderEvolucao;
+  expandido: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <li className="border-b border-cream-200 last:border-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full text-left px-4 py-3.5 hover:bg-cream-50/80 transition-colors flex flex-wrap items-center gap-3"
+      >
+        <div className="min-w-0 flex-1 basis-[12rem]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-coffee-base">{l.nome}</span>
+            <EvolucaoBadge situacao={l.situacao} compacto delta={l.delta} />
+            {!l.elegivel_semana_atual && (
+              <span className="text-[10px] uppercase tracking-wide text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                ILI parcial
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-cafeteria-600 mt-0.5 truncate">
+            {l.setor ?? '—'} · {l.unidade_nome ?? '—'} · equipe {l.n_equipe}
+          </p>
+        </div>
+        <div className="hidden sm:block shrink-0 w-[120px]">
+          <EvolucaoSparkline pontos={l.historico} />
+        </div>
+        <div className="text-right shrink-0 min-w-[4rem]">
+          <p className="text-[10px] uppercase text-cafeteria-500">ILI</p>
+          <p className="text-xl font-display font-semibold tabular-nums">{formatarIli(l.ili_atual)}</p>
+        </div>
+        <div className="text-right shrink-0 min-w-[3.5rem]">
+          <p className="text-[10px] uppercase text-cafeteria-500">Δ ILI</p>
+          <p
+            className={`text-lg font-semibold tabular-nums ${
+              l.delta != null && l.delta > 0
+                ? 'text-emerald-700'
+                : l.delta != null && l.delta < 0
+                  ? 'text-red-700'
+                  : 'text-coffee-base'
+            }`}
+          >
+            {formatarDelta(l.delta)}
+          </p>
+        </div>
+        <span className="text-cafeteria-400 text-sm shrink-0" aria-hidden>
+          {expandido ? '▲' : '▼'}
+        </span>
+      </button>
+      {expandido && (
+        <div className="px-4 pb-4 pt-0 bg-cream-50/50 border-t border-cream-100">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
+              <p className="text-xs text-cafeteria-600">Média ILI (4 sem.)</p>
+              <p className="text-lg font-semibold tabular-nums">{formatarIli(l.ili_media_recente)}</p>
+            </div>
+            <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
+              <p className="text-xs text-cafeteria-600">Média equipe</p>
+              <p className="text-lg font-semibold tabular-nums">{formatarNota(l.media_equipe)}</p>
+            </div>
+            <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
+              <p className="text-xs text-cafeteria-600">Feedback liderança</p>
+              <p className="text-lg font-semibold tabular-nums">{formatarNota(l.media_feedback)}</p>
+            </div>
+            <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
+              <p className="text-xs text-cafeteria-600">Semanas no histórico</p>
+              <p className="text-lg font-semibold">{l.semanas_validas}</p>
+            </div>
+          </div>
+          {l.motivos_elegibilidade.length > 0 && (
+            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-3">
+              Semana atual: {l.motivos_elegibilidade.join(' · ')}
+            </p>
+          )}
+          <p className="text-xs text-cafeteria-500 mt-3">
+            ILI (Índice Líder Inspirador): tendência 4×4 semanas, limiar ±2 pts. {rotuloSituacao(l.situacao)}.
+          </p>
+        </div>
+      )}
+    </li>
+  );
 }
 
 function CardUnidade({ u }: { u: UnidadeEvolucao }) {
@@ -189,6 +297,13 @@ export function EvolucaoAdminPanel() {
   const [busca, setBusca] = useState('');
   const [filtroSituacao, setFiltroSituacao] = useState<SituacaoEvolucao | ''>('');
   const [expandidoId, setExpandidoId] = useState<string | null>(null);
+  const [lideranca, setLideranca] = useState<PayloadEvolucaoLideranca | null>(null);
+  const [loadingLideranca, setLoadingLideranca] = useState(false);
+  const [erroLideranca, setErroLideranca] = useState<string | null>(null);
+  const [buscaLider, setBuscaLider] = useState('');
+  const [filtroLider, setFiltroLider] = useState<SituacaoEvolucao | ''>('');
+  const [expandidoLiderId, setExpandidoLiderId] = useState<string | null>(null);
+  const [modoRankingLider, setModoRankingLider] = useState<ModoRanking>('atual');
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -217,9 +332,38 @@ export function EvolucaoAdminPanel() {
     void carregar();
   }, [carregar]);
 
+  const carregarLideranca = useCallback(async () => {
+    setLoadingLideranca(true);
+    setErroLideranca(null);
+    try {
+      const res = await fetch('/api/admin/evolucao/lideranca', { credentials: 'include', cache: 'no-store' });
+      const data = await res.json();
+      if (!data.ok) {
+        setErroLideranca(String(data.erro ?? 'Erro ao carregar liderança.'));
+        return;
+      }
+      setLideranca(data as PayloadEvolucaoLideranca);
+    } catch {
+      setErroLideranca('Erro de conexão ao calcular ILI.');
+    } finally {
+      setLoadingLideranca(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (aba === 'lideranca' && !lideranca && !loadingLideranca) {
+      void carregarLideranca();
+    }
+  }, [aba, lideranca, loadingLideranca, carregarLideranca]);
+
   const colaboradoresFiltrados = useMemo(
     () => filtrarColaboradores(payload?.colaboradores ?? [], busca, filtroSituacao),
     [payload, busca, filtroSituacao]
+  );
+
+  const lideresFiltrados = useMemo(
+    () => filtrarLideres(lideranca?.lideres ?? [], buscaLider, filtroLider),
+    [lideranca, buscaLider, filtroLider]
   );
 
   const resumo = payload?.resumo;
@@ -228,6 +372,7 @@ export function EvolucaoAdminPanel() {
     { id: 'rede', label: 'Visão rede' },
     { id: 'colaboradores', label: 'Colaboradores' },
     { id: 'unidades', label: 'Unidades' },
+    { id: 'lideranca', label: 'Liderança' },
   ];
 
   if (loading && !payload) {
@@ -246,22 +391,28 @@ export function EvolucaoAdminPanel() {
         actions={
           <button
             type="button"
-            onClick={() => void carregar()}
-            disabled={loading}
+            onClick={() => (aba === 'lideranca' ? void carregarLideranca() : void carregar())}
+            disabled={aba === 'lideranca' ? loadingLideranca : loading}
             className="inline-flex min-h-[44px] items-center rounded-xl border border-cafeteria-200 bg-white px-4 py-2 text-sm font-medium text-coffee-base hover:bg-cream-50 disabled:opacity-60"
           >
-            {loading ? 'Atualizando…' : 'Atualizar'}
+            {aba === 'lideranca'
+              ? loadingLideranca
+                ? 'Calculando ILI…'
+                : 'Atualizar ILI'
+              : loading
+                ? 'Atualizando…'
+                : 'Atualizar'}
           </button>
         }
       />
 
-      {erro && (
+      {(erro || erroLideranca) && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
-          {erro}
+          {aba === 'lideranca' ? erroLideranca : erro}
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 p-1 rounded-2xl bg-cream-100/80 border border-cafeteria-100">
+      <div className="flex flex-wrap gap-2 p-1 rounded-2xl bg-cream-100/80 border border-cafeteria-100 overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -278,6 +429,7 @@ export function EvolucaoAdminPanel() {
         ))}
       </div>
 
+      {aba !== 'lideranca' && (
       <div className="flex flex-col lg:flex-row gap-3 lg:items-end">
         <label className="flex-1 min-w-[10rem]">
           <span className="text-xs font-medium text-cafeteria-600 block mb-1">Unidade</span>
@@ -338,8 +490,38 @@ export function EvolucaoAdminPanel() {
           </>
         )}
       </div>
+      )}
 
-      {resumo && (
+      {aba === 'lideranca' && (
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+          <label className="flex-[2] min-w-[12rem]">
+            <span className="text-xs font-medium text-cafeteria-600 block mb-1">Buscar líder</span>
+            <input
+              type="search"
+              value={buscaLider}
+              onChange={(e) => setBuscaLider(e.target.value)}
+              placeholder="Nome, setor ou unidade"
+              className="w-full rounded-xl border border-cafeteria-200 bg-white px-3 py-2.5 text-sm min-h-[44px]"
+            />
+          </label>
+          <label className="min-w-[10rem]">
+            <span className="text-xs font-medium text-cafeteria-600 block mb-1">Tendência ILI</span>
+            <select
+              value={filtroLider}
+              onChange={(e) => setFiltroLider(e.target.value as SituacaoEvolucao | '')}
+              className="w-full rounded-xl border border-cafeteria-200 bg-white px-3 py-2.5 text-sm min-h-[44px]"
+            >
+              <option value="">Todas</option>
+              <option value="evoluindo">Evoluindo</option>
+              <option value="estavel">Estável</option>
+              <option value="regredindo">Atenção</option>
+              <option value="sem_historico">Sem histórico</option>
+            </select>
+          </label>
+        </div>
+      )}
+
+      {resumo && aba !== 'lideranca' && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
           <AdminStatCard
             emoji="📊"
@@ -437,8 +619,8 @@ export function EvolucaoAdminPanel() {
                 <p>Agregação dos colaboradores da filial — útil para sócios acompanharem Mesquita, Barra, etc.</p>
               </div>
               <div className="rounded-xl bg-cream-50 border border-cream-200 p-4">
-                <p className="font-semibold text-coffee-base mb-1">Rede</p>
-                <p>Panorama geral da empresa. Liderança (ILI) entra na Fase 2.</p>
+                <p className="font-semibold text-coffee-base mb-1">Liderança</p>
+                <p>ILI por líder na aba Liderança — feedback, equipe, disciplina e engajamento.</p>
               </div>
             </div>
           </AdminSection>
@@ -480,9 +662,108 @@ export function EvolucaoAdminPanel() {
         </div>
       )}
 
-      {payload?.gerado_em && (
+      {aba === 'lideranca' && (
+        <>
+          {loadingLideranca && !lideranca ? (
+            <div className="py-12 flex justify-center">
+              <XicaraCarregando size="md" label="Calculando ILI das últimas semanas…" />
+            </div>
+          ) : (
+            <div className="grid lg:grid-cols-2 gap-4 md:gap-6">
+              <AdminSection
+                title="Ranking ILI"
+                description={
+                  lideranca?.semana_referencia
+                    ? `Semana ref. ${lideranca.semana_referencia}`
+                    : 'Índice Líder Inspirador'
+                }
+                action={
+                  <div className="flex rounded-lg border border-cafeteria-200 overflow-hidden text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setModoRankingLider('atual')}
+                      className={`px-3 py-1.5 font-medium ${modoRankingLider === 'atual' ? 'bg-dourado-base text-cream-100' : 'bg-white text-coffee-base'}`}
+                    >
+                      ILI atual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoRankingLider('evolucao')}
+                      className={`px-3 py-1.5 font-medium ${modoRankingLider === 'evolucao' ? 'bg-dourado-base text-cream-100' : 'bg-white text-coffee-base'}`}
+                    >
+                      Evolução
+                    </button>
+                  </div>
+                }
+              >
+                <ol className="space-y-2 list-none m-0 p-0">
+                  {(modoRankingLider === 'atual'
+                    ? lideranca?.ranking_ili_atual
+                    : lideranca?.ranking_evolucao
+                  )?.map((r) => (
+                    <li
+                      key={r.id}
+                      className="flex items-center gap-3 rounded-xl border border-cafeteria-100 bg-white/80 px-3 py-2.5"
+                    >
+                      <span className="w-7 h-7 rounded-full bg-violet-100 text-violet-900 flex items-center justify-center text-sm font-bold shrink-0">
+                        {r.posicao}
+                      </span>
+                      <span className="flex-1 font-medium text-coffee-base truncate">{r.nome}</span>
+                      {'ili' in r && !r.elegivel && (
+                        <span className="text-[10px] text-amber-800 shrink-0">parcial</span>
+                      )}
+                      <span className="text-lg font-display font-semibold tabular-nums shrink-0">
+                        {'ili' in r ? formatarIli(r.ili) : formatarDelta(r.delta)}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              </AdminSection>
+
+              <AdminSection
+                title="Líderes"
+                description={`${lideresFiltrados.length} de ${lideranca?.lideres.length ?? 0}`}
+                action={
+                  <Link
+                    href="/admin/avaliacoes-lideranca"
+                    className="text-sm font-medium text-dourado-base hover:underline"
+                  >
+                    Feedback liderança →
+                  </Link>
+                }
+                className="lg:col-span-2"
+              >
+                {lideresFiltrados.length === 0 ? (
+                  <p className="text-sm text-cafeteria-600 py-8 text-center">Nenhum líder com estes filtros.</p>
+                ) : (
+                  <ul className="rounded-2xl border border-cafeteria-200 overflow-hidden bg-white list-none m-0 p-0">
+                    {lideresFiltrados.map((l) => (
+                      <LinhaLider
+                        key={l.id}
+                        l={l}
+                        expandido={expandidoLiderId === l.id}
+                        onToggle={() =>
+                          setExpandidoLiderId((atual) => (atual === l.id ? null : l.id))
+                        }
+                      />
+                    ))}
+                  </ul>
+                )}
+              </AdminSection>
+            </div>
+          )}
+        </>
+      )}
+
+      {payload?.gerado_em && aba !== 'lideranca' && (
         <p className="text-xs text-cafeteria-500 text-center">
           Atualizado em {new Date(payload.gerado_em).toLocaleString('pt-BR')}
+        </p>
+      )}
+
+      {lideranca?.gerado_em && aba === 'lideranca' && (
+        <p className="text-xs text-cafeteria-500 text-center">
+          ILI atualizado em {new Date(lideranca.gerado_em).toLocaleString('pt-BR')}
         </p>
       )}
     </div>

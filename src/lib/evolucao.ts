@@ -1,6 +1,8 @@
 /** Camada Evolução — tendência semanal (Atual vs janelas anteriores). */
 
 export const EVOLUCAO_LIMIAR = 0.1;
+/** Limiar de tendência para ILI (escala 0–100). */
+export const EVOLUCAO_ILI_LIMIAR = 2;
 export const EVOLUCAO_SEMANAS_JANELA = 4;
 export const EVOLUCAO_MIN_SEMANAS_POR_JANELA = 2;
 export const EVOLUCAO_HISTORICO_MAX = 8;
@@ -34,10 +36,10 @@ function mediaLista(values: number[]): number | null {
   return Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100;
 }
 
-export function classificarTendencia(delta: number | null): SituacaoEvolucao {
+export function classificarTendencia(delta: number | null, limiar = EVOLUCAO_LIMIAR): SituacaoEvolucao {
   if (delta == null || Number.isNaN(delta)) return 'sem_historico';
-  if (delta >= EVOLUCAO_LIMIAR) return 'evoluindo';
-  if (delta <= -EVOLUCAO_LIMIAR) return 'regredindo';
+  if (delta >= limiar) return 'evoluindo';
+  if (delta <= -limiar) return 'regredindo';
   return 'estavel';
 }
 
@@ -91,14 +93,20 @@ export function formatarNota(n: number | null | undefined): string {
   return n.toFixed(2).replace('.', ',');
 }
 
+export function formatarIli(n: number | null | undefined): string {
+  if (n == null || Number.isNaN(n)) return '—';
+  return n.toFixed(1).replace('.', ',');
+}
+
 /** Janelas: últimas N semanas vs N anteriores (mínimo de semanas válidas por janela). */
 export function calcularMetricasEvolucao(
   semanas: SemanaMedia[],
-  opts?: { janela?: number; minPorJanela?: number; historicoMax?: number }
+  opts?: { janela?: number; minPorJanela?: number; historicoMax?: number; limiar?: number }
 ): MetricasEvolucao {
   const janela = opts?.janela ?? EVOLUCAO_SEMANAS_JANELA;
   const minPorJanela = opts?.minPorJanela ?? EVOLUCAO_MIN_SEMANAS_POR_JANELA;
   const historicoMax = opts?.historicoMax ?? EVOLUCAO_HISTORICO_MAX;
+  const limiar = opts?.limiar ?? EVOLUCAO_LIMIAR;
 
   const ordenadas = [...semanas]
     .filter((s) => s.media != null && !Number.isNaN(s.media))
@@ -148,7 +156,7 @@ export function calcularMetricasEvolucao(
       : null;
 
   return {
-    situacao: classificarTendencia(delta),
+    situacao: classificarTendencia(delta, limiar),
     delta,
     nota_atual,
     media_recente,

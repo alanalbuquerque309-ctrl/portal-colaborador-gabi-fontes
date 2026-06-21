@@ -363,17 +363,11 @@ function compararLideres(a: ILICalculoInterno, b: ILICalculoInterno): number {
   return b.pct_disciplina - a.pct_disciplina;
 }
 
-export async function calcularRankingLiderInspirador(
+/** ILI de todos os líderes ativos numa semana (inclui inelegíveis). */
+export async function calcularTodosILILideresSemana(
   supabase: SupabaseClient,
-  opts?: { semanaEquipe?: string }
-): Promise<{
-  semana_inicio: string;
-  semana_rotulo: string;
-  ranking: ILICalculoInterno[];
-  vencedor: LiderInspiradorVencedor | null;
-}> {
-  const semanaEquipe = opts?.semanaEquipe ?? semanaReferenciaLiderInspirador();
-  const semanaRotulo = formatarIntervaloSemanaPtBR(semanaEquipe);
+  semanaEquipe: string
+): Promise<ILICalculoInterno[]> {
   const cache = await carregarDadosSemana(supabase, semanaEquipe);
   const liderIds = await listarIdsLideresAtivos(supabase);
 
@@ -393,6 +387,22 @@ export async function calcularRankingLiderInspirador(
       )
     );
   }
+
+  return calculos;
+}
+
+export async function calcularRankingLiderInspirador(
+  supabase: SupabaseClient,
+  opts?: { semanaEquipe?: string }
+): Promise<{
+  semana_inicio: string;
+  semana_rotulo: string;
+  ranking: ILICalculoInterno[];
+  vencedor: LiderInspiradorVencedor | null;
+}> {
+  const semanaEquipe = opts?.semanaEquipe ?? semanaReferenciaLiderInspirador();
+  const semanaRotulo = formatarIntervaloSemanaPtBR(semanaEquipe);
+  const calculos = await calcularTodosILILideresSemana(supabase, semanaEquipe);
 
   const elegiveis = calculos.filter((c) => c.elegivel).sort(compararLideres);
   const top = elegiveis[0] ?? null;
