@@ -67,7 +67,11 @@ async function resolverLiderId(
   const candidatos = (data ?? []).filter(
     (c) =>
       nomeCoincide(String(c.nome ?? ''), nomeBusca) &&
-      podeSerLider((c as { role?: string }).role, (c as { cargo?: string }).cargo)
+      podeSerLider(
+        (c as { role?: string }).role,
+        (c as { cargo?: string }).cargo,
+        String(c.nome ?? '')
+      )
   );
   if (candidatos.length === 0) return null;
   if (candidatos.length === 1) return String(candidatos[0].id);

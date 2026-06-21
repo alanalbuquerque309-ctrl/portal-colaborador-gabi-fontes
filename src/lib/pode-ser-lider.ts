@@ -1,3 +1,4 @@
+import { isSocioNegocioPorNome } from '@/lib/socios-negocio';
 import { normalizePortalRole } from '@/lib/roles';
 
 function normalizeText(value: string | null | undefined): string {
@@ -9,7 +10,12 @@ function normalizeText(value: string | null | undefined): string {
 }
 
 /** Perfis/cargos que podem ser registados como líder de setor. */
-export function podeSerLider(role: string | null | undefined, cargo: string | null | undefined): boolean {
+export function podeSerLider(
+  role: string | null | undefined,
+  cargo: string | null | undefined,
+  nome?: string | null
+): boolean {
+  if (isSocioNegocioPorNome(nome)) return false;
   const r = normalizePortalRole(role);
   if (r === 'socio') return false;
   if (r === 'admin' || r === 'gerente' || r === 'master') return true;

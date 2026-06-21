@@ -17,7 +17,7 @@ function GavetaComponentes({ componentes }: { componentes: ILIComponente[] }) {
   return (
     <div className="space-y-2">
       <p className="text-xs text-cafeteria-600 mb-2">
-        Cada eixo vale até 100 pontos, ponderado pelo peso no índice.
+        O que entra na sua nota (de 0 a 100):
       </p>
       <ul className="space-y-2">
         {componentes.map((c) => (
@@ -99,14 +99,14 @@ export function PainelLiderHome({ painel }: Props) {
 
         {painel.eh_vencedor_semana ? (
           <div className="mb-4 rounded-xl border border-dourado-base/50 bg-dourado-50/80 px-3 py-2 text-sm text-cafeteria-900">
-            ⭐ Você é o <strong>Líder Inspirador</strong> desta semana na rede!
+            ⭐ Você é o <strong>melhor líder da semana</strong> na rede!
           </div>
         ) : null}
 
         <div className="grid grid-cols-2 gap-3">
           <PainelStatCard
             emoji="⭐"
-            label="Índice ILI"
+            label="Minha nota"
             valor={formatarIli(painel.ili)}
             sub="Só você vê este número"
             tom="dourado"
@@ -128,8 +128,8 @@ export function PainelLiderHome({ painel }: Props) {
             gaveta={
               <p className="text-sm text-cafeteria-700">
                 {painel.elegivel
-                  ? 'Quem tiver o maior ILI da semana aparece em Reconhecimentos na home. Só você vê sua posição aqui.'
-                  : 'Complete os mínimos da semana para entrar na disputa.'}
+                  ? 'Quem tiver a maior nota da semana aparece nos Reconhecimentos. Só você vê sua posição aqui.'
+                  : 'Complete o mínimo da semana para entrar no ranking.'}
               </p>
             }
           />

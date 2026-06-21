@@ -1,5 +1,5 @@
-import { nomeCoincide } from '@/lib/avaliacao-direta';
 import { canResponderAjudaPorId, normalizePortalRole } from '@/lib/roles';
+import { isSocioNegocioPorNome } from '@/lib/socios-negocio';
 
 /** Alan Albuquerque — CPF no cadastro Supabase. */
 export const CPF_ALAN_AUDITORIA = '05376259765';
@@ -8,8 +8,6 @@ export const CPF_ALAN_AUDITORIA = '05376259765';
 export const IDS_AUDITORIA_LIDERANCA_FIXOS = new Set([
   '78db7f2d-8ee9-4124-aad9-fa688983d995',
 ]);
-
-const SOCIOS_NEGOCIO_NOMES = ['Alan Albuquerque', 'Alan', 'Gabriela Fontes', 'Gabriela'];
 
 export function normalizarCpfAuditoria(cpf: string | null | undefined): string {
   const digits = String(cpf ?? '').replace(/\D/g, '');
@@ -59,7 +57,7 @@ export function viewerTemAuditoriaLideranca(viewer: ViewerAuditoriaLideranca): b
 
   const cpfOk = cpf && cpfsAuditoriaEnv().has(cpf);
   const idOk = id && idsAuditoriaEnv().has(id);
-  const nomeOk = nome && SOCIOS_NEGOCIO_NOMES.some((p) => nomeCoincide(nome, p));
+  const nomeOk = isSocioNegocioPorNome(nome);
   const roleOk = roleDb === 'socio' || roleCookie === 'socio';
   const socioNegocio = cpfOk || idOk || nomeOk || roleOk;
 

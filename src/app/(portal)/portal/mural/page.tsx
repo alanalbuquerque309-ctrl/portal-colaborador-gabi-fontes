@@ -17,7 +17,7 @@ export default function MuralPage() {
         illustration={<IlustracaoTrofeu className="w-20 h-20 opacity-95" />}
       />
 
-      <PortalSection title="Líder Inspirador" description="Quem mais inspirou a equipe na semana.">
+      <PortalSection title="Líder destaque" description="Melhor nota de liderança na semana.">
         <LiderInspiradorBanner />
       </PortalSection>
 

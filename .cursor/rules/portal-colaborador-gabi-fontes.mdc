@@ -30,7 +30,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 ## Arquitetura resumida
 
 - **Auth portal:** cookies de sessão (`portal_colaborador_id`, `portal_unidade_id`, `portal_role`) + `GET /api/portal/perfil`; admin/sócio também via login portal ou restauração `POST /api/admin/restaurar-portal`.
-- **Gates:** `PortalLayout` redireciona para onboarding, completar CPF, completar perfil conforme flags do perfil.
+- **Gates:** `PortalLayout` redireciona para onboarding, completar CPF, completar perfil conforme flags do perfil. **Performance (jun/2026, `73d0d2c`):** `GET /api/portal/perfil` **uma vez por aba** (não a cada clique interno); abertura **otimista** com cookie de sessão (header visível na hora); validação e redirecionamentos em segundo plano; refresh silencioso só ao **sair de `/portal/perfil`**. Contexto **`PortalPerfilProvider`** (`role`, `podeVisitaRh`) evita fetches duplicados de perfil nos atalhos.
 - **Ordem de gates (cadastro):** CPF → **perfil pessoal completo** (`perfil_completo`) → **onboarding** (`onboarding_completo`) → portal. Onboarding **só** após `perfil_completo === true` (evita loop perfil ↔ onboarding, `d0ea8a1`).
 - **Login:** `login/page.tsx` valida sessão via `GET /api/portal/perfil` antes de auto-redirect; limpa sessão inválida com `clearPortalSession()`.
 - **APIs sensíveis:** `/api/admin/*` com camadas de gate (`src/lib/admin-auth.ts`, `src/lib/admin-access.ts`):
@@ -151,8 +151,8 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 
 | Grupo (título) | Itens |
 |----------------|--------|
-| **• Visão geral** | Dashboard |
-| **• Pessoas** | Colaboradores, Liderança por setor, Escalas |
+| **• Visão geral** | Dashboard, **Saúde da equipe** (`/admin/evolucao`) |
+| **• Pessoas** | Colaboradores, Redefinições de senha, Termômetro de emoções, Liderança por setor, Escalas |
 | **• Avaliações** | Avaliação de Equipe (semanal), Feedback liderança, Avaliação entre pares |
 | **• Comunicação** | Avisos, Sugestões, Eventos de manuais |
 | **• Gestão** | Gorjeta (se permitido), Inbox ajuda, Chat equipe |
@@ -162,6 +162,34 @@ Menu completo agrupado em `admin/layout.tsx` (`navGrupos`):
 **Mobile (menu ☰):** sidebar em coluna com `max-h-[100dvh]` e área interna `overflow-y-auto` + `overscroll-contain`; com menu aberto, `body { overflow: hidden }` no mobile para o scroll ir **só** no menu (Inbox ajuda, Chat equipe, Voltar ao portal, logout no fim da lista).
 
 **Página Avaliação de Equipe (admin):** título *Avaliação de Equipe (semanal)*; orientações em gaveta recolhível; filtros reorganizados; sem botão duplicado *Pendentes da semana* (`e4c261e`).
+
+### Dashboard — cockpit (`AdminDashboardCockpit.tsx`)
+
+- Cards operacionais (pendências, sugestões, onboarding, termômetro, redefinições de senha).
+- **Saúde da equipe / ILI (jun/2026, `73d0d2c`):** cards **Saúde da equipe** e **Líder inspirador** são **atalhos** (`—` / «Abrir painel →») para `/admin/evolucao` e `/admin/evolucao?aba=lideranca`; **sem** fetch pesado de evolução/ILI no mount do dashboard (cálculo só ao abrir o painel).
+
+### Camada Evolução — Saúde da equipe (jun/2026)
+
+Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e **ILI** (Índice Líder Inspirador) para gestão.
+
+| Peça | Caminho / contrato |
+|------|---------------------|
+| **Rota admin** | `/admin/evolucao` — menu **Saúde da equipe** (grupo Visão geral) |
+| **UI** | `EvolucaoAdminPanel.tsx` — abas **Rede**, **Colaboradores**, **Unidades**, **Setores**, **Liderança (ILI)**; filtros unidade/setor; rankings «atual» vs «evolução» |
+| **Síntese executiva** | `EvolucaoPainelExecutivo.tsx` — unidade em evolução, top delta, link para aba liderança |
+| **Badges / sparkline** | `EvolucaoBadge.tsx`, `EvolucaoSparkline.tsx` |
+| **Libs métricas** | `src/lib/evolucao.ts` — tendência 4×4 semanas, limiar nota **±0,1**; ILI limiar **±2** pts |
+| **Agregação rede** | `evolucao-rede.ts`, `evolucao-agregacao.ts` — colaboradores, unidades, setores, resumo executivo |
+| **ILI liderança** | `evolucao-lideranca.ts` + `lider-inspirador.ts` — feedback, equipe, disciplina, engajamento |
+| **API rede** | `GET /api/admin/evolucao` — query `unidade_slug`, `setor`, `resumo=1`, `criterios=0`; acesso admin completo + RH |
+| **API ILI** | `GET /api/admin/evolucao/lideranca` |
+| **Fix produção** | `d9ef398` — removido `avaliador_role` do SELECT em `evolucao-rede.ts` (coluna **não existe** no Supabase; role vem de `colaboradores`) |
+
+**Situações (`SituacaoEvolucao`):** `evoluindo` | `estavel` | `regredindo` | `sem_historico` — rótulos e emojis em `evolucao.ts` (`rotuloSituacao`, `emojiSituacao`, `tomSituacao`).
+
+**Fases entregues (A–C):** resumo rede + painel executivo; visão por colaborador/unidade/setor com sparkline e critérios; aba liderança com ILI, ranking e elegibilidade por semana.
+
+**Adiado (sem pedido explícito):** export PDF/WhatsApp, cache ILI pesado, alertas automáticos de queda (fase D).
 
 ### Avaliação entre pares — admin troféus (jun/2026, `d3779f3`)
 
@@ -402,6 +430,24 @@ Página única que agrupa os canais de feedback e contato. **Layout (jun/2026):*
 
 **Princípio:** vida visual no telefone via **CSS leve** + cards com contraste; fotos decorativas de canto **não** voltam sem pedido explícito do Alan.
 
+## Performance e carregamento (jun/2026, `73d0d2c`)
+
+Objetivo: portal **rápido no telemóvel** — navegação interna sem tela branca, home com prioridade para pendências, skeleton com identidade da marca.
+
+| Peça | Comportamento |
+|------|----------------|
+| **`PortalLayout`** | Perfil validado **1× por aba**; `gateOk` otimista com cookie; header sempre visível; skeleton `LogoCarregando` (`revelarCor`) em vez de layout vazio |
+| **`PortalPerfilProvider`** | `src/contexts/PortalPerfilContext.tsx` — `role`, `podeVisitaRh`, `carregado` partilhados na árvore |
+| **`portal-atalhos-perfil.ts`** | Monta atalhos por perfil **sem** novo fetch de `/api/portal/perfil` |
+| **`PortalAtalhosPerfil`** | Consome contexto; remove 2.º pedido de perfil na home |
+| **`PortalHomeSecaoAdiada`** | Monta filhos após ~**350 ms** ou quando entram na viewport (`IntersectionObserver`); placeholder com logo cinza → cor |
+| **Home `page.tsx`** | Reconhecimentos, sugestões, atalhos, manuais e termômetro **adiados**; bloco principal (`PortalHomeEntrada`) carrega primeiro |
+| **`DestaquesHome`** | Só `reconhecimento-semanal` no mount; ranking **mensal** (`destaque`) ao clicar aba Mensal |
+| **`LogoCarregando`** | Prop `revelarCor` + animação Tailwind `logo-revelar-cor` (grayscale → cor) |
+| **`FacaAgoraHome`** | Título **«O que fazer agora»** (substitui «Faça agora») |
+
+**Antes vs depois (gate):** cada rota interna (`/portal` → `/portal/graos`) refazia perfil e escondia conteúdo; agora navegação **instantânea** com revalidação em background.
+
 ## Portal Shell — UI de páginas internas (jun/2026, `e088bb9`)
 
 **Objetivo:** alinhar páginas secundárias do portal à **gramática visual da Admin** (cards brancos, hierarquia clara, largura consistente), sem alterar APIs nem regras de negócio.
@@ -440,20 +486,19 @@ Página única que agrupa os canais de feedback e contato. **Layout (jun/2026):*
 
 ## Home do portal (contrato UX — jun/2026)
 
-**Ordem fixa** em `src/app/(portal)/portal/page.tsx` (commits **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**, **`72cc877`**):
+**Ordem fixa** em `src/app/(portal)/portal/page.tsx` (commits **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**, **`72cc877`**, **`73d0d2c`**):
 
 1. `EmocionalAlertasGestao` (só quem tem permissão)
-2. **`PortalBoasVindas`** — hero com imagem `/portal/xicara-hero.png` (latte + grãos; degradê integrado; faixa dourada + borda verde no mobile)
-3. **`DesdeUltimaVisitaHome`** — card *Para você* (personalizado; some se vazio)
-4. **`FacaAgoraHome`** — pendências acionáveis (some se vazio); **alerta crítico na sexta** para ADM/sócio (`7659cd3`)
-5. **`AvisosHome`** — comunicado ativo; **megafone animado** quando há aviso pendente de confirmação
-6. **`GraosHomeBanner`** — saldo / missões Grãos (link `/portal/graos`)
-7. **`DestaqueSection`** — título *Reconhecimentos*; tabs Semanal/Mensal; `DestaquesHome` (pódios + chips unidade; troféus com tabs Semanal/Mensal próprias)
-8. **`SugestoesEquipeHome`** — balão da unidade (sugestões + elogios; reclamações restritas na API)
-9. **`PortalAtalhosPerfil`** — gaveta *Mais atalhos* (por perfil; não duplicar o que já está no Faça agora)
-10. **Manuais oficiais** — `<details>` recolhido por padrão
-11. **Termômetro** — `#termometro-emocoes` (âncora do card termômetro no Faça agora)
-12. **`PortalRodapeFrase variant="home"`** — frase de fechamento + **logo** `/logo-gabi-fontes.png` (mesmo do login; **não** usar `IlustracaoCafe` SVG)
+2. **`PortalHomeEntrada`** — `GET /api/portal/home-resumo`: `MinhaSituacaoHome`, painéis colaborador/líder, **`FacaAgoraHome`** («O que fazer agora»); loading com `LogoCarregando revelarCor`
+3. **`AvisosHome`** — comunicado ativo; megafone quando há aviso pendente de confirmação
+4. **`PortalHomeSecaoAdiada`** → **`DestaqueSection`** / `DestaquesHome` (semanal no load; mensal sob demanda)
+5. **`PortalHomeSecaoAdiada`** → **`SugestoesEquipeHome`**
+6. **`PortalHomeSecaoAdiada`** → **`PortalAtalhosPerfil`** (gaveta *Mais atalhos*; perfil via contexto)
+7. **`PortalHomeSecaoAdiada`** → Manuais oficiais (`<details>` recolhido)
+8. **`PortalHomeSecaoAdiada`** → Termômetro (`#termometro-emocoes`)
+9. **`PortalRodapeFrase variant="home"`** — logo `/logo-gabi-fontes.png`
+
+**Legado na ordem (substituído por `PortalHomeEntrada`):** `PortalBoasVindas`, `DesdeUltimaVisitaHome`, `GraosHomeBanner` e `FacaAgoraHome` soltos na `page.tsx` — lógica migrada ou adiada conforme `home-resumo` e secções adiadas.
 
 **Fundo ambiente:** `PortalAmbientePagina` no **`PortalLayout`**, não na `page.tsx` (ver secção **Ambiente visual** acima).
 
@@ -465,7 +510,7 @@ Página única que agrupa os canais de feedback e contato. **Layout (jun/2026):*
 
 | Peça | Comportamento |
 |------|----------------|
-| Período | Tabs **Semanal** / **Mensal** (estado no `DestaqueSection`) |
+| Período | Tabs **Semanal** / **Mensal** (estado no `DestaqueSection`); **mensal** só dispara fetch ao clicar na aba (`73d0d2c`) |
 | Unidade | Chips: Geral, Mesquita, Barra, Nova Iguaçu, Fábrica, Administração (`DESTAQUE_ABAS_UNIDADE` em `destaques-home-unidades.ts`) |
 | Avaliação | **Pódio top 3** — `PodioTop3.tsx` |
 | Troféus entre pares | **Pódio top 3** — `PodioTop3Trofeus.tsx`; **tabs Semanal/Mensal** no próprio bloco de troféus; **Ver mais** revela lista (`LinhaRankingTrofeu`) do 4.º em diante |
@@ -503,9 +548,9 @@ Personalização leve no topo da home (abaixo dos alertas emocionais, acima do F
 - **Links:** cada item pode apontar para mural, desempenho, comunicação ou aniversariantes.
 - **Ocultação:** componente retorna `null` se não houver itens ou sessão inválida; skeleton breve enquanto carrega.
 
-### Faça agora (`FacaAgoraHome.tsx`)
+### Faça agora / O que fazer agora (`FacaAgoraHome.tsx`)
 
-Bloco no topo; **só renderiza se houver pendências**; até **6 cards**; CTA padrão **«Clique para ver →»** (termômetro: *Responder agora →*). Cabeçalho com faixa verde/creme **no mobile** (`72cc877`).
+Bloco no topo da **`PortalHomeEntrada`** (ou fallback solto se `home-resumo` falhar); título **«O que fazer agora»**; **só renderiza se houver pendências**; até **6 cards**; CTA padrão **«Clique para ver →»** (termômetro: *Responder agora →*). Cabeçalho com faixa verde/creme **no mobile** (`72cc877`). Pode receber `tarefasExternas` do `home-resumo` (evita fetch duplicado).
 
 | Perfil | Cards (quando aplicável) | Destino |
 |--------|--------------------------|---------|
@@ -525,7 +570,7 @@ Bloco no topo; **só renderiza se houver pendências**; até **6 cards**; CTA pa
 
 ### Mais atalhos (`PortalAtalhosPerfil.tsx`)
 
-Gaveta recolhível com links secundários por perfil (desempenho, equipe no mês, minha liderança, visita RH, escalas, etc.) — complementa o Faça agora, não substitui.
+Gaveta recolhível com links secundários por perfil (desempenho, equipe no mês, minha liderança, visita RH, escalas, etc.) — complementa o O que fazer agora, não substitui. Atalhos montados por **`montarAtalhosPerfil`** + **`usePortalPerfil`** (sem 2.º fetch de perfil).
 
 ### Menu mobile portal (`Header.tsx`)
 
@@ -580,11 +625,30 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato só em reclamação |
 | **`047_sugestao_resposta_graos.sql`** | Resposta gestão com Grãos 0/3/5/9 |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`** (elogio, resposta 0/3/5/9, +1 envio). **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`** (reverte PNGs `0df77c7`). **Portal Shell (Mural, Aniversariantes, Comunicação, Treino):** **`e088bb9`**. **Admin sugestões + Líder Inspirador + fix comunicados (lote anterior):** **`3590904`**.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`**. **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`**. **Portal Shell:** **`e088bb9`**. **Camada Evolução (Saúde da equipe + ILI):** commits do painel `/admin/evolucao`; fix **`d9ef398`**. **Performance portal (gate, home adiada, logo skeleton):** **`73d0d2c`**.
 
 ---
 
 ## Evoluções entregues (registro — 2026)
+
+### Performance portal — navegação, home adiada, logo carregando (jun/2026, `73d0d2c`)
+
+- **`PortalLayout`:** perfil 1× por aba; abertura otimista; skeleton `LogoCarregando` com `revelarCor` (cinza → cor).
+- **`PortalPerfilContext`** + **`portal-atalhos-perfil.ts`:** role/RH partilhados; atalhos sem 2.º `/api/portal/perfil`.
+- **`PortalHomeSecaoAdiada`:** destaques, sugestões, atalhos, manuais e termômetro montam após delay/viewport.
+- **`DestaquesHome`:** mensal só ao abrir aba; semanal no mount.
+- **`FacaAgoraHome`:** título **«O que fazer agora»**.
+- **`AdminDashboardCockpit`:** cards Saúde da equipe / ILI viram atalhos; sem fetch pesado no dashboard.
+- **Tailwind:** keyframe `logo-revelar-cor`.
+
+### Camada Evolução — Saúde da equipe e ILI (jun/2026)
+
+- **Rota:** `/admin/evolucao` — menu admin **Saúde da equipe**; abas Rede, Colaboradores, Unidades, Setores, Liderança (ILI).
+- **Libs:** `evolucao.ts`, `evolucao-rede.ts`, `evolucao-agregacao.ts`, `evolucao-lideranca.ts`, `lider-inspirador.ts`.
+- **APIs:** `GET /api/admin/evolucao`, `GET /api/admin/evolucao/lideranca`.
+- **UI:** `EvolucaoAdminPanel`, `EvolucaoPainelExecutivo`, `EvolucaoBadge`, `EvolucaoSparkline`.
+- **Métricas:** tendência 4×4 semanas (limiar ±0,1); ILI (limiar ±2 pts); situações evoluindo/estável/regredindo/sem histórico.
+- **Fix produção (`d9ef398`):** SELECT em `evolucao-rede.ts` sem coluna inexistente `avaliador_role`.
 
 ### Portal Shell — Mural, Aniversariantes, Comunicação, Treino (jun/2026, `e088bb9`)
 
@@ -828,7 +892,8 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | P3 | **Manter guia na Área de Trabalho** atualizado | Se mudar rotas/labels no portal |
 | P4 | **Sugerir líder do outro plantão** ao marcar «Outro plantão» | Depende de 042 + paridade configurada; inferir colega de plantão oposto no card |
 | P5 | **Avaliação identificada visível ao líder?** | Hoje só sócios veem autor; confirmar se líder deve ver nome quando colaborador desmarca anônimo |
-| P6 | **Engajamento diário** (além do card *Para você*) | Card «desde última visita» entregue (`c2549e6`); outras ideias (streak, push) só com pedido explícito |
+| P6 | **Engajamento diário** (além do card *Para você*) | Card «desde última visita» entregue (`c2549e6`); home consolidada em `PortalHomeEntrada` + `home-resumo`; outras ideias (streak, push) só com pedido explícito |
+| P7 | **Camada Evolução fase D** | Export PDF/WhatsApp, cache ILI pesado, alertas automáticos de queda — **adiado** |
 
 ### Infra / produção
 
@@ -868,6 +933,17 @@ src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts
 src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, mural-unidade-grupo.ts, manual-por-setor.ts
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
+src/contexts/PortalPerfilContext.tsx
+src/components/ui/LogoCarregando.tsx
+src/components/portal/PortalHomeSecaoAdiada.tsx
+src/lib/portal-atalhos-perfil.ts
+src/components/portal/home/PortalHomeEntrada.tsx
+src/app/api/portal/home-resumo/
+src/components/admin/AdminDashboardCockpit.tsx
+src/components/admin/EvolucaoAdminPanel.tsx, EvolucaoPainelExecutivo.tsx, EvolucaoBadge.tsx, EvolucaoSparkline.tsx
+src/lib/evolucao.ts, evolucao-rede.ts, evolucao-agregacao.ts, evolucao-lideranca.ts
+src/app/api/admin/evolucao/, api/admin/evolucao/lideranca/
+src/app/(admin)/admin/evolucao/page.tsx
 src/components/portal/shell/PortalPageHeader.tsx, PortalSection.tsx, PortalActionCard.tsx, PortalEmptyState.tsx
 src/components/mural/AniversarianteCard.tsx
 src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx

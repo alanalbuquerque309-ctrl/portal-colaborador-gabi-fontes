@@ -21,6 +21,7 @@
     "db:ignorar-avaliacoes-vinculo": "node scripts/ignorar-avaliacoes-vinculo-incorreto.mjs --confirmar",
     "db:apply-migrations-avaliacao": "node scripts/aplicar-migrations-038-039.mjs",
     "db:avaliacao-direta": "node scripts/aplicar-vinculos-avaliacao-direta.mjs",
+    "db:corrigir-socios-negocio": "node scripts/corrigir-socios-negocio.mjs",
     "db:escalas-junho-2026": "node scripts/aplicar-escalas-junho-2026.mjs --confirmar",
     "db:zerar-avaliacoes-trofeus": "node scripts/zerar-avaliacoes-trofeus.mjs --confirmar",
     "db:limpar-avaliacoes-antigas": "node scripts/limpar-avaliacoes-semanas-antigas.mjs --confirmar",

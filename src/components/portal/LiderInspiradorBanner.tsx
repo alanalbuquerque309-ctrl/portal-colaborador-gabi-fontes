@@ -74,7 +74,7 @@ export function LiderInspiradorBanner({ embedded = false }: Props) {
 
         <div className="min-w-0 flex-1">
           <p id="lider-inspirador-titulo" className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
-            Líder Inspirador · semana {semanaRotulo || vencedor.semana_rotulo}
+            Líder destaque · semana {semanaRotulo || vencedor.semana_rotulo}
           </p>
           <h2 className="text-xl font-display font-semibold text-cafeteria-900 mt-1">{vencedor.nome}</h2>
           <p className="text-sm text-cafeteria-600 mt-0.5">

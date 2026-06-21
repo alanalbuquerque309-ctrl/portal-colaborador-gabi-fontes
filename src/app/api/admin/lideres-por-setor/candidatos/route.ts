@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
 import { podeSerLider } from '@/lib/pode-ser-lider';
-import { normalizePortalRole } from '@/lib/roles';
+import { isSocioNegocioColaborador } from '@/lib/socios-negocio';
 
 /** Colaboradores elegíveis como líder de setor numa unidade (para o select do admin). */
 export async function GET(req: Request) {
@@ -35,9 +35,10 @@ export async function GET(req: Request) {
 
     const candidatos = (data ?? [])
       .filter((c) => {
-        const r = normalizePortalRole((c as { role?: string }).role);
-        if (r === 'socio') return false;
-        return podeSerLider((c as { role?: string }).role, (c as { cargo?: string }).cargo);
+        const nome = String((c as { nome?: string }).nome ?? '');
+        const role = String((c as { role?: string }).role ?? '');
+        if (isSocioNegocioColaborador({ nome, role })) return false;
+        return podeSerLider(role, (c as { cargo?: string }).cargo, nome);
       })
       .map((c) => ({
         id: String(c.id),

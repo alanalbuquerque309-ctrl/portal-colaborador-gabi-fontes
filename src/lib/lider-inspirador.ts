@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { listarEquipeDoLider } from '@/lib/colaborador-lideres';
 import { isRoleGerenteAvaliador, podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
+import { isSocioNegocioColaborador } from '@/lib/socios-negocio';
 import { normalizePortalRole } from '@/lib/roles';
 import {
   formatarIntervaloSemanaPtBR,
@@ -87,11 +88,11 @@ function montarComponentes(opts: {
   ptsEngajamento: number;
 }): ILIComponente[] {
   return [
-    { label: 'Feedback de liderança', pontos: opts.ptsFeedback, peso: ILI_PESOS.feedback, contribuicao: opts.ptsFeedback * ILI_PESOS.feedback },
-    { label: 'Média da equipe', pontos: opts.ptsEquipe, peso: ILI_PESOS.equipe, contribuicao: opts.ptsEquipe * ILI_PESOS.equipe },
-    { label: 'Avaliações em dia', pontos: opts.ptsDisciplina, peso: ILI_PESOS.disciplina, contribuicao: opts.ptsDisciplina * ILI_PESOS.disciplina },
-    { label: 'Treinamentos', pontos: opts.ptsTreinamentos, peso: ILI_PESOS.treinamentos, contribuicao: opts.ptsTreinamentos * ILI_PESOS.treinamentos },
-    { label: 'Engajamento', pontos: ptsEngajamentoSafe(opts.ptsEngajamento), peso: ILI_PESOS.engajamento, contribuicao: ptsEngajamentoSafe(opts.ptsEngajamento) * ILI_PESOS.engajamento },
+    { label: 'O que a equipe fala de você', pontos: opts.ptsFeedback, peso: ILI_PESOS.feedback, contribuicao: opts.ptsFeedback * ILI_PESOS.feedback },
+    { label: 'Média da sua equipe', pontos: opts.ptsEquipe, peso: ILI_PESOS.equipe, contribuicao: opts.ptsEquipe * ILI_PESOS.equipe },
+    { label: 'Avaliou todo mundo?', pontos: opts.ptsDisciplina, peso: ILI_PESOS.disciplina, contribuicao: opts.ptsDisciplina * ILI_PESOS.disciplina },
+    { label: 'Equipe no portal', pontos: opts.ptsTreinamentos, peso: ILI_PESOS.treinamentos, contribuicao: opts.ptsTreinamentos * ILI_PESOS.treinamentos },
+    { label: 'Troféus da equipe', pontos: ptsEngajamentoSafe(opts.ptsEngajamento), peso: ILI_PESOS.engajamento, contribuicao: ptsEngajamentoSafe(opts.ptsEngajamento) * ILI_PESOS.engajamento },
   ];
 }
 
@@ -201,15 +202,27 @@ export async function listarIdsLideresAtivos(supabase: SupabaseClient): Promise<
 
   const { data: gerentes } = await supabase
     .from('colaboradores')
-    .select('id, role')
+    .select('id, nome, role')
     .or('role.eq.gerente,role.eq.master,role.eq.admin,role.eq.chefe,role.eq.lider');
   for (const row of gerentes ?? []) {
-    if (isRoleGerenteAvaliador(String(row.role ?? ''))) {
+    if (
+      isRoleGerenteAvaliador(String(row.role ?? '')) &&
+      !isSocioNegocioColaborador({ nome: String(row.nome ?? ''), role: String(row.role ?? '') })
+    ) {
       ids.add(String(row.id));
     }
   }
 
-  return Array.from(ids);
+  if (ids.size === 0) return [];
+
+  const { data: meta } = await supabase
+    .from('colaboradores')
+    .select('id, nome, role')
+    .in('id', Array.from(ids));
+
+  return (meta ?? [])
+    .filter((c) => !isSocioNegocioColaborador({ nome: String(c.nome ?? ''), role: String(c.role ?? '') }))
+    .map((c) => String(c.id));
 }
 
 async function mediaEquipeSemana(

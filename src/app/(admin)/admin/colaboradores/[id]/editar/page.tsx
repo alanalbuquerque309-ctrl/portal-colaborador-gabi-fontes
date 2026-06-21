@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { podeSerLider } from '@/lib/pode-ser-lider';
 import { normalizePortalRole } from '@/lib/roles';
 import { formatCpf, validateCpf } from '@/lib/utils/cpf';
 
@@ -14,43 +15,6 @@ const OPCOES_ROLE = [
   { value: 'admin', label: 'Administrador', desc: 'Portal + painel admin' },
   { value: 'socio', label: 'Sócio', desc: 'Perfil legado — acesso total' },
 ];
-
-function normalizeText(value: string | null | undefined): string {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
-function podeSerLider(role: string | null | undefined, cargo: string | null | undefined): boolean {
-  const r = normalizePortalRole(role);
-  if (r === 'socio') return false;
-  if (r === 'admin' || r === 'gerente' || r === 'master') return true;
-  const roleRaw = normalizeText(role);
-  if (
-    roleRaw.includes('gerente') ||
-    roleRaw.includes('sub gerente') ||
-    roleRaw.includes('subgerente') ||
-    roleRaw.includes('chefe') ||
-    roleRaw.includes('confeiteiro') ||
-    roleRaw.includes('administrador') ||
-    roleRaw.includes('adminisrtador')
-  ) {
-    return true;
-  }
-  const c = normalizeText(cargo);
-  if (!c) return false;
-  return (
-    c.includes('gerente') ||
-    c.includes('sub gerente') ||
-    c.includes('subgerente') ||
-    c.includes('chefe') ||
-    c.includes('confeiteiro') ||
-    c.includes('administrador') ||
-    c.includes('adminisrtador')
-  );
-}
 
 function isUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
@@ -196,7 +160,7 @@ export default function EditarColaboradorPage() {
 
   const opcoesLider = useMemo(() => {
     return todosColaboradores
-      .filter((c) => c.id !== id && podeSerLider(c.role, c.cargo))
+      .filter((c) => c.id !== id && podeSerLider(c.role, c.cargo, c.nome))
       .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
   }, [todosColaboradores, id]);
 

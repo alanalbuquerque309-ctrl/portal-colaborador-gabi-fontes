@@ -192,9 +192,9 @@ export function AdminDashboardCockpit() {
 
         <AdminStatCard
           emoji="⭐"
-          label="Líder inspirador"
+          label="Nota dos líderes"
           valor="—"
-          sub="ILI · abrir painel"
+          sub="Ver ranking →"
           tom="dourado"
           href="/admin/evolucao?aba=lideranca"
         />

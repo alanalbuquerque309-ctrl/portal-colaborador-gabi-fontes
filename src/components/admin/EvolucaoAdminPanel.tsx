@@ -8,6 +8,7 @@ import { AdminSection } from '@/components/admin/shell/AdminSection';
 import { AdminStatCard } from '@/components/admin/shell/AdminStatCard';
 import { EvolucaoBadge } from '@/components/admin/EvolucaoBadge';
 import { EvolucaoPainelExecutivo } from '@/components/admin/EvolucaoPainelExecutivo';
+import { EvolucaoNotaLiderGuiaGaveta } from '@/components/admin/EvolucaoNotaLiderGuiaGaveta';
 import { EvolucaoSparkline } from '@/components/admin/EvolucaoSparkline';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
@@ -81,7 +82,7 @@ function LinhaLider({
             <EvolucaoBadge situacao={l.situacao} compacto delta={l.delta} />
             {!l.elegivel_semana_atual && (
               <span className="text-[10px] uppercase tracking-wide text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
-                ILI parcial
+                Semana incompleta
               </span>
             )}
           </div>
@@ -93,11 +94,11 @@ function LinhaLider({
           <EvolucaoSparkline pontos={l.historico} />
         </div>
         <div className="text-right shrink-0 min-w-[4rem]">
-          <p className="text-[10px] uppercase text-cafeteria-500">ILI</p>
+          <p className="text-[10px] uppercase text-cafeteria-500">Nota</p>
           <p className="text-xl font-display font-semibold tabular-nums">{formatarIli(l.ili_atual)}</p>
         </div>
         <div className="text-right shrink-0 min-w-[3.5rem]">
-          <p className="text-[10px] uppercase text-cafeteria-500">Δ ILI</p>
+          <p className="text-[10px] uppercase text-cafeteria-500">Mudança</p>
           <p
             className={`text-lg font-semibold tabular-nums ${
               l.delta != null && l.delta > 0
@@ -118,7 +119,7 @@ function LinhaLider({
         <div className="px-4 pb-4 pt-0 bg-cream-50/50 border-t border-cream-100">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
             <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
-              <p className="text-xs text-cafeteria-600">Média ILI (4 sem.)</p>
+              <p className="text-xs text-cafeteria-600">Média das últimas 4 sem.</p>
               <p className="text-lg font-semibold tabular-nums">{formatarIli(l.ili_media_recente)}</p>
             </div>
             <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
@@ -126,7 +127,7 @@ function LinhaLider({
               <p className="text-lg font-semibold tabular-nums">{formatarNota(l.media_equipe)}</p>
             </div>
             <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
-              <p className="text-xs text-cafeteria-600">Feedback liderança</p>
+              <p className="text-xs text-cafeteria-600">O que a equipe avaliou</p>
               <p className="text-lg font-semibold tabular-nums">{formatarNota(l.media_feedback)}</p>
             </div>
             <div className="rounded-xl bg-white border border-cafeteria-100 p-3">
@@ -140,7 +141,8 @@ function LinhaLider({
             </p>
           )}
           <p className="text-xs text-cafeteria-500 mt-3">
-            ILI (Índice Líder Inspirador): tendência 4×4 semanas, limiar ±2 pts. {rotuloSituacao(l.situacao)}.
+            Abra «O que é a nota do líder?» acima para a explicação. Tendência nas últimas semanas:{' '}
+            {rotuloSituacao(l.situacao)}.
           </p>
         </div>
       )}
@@ -391,7 +393,7 @@ export function EvolucaoAdminPanel() {
       }
       setLideranca(data as PayloadEvolucaoLideranca);
     } catch {
-      setErroLideranca('Erro de conexão ao calcular ILI.');
+      setErroLideranca('Erro de conexão ao carregar notas dos líderes.');
     } finally {
       setLoadingLideranca(false);
     }
@@ -445,8 +447,8 @@ export function EvolucaoAdminPanel() {
           >
             {aba === 'lideranca'
               ? loadingLideranca
-                ? 'Calculando ILI…'
-                : 'Atualizar ILI'
+                ? 'Carregando…'
+                : 'Atualizar'
               : loading
                 ? 'Atualizando…'
                 : 'Atualizar'}
@@ -541,7 +543,9 @@ export function EvolucaoAdminPanel() {
       )}
 
       {aba === 'lideranca' && (
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+        <>
+          <EvolucaoNotaLiderGuiaGaveta />
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
           <label className="flex-[2] min-w-[12rem]">
             <span className="text-xs font-medium text-cafeteria-600 block mb-1">Buscar líder</span>
             <input
@@ -553,7 +557,7 @@ export function EvolucaoAdminPanel() {
             />
           </label>
           <label className="min-w-[10rem]">
-            <span className="text-xs font-medium text-cafeteria-600 block mb-1">Tendência ILI</span>
+            <span className="text-xs font-medium text-cafeteria-600 block mb-1">Subiu ou desceu?</span>
             <select
               value={filtroLider}
               onChange={(e) => setFiltroLider(e.target.value as SituacaoEvolucao | '')}
@@ -567,6 +571,7 @@ export function EvolucaoAdminPanel() {
             </select>
           </label>
         </div>
+        </>
       )}
 
       {resumo && aba !== 'lideranca' && (
@@ -677,7 +682,7 @@ export function EvolucaoAdminPanel() {
               </div>
               <div className="rounded-xl bg-cream-50 border border-cream-200 p-4">
                 <p className="font-semibold text-coffee-base mb-1">Liderança</p>
-                <p>ILI por líder na aba Liderança — feedback, equipe, disciplina e engajamento.</p>
+                <p>Nota de cada líder na aba Liderança — equipe, avaliações em dia e o que a equipe fala do líder.</p>
               </div>
             </div>
           </AdminSection>
@@ -739,16 +744,16 @@ export function EvolucaoAdminPanel() {
         <>
           {loadingLideranca && !lideranca ? (
             <div className="py-12 flex justify-center">
-              <XicaraCarregando size="md" label="Calculando ILI das últimas semanas…" />
+              <XicaraCarregando size="md" label="Carregando notas dos líderes…" />
             </div>
           ) : (
             <div className="grid lg:grid-cols-2 gap-4 md:gap-6">
               <AdminSection
-                title="Ranking ILI"
+                title="Ranking dos líderes"
                 description={
                   lideranca?.semana_referencia
-                    ? `Semana ref. ${lideranca.semana_referencia}`
-                    : 'Índice Líder Inspirador'
+                    ? `Semana de ${lideranca.semana_referencia}`
+                    : 'Nota de 0 a 100 na semana'
                 }
                 action={
                   <div className="flex rounded-lg border border-cafeteria-200 overflow-hidden text-xs">
@@ -757,7 +762,7 @@ export function EvolucaoAdminPanel() {
                       onClick={() => setModoRankingLider('atual')}
                       className={`px-3 py-1.5 font-medium ${modoRankingLider === 'atual' ? 'bg-dourado-base text-cream-100' : 'bg-white text-coffee-base'}`}
                     >
-                      ILI atual
+                      Nota da semana
                     </button>
                     <button
                       type="button"
@@ -783,7 +788,7 @@ export function EvolucaoAdminPanel() {
                       </span>
                       <span className="flex-1 font-medium text-coffee-base truncate">{r.nome}</span>
                       {'ili' in r && !r.elegivel && (
-                        <span className="text-[10px] text-amber-800 shrink-0">parcial</span>
+                        <span className="text-[10px] text-amber-800 shrink-0">incompleta</span>
                       )}
                       <span className="text-lg font-display font-semibold tabular-nums shrink-0">
                         {'ili' in r ? formatarIli(r.ili) : formatarDelta(r.delta)}
@@ -836,7 +841,7 @@ export function EvolucaoAdminPanel() {
 
       {lideranca?.gerado_em && aba === 'lideranca' && (
         <p className="text-xs text-cafeteria-500 text-center">
-          ILI atualizado em {new Date(lideranca.gerado_em).toLocaleString('pt-BR')}
+          Atualizado em {new Date(lideranca.gerado_em).toLocaleString('pt-BR')}
         </p>
       )}
     </div>

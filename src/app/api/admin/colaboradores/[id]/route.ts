@@ -285,13 +285,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         }
         const { data: leadRow } = await supabase
           .from('colaboradores')
-          .select('id, unidade_id, role, cargo')
+          .select('id, nome, unidade_id, role, cargo')
           .eq('id', lid)
           .maybeSingle();
         if (!leadRow) {
           return NextResponse.json({ ok: false, erro: 'Líder não encontrado' }, { status: 400 });
         }
-        if (!podeSerLider((leadRow as { role?: string | null }).role ?? null, (leadRow as { cargo?: string | null }).cargo ?? null)) {
+        if (
+          !podeSerLider(
+            (leadRow as { role?: string | null }).role ?? null,
+            (leadRow as { cargo?: string | null }).cargo ?? null,
+            String((leadRow as { nome?: string | null }).nome ?? '')
+          )
+        ) {
           return NextResponse.json(
             { ok: false, erro: 'O líder selecionado não está na lista de lideranças permitidas.' },
             { status: 400 }

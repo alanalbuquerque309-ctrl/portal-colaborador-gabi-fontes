@@ -247,7 +247,13 @@ export async function POST(req: Request) {
     if (errL || !lider) {
       return NextResponse.json({ ok: false, erro: 'Líder não encontrado' }, { status: 404 });
     }
-    if (!podeSerLider((lider as { role?: string }).role, (lider as { cargo?: string }).cargo)) {
+    if (
+      !podeSerLider(
+        (lider as { role?: string }).role,
+        (lider as { cargo?: string }).cargo,
+        String(lider.nome ?? '')
+      )
+    ) {
       return NextResponse.json(
         { ok: false, erro: 'Este colaborador não pode ser líder de setor (função/cargo).' },
         { status: 400 }
@@ -341,7 +347,13 @@ export async function PATCH(req: Request) {
     if (errL || !lider) {
       return NextResponse.json({ ok: false, erro: 'Líder não encontrado' }, { status: 404 });
     }
-    if (!podeSerLider((lider as { role?: string }).role, (lider as { cargo?: string }).cargo)) {
+    if (
+      !podeSerLider(
+        (lider as { role?: string }).role,
+        (lider as { cargo?: string }).cargo,
+        String(lider.nome ?? '')
+      )
+    ) {
       return NextResponse.json({ ok: false, erro: 'Este colaborador não pode ser líder.' }, { status: 400 });
     }
     if (String(lider.unidade_id) !== unidadeId) {

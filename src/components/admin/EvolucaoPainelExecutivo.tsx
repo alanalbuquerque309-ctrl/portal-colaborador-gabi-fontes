@@ -98,7 +98,7 @@ export function EvolucaoPainelExecutivo({ executivo, onIrSetores, onIrUnidades, 
             onClick={onIrLideranca}
             className="mt-2 text-xs font-medium text-dourado-base hover:underline"
           >
-            Ver liderança (ILI) →
+            Ver nota dos líderes →
           </button>
         </div>
 
