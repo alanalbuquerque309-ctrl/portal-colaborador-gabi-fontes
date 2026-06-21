@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized } from '@/lib/admin-auth';
+import { isValidAdminToken } from '@/lib/portal-session-token';
 import { normalizePortalRole } from '@/lib/roles';
 import { canVisualizarAlertasEmocional } from '@/lib/emocional-alertas-access';
 
@@ -33,7 +34,7 @@ export async function authGestorEmocional(): Promise<
 > {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
-  const senhaAdmin = cookieStore.get('admin_session')?.value === '1';
+  const senhaAdmin = isValidAdminToken(cookieStore.get('admin_session')?.value);
 
   if (colaboradorId && colaboradorId !== 'pending') {
     const role = await resolverRoleGestorEmocional(

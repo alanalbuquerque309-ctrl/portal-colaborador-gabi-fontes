@@ -2,6 +2,7 @@ import type { NextResponse } from 'next/server';
 
 import { normalizePortalRole } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
+import { signPortalSess, signAdminToken } from '@/lib/portal-session-token';
 
 import {
 
@@ -22,6 +23,8 @@ export const PORTAL_COOKIE_COLABORADOR = 'portal_colaborador_id';
 export const PORTAL_COOKIE_UNIDADE = 'portal_unidade_id';
 
 export const PORTAL_COOKIE_ROLE = 'portal_role';
+
+export const PORTAL_COOKIE_SESS = 'portal_sess';
 
 
 
@@ -111,6 +114,14 @@ export function applyPortalSessionCookies(
 
   res.cookies.set(PORTAL_COOKIE_ROLE, role, cookieOpts);
 
+  const sessToken = signPortalSess({ id: col.id, unidade_id: col.unidade_id, role });
+  if (sessToken) {
+    res.cookies.set(PORTAL_COOKIE_SESS, sessToken, {
+      ...cookieOpts,
+      httpOnly: true,
+    });
+  }
+
 
 
   if (persistent) {
@@ -145,7 +156,7 @@ export function applyAdminSessionCookie(
 
   const maxAge = persistent ? ADMIN_MAX_AGE_PERSISTENT : ADMIN_MAX_AGE_CURTA;
 
-  res.cookies.set(ADMIN_COOKIE, '1', {
+  res.cookies.set(ADMIN_COOKIE, signAdminToken(), {
 
     ...cookieBase(),
 

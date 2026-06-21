@@ -12,6 +12,7 @@ import {
   type AdminNivelAcesso,
 } from '@/lib/admin-access';
 import { normalizePortalRole } from '@/lib/roles';
+import { isValidAdminToken } from '@/lib/portal-session-token';
 
 const ADMIN_COOKIE = 'admin_session';
 const PORTAL_COLABORADOR = 'portal_colaborador_id';
@@ -37,7 +38,7 @@ async function portalColaboradorRole(colaboradorId: string): Promise<string | nu
 /** Qualquer acesso ao painel admin (completo, gerente ou RH limitado). */
 export async function isAdminAuthorized(): Promise<boolean> {
   const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value === '1') return true;
+  if (isValidAdminToken(cookieStore.get(ADMIN_COOKIE)?.value)) return true;
 
   const colaboradorId = cookieStore.get(PORTAL_COLABORADOR)?.value;
   if (!colaboradorId || colaboradorId === 'pending') return false;
@@ -49,7 +50,7 @@ export async function isAdminAuthorized(): Promise<boolean> {
 /** Sócios, admin, master, gerente ou sessão por senha (não inclui RH). */
 export async function isAdminFullAuthorized(): Promise<boolean> {
   const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value === '1') return true;
+  if (isValidAdminToken(cookieStore.get(ADMIN_COOKIE)?.value)) return true;
 
   const colaboradorId = cookieStore.get(PORTAL_COLABORADOR)?.value;
   if (!colaboradorId || colaboradorId === 'pending') return false;
@@ -60,7 +61,7 @@ export async function isAdminFullAuthorized(): Promise<boolean> {
 
 export async function getAdminViewerContext(): Promise<AdminViewerContext | null> {
   const cookieStore = await cookies();
-  if (cookieStore.get(ADMIN_COOKIE)?.value === '1') {
+  if (isValidAdminToken(cookieStore.get(ADMIN_COOKIE)?.value)) {
     return { kind: 'password_session', nivel: 'senha' };
   }
 
