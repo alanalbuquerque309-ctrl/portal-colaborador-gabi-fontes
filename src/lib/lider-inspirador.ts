@@ -10,19 +10,21 @@ import {
 } from '@/lib/semana-referencia';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import type { ILIComponente, LiderInspiradorVencedor, PainelLider } from '@/lib/portal-home-types';
+import {
+  ILI_CAP_INFLACAO,
+  ILI_MIN_EQUIPE,
+  ILI_MIN_FEEDBACK,
+  ILI_MIN_PCT_AVALIADO,
+  ILI_PESOS,
+} from '@/lib/nota-lider-constants';
 
-export const ILI_PESOS = {
-  feedback: 0.4,
-  equipe: 0.3,
-  disciplina: 0.15,
-  treinamentos: 0.1,
-  engajamento: 0.05,
-} as const;
-
-export const ILI_MIN_EQUIPE = 3;
-export const ILI_MIN_PCT_AVALIADO = 0.4;
-export const ILI_MIN_FEEDBACK = 2;
-export const ILI_CAP_INFLACAO = 85;
+export {
+  ILI_CAP_INFLACAO,
+  ILI_MIN_EQUIPE,
+  ILI_MIN_FEEDBACK,
+  ILI_MIN_PCT_AVALIADO,
+  ILI_PESOS,
+} from '@/lib/nota-lider-constants';
 
 export type ILICalculoInterno = {
   lider_id: string;

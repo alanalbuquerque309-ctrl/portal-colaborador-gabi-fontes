@@ -341,7 +341,7 @@ export async function PATCH(req: Request) {
 
     const { data: lider, error: errL } = await supabase
       .from('colaboradores')
-      .select('id, role, cargo, unidade_id')
+      .select('id, nome, role, cargo, unidade_id')
       .eq('id', liderNovo)
       .maybeSingle();
     if (errL || !lider) {

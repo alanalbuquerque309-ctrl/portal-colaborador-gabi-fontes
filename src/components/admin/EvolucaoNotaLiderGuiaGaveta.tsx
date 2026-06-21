@@ -1,6 +1,6 @@
 'use client';
 
-import { ILI_MIN_FEEDBACK, ILI_MIN_PCT_AVALIADO, ILI_PESOS } from '@/lib/lider-inspirador';
+import { ILI_MIN_FEEDBACK, ILI_MIN_PCT_AVALIADO, ILI_PESOS } from '@/lib/nota-lider-constants';
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 
