@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminCadastroEditApi } from '@/lib/admin-auth';
-import { grupoCafeConectaPorSlug, gruposCafeConectaAtivos } from '@/lib/cafe-conecta/config';
+import { grupoCafeConectaPorSlug, grupoPermiteSorteioCafeConecta, gruposCafeConectaAtivos } from '@/lib/cafe-conecta/config';
 import { montarDashboardCafeConecta, realizarSorteioCafeConecta } from '@/lib/cafe-conecta/service';
 
 export const dynamic = 'force-dynamic';
@@ -22,8 +22,11 @@ export async function POST(req: Request) {
   const grupoParam = String(body.grupo ?? '').trim();
   const ativos = gruposCafeConectaAtivos();
   const grupo = grupoCafeConectaPorSlug(grupoParam) ?? ativos[0] ?? null;
-  if (!grupo?.ativo) {
-    return NextResponse.json({ ok: false, erro: 'Grupo inválido.' }, { status: 400, headers: NO_STORE });
+  if (!grupo?.ativo || !grupoPermiteSorteioCafeConecta(grupo)) {
+    return NextResponse.json(
+      { ok: false, erro: 'Sorteio ainda não liberado para esta unidade.' },
+      { status: 400, headers: NO_STORE }
+    );
   }
 
   try {

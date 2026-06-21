@@ -34,13 +34,17 @@ export async function GET(req: Request) {
           ok: false,
           code: payload.code,
           erro: 'Execute a migration 052 no Supabase (Café Conecta).',
-          grupos_disponiveis: ativos.map((g) => ({ slug: g.slug, label: g.label })),
+          grupos_disponiveis: ativos.map((g) => ({
+            slug: g.slug,
+            label: g.label,
+            sorteio_liberado: g.sorteio_liberado,
+          })),
         },
         { status: 503, headers: NO_STORE }
       );
     }
     return NextResponse.json(
-      { ...payload, grupos_disponiveis: ativos.map((g) => ({ slug: g.slug, label: g.label })) },
+      { ...payload, grupos_disponiveis: ativos.map((g) => ({ slug: g.slug, label: g.label, sorteio_liberado: g.sorteio_liberado })) },
       { headers: NO_STORE }
     );
   } catch (e) {

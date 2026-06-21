@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { rotuloSetorCafeConecta } from '@/lib/cafe-conecta/areas';
 import type { CafeConectaGrupoConfig } from '@/lib/cafe-conecta/config';
+import { grupoPermiteSorteioCafeConecta } from '@/lib/cafe-conecta/config';
 import {
   avaliarElegibilidadeSemanaCafeConecta,
   contagemMotivosElegibilidade,
@@ -288,25 +289,40 @@ export async function montarDashboardCafeConecta(
     const lista = await avaliarElegibilidadeSemanaCafeConecta(supabase, base, semanaInicio, dataReferencia);
     const contagem = contagemMotivosElegibilidade(lista);
 
-    const ciclo = await obterOuCriarCicloAtivo(supabase, grupo.slug);
-    const cicloResumo = await montarResumoCiclo(supabase, grupo, ciclo.id, ciclo.numero);
+    const ciclo = grupo.sorteio_liberado ? await obterOuCriarCicloAtivo(supabase, grupo.slug) : null;
+    const cicloResumo = ciclo
+      ? await montarResumoCiclo(supabase, grupo, ciclo.id, ciclo.numero)
+      : {
+          id: '',
+          numero: 1,
+          participaram: 0,
+          total_base: base.length,
+          restantes: base.length,
+          pct: 0,
+        };
 
-    const publicado = await buscarSorteioSemana(supabase, grupo.slug, semanaInicio, 'publicado');
+    const publicado = grupo.sorteio_liberado
+      ? await buscarSorteioSemana(supabase, grupo.slug, semanaInicio, 'publicado')
+      : null;
     let sorteioAtual = publicado;
-    if (!sorteioAtual) {
+    if (!sorteioAtual && grupo.sorteio_liberado) {
       sorteioAtual = await buscarSorteioSemana(supabase, grupo.slug, semanaInicio, 'rascunho');
     }
 
-    const historico = await listarHistoricoGrupo(supabase, grupo.slug);
-    const duplas = await listarHistoricoDuplasGrupo(supabase, grupo.slug);
-    const metricas = await metricasEngajamentoGrupo(supabase, grupo.slug, semanaInicio);
+    const historico = grupo.sorteio_liberado ? await listarHistoricoGrupo(supabase, grupo.slug) : [];
+    const duplas = grupo.sorteio_liberado ? await listarHistoricoDuplasGrupo(supabase, grupo.slug) : [];
+    const metricas = grupo.sorteio_liberado
+      ? await metricasEngajamentoGrupo(supabase, grupo.slug, semanaInicio)
+      : undefined;
 
     return {
       ok: true,
       grupo: { slug: grupo.slug, label: grupo.label },
+      sorteio_liberado: grupo.sorteio_liberado,
       semana_inicio: semanaInicio,
       data_referencia: dataReferencia,
-      alerta_quinta: deveExibirAlertaCafeConectaQuinta(new Date(), !!publicado),
+      alerta_quinta:
+        grupo.sorteio_liberado && deveExibirAlertaCafeConectaQuinta(new Date(), !!publicado),
       elegibilidade: {
         total_base: base.length,
         ...contagem,
@@ -349,6 +365,9 @@ export async function realizarSorteioCafeConecta(
   supabase: SupabaseClient,
   grupo: CafeConectaGrupoConfig
 ): Promise<{ ok: true; sorteio: CafeConectaSorteioRow } | { ok: false; erro: string }> {
+  if (!grupoPermiteSorteioCafeConecta(grupo)) {
+    return { ok: false, erro: 'Sorteio ainda não liberado para esta unidade.' };
+  }
   const semanaInicio = segundaSemanaSaoPaulo();
   const dataReferencia = quartaReferenciaSemanaSaoPaulo();
 
@@ -422,6 +441,9 @@ export async function publicarSorteioCafeConecta(
   grupo: CafeConectaGrupoConfig,
   publicadoPorId: string
 ): Promise<{ ok: true } | { ok: false; erro: string }> {
+  if (!grupoPermiteSorteioCafeConecta(grupo)) {
+    return { ok: false, erro: 'Sorteio ainda não liberado para esta unidade.' };
+  }
   const semanaInicio = segundaSemanaSaoPaulo();
   const rascunho = await buscarSorteioSemana(supabase, grupo.slug, semanaInicio, 'rascunho');
   if (!rascunho) {
@@ -467,6 +489,7 @@ export async function verificarAlertaCafeConectaAdmin(
   supabase: SupabaseClient,
   grupo: CafeConectaGrupoConfig
 ): Promise<boolean> {
+  if (!grupo.sorteio_liberado) return false;
   try {
     const semanaInicio = segundaSemanaSaoPaulo();
     const pub = await buscarSorteioSemana(supabase, grupo.slug, semanaInicio, 'publicado');

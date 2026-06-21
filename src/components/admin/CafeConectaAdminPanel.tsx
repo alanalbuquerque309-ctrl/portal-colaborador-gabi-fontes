@@ -16,6 +16,8 @@ import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import type { CafeConectaDashboardPayload, CafeConectaMotivoInelegivel } from '@/lib/cafe-conecta/types';
 import { CAFE_CONECTA_REACOES } from '@/lib/cafe-conecta/feedback';
 
+type GrupoTab = { slug: string; label: string; sorteio_liberado: boolean };
+
 function rotuloMotivo(m: CafeConectaMotivoInelegivel | null): string {
   switch (m) {
     case 'ferias':
@@ -40,14 +42,17 @@ export function CafeConectaAdminPanel() {
   const [acao, setAcao] = useState<'sorteio' | 'publicar' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [grupoSlug, setGrupoSlug] = useState('mesquita');
+  const [grupos, setGrupos] = useState<GrupoTab[]>([]);
   const [data, setData] = useState<CafeConectaDashboardPayload | null>(null);
   const [migrationPendente, setMigrationPendente] = useState(false);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (grupo: string) => {
     setErro(null);
     setAviso(null);
+    setLoading(true);
     try {
-      const res = await fetch('/api/admin/cafe-conecta?grupo=mesquita', {
+      const res = await fetch(`/api/admin/cafe-conecta?grupo=${encodeURIComponent(grupo)}`, {
         credentials: 'include',
         cache: 'no-store',
       });
@@ -55,6 +60,9 @@ export function CafeConectaAdminPanel() {
       if (json.code === 'tabelas_ausentes') {
         setMigrationPendente(true);
         setData(null);
+        if (Array.isArray(json.grupos_disponiveis)) {
+          setGrupos(json.grupos_disponiveis as GrupoTab[]);
+        }
         return;
       }
       if (!json.ok) {
@@ -63,6 +71,9 @@ export function CafeConectaAdminPanel() {
       }
       setMigrationPendente(false);
       setData(json as CafeConectaDashboardPayload);
+      if (Array.isArray(json.grupos_disponiveis)) {
+        setGrupos(json.grupos_disponiveis as GrupoTab[]);
+      }
     } catch {
       setErro('Erro de conexão.');
     } finally {
@@ -71,12 +82,13 @@ export function CafeConectaAdminPanel() {
   }, []);
 
   useEffect(() => {
-    void carregar();
-  }, [carregar]);
+    void carregar(grupoSlug);
+  }, [carregar, grupoSlug]);
 
   const sorteio = data?.sorteio_atual ?? null;
   const isRascunho = sorteio?.status === 'rascunho';
   const isPublicado = sorteio?.status === 'publicado';
+  const sorteioLiberado = data?.sorteio_liberado === true;
 
   const inelegiveisPreview = useMemo(
     () => (data?.elegibilidade.lista ?? []).filter((l) => !l.elegivel).slice(0, 12),
@@ -91,7 +103,7 @@ export function CafeConectaAdminPanel() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grupo: 'mesquita' }),
+        body: JSON.stringify({ grupo: grupoSlug }),
       });
       const json = await res.json();
       if (!json.ok) {
@@ -99,7 +111,7 @@ export function CafeConectaAdminPanel() {
         return;
       }
       if (json.dashboard?.ok) setData(json.dashboard);
-      else await carregar();
+      else await carregar(grupoSlug);
     } catch {
       setErro('Erro de conexão ao sortear.');
     } finally {
@@ -115,7 +127,7 @@ export function CafeConectaAdminPanel() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grupo: 'mesquita' }),
+        body: JSON.stringify({ grupo: grupoSlug }),
       });
       const json = await res.json();
       if (!json.ok) {
@@ -123,7 +135,7 @@ export function CafeConectaAdminPanel() {
         return;
       }
       if (json.dashboard?.ok) setData(json.dashboard);
-      else await carregar();
+      else await carregar(grupoSlug);
     } catch {
       setErro('Erro de conexão ao publicar.');
     } finally {
@@ -168,34 +180,68 @@ export function CafeConectaAdminPanel() {
 
   return (
     <div className="space-y-6">
+      {grupos.length > 1 && (
+        <div className="flex flex-wrap gap-2 p-1 rounded-2xl bg-cream-100/80 border border-cafeteria-100">
+          {grupos.map((g) => (
+            <button
+              key={g.slug}
+              type="button"
+              onClick={() => setGrupoSlug(g.slug)}
+              className={`min-h-[44px] rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                grupoSlug === g.slug
+                  ? 'bg-white text-coffee-base shadow-sm border border-cafeteria-200'
+                  : 'text-cafeteria-600 hover:text-coffee-base'
+              }`}
+            >
+              {g.label}
+              {!g.sorteio_liberado ? (
+                <span className="ml-1.5 text-xs font-normal text-cafeteria-500">(prep.)</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      )}
+
       <AdminPageHeader
         title="Café Conecta"
         description={`${data.grupo.label} · semana ${data.semana_inicio} · quarta ${data.data_referencia}`}
         actions={
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void realizarSorteio()}
-              disabled={acao !== null || isPublicado}
-              className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-4 py-2 text-sm font-semibold text-cream-100 hover:bg-dourado-400 disabled:opacity-50"
-            >
-              {acao === 'sorteio' ? 'Sorteando…' : isRascunho ? 'Sortear novamente' : 'Realizar sorteio'}
-            </button>
-            {isRascunho && (
+          sorteioLiberado ? (
+            <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={() => void publicar()}
-                disabled={acao !== null}
-                className="inline-flex min-h-[44px] items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+                onClick={() => void realizarSorteio()}
+                disabled={acao !== null || isPublicado}
+                className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-4 py-2 text-sm font-semibold text-cream-100 hover:bg-dourado-400 disabled:opacity-50"
               >
-                {acao === 'publicar' ? 'Publicando…' : 'Publicar sorteio'}
+                {acao === 'sorteio' ? 'Sorteando…' : isRascunho ? 'Sortear novamente' : 'Realizar sorteio'}
               </button>
-            )}
-          </div>
+              {isRascunho && (
+                <button
+                  type="button"
+                  onClick={() => void publicar()}
+                  disabled={acao !== null}
+                  className="inline-flex min-h-[44px] items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+                >
+                  {acao === 'publicar' ? 'Publicando…' : 'Publicar sorteio'}
+                </button>
+              )}
+            </div>
+          ) : null
         }
       />
 
-      {data.alerta_quinta && !isPublicado && (
+      {!sorteioLiberado && (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+          <p className="font-semibold">Unidade em preparação</p>
+          <p className="mt-1">
+            Você pode acompanhar elegíveis e a base operacional. O sorteio será liberado quando a loja estiver pronta
+            para participar.
+          </p>
+        </div>
+      )}
+
+      {data.alerta_quinta && sorteioLiberado && !isPublicado && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert">
           ☕ Café Conecta ainda não sorteado/publicado nesta quarta.
         </div>

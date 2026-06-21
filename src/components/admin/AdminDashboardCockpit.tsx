@@ -14,6 +14,7 @@ import {
   AdminTableTh,
 } from '@/components/admin/shell/AdminTable';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { gruposCafeConectaComSorteio } from '@/lib/cafe-conecta/config';
 
 type Colaborador = { id: string; nome: string; onboarding_completo: boolean };
 type Aviso = { id: string; titulo: string; ativo?: boolean };
@@ -105,11 +106,19 @@ export function AdminDashboardCockpit() {
               setRedefinicoesPendentes(Array.isArray(red.solicitacoes) ? red.solicitacoes.length : 0);
             })
             .catch(() => {}),
-          fetch('/api/admin/cafe-conecta?grupo=mesquita', { credentials: 'include', cache: 'no-store' })
-            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
-            .then((cc) => {
-              if (cancel || !cc?.ok) return;
-              setAlertaCafeConecta(cc.alerta_quinta === true);
+          Promise.all(
+            gruposCafeConectaComSorteio().map((g) =>
+              fetch(`/api/admin/cafe-conecta?grupo=${encodeURIComponent(g.slug)}`, {
+                credentials: 'include',
+                cache: 'no-store',
+              })
+                .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
+                .then((cc) => cc?.alerta_quinta === true)
+            )
+          )
+            .then((flags) => {
+              if (cancel) return;
+              setAlertaCafeConecta(flags.some(Boolean));
             })
             .catch(() => {}),
         ];

@@ -99,6 +99,7 @@ export type CafeConectaResumoPerfil = {
 export type CafeConectaDashboardPayload = {
   ok: true;
   grupo: { slug: string; label: string };
+  sorteio_liberado: boolean;
   semana_inicio: string;
   data_referencia: string;
   alerta_quinta: boolean;
