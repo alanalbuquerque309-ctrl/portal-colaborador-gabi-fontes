@@ -4,25 +4,31 @@ import type { PortalHomeSituacao } from '@/lib/portal-home-types';
 
 const ESTILO: Record<
   PortalHomeSituacao['nivel'],
-  { dot: string; bg: string; border: string; text: string }
+  { emoji: string; bg: string; border: string; text: string; chip: string; btn: string }
 > = {
   ok: {
-    dot: '🟢',
-    bg: 'bg-emerald-50/90',
-    border: 'border-emerald-200',
+    emoji: '✓',
+    bg: 'bg-gradient-to-br from-emerald-50 via-white to-portal-actionLight/50',
+    border: 'border-emerald-300/70',
     text: 'text-emerald-900',
+    chip: 'bg-emerald-500 text-white',
+    btn: 'text-emerald-700 hover:bg-emerald-100/70',
   },
   atencao: {
-    dot: '🟡',
-    bg: 'bg-amber-50/90',
-    border: 'border-amber-300',
-    text: 'text-amber-950',
+    emoji: '!',
+    bg: 'bg-gradient-to-br from-mel-50 via-white to-amber-50/60',
+    border: 'border-mel-300',
+    text: 'text-mel-700',
+    chip: 'bg-mel-400 text-coffee-base',
+    btn: 'text-mel-600 hover:bg-mel-100/70',
   },
   urgente: {
-    dot: '🔴',
-    bg: 'bg-red-50/90',
-    border: 'border-red-300',
-    text: 'text-red-950',
+    emoji: '!',
+    bg: 'bg-gradient-to-br from-terracota-50 via-white to-red-50/60',
+    border: 'border-terracota-300',
+    text: 'text-terracota-700',
+    chip: 'bg-terracota-500 text-white',
+    btn: 'text-terracota-600 hover:bg-terracota-100/70',
   },
 };
 
@@ -37,18 +43,23 @@ export function MinhaSituacaoHome({ situacao, onVerPendencias }: Props) {
   return (
     <section
       aria-label="Minha situação"
-      className={`rounded-2xl border px-4 py-3.5 ${est.bg} ${est.border} shadow-sm`}
+      className={`rounded-2xl border px-4 py-4 ${est.bg} ${est.border} shadow-sm`}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className={`text-base font-semibold ${est.text} flex items-center gap-2`}>
-          <span aria-hidden>{est.dot}</span>
-          <span>{situacao.mensagem}</span>
-        </p>
+        <div className="flex items-center gap-3 min-w-0">
+          <span
+            aria-hidden
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-bold ${est.chip}`}
+          >
+            {est.emoji}
+          </span>
+          <p className={`text-base font-semibold leading-snug ${est.text}`}>{situacao.mensagem}</p>
+        </div>
         {situacao.nivel !== 'ok' && onVerPendencias ? (
           <button
             type="button"
             onClick={onVerPendencias}
-            className="text-sm font-medium text-portal-action shrink-0 hover:underline min-h-[44px] px-1"
+            className={`shrink-0 rounded-lg px-3 text-sm font-semibold min-h-[44px] transition-colors ${est.btn}`}
           >
             Ver →
           </button>
