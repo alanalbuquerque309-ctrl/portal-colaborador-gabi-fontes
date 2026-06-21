@@ -5,7 +5,14 @@ import {
 } from '@/lib/avaliacao-semanal-agregacao';
 import { AVALIACAO_RANKING_EPOCA_INICIO } from '@/lib/avaliacao-ranking';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { UNIDADES_CADASTRO, SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
+import {
+  agregarResumoSetor,
+  agregarResumoUnidadeFromItems,
+  montarResumoExecutivo,
+  type ResumoExecutivoEvolucao,
+  type SetorEvolucao,
+} from '@/lib/evolucao-agregacao';
 import {
   calcularMetricasEvolucao,
   compararCriteriosEvolucao,
@@ -48,6 +55,8 @@ export type ColaboradorEvolucao = {
   pior_criterio: string | null;
 };
 
+export type { SetorEvolucao, ResumoExecutivoEvolucao } from '@/lib/evolucao-agregacao';
+
 export type UnidadeEvolucao = {
   slug: string;
   nome: string;
@@ -75,7 +84,9 @@ export type ResumoEvolucaoRede = {
 export type PayloadEvolucaoRede = {
   gerado_em: string;
   resumo: ResumoEvolucaoRede;
+  executivo: ResumoExecutivoEvolucao;
   unidades: UnidadeEvolucao[];
+  setores: SetorEvolucao[];
   colaboradores: ColaboradorEvolucao[];
   ranking_atual: { id: string; nome: string; media: number; posicao: number }[];
   ranking_evolucao: { id: string; nome: string; delta: number; posicao: number }[];
@@ -130,73 +141,6 @@ function criterioValoresPorJanela(
   }
 
   return { recentes, anteriores };
-}
-
-function agregarResumoUnidade(items: ColaboradorEvolucao[]): UnidadeEvolucao[] {
-  const porSlug = new Map<string, ColaboradorEvolucao[]>();
-
-  for (const c of items) {
-    const slug = c.unidade_slug ?? 'sem-unidade';
-    const list = porSlug.get(slug) ?? [];
-    list.push(c);
-    porSlug.set(slug, list);
-  }
-
-  const unidades: UnidadeEvolucao[] = [];
-
-  for (const u of UNIDADES_CADASTRO) {
-    const cols = porSlug.get(u.slug) ?? [];
-    const medias = cols
-      .map((c) => c.media_recente ?? c.nota_atual)
-      .filter((m): m is number => m != null && !Number.isNaN(m));
-    const deltas = cols.map((c) => c.delta).filter((d): d is number => d != null);
-    const media_atual =
-      medias.length > 0
-        ? Math.round((medias.reduce((a, b) => a + b, 0) / medias.length) * 100) / 100
-        : null;
-    const delta_rede =
-      deltas.length > 0
-        ? Math.round((deltas.reduce((a, b) => a + b, 0) / deltas.length) * 100) / 100
-        : null;
-
-    const historicoUnidade = cols
-      .flatMap((c) => c.historico)
-      .reduce<SemanaMedia[]>((acc, h) => {
-        const ix = acc.findIndex((x) => x.data_referencia === h.data_referencia);
-        if (ix >= 0) {
-          acc[ix] = {
-            data_referencia: h.data_referencia,
-            media: Math.round(((acc[ix]!.media + h.media) / 2) * 100) / 100,
-          };
-        } else acc.push({ ...h });
-        return acc;
-      }, [])
-      .sort((a, b) => a.data_referencia.localeCompare(b.data_referencia));
-
-    const metricasRede = calcularMetricasEvolucao(historicoUnidade);
-
-    unidades.push({
-      slug: u.slug,
-      nome: u.label,
-      media_atual,
-      delta: delta_rede ?? metricasRede.delta,
-      situacao:
-        metricasRede.situacao === 'sem_historico' && delta_rede != null
-          ? delta_rede >= 0.1
-            ? 'evoluindo'
-            : delta_rede <= -0.1
-              ? 'regredindo'
-              : 'estavel'
-          : metricasRede.situacao,
-      total: cols.length,
-      evoluindo: cols.filter((c) => c.situacao === 'evoluindo').length,
-      estavel: cols.filter((c) => c.situacao === 'estavel').length,
-      regredindo: cols.filter((c) => c.situacao === 'regredindo').length,
-      sem_historico: cols.filter((c) => c.situacao === 'sem_historico').length,
-    });
-  }
-
-  return unidades.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 function montarResumoRede(cols: ColaboradorEvolucao[]): ResumoEvolucaoRede {
@@ -287,6 +231,29 @@ export async function montarPayloadEvolucaoRede(
 
   const ids = colabs.map((c) => c.id);
   if (ids.length === 0) {
+    const vazioUnidades = UNIDADES_CADASTRO.map((u) => ({
+      slug: u.slug,
+      nome: u.label,
+      media_atual: null,
+      delta: null,
+      situacao: 'sem_historico' as SituacaoEvolucao,
+      total: 0,
+      evoluindo: 0,
+      estavel: 0,
+      regredindo: 0,
+      sem_historico: 0,
+    }));
+    const vazioSetores = SETORES_PREDEFINIDOS.map((s) => ({
+      setor: s,
+      media_atual: null,
+      delta: null,
+      situacao: 'sem_historico' as SituacaoEvolucao,
+      total: 0,
+      evoluindo: 0,
+      estavel: 0,
+      regredindo: 0,
+      sem_historico: 0,
+    }));
     return {
       gerado_em: new Date().toISOString(),
       resumo: {
@@ -299,18 +266,9 @@ export async function montarPayloadEvolucaoRede(
         delta_rede: null,
         situacao_rede: 'sem_historico',
       },
-      unidades: UNIDADES_CADASTRO.map((u) => ({
-        slug: u.slug,
-        nome: u.label,
-        media_atual: null,
-        delta: null,
-        situacao: 'sem_historico' as SituacaoEvolucao,
-        total: 0,
-        evoluindo: 0,
-        estavel: 0,
-        regredindo: 0,
-        sem_historico: 0,
-      })),
+      executivo: montarResumoExecutivo([], vazioUnidades, vazioSetores),
+      unidades: vazioUnidades,
+      setores: vazioSetores,
       colaboradores: [],
       ranking_atual: [],
       ranking_evolucao: [],
@@ -430,13 +388,17 @@ export async function montarPayloadEvolucaoRede(
       posicao: i + 1,
     }));
 
-  const unidades = agregarResumoUnidade(colaboradores);
+  const unidades = agregarResumoUnidadeFromItems(colaboradores, UNIDADES_CADASTRO);
+  const setores = agregarResumoSetor(colaboradores, SETORES_PREDEFINIDOS);
   const resumo = montarResumoRede(colaboradores);
+  const executivo = montarResumoExecutivo(colaboradores, unidades, setores);
 
   return {
     gerado_em: new Date().toISOString(),
     resumo,
+    executivo,
     unidades,
+    setores,
     colaboradores,
     ranking_atual,
     ranking_evolucao,
@@ -453,7 +415,7 @@ export function mapaTendenciasColaboradores(
 
 export type PayloadEvolucaoResumo = Pick<
   PayloadEvolucaoRede,
-  'gerado_em' | 'resumo' | 'unidades' | 'ranking_atual' | 'ranking_evolucao'
+  'gerado_em' | 'resumo' | 'executivo' | 'unidades' | 'setores' | 'ranking_atual' | 'ranking_evolucao'
 > & {
   tendencias: Record<string, { situacao: SituacaoEvolucao; delta: number | null }>;
 };
@@ -466,7 +428,9 @@ export function payloadSomenteResumo(payload: PayloadEvolucaoRede): PayloadEvolu
   return {
     gerado_em: payload.gerado_em,
     resumo: payload.resumo,
+    executivo: payload.executivo,
     unidades: payload.unidades,
+    setores: payload.setores,
     ranking_atual: payload.ranking_atual,
     ranking_evolucao: payload.ranking_evolucao,
     tendencias,

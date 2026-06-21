@@ -15,7 +15,7 @@ import {
 } from '@/components/admin/shell/AdminTable';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import type { SituacaoEvolucao } from '@/lib/evolucao';
-import { emojiSituacao, formatarNota, tomSituacao } from '@/lib/evolucao';
+import { emojiSituacao, formatarIli, formatarNota, tomSituacao } from '@/lib/evolucao';
 
 type Colaborador = { id: string; nome: string; onboarding_completo: boolean };
 type Aviso = { id: string; titulo: string; ativo?: boolean };
@@ -32,6 +32,13 @@ type PendenciasResumo = {
   meta?: { alerta_critico_sexta?: boolean };
   resumo?: { criticos_sem_avaliacao?: number };
   itens?: PendenciaItem[];
+};
+
+type IliRapido = {
+  top_lider?: { nome: string; ili: number; elegivel?: boolean } | null;
+  media_ili?: number | null;
+  elegiveis?: number;
+  total_lideres?: number;
 };
 
 type EvolucaoResumo = {
@@ -56,6 +63,7 @@ export function AdminDashboardCockpit() {
   const [alertasEmocional, setAlertasEmocional] = useState(0);
   const [redefinicoesPendentes, setRedefinicoesPendentes] = useState(0);
   const [evolucao, setEvolucao] = useState<EvolucaoResumo | null>(null);
+  const [iliRapido, setIliRapido] = useState<IliRapido | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
 
@@ -123,6 +131,13 @@ export function AdminDashboardCockpit() {
             .then((ev) => {
               if (cancel || !ev?.ok) return;
               setEvolucao(ev as EvolucaoResumo);
+            })
+            .catch(() => {}),
+          fetch('/api/admin/evolucao/lideranca?rapido=1', { credentials: 'include', cache: 'no-store' })
+            .then((r) => (r.status === 401 ? null : r.json()))
+            .then((ili) => {
+              if (cancel || !ili?.ok) return;
+              setIliRapido(ili as IliRapido);
             })
             .catch(() => {}),
         ];
@@ -206,7 +221,7 @@ export function AdminDashboardCockpit() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         <AdminStatCard
-          emoji={evo?.situacao_rede ? emojiSituacao(evo.situacao_rede) : '📈'}
+          emoji="📈"
           label="Saúde da equipe"
           valor={formatarNota(evo?.media_rede ?? null)}
           sub={
@@ -216,6 +231,19 @@ export function AdminDashboardCockpit() {
           }
           tom={tomEvolucao}
           href="/admin/evolucao"
+        />
+
+        <AdminStatCard
+          emoji="⭐"
+          label="Líder inspirador"
+          valor={iliRapido?.top_lider ? formatarIli(iliRapido.top_lider.ili) : '—'}
+          sub={
+            iliRapido?.top_lider
+              ? `${iliRapido.top_lider.nome.split(/\s+/)[0] ?? 'Líder'} · ILI semana`
+              : 'ILI da liderança'
+          }
+          tom="dourado"
+          href="/admin/evolucao?aba=lideranca"
         />
 
         {gestaoCompleta ? (

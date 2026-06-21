@@ -170,3 +170,50 @@ export async function montarPayloadEvolucaoLideranca(
     ranking_evolucao,
   };
 }
+
+export type ResumoILIRapido = {
+  gerado_em: string;
+  semana_referencia: string;
+  top_lider: { id: string; nome: string; ili: number; elegivel: boolean } | null;
+  top3: { id: string; nome: string; ili: number; elegivel: boolean }[];
+  total_lideres: number;
+  elegiveis: number;
+  media_ili: number | null;
+};
+
+/** Uma semana de ILI — leve o suficiente para o dashboard. */
+export async function montarResumoILIRapido(supabase: SupabaseAdmin): Promise<ResumoILIRapido> {
+  const semana = semanaReferenciaLiderInspirador();
+  const calculos = await calcularTodosILILideresSemana(supabase, semana);
+  const ordenados = [...calculos].sort((a, b) => b.ili - a.ili || a.lider_id.localeCompare(b.lider_id));
+
+  const ids = ordenados.map((c) => c.lider_id);
+  const nomes = new Map<string, string>();
+  if (ids.length > 0) {
+    const { data } = await supabase.from('colaboradores').select('id, nome').in('id', ids);
+    for (const row of data ?? []) nomes.set(String(row.id), String(row.nome ?? ''));
+  }
+
+  const comNome = ordenados.map((c) => ({
+    id: c.lider_id,
+    nome: nomes.get(c.lider_id) ?? 'Líder',
+    ili: c.ili,
+    elegivel: c.elegivel,
+  }));
+
+  const comIli = comNome.filter((c) => c.ili > 0);
+  const media_ili =
+    comIli.length > 0
+      ? Math.round((comIli.reduce((s, c) => s + c.ili, 0) / comIli.length) * 10) / 10
+      : null;
+
+  return {
+    gerado_em: new Date().toISOString(),
+    semana_referencia: semana,
+    top_lider: comNome[0] ?? null,
+    top3: comNome.slice(0, 3),
+    total_lideres: comNome.length,
+    elegiveis: comNome.filter((c) => c.elegivel).length,
+    media_ili,
+  };
+}

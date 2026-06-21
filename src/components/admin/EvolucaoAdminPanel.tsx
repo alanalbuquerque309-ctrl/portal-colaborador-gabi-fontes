@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { AdminPageHeader } from '@/components/admin/shell/AdminPageHeader';
 import { AdminSection } from '@/components/admin/shell/AdminSection';
 import { AdminStatCard } from '@/components/admin/shell/AdminStatCard';
 import { EvolucaoBadge } from '@/components/admin/EvolucaoBadge';
+import { EvolucaoPainelExecutivo } from '@/components/admin/EvolucaoPainelExecutivo';
 import { EvolucaoSparkline } from '@/components/admin/EvolucaoSparkline';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
@@ -17,10 +19,10 @@ import {
   tomSituacao,
   type SituacaoEvolucao,
 } from '@/lib/evolucao';
-import type { ColaboradorEvolucao, PayloadEvolucaoRede, UnidadeEvolucao } from '@/lib/evolucao-rede';
+import type { ColaboradorEvolucao, PayloadEvolucaoRede, SetorEvolucao, UnidadeEvolucao } from '@/lib/evolucao-rede';
 import type { LiderEvolucao, PayloadEvolucaoLideranca } from '@/lib/evolucao-lideranca';
 
-type Aba = 'rede' | 'colaboradores' | 'unidades' | 'lideranca';
+type Aba = 'rede' | 'colaboradores' | 'unidades' | 'setores' | 'lideranca';
 type ModoRanking = 'atual' | 'evolucao';
 
 function filtrarColaboradores(
@@ -143,6 +145,41 @@ function LinhaLider({
         </div>
       )}
     </li>
+  );
+}
+
+function CardSetor({ s }: { s: SetorEvolucao }) {
+  const pctEvoluindo = s.total > 0 ? Math.round((s.evoluindo / s.total) * 100) : 0;
+  return (
+    <article className="rounded-2xl border border-cafeteria-200/90 bg-gradient-to-br from-white via-cream-50/40 to-white p-4 shadow-sm hover:shadow-md transition-all duration-200">
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="min-w-0">
+          <h3 className="font-display font-semibold text-lg text-coffee-base leading-snug">{s.setor}</h3>
+          <p className="text-xs text-cafeteria-600 mt-0.5">{s.total} colaborador(es)</p>
+        </div>
+        <EvolucaoBadge situacao={s.situacao} delta={s.delta} compacto />
+      </div>
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-cafeteria-500">Média recente</p>
+          <p className="text-2xl font-display font-semibold tabular-nums">{formatarNota(s.media_atual)}</p>
+        </div>
+        <div>
+          <p className="text-[10px] uppercase tracking-wide text-cafeteria-500">Variação 4×4</p>
+          <p className="text-2xl font-display font-semibold tabular-nums">{formatarDelta(s.delta)}</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2 text-xs">
+        <span className="rounded-full bg-emerald-50 text-emerald-800 px-2 py-0.5">🟢 {s.evoluindo}</span>
+        <span className="rounded-full bg-slate-50 text-slate-700 px-2 py-0.5">➡️ {s.estavel}</span>
+        <span className="rounded-full bg-red-50 text-red-800 px-2 py-0.5">🔴 {s.regredindo}</span>
+      </div>
+      {s.total > 0 && (
+        <div className="mt-3 h-1.5 rounded-full bg-cream-200 overflow-hidden">
+          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${pctEvoluindo}%` }} />
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -287,10 +324,15 @@ function LinhaColaborador({
 }
 
 export function EvolucaoAdminPanel() {
+  const searchParams = useSearchParams();
+  const abaInicial = (searchParams.get('aba') ?? 'rede') as Aba;
+  const abaValida: Aba[] = ['rede', 'colaboradores', 'unidades', 'setores', 'lideranca'];
+  const abaDefault = abaValida.includes(abaInicial) ? abaInicial : 'rede';
+
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [payload, setPayload] = useState<PayloadEvolucaoRede | null>(null);
-  const [aba, setAba] = useState<Aba>('rede');
+  const [aba, setAba] = useState<Aba>(abaDefault);
   const [modoRanking, setModoRanking] = useState<ModoRanking>('atual');
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [setor, setSetor] = useState('');
@@ -304,6 +346,11 @@ export function EvolucaoAdminPanel() {
   const [filtroLider, setFiltroLider] = useState<SituacaoEvolucao | ''>('');
   const [expandidoLiderId, setExpandidoLiderId] = useState<string | null>(null);
   const [modoRankingLider, setModoRankingLider] = useState<ModoRanking>('atual');
+
+  useEffect(() => {
+    const valid: Aba[] = ['rede', 'colaboradores', 'unidades', 'setores', 'lideranca'];
+    if (valid.includes(abaInicial)) setAba(abaInicial);
+  }, [abaInicial]);
 
   const carregar = useCallback(async () => {
     setLoading(true);
@@ -371,6 +418,7 @@ export function EvolucaoAdminPanel() {
   const tabs: { id: Aba; label: string }[] = [
     { id: 'rede', label: 'Visão rede' },
     { id: 'colaboradores', label: 'Colaboradores' },
+    { id: 'setores', label: 'Setores' },
     { id: 'unidades', label: 'Unidades' },
     { id: 'lideranca', label: 'Liderança' },
   ];
@@ -544,6 +592,15 @@ export function EvolucaoAdminPanel() {
       )}
 
       {aba === 'rede' && payload && (
+        <div className="space-y-4 md:space-y-6">
+          {payload.executivo && (
+            <EvolucaoPainelExecutivo
+              executivo={payload.executivo}
+              onIrSetores={() => setAba('setores')}
+              onIrUnidades={() => setAba('unidades')}
+              onIrLideranca={() => setAba('lideranca')}
+            />
+          )}
         <div className="grid lg:grid-cols-2 gap-4 md:gap-6">
           <AdminSection
             title="Rankings rápidos"
@@ -624,6 +681,22 @@ export function EvolucaoAdminPanel() {
               </div>
             </div>
           </AdminSection>
+        </div>
+        </div>
+      )}
+
+      {aba === 'setores' && payload && (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {payload.setores
+            .filter((s) => s.total > 0)
+            .map((s) => (
+              <CardSetor key={s.setor} s={s} />
+            ))}
+          {payload.setores.filter((s) => s.total > 0).length === 0 && (
+            <p className="text-sm text-cafeteria-600 col-span-full py-8 text-center">
+              Sem dados por setor com os filtros actuais.
+            </p>
+          )}
         </div>
       )}
 
