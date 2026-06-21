@@ -16,6 +16,7 @@ import { AdminAvaliacoesEquipeAgrupado } from '@/components/admin/AdminAvaliacoe
 import { AdminAvaliacaoAdminAcao } from '@/components/admin/AdminAvaliacaoAdminAcao';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
 import { AvaliacoesPendentesModal } from '@/components/admin/AvaliacoesPendentesModal';
+import type { SituacaoEvolucao } from '@/lib/evolucao';
 
 type Linha = LinhaAdminAvaliacaoEquipe;
 
@@ -44,6 +45,9 @@ export default function AdminAvaliacoesDiariasPage() {
   const [gavetaId, setGavetaId] = useState<string | null>(null);
   const [pendentesAberto, setPendentesAberto] = useState(false);
   const [infoAberta, setInfoAberta] = useState(false);
+  const [tendencias, setTendencias] = useState<
+    Record<string, { situacao: SituacaoEvolucao; delta: number | null }>
+  >({});
 
   useEffect(() => {
     fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
@@ -65,8 +69,17 @@ export default function AdminAvaliacoesDiariasPage() {
     try {
       const q = new URLSearchParams({ inicio, fim, limite: '800' });
       if (unidadeSlug) q.set('unidade_slug', unidadeSlug);
-      const res = await fetch(`/api/admin/avaliacoes-diarias?${q}`, { credentials: 'include' });
+      const evoQ = new URLSearchParams({ resumo: '1', criterios: '0' });
+      if (unidadeSlug) evoQ.set('unidade_slug', unidadeSlug);
+      const [res, evoRes] = await Promise.all([
+        fetch(`/api/admin/avaliacoes-diarias?${q}`, { credentials: 'include' }),
+        fetch(`/api/admin/evolucao?${evoQ}`, { credentials: 'include' }),
+      ]);
       const data = await res.json();
+      const evoData = await evoRes.json().catch(() => ({ ok: false }));
+      if (evoData.ok && evoData.tendencias) {
+        setTendencias(evoData.tendencias as Record<string, { situacao: SituacaoEvolucao; delta: number | null }>);
+      }
       if (!data.ok) {
         setErro(data.erro || 'Erro ao listar.');
         setLinhas([]);
@@ -265,6 +278,7 @@ export default function AdminAvaliacoesDiariasPage() {
               gavetaId={gavetaId}
               onAbrirGaveta={abrirGaveta}
               onRecarregar={() => void buscar()}
+              tendencias={tendencias}
             />
           )
         ) : (

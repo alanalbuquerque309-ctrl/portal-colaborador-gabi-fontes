@@ -139,10 +139,12 @@ function ultimaNotaPorAvaliadorNaSemana(
  * 2) senão, média entre gerentes (não Visita RH);
  * 3) senão, Visita RH ou qualquer registro restante.
  */
-export function consolidarNotasSemanaisParaRanking(
+export type SemanaNotaConsolidada = { data_referencia: string; media_dia: number };
+
+function consolidarMediasSemanaisInterno(
   linhas: AvaliacaoSemanaConsolidavel[],
   opts: { liderIds: Set<string>; rhIds: Set<string>; desde?: string; ate?: string }
-): { media_dia: number | null }[] {
+): SemanaNotaConsolidada[] {
   const desde = inicioSemanaSegundaFeiraLocal(opts.desde ?? AVALIACAO_RANKING_EPOCA_INICIO);
   const ate = opts.ate ? inicioSemanaSegundaFeiraLocal(opts.ate) : null;
   const porSemana = new Map<string, AvaliacaoSemanaConsolidavel[]>();
@@ -157,7 +159,7 @@ export function consolidarNotasSemanaisParaRanking(
     porSemana.set(ref, list);
   }
 
-  const out: { media_dia: number | null }[] = [];
+  const out: SemanaNotaConsolidada[] = [];
   for (const ref of Array.from(porSemana.keys()).sort()) {
     const unicas = ultimaNotaPorAvaliadorNaSemana(porSemana.get(ref) ?? []);
     const liderRows = unicas.filter((r) => opts.liderIds.has(String(r.avaliador_id ?? '')));
@@ -186,9 +188,24 @@ export function consolidarNotasSemanaisParaRanking(
         unicas.map((r) => r.media_dia).filter((m): m is number => m != null && !Number.isNaN(m))
       );
 
-    if (media != null) out.push({ media_dia: media });
+    if (media != null) out.push({ data_referencia: ref, media_dia: media });
   }
   return out;
+}
+
+export function consolidarNotasSemanaisParaRanking(
+  linhas: AvaliacaoSemanaConsolidavel[],
+  opts: { liderIds: Set<string>; rhIds: Set<string>; desde?: string; ate?: string }
+): { media_dia: number | null }[] {
+  return consolidarMediasSemanaisInterno(linhas, opts).map(({ media_dia }) => ({ media_dia }));
+}
+
+/** Igual ao ranking, mas preserva a segunda-feira de cada semana (evolução / sparkline). */
+export function consolidarNotasSemanaisComReferencia(
+  linhas: AvaliacaoSemanaConsolidavel[],
+  opts: { liderIds: Set<string>; rhIds: Set<string>; desde?: string; ate?: string }
+): SemanaNotaConsolidada[] {
+  return consolidarMediasSemanaisInterno(linhas, opts);
 }
 
 /** Rotula avaliador para relatórios. */

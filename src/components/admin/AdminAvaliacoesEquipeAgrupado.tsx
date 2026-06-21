@@ -9,6 +9,8 @@ import {
 } from '@/lib/admin-avaliacoes-equipe-agrupar';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
 import { AdminAvaliacaoAdminAcao } from '@/components/admin/AdminAvaliacaoAdminAcao';
+import { EvolucaoBadge } from '@/components/admin/EvolucaoBadge';
+import type { SituacaoEvolucao } from '@/lib/evolucao';
 
 type Props = {
   linhas: LinhaAdminAvaliacaoEquipe[];
@@ -18,6 +20,7 @@ type Props = {
   gavetaId: string | null;
   onAbrirGaveta: (id: string) => void;
   onRecarregar: () => void;
+  tendencias?: Record<string, { situacao: SituacaoEvolucao; delta: number | null }>;
 };
 
 function ChipNotaAvaliacao({
@@ -143,6 +146,7 @@ export function AdminAvaliacoesEquipeAgrupado({
   gavetaId,
   onAbrirGaveta,
   onRecarregar,
+  tendencias,
 }: Props) {
   const filtradas = filtrarLinhasAdminBusca(linhas, busca);
   const grupos = agruparLinhasAdminPorColaboradorSemana(filtradas);
@@ -165,6 +169,7 @@ export function AdminAvaliacoesEquipeAgrupado({
               ? 'Isenta'
               : '—';
         const falta = g.avaliacoes.some((a) => formatarExibicaoAvaliacaoAdmin(a).faltaInjustificada);
+        const tend = tendencias?.[g.colaborador_id];
 
         return (
           <li
@@ -173,7 +178,10 @@ export function AdminAvaliacoesEquipeAgrupado({
           >
             <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-coffee-base text-base">{g.colaborador_nome}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-coffee-base text-base">{g.colaborador_nome}</p>
+                  {tend && <EvolucaoBadge situacao={tend.situacao} compacto delta={tend.delta} />}
+                </div>
                 <p className="text-sm text-coffee-100 mt-0.5">
                   <span className="font-medium text-coffee-base/90">{g.setor}</span>
                   {' · '}

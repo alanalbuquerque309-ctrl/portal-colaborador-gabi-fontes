@@ -5,6 +5,7 @@ export type AdminNivelAcesso = 'full' | 'rh_limitado' | 'senha';
 /** Menu admin para RH (Keila): sem avaliações internas, gorjeta, sugestões, etc. */
 export const ADMIN_NAV_RH: readonly { href: string; label: string }[] = [
   { href: '/admin/dashboard', label: 'Dashboard' },
+  { href: '/admin/evolucao', label: 'Saúde da equipe' },
   { href: '/admin/colaboradores', label: 'Colaboradores' },
   { href: '/admin/redefinicoes-senha', label: 'Redefinições de senha' },
   { href: '/admin/termometro-emocoes', label: 'Termômetro de emoções' },

@@ -30,7 +30,10 @@ export default function AdminLayout({
   const navGrupos: { titulo: string; itens: NavItemAdmin[] }[] = [
     {
       titulo: 'Visão geral',
-      itens: [{ href: '/admin/dashboard', label: 'Dashboard' }],
+      itens: [
+        { href: '/admin/dashboard', label: 'Dashboard' },
+        { href: '/admin/evolucao', label: 'Saúde da equipe' },
+      ],
     },
     {
       titulo: 'Pessoas',
