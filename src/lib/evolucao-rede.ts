@@ -104,6 +104,41 @@ type LinhaAval = AvaliacaoSemanaConsolidavel & {
   ignorada?: boolean | null;
 };
 
+const SELECTS_AVALIACOES_EVOLUCAO: string[] = [
+  'colaborador_id, data_referencia, media_dia, avaliador_id, created_at, ignorada, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade',
+  'colaborador_id, data_referencia, media_dia, avaliador_id, created_at, ignorada, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas',
+  'colaborador_id, data_referencia, media_dia, avaliador_id, created_at, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas',
+  'colaborador_id, data_referencia, media_dia, avaliador_id, created_at',
+];
+
+function erroColunaAusenteEvolucao(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    m.includes('does not exist') ||
+    m.includes('schema cache') ||
+    m.includes('could not find') ||
+    /column.*not found/i.test(m)
+  );
+}
+
+async function buscarAvaliacoesParaEvolucao(
+  supabase: SupabaseAdmin,
+  colaboradorIds: string[]
+): Promise<LinhaAval[]> {
+  let lastError = 'Erro ao carregar avaliações';
+  for (const select of SELECTS_AVALIACOES_EVOLUCAO) {
+    const { data, error } = await supabase
+      .from('avaliacoes_diarias')
+      .select(select)
+      .gte('data_referencia', AVALIACAO_RANKING_EPOCA_INICIO)
+      .in('colaborador_id', colaboradorIds);
+    if (!error) return (data ?? []) as unknown as LinhaAval[];
+    lastError = error.message;
+    if (!erroColunaAusenteEvolucao(error.message)) break;
+  }
+  throw new Error(lastError);
+}
+
 function criterioValoresPorJanela(
   linhas: LinhaAval[],
   ctx: Awaited<ReturnType<typeof montarContextoConsolidacaoRanking>>,
@@ -275,30 +310,7 @@ export async function montarPayloadEvolucaoRede(
     };
   }
 
-  const selectBase =
-    'colaborador_id, data_referencia, media_dia, avaliador_id, avaliador_role, created_at, ignorada, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade';
-
-  let linhas: LinhaAval[] = [];
-  const { data: rowsFull, error: errFull } = await supabase
-    .from('avaliacoes_diarias')
-    .select(selectBase)
-    .gte('data_referencia', AVALIACAO_RANKING_EPOCA_INICIO)
-    .in('colaborador_id', ids);
-
-  if (errFull && /nota_proatividade|ignorada/i.test(errFull.message)) {
-    const { data: rowsLite, error: errLite } = await supabase
-      .from('avaliacoes_diarias')
-      .select(
-        'colaborador_id, data_referencia, media_dia, avaliador_id, avaliador_role, created_at, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas'
-      )
-      .gte('data_referencia', AVALIACAO_RANKING_EPOCA_INICIO)
-      .in('colaborador_id', ids);
-    if (errLite) throw new Error(errLite.message);
-    linhas = (rowsLite ?? []) as LinhaAval[];
-  } else {
-    if (errFull) throw new Error(errFull.message);
-    linhas = (rowsFull ?? []) as LinhaAval[];
-  }
+  let linhas: LinhaAval[] = await buscarAvaliacoesParaEvolucao(supabase, ids);
 
   linhas = linhas.filter((l) => l.ignorada !== true);
 
