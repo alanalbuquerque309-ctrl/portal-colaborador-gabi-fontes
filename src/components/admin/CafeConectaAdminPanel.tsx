@@ -344,7 +344,7 @@ export function CafeConectaAdminPanel() {
       {feriasLista.length > 0 && (
         <AdminSection
           title="De férias"
-          description="Registro na avaliação semanal (esta semana ou continuidade da semana passada, sem retorno)."
+          description="Registrado de férias na avaliação desta semana (segunda-feira em diante)."
         >
           <AdminTable>
             <AdminTableHead>

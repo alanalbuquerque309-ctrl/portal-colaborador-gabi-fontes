@@ -24,7 +24,7 @@ export function rotuloMotivoInelegibilidadeCafeConecta(m: CafeConectaMotivoInele
 export function descricaoMotivoInelegibilidadeCafeConecta(m: CafeConectaMotivoInelegivel | null): string {
   switch (m) {
     case 'ferias':
-      return 'Registrado de férias nesta semana (ou continuidade da semana passada, sem retorno).';
+      return 'Registrado de férias nesta semana (avaliação semanal).';
     case 'afastado':
       return 'Afastado ou licença na avaliação desta semana.';
     case 'folga_quarta':
@@ -41,4 +41,4 @@ export function descricaoMotivoInelegibilidadeCafeConecta(m: CafeConectaMotivoIn
 }
 
 export const CAFE_CONECTA_AVISO_VIRADA_SEMANA =
-  'Listas recalculadas a cada nova semana (segunda-feira, 0h, horário de São Paulo). Acesso ao portal, folga e sorteio zeram; férias seguem enquanto estiverem registradas, até o retorno.';
+  'Listas recalculadas a cada nova semana (segunda-feira, 0h, horário de São Paulo). Acesso ao portal, férias, folga e sorteio recomeçam do zero.';

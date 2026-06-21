@@ -1,7 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 import { buscarAvaliacaoSemanaColaborador } from '@/lib/graos/elegibilidade';
-import { segundaFeiraAnteriorIso } from '@/lib/semana-referencia';
 
 export const MOTIVO_BLOQUEIO_LIDERANCA_FERIAS =
   'Você está registrado(a) de férias nesta semana — avaliação de liderança não se aplica.';
@@ -21,15 +20,6 @@ export function linhaIndicaFeriasSemana(row: LinhaAssid | null | undefined): boo
 /** Qualquer linha da semana (qualquer avaliador) com assiduidade férias. */
 export function colaboradorDeFeriasNasLinhas(rows: LinhaAssid[]): boolean {
   return rows.some((r) => linhaIndicaFeriasSemana(r));
-}
-
-/** Há avaliação não ignorada que não seja férias/fora do plantão (ex.: retorno). */
-export function colaboradorComAvaliacaoAtivaSemana(rows: LinhaAssid[]): boolean {
-  return rows.some((r) => {
-    if (r.ignorada === true) return false;
-    const a = assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa);
-    return a !== 'ferias' && a !== 'fora_plantao';
-  });
 }
 
 async function carregarLinhasAssidPorSemana(
@@ -93,35 +83,15 @@ export async function idsColaboradoresDeFeriasNaSemana(
 }
 
 /**
- * Café Conecta: férias na semana do sorteio ou continuidade da semana passada
- * (registro típico em «Pendentes»), salvo se já houver avaliação de retorno na semana atual.
+ * Café Conecta: férias só na semana do sorteio (`semanaInicio`).
+ * Alias explícito — sem continuidade da semana passada (virada zera).
  */
 export async function idsColaboradoresDeFeriasParaCafeConecta(
   supabase: SupabaseClient,
   colaboradorIds: string[],
   semanaInicioAtual: string
 ): Promise<Set<string>> {
-  const out = new Set<string>();
-  if (colaboradorIds.length === 0) return out;
-
-  const semanaAnterior = segundaFeiraAnteriorIso(semanaInicioAtual);
-  const semanas =
-    semanaAnterior === semanaInicioAtual ? [semanaInicioAtual] : [semanaInicioAtual, semanaAnterior];
-  const porColab = await carregarLinhasAssidPorSemana(supabase, colaboradorIds, semanas);
-
-  for (const id of colaboradorIds) {
-    const porSem = porColab.get(id) ?? new Map<string, LinhaAssid[]>();
-    const linhasAtual = porSem.get(semanaInicioAtual) ?? [];
-    if (colaboradorDeFeriasNasLinhas(linhasAtual)) {
-      out.add(id);
-      continue;
-    }
-    const linhasAnterior = porSem.get(semanaAnterior) ?? [];
-    if (colaboradorDeFeriasNasLinhas(linhasAnterior) && !colaboradorComAvaliacaoAtivaSemana(linhasAtual)) {
-      out.add(id);
-    }
-  }
-  return out;
+  return idsColaboradoresDeFeriasNaSemana(supabase, colaboradorIds, semanaInicioAtual);
 }
 
 /** Há avaliação de equipe/RH com assiduidade «férias» na segunda `semanaInicio`. */
