@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AvisosHome } from '@/components/portal/AvisosHome';
+import { CafeConectaHomeCard } from '@/components/portal/CafeConectaHomeCard';
 import { DestaqueSection } from '@/components/destaque/DestaqueSection';
 import { SugestoesEquipeHome } from '@/components/portal/SugestoesEquipeHome';
 import { PortalAtalhosPerfil } from '@/components/portal/PortalAtalhosPerfil';
@@ -16,6 +17,9 @@ export default function PortalHomePage() {
         <EmocionalAlertasGestao />
         <PortalHomeEntrada />
         <AvisosHome />
+        <PortalHomeSecaoAdiada minHeight="7rem">
+          <CafeConectaHomeCard />
+        </PortalHomeSecaoAdiada>
         <PortalHomeSecaoAdiada minHeight="10rem">
           <DestaqueSection />
         </PortalHomeSecaoAdiada>

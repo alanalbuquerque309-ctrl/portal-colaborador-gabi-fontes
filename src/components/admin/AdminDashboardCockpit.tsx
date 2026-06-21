@@ -42,6 +42,7 @@ export function AdminDashboardCockpit() {
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [alertasEmocional, setAlertasEmocional] = useState(0);
   const [redefinicoesPendentes, setRedefinicoesPendentes] = useState(0);
+  const [alertaCafeConecta, setAlertaCafeConecta] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
 
@@ -102,6 +103,13 @@ export function AdminDashboardCockpit() {
             .then((red) => {
               if (cancel || !red?.ok) return;
               setRedefinicoesPendentes(Array.isArray(red.solicitacoes) ? red.solicitacoes.length : 0);
+            })
+            .catch(() => {}),
+          fetch('/api/admin/cafe-conecta?grupo=mesquita', { credentials: 'include', cache: 'no-store' })
+            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
+            .then((cc) => {
+              if (cancel || !cc?.ok) return;
+              setAlertaCafeConecta(cc.alerta_quinta === true);
             })
             .catch(() => {}),
         ];
@@ -177,6 +185,18 @@ export function AdminDashboardCockpit() {
       {erro && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
           {erro}
+        </div>
+      )}
+
+      {alertaCafeConecta && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-wrap items-center justify-between gap-3" role="alert">
+          <span>☕ Café Conecta ainda não sorteado/publicado nesta quarta.</span>
+          <Link
+            href="/admin/cafe-conecta"
+            className="inline-flex min-h-[40px] items-center rounded-lg bg-dourado-base px-3 py-1.5 text-sm font-semibold text-cream-100 hover:bg-dourado-400"
+          >
+            Abrir Café Conecta
+          </Link>
         </div>
       )}
 

@@ -58,6 +58,7 @@ export default function AdminLayout({
       titulo: 'Comunicação',
       itens: [
         { href: '/admin/avisos', label: 'Avisos' },
+        { href: '/admin/cafe-conecta', label: 'Café Conecta' },
         { href: '/admin/treinamento', label: 'Treinamento' },
         { href: '/admin/sugestoes', label: 'Sugestões' },
         { href: '/admin/manual-eventos', label: 'Eventos de manuais' },

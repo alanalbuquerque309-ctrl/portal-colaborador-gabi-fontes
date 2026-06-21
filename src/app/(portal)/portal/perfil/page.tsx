@@ -10,6 +10,7 @@ import { EscolherFotoPerfil } from '@/components/portal/EscolherFotoPerfil';
 import { formatTelefoneBr } from '@/lib/telefone';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 import { fotoObrigatoriaPortal } from '@/lib/perfil-completo';
+import { CafeConectaPerfilBloco } from '@/components/portal/CafeConectaPerfilBloco';
 
 function PerfilPageContent() {
   const router = useRouter();
@@ -278,6 +279,8 @@ function PerfilPageContent() {
           </button>
         )}
       </div>
+
+      {!completarObrigatorio && !fotoGateAtivo && <CafeConectaPerfilBloco />}
     </div>
   );
 }

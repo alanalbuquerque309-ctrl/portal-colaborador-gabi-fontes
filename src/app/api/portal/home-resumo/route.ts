@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole } from '@/lib/roles';
+import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { montarPendenciasPortalHome } from '@/lib/portal-pendencias-home';
 import { derivarSituacaoHome } from '@/lib/portal-situacao-home';
 import { montarPainelPessoalColaborador } from '@/lib/portal-painel-pessoal';
 import { montarPainelLiderInspirador } from '@/lib/lider-inspirador';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
+import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { sincronizarMissoesSemanaGraos } from '@/lib/graos/missoes';
 import type { PortalHomeResumo } from '@/lib/portal-home-types';
 
 export const dynamic = 'force-dynamic';
@@ -35,6 +37,12 @@ export async function GET() {
     const role = normalizePortalRole((col as { role?: string }).role);
     const unidadeEmbed = (col as { unidades?: { slug?: string } | { slug?: string }[] | null }).unidades;
     const unidadeSlug = Array.isArray(unidadeEmbed) ? unidadeEmbed[0]?.slug : unidadeEmbed?.slug;
+
+    if (podeParticiparGraosCafe(role)) {
+      await sincronizarMissoesSemanaGraos(supabase, colaboradorId, segundaSemanaSaoPaulo(), {
+        creditarLogin: true,
+      });
+    }
 
     const tarefas = await montarPendenciasPortalHome(supabase, {
       colaboradorId,
