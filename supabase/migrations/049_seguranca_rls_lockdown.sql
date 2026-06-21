@@ -34,10 +34,21 @@ BEGIN
 END $$;
 
 -- 4) Remove as políticas permissivas legadas (002): "USING (true)" / "WITH CHECK (true)".
---    Ficam obsoletas após o REVOKE e atrapalhariam políticas por tenant no futuro.
-DROP POLICY IF EXISTS "colaboradores_select_by_cpf"   ON colaboradores;
-DROP POLICY IF EXISTS "colaboradores_update_onboarding" ON colaboradores;
-DROP POLICY IF EXISTS "avisos_select_all"             ON avisos;
-DROP POLICY IF EXISTS "relatos_insert"                ON relatos_perda;
-DROP POLICY IF EXISTS "relatos_select"                ON relatos_perda;
-DROP POLICY IF EXISTS "unidades_select"               ON unidades;
+--    Guardado por to_regclass: tabelas legadas podem não existir neste banco.
+DO $$
+BEGIN
+  IF to_regclass('public.colaboradores') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "colaboradores_select_by_cpf"   ON public.colaboradores;
+    DROP POLICY IF EXISTS "colaboradores_update_onboarding" ON public.colaboradores;
+  END IF;
+  IF to_regclass('public.avisos') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "avisos_select_all" ON public.avisos;
+  END IF;
+  IF to_regclass('public.relatos_perda') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "relatos_insert" ON public.relatos_perda;
+    DROP POLICY IF EXISTS "relatos_select" ON public.relatos_perda;
+  END IF;
+  IF to_regclass('public.unidades') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "unidades_select" ON public.unidades;
+  END IF;
+END $$;
