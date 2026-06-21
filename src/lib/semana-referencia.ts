@@ -28,6 +28,14 @@ export function inicioSemanaSegundaFeiraLocal(dataIso: string): string {
   return formatarDataLocalISO(d);
 }
 
+/** Segunda-feira imediatamente anterior a `semanaInicioYmd`. */
+export function segundaFeiraAnteriorIso(semanaInicioYmd: string): string {
+  const d = parseDataLocalISO(semanaInicioYmd);
+  if (Number.isNaN(d.getTime())) return semanaInicioYmd;
+  d.setDate(d.getDate() - 7);
+  return formatarDataLocalISO(d);
+}
+
 export function fimSemanaDomingoLocal(inicioSegundaIso: string): string {
   const d = parseDataLocalISO(inicioSegundaIso);
   if (Number.isNaN(d.getTime())) return inicioSegundaIso;

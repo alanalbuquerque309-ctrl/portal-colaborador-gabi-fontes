@@ -4,7 +4,7 @@ import { isSocioNegocioColaborador } from '@/lib/socios-negocio';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { listarIdsLideresAtivos } from '@/lib/lider-inspirador';
 import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
-import { idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
+import { idsColaboradoresDeFeriasParaCafeConecta } from '@/lib/avaliacao-ferias-semana';
 import { idsComAcessoPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 import type { CafeConectaColaboradorBase, CafeConectaElegibilidadeLinha, CafeConectaMotivoInelegivel } from '@/lib/cafe-conecta/types';
 import { resolverUnidadeIdsGrupoMesquita } from '@/lib/setores-fabrica-lideranca';
@@ -132,7 +132,7 @@ export async function avaliarElegibilidadeSemanaCafeConecta(
 
   const ids = base.map((c) => c.id);
   const [feriasIds, acessoIds, avalRows, escalaRows] = await Promise.all([
-    idsColaboradoresDeFeriasNaSemana(supabase, ids, semanaInicio),
+    idsColaboradoresDeFeriasParaCafeConecta(supabase, ids, semanaInicio),
     idsComAcessoPortalSemanaGraos(supabase, ids, semanaInicio),
     supabase
       .from('avaliacoes_diarias')

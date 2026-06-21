@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 import { buscarAvaliacaoSemanaColaborador } from '@/lib/graos/elegibilidade';
+import { segundaFeiraAnteriorIso } from '@/lib/semana-referencia';
 
 export const MOTIVO_BLOQUEIO_LIDERANCA_FERIAS =
   'Você está registrado(a) de férias nesta semana — avaliação de liderança não se aplica.';
@@ -22,27 +23,35 @@ export function colaboradorDeFeriasNasLinhas(rows: LinhaAssid[]): boolean {
   return rows.some((r) => linhaIndicaFeriasSemana(r));
 }
 
-/** Colaboradores com férias registradas na semana — leitura em lote. */
-export async function idsColaboradoresDeFeriasNaSemana(
+/** Há avaliação não ignorada que não seja férias/fora do plantão (ex.: retorno). */
+export function colaboradorComAvaliacaoAtivaSemana(rows: LinhaAssid[]): boolean {
+  return rows.some((r) => {
+    if (r.ignorada === true) return false;
+    const a = assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa);
+    return a !== 'ferias' && a !== 'fora_plantao';
+  });
+}
+
+async function carregarLinhasAssidPorSemana(
   supabase: SupabaseClient,
   colaboradorIds: string[],
-  semanaInicio: string
-): Promise<Set<string>> {
-  const out = new Set<string>();
-  if (colaboradorIds.length === 0) return out;
+  semanas: string[]
+): Promise<Map<string, Map<string, LinhaAssid[]>>> {
+  const porColab = new Map<string, Map<string, LinhaAssid[]>>();
+  if (colaboradorIds.length === 0 || semanas.length === 0) return porColab;
 
   let rows: Record<string, unknown>[] = [];
   const prim = await supabase
     .from('avaliacoes_diarias')
-    .select('colaborador_id, assiduidade, justificativa_nota_baixa, ignorada')
-    .eq('data_referencia', semanaInicio)
+    .select('colaborador_id, data_referencia, assiduidade, justificativa_nota_baixa, ignorada')
+    .in('data_referencia', semanas)
     .in('colaborador_id', colaboradorIds);
 
   if (prim.error && /ignorada/i.test(prim.error.message)) {
     const retry = await supabase
       .from('avaliacoes_diarias')
-      .select('colaborador_id, assiduidade, justificativa_nota_baixa')
-      .eq('data_referencia', semanaInicio)
+      .select('colaborador_id, data_referencia, assiduidade, justificativa_nota_baixa')
+      .in('data_referencia', semanas)
       .in('colaborador_id', colaboradorIds);
     if (retry.error) throw new Error(retry.error.message);
     rows = (retry.data ?? []) as Record<string, unknown>[];
@@ -52,14 +61,64 @@ export async function idsColaboradoresDeFeriasNaSemana(
   }
 
   for (const raw of rows) {
-    if (
-      linhaIndicaFeriasSemana({
-        assiduidade: raw.assiduidade as string | null,
-        justificativa_nota_baixa: raw.justificativa_nota_baixa as string | null,
-        ignorada: raw.ignorada as boolean | null,
-      })
-    ) {
-      out.add(String(raw.colaborador_id));
+    const cid = String(raw.colaborador_id);
+    const sem = String(raw.data_referencia ?? '');
+    const linha: LinhaAssid = {
+      assiduidade: raw.assiduidade as string | null,
+      justificativa_nota_baixa: raw.justificativa_nota_baixa as string | null,
+      ignorada: raw.ignorada as boolean | null,
+    };
+    const porSem = porColab.get(cid) ?? new Map<string, LinhaAssid[]>();
+    const list = porSem.get(sem) ?? [];
+    list.push(linha);
+    porSem.set(sem, list);
+    porColab.set(cid, porSem);
+  }
+  return porColab;
+}
+
+/** Colaboradores com férias registradas na semana — leitura em lote. */
+export async function idsColaboradoresDeFeriasNaSemana(
+  supabase: SupabaseClient,
+  colaboradorIds: string[],
+  semanaInicio: string
+): Promise<Set<string>> {
+  const porColab = await carregarLinhasAssidPorSemana(supabase, colaboradorIds, [semanaInicio]);
+  const out = new Set<string>();
+  for (const id of colaboradorIds) {
+    const linhas = porColab.get(id)?.get(semanaInicio) ?? [];
+    if (colaboradorDeFeriasNasLinhas(linhas)) out.add(id);
+  }
+  return out;
+}
+
+/**
+ * Café Conecta: férias na semana do sorteio ou continuidade da semana passada
+ * (registro típico em «Pendentes»), salvo se já houver avaliação de retorno na semana atual.
+ */
+export async function idsColaboradoresDeFeriasParaCafeConecta(
+  supabase: SupabaseClient,
+  colaboradorIds: string[],
+  semanaInicioAtual: string
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (colaboradorIds.length === 0) return out;
+
+  const semanaAnterior = segundaFeiraAnteriorIso(semanaInicioAtual);
+  const semanas =
+    semanaAnterior === semanaInicioAtual ? [semanaInicioAtual] : [semanaInicioAtual, semanaAnterior];
+  const porColab = await carregarLinhasAssidPorSemana(supabase, colaboradorIds, semanas);
+
+  for (const id of colaboradorIds) {
+    const porSem = porColab.get(id) ?? new Map<string, LinhaAssid[]>();
+    const linhasAtual = porSem.get(semanaInicioAtual) ?? [];
+    if (colaboradorDeFeriasNasLinhas(linhasAtual)) {
+      out.add(id);
+      continue;
+    }
+    const linhasAnterior = porSem.get(semanaAnterior) ?? [];
+    if (colaboradorDeFeriasNasLinhas(linhasAnterior) && !colaboradorComAvaliacaoAtivaSemana(linhasAtual)) {
+      out.add(id);
     }
   }
   return out;

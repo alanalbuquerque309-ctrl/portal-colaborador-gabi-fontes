@@ -16,6 +16,25 @@ export function assiduidadeParaBanco(
   return s;
 }
 
+function normJustificativaFerias(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function justificativaIndicaFerias(justificativa?: string | null): boolean {
+  const j = String(justificativa ?? '').trim();
+  if (!j) return false;
+  if (j === JUSTIFICATIVA_FERIAS) return true;
+  const t = normJustificativaFerias(j);
+  return (
+    (t.includes('colaborador de ferias') || t.includes('de ferias nesta semana')) &&
+    (t.includes('nao entra na media') || t.includes('nesta semana'))
+  );
+}
+
 /** Reconstrói o tipo da UI a partir do que está no Postgres. */
 export function assiduidadeDoBanco(
   stored: string | null | undefined,
@@ -24,7 +43,7 @@ export function assiduidadeDoBanco(
   const s = String(stored ?? '').trim();
   const j = String(justificativa ?? '').trim();
   if (s === 'falta_justificada' && j === JUSTIFICATIVA_FORA_PLANTAO) return 'fora_plantao';
-  if (s === 'falta_justificada' && j === JUSTIFICATIVA_FERIAS) return 'ferias';
+  if (s === 'falta_justificada' && justificativaIndicaFerias(j)) return 'ferias';
   if (s === 'presente' || s === 'falta_injustificada' || s === 'falta_justificada') return s;
   return 'presente';
 }

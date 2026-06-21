@@ -90,9 +90,30 @@ export function CafeConectaAdminPanel() {
   const isPublicado = sorteio?.status === 'publicado';
   const sorteioLiberado = data?.sorteio_liberado === true;
 
-  const inelegiveisPreview = useMemo(
-    () => (data?.elegibilidade.lista ?? []).filter((l) => !l.elegivel).slice(0, 12),
-    [data]
+  const listaElegibilidade = data?.elegibilidade.lista ?? [];
+
+  const feriasLista = useMemo(
+    () => listaElegibilidade.filter((l) => l.motivo === 'ferias'),
+    [listaElegibilidade]
+  );
+  const folgaLista = useMemo(
+    () => listaElegibilidade.filter((l) => l.motivo === 'folga_quarta'),
+    [listaElegibilidade]
+  );
+  const afastadosLista = useMemo(
+    () => listaElegibilidade.filter((l) => l.motivo === 'afastado'),
+    [listaElegibilidade]
+  );
+  const semAcessoLista = useMemo(
+    () => listaElegibilidade.filter((l) => l.motivo === 'sem_acesso_portal'),
+    [listaElegibilidade]
+  );
+  const outrosInelegiveis = useMemo(
+    () =>
+      listaElegibilidade.filter(
+        (l) => !l.elegivel && l.motivo !== 'ferias' && l.motivo !== 'folga_quarta' && l.motivo !== 'afastado' && l.motivo !== 'sem_acesso_portal'
+      ),
+    [listaElegibilidade]
   );
 
   const realizarSorteio = async () => {
@@ -325,8 +346,106 @@ export function CafeConectaAdminPanel() {
         )}
       </AdminSection>
 
-      {inelegiveisPreview.length > 0 && (
-        <AdminSection title="Não elegíveis (amostra)" description="Motivos desta semana.">
+      {feriasLista.length > 0 && (
+        <AdminSection
+          title="De férias"
+          description="Registro na avaliação semanal (esta semana ou continuidade da semana passada, sem retorno)."
+        >
+          <AdminTable>
+            <AdminTableHead>
+              <AdminTableRow>
+                <AdminTableTh>Nome</AdminTableTh>
+                <AdminTableTh>Setor</AdminTableTh>
+                <AdminTableTh>Unidade</AdminTableTh>
+              </AdminTableRow>
+            </AdminTableHead>
+            <AdminTableBody>
+              {feriasLista.map((l) => (
+                <AdminTableRow key={l.id}>
+                  <AdminTableTd>{l.nome}</AdminTableTd>
+                  <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                  <AdminTableTd>{l.unidade_nome}</AdminTableTd>
+                </AdminTableRow>
+              ))}
+            </AdminTableBody>
+          </AdminTable>
+        </AdminSection>
+      )}
+
+      {folgaLista.length > 0 && (
+        <AdminSection title="Folga na quarta" description="Não entram no sorteio desta quarta.">
+          <AdminTable>
+            <AdminTableHead>
+              <AdminTableRow>
+                <AdminTableTh>Nome</AdminTableTh>
+                <AdminTableTh>Setor</AdminTableTh>
+              </AdminTableRow>
+            </AdminTableHead>
+            <AdminTableBody>
+              {folgaLista.slice(0, 40).map((l) => (
+                <AdminTableRow key={l.id}>
+                  <AdminTableTd>{l.nome}</AdminTableTd>
+                  <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                </AdminTableRow>
+              ))}
+            </AdminTableBody>
+          </AdminTable>
+          {folgaLista.length > 40 && (
+            <p className="text-xs text-cafeteria-500 mt-2">Mostrando 40 de {folgaLista.length}.</p>
+          )}
+        </AdminSection>
+      )}
+
+      {semAcessoLista.length > 0 && (
+        <AdminSection
+          title="Sem acesso ao portal"
+          description="Precisam dos 5 Grãos login_semana (segunda a quarta) para serem sorteados."
+        >
+          <AdminTable>
+            <AdminTableHead>
+              <AdminTableRow>
+                <AdminTableTh>Nome</AdminTableTh>
+                <AdminTableTh>Setor</AdminTableTh>
+              </AdminTableRow>
+            </AdminTableHead>
+            <AdminTableBody>
+              {semAcessoLista.slice(0, 40).map((l) => (
+                <AdminTableRow key={l.id}>
+                  <AdminTableTd>{l.nome}</AdminTableTd>
+                  <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                </AdminTableRow>
+              ))}
+            </AdminTableBody>
+          </AdminTable>
+          {semAcessoLista.length > 40 && (
+            <p className="text-xs text-cafeteria-500 mt-2">Mostrando 40 de {semAcessoLista.length}.</p>
+          )}
+        </AdminSection>
+      )}
+
+      {afastadosLista.length > 0 && (
+        <AdminSection title="Afastados" description="Licença ou afastamento registrado na semana.">
+          <AdminTable>
+            <AdminTableHead>
+              <AdminTableRow>
+                <AdminTableTh>Nome</AdminTableTh>
+                <AdminTableTh>Setor</AdminTableTh>
+              </AdminTableRow>
+            </AdminTableHead>
+            <AdminTableBody>
+              {afastadosLista.map((l) => (
+                <AdminTableRow key={l.id}>
+                  <AdminTableTd>{l.nome}</AdminTableTd>
+                  <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                </AdminTableRow>
+              ))}
+            </AdminTableBody>
+          </AdminTable>
+        </AdminSection>
+      )}
+
+      {outrosInelegiveis.length > 0 && (
+        <AdminSection title="Outros não elegíveis">
           <AdminTable>
             <AdminTableHead>
               <AdminTableRow>
@@ -335,7 +454,7 @@ export function CafeConectaAdminPanel() {
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
-              {inelegiveisPreview.map((l) => (
+              {outrosInelegiveis.map((l) => (
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{rotuloMotivo(l.motivo)}</AdminTableTd>
