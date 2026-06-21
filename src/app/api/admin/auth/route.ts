@@ -9,6 +9,7 @@ import {
   podeEditarCpfColaboradorAdmin,
   podeEditarEscalasAdmin,
   podeEditarLiderancaMapaCompleto,
+  podeVerAuditoria,
   podeVerDetalheNotasAvaliacaoAdmin,
 } from '@/lib/admin-access';
 
@@ -17,6 +18,8 @@ import { resolveColaboradorForAdminBridge } from '@/lib/admin-portal-bridge';
 import { parseManterLogado } from '@/lib/portal-login-persist';
 
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
+
+import { AUDIT_ACOES, registrarAuditoria } from '@/lib/audit-log';
 
 
 
@@ -85,6 +88,18 @@ export async function POST(req: Request) {
         applyPortalSessionCookies(res, col, { persistent });
 
       }
+
+      await registrarAuditoria(supabase, {
+
+        acao: AUDIT_ACOES.LOGIN_ADMIN_SENHA,
+
+        ator: { atorColaboradorId: (col as { id?: string } | null)?.id ?? null, atorTipo: 'senha_admin' },
+
+        detalhes: { login: loginBridge || null },
+
+        req,
+
+      });
 
     } catch {
 
@@ -165,6 +180,8 @@ export async function GET() {
     podeVerGorjeta: podeGorjeta,
 
     podeVerBonificacao: podeGorjeta,
+
+    podeVerAuditoria: podeVerAuditoria(role, senhaAdmin),
 
   });
 

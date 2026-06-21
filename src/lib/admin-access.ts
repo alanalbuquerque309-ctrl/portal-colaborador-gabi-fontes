@@ -101,6 +101,13 @@ export function podeVerDetalheNotasAvaliacaoAdmin(
   return r === 'socio' || r === 'admin';
 }
 
+/** Trilha de auditoria: sócios, admin (Daniel) e login por senha. Não inclui RH nem gerente. */
+export function podeVerAuditoria(role: string | null | undefined, senhaAdmin: boolean): boolean {
+  if (senhaAdmin) return true;
+  const r = normalizePortalRole(role);
+  return r === 'socio' || r === 'admin';
+}
+
 export function labelNivelAdmin(nivel: AdminNivelAcesso | null): string {
   if (nivel === 'rh_limitado') return 'RH (acesso limitado)';
   if (nivel === 'senha') return 'Administrador';

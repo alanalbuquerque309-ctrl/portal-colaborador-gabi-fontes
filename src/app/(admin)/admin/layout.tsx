@@ -25,7 +25,7 @@ export default function AdminLayout({
   const [pendenciasSemana, setPendenciasSemana] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  type NavItemAdmin = { href: string; label: string; gorjeta?: boolean };
+  type NavItemAdmin = { href: string; label: string; gorjeta?: boolean; auditoria?: boolean };
 
   const navGrupos: { titulo: string; itens: NavItemAdmin[] }[] = [
     {
@@ -64,6 +64,7 @@ export default function AdminLayout({
       titulo: 'Gestão',
       itens: [
         { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
+        { href: '/admin/auditoria', label: 'Auditoria', auditoria: true },
         { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
         { href: '/portal/equipe-chat', label: 'Chat equipe' },
       ],
@@ -91,6 +92,7 @@ export default function AdminLayout({
           menu_rh?: { href: string; label: string }[];
           podeVerGorjeta?: boolean;
           podeVerBonificacao?: boolean;
+          podeVerAuditoria?: boolean;
         };
         setAuthorized(d.ok === true);
         const rh = d.acesso_limitado_rh === true;
@@ -99,7 +101,15 @@ export default function AdminLayout({
         if (rh && Array.isArray(d.menu_rh) && d.menu_rh.length > 0) {
           setMenuNav(d.menu_rh);
         } else {
-          setMenuNav(navCompleto.filter((i) => !i.gorjeta || d.podeVerGorjeta || d.podeVerBonificacao));
+          const podeGorjeta = d.podeVerGorjeta === true || d.podeVerBonificacao === true;
+          const podeAud = d.podeVerAuditoria === true;
+          setMenuNav(
+            navCompleto.filter((i) => {
+              if (i.gorjeta && !podeGorjeta) return false;
+              if (i.auditoria && !podeAud) return false;
+              return true;
+            })
+          );
         }
         setPodeVerGorjeta(d.podeVerGorjeta === true || d.podeVerBonificacao === true);
       })

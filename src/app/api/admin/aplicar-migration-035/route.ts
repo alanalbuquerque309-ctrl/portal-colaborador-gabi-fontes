@@ -4,6 +4,8 @@ import { join } from 'path';
 import postgres from 'postgres';
 import { getAdminViewerContext } from '@/lib/admin-auth';
 import { podeVerBonificacaoInterna } from '@/lib/bonificacao-access';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { AUDIT_ACOES, registrarAuditoria } from '@/lib/audit-log';
 
 function podeExecutar(ctx: Awaited<ReturnType<typeof getAdminViewerContext>>): boolean {
   if (!ctx) return false;
@@ -12,7 +14,7 @@ function podeExecutar(ctx: Awaited<ReturnType<typeof getAdminViewerContext>>): b
 }
 
 /** Aplica só a migration 035 (operacao_apto). Requer DATABASE_URL no ambiente (Vercel ou local). */
-export async function POST() {
+export async function POST(req: Request) {
   const ctx = await getAdminViewerContext();
   if (!podeExecutar(ctx)) {
     return NextResponse.json({ ok: false, erro: 'Acesso restrito' }, { status: 403 });
@@ -41,6 +43,15 @@ export async function POST() {
     const sql = postgres(dbUrl, { max: 1, ssl: 'require' });
     await sql.unsafe(ddl);
     await sql.end();
+    try {
+      await registrarAuditoria(createAdminClient(), {
+        acao: AUDIT_ACOES.MIGRATION_APLICAR,
+        detalhes: { migration: '035' },
+        req,
+      });
+    } catch {
+      /* fail-safe */
+    }
     return NextResponse.json({ ok: true, msg: 'Migration 035 aplicada (operacao_apto).' });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

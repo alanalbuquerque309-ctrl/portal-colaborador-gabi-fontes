@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
+import { AUDIT_ACOES, registrarAuditoria } from '@/lib/audit-log';
 
 const PORTAL_COLABORADOR = 'portal_colaborador_id';
 
@@ -62,6 +63,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         .update({ status: 'rejeitada', atendido_em: agora, atendido_por: atendidoPor })
         .eq('id', id);
       if (upErr) return NextResponse.json({ ok: false, erro: upErr.message }, { status: 500 });
+      await registrarAuditoria(supabase, {
+        acao: AUDIT_ACOES.REDEFINICAO_REJEITAR,
+        alvoTipo: 'colaborador',
+        alvoId: sol.colaborador_id as string | null,
+        detalhes: { solicitacao_id: id },
+        req,
+      });
       return NextResponse.json({ ok: true, mensagem: 'Solicitação descartada.' });
     }
 
@@ -107,6 +115,14 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         { status: 500 }
       );
     }
+
+    await registrarAuditoria(supabase, {
+      acao: AUDIT_ACOES.REDEFINICAO_ATENDER,
+      alvoTipo: 'colaborador',
+      alvoId: colaboradorId,
+      detalhes: { solicitacao_id: id },
+      req,
+    });
 
     return NextResponse.json({
       ok: true,

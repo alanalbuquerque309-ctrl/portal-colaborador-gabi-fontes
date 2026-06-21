@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { payloadResetPrimeiroAcesso } from '@/lib/onboarding-reabrir';
+import { AUDIT_ACOES, registrarAuditoria } from '@/lib/audit-log';
 
 /** Zera senha, onboarding e perfil pessoal — fluxo de primeiro acesso. Admin, RH e sócios. */
 export async function POST(req: Request) {
@@ -31,6 +32,13 @@ export async function POST(req: Request) {
     }
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+
+    await registrarAuditoria(supabase, {
+      acao: AUDIT_ACOES.COLAB_RESET_CADASTRO,
+      alvoTipo: 'colaborador',
+      alvoId: id,
+      req,
+    });
 
     return NextResponse.json({
       ok: true,

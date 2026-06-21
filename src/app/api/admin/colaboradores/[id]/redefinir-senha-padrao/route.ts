@@ -3,11 +3,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
+import { AUDIT_ACOES, registrarAuditoria } from '@/lib/audit-log';
 
 /**
  * Admin, RH ou sócios redefinem a senha do colaborador para a padrão (123456) e exigem troca no próximo login.
  */
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   const auth = await requireAdminCadastroEditApi();
   if (!auth.ok) return auth.response;
 
@@ -58,6 +59,14 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
         return NextResponse.json({ ok: false, erro: first.error.message }, { status: 500 });
       }
     }
+
+    await registrarAuditoria(supabase, {
+      acao: AUDIT_ACOES.COLAB_REDEFINIR_SENHA,
+      alvoTipo: 'colaborador',
+      alvoId: id,
+      detalhes: { origem: 'admin_direto' },
+      req,
+    });
 
     return NextResponse.json({
       ok: true,
