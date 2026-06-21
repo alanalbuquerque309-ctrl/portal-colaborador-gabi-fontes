@@ -12,6 +12,19 @@ import {
   applyPortalSessionCookies,
   rolesComAcessoAdmin,
 } from '@/lib/portal-session-cookies';
+import {
+  ipDaRequisicao,
+  limparTentativas,
+  mensagemBloqueio,
+  registrarTentativa,
+  verificarRegras,
+  type RateLimitRegra,
+} from '@/lib/rate-limit';
+
+// Lockout de força bruta: janela curta, limite por identidade e (mais frouxo) por IP (NAT/compartilhado).
+const RL_JANELA_MS = 15 * 60 * 1000; // 15 min
+const RL_MAX_IDENTIDADE = 8;
+const RL_MAX_IP = 40;
 
 /**
  * Login do portal por celular OU e-mail + senha — consulta no servidor (contorna RLS do Supabase).
@@ -34,6 +47,26 @@ export async function POST(req: Request) {
 
   try {
     const supabase = createAdminClient();
+
+    const ip = ipDaRequisicao(req);
+    const idKey = loginInput.toLowerCase();
+    const regrasRL: RateLimitRegra[] = [
+      { escopo: 'login', tipoChave: 'identidade', chave: idKey, janelaMs: RL_JANELA_MS, maxFalhas: RL_MAX_IDENTIDADE },
+      { escopo: 'login', tipoChave: 'ip', chave: ip, janelaMs: RL_JANELA_MS, maxFalhas: RL_MAX_IP },
+    ];
+    const registrarFalhaLogin = async () => {
+      await registrarTentativa(supabase, { escopo: 'login', tipoChave: 'identidade', chave: idKey });
+      await registrarTentativa(supabase, { escopo: 'login', tipoChave: 'ip', chave: ip });
+    };
+
+    const bloqueio = await verificarRegras(supabase, regrasRL);
+    if (bloqueio) {
+      return NextResponse.json(
+        { ok: false, erro: mensagemBloqueio(bloqueio.retryAposMs) },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(bloqueio.retryAposMs / 1000)) } }
+      );
+    }
+
     const { data: col, loginCanonical, error: fetchErr } = await selectColaboradorLoginRowByLogin(
       supabase,
       loginInput
@@ -43,6 +76,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, erro: fetchErr.message || 'Erro ao consultar cadastro.' }, { status: 500 });
     }
     if (!col) {
+      await registrarFalhaLogin();
       return NextResponse.json(
         { ok: false, erro: 'Login não cadastrado. Entre em contato com o RH.' },
         { status: 404 }
@@ -64,8 +98,13 @@ export async function POST(req: Request) {
     }
 
     if (!verifyPassword(senhaTrim, senhaHash)) {
+      await registrarFalhaLogin();
       return NextResponse.json({ ok: false, erro: 'Senha incorreta.' }, { status: 401 });
     }
+
+    // Senha correta: zera o contador de falhas desta identidade e do IP.
+    await limparTentativas(supabase, { escopo: 'login', tipoChave: 'identidade', chave: idKey });
+    await limparTentativas(supabase, { escopo: 'login', tipoChave: 'ip', chave: ip });
 
     const forcaTroca = (col as { forca_troca_senha?: boolean | null }).forca_troca_senha === true;
     if (forcaTroca) {

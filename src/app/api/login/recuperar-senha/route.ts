@@ -1,16 +1,32 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { hashPassword, normalizeEmail } from '@/lib/password';
+import { normalizeEmail } from '@/lib/password';
 import { normalizeTelefoneLogin, telefoneLoginValido } from '@/lib/telefone';
-
-const SENHA_PADRAO = '123456';
+import {
+  ipDaRequisicao,
+  mensagemBloqueio,
+  registrarTentativa,
+  verificarRegras,
+  type RateLimitRegra,
+} from '@/lib/rate-limit';
 
 type ColaboradorRecuperacao = {
   id: string;
   email: string | null;
   telefone: string | null;
   telefone_login?: string | null;
+  nome?: string | null;
+  unidade_id?: string | null;
 };
+
+// Mensagem única (anti-enumeração): não revela se telefone/e-mail existem no cadastro.
+const MENSAGEM_GENERICA =
+  'Se os dados conferirem com o cadastro, o RH vai redefinir sua senha e avisar você. Procure o RH se precisar de ajuda.';
+
+// Recuperação é rara: janela longa e limite baixo para conter abuso/varredura.
+const JANELA_MS = 60 * 60 * 1000; // 60 min
+const MAX_POR_IP = 8;
+const MAX_POR_TELEFONE = 5;
 
 function isMissingTelefoneLoginColumn(errorMessage: string): boolean {
   const msg = errorMessage.toLowerCase();
@@ -18,8 +34,11 @@ function isMissingTelefoneLoginColumn(errorMessage: string): boolean {
 }
 
 /**
- * Redefine senha após validar telefone + e-mail cadastrados.
- * Volta para a senha padrão e força troca no próximo login.
+ * Recuperação de senha endurecida (passo 4 de segurança).
+ *
+ * Não reseta mais a senha automaticamente (isso permitia takeover só com telefone+e-mail).
+ * Em vez disso registra uma SOLICITAÇÃO que o RH/admin atende no painel. A resposta é sempre
+ * genérica (anti-enumeração) e o endpoint é protegido por rate limit durável.
  */
 export async function POST(req: Request) {
   let body: { telefone?: string; email?: string };
@@ -41,29 +60,63 @@ export async function POST(req: Request) {
   if (!emailIn || !emailIn.includes('@')) {
     return NextResponse.json({ ok: false, erro: 'Informe um e-mail válido.' }, { status: 400 });
   }
+
+  let supabase;
   try {
-    const supabase = createAdminClient();
+    supabase = createAdminClient();
+  } catch {
+    // Sem service role não há como registrar/atender; resposta genérica para não vazar estado.
+    return NextResponse.json({ ok: true, mensagem: MENSAGEM_GENERICA });
+  }
+
+  const ip = ipDaRequisicao(req);
+  const regras: RateLimitRegra[] = [
+    { escopo: 'recuperar_senha', tipoChave: 'ip', chave: ip, janelaMs: JANELA_MS, maxFalhas: MAX_POR_IP },
+    {
+      escopo: 'recuperar_senha',
+      tipoChave: 'identidade',
+      chave: telefoneLogin,
+      janelaMs: JANELA_MS,
+      maxFalhas: MAX_POR_TELEFONE,
+    },
+  ];
+
+  const bloqueio = await verificarRegras(supabase, regras);
+  if (bloqueio) {
+    return NextResponse.json(
+      { ok: false, erro: mensagemBloqueio(bloqueio.retryAposMs) },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(bloqueio.retryAposMs / 1000)) } }
+    );
+  }
+
+  // Cada pedido conta para o limite (sucesso=false): contém varredura mesmo sem acertar o cadastro.
+  await registrarTentativa(supabase, { escopo: 'recuperar_senha', tipoChave: 'ip', chave: ip });
+  await registrarTentativa(supabase, {
+    escopo: 'recuperar_senha',
+    tipoChave: 'identidade',
+    chave: telefoneLogin,
+  });
+
+  try {
     let { data: candidatos, error } = await supabase
       .from('colaboradores')
-      .select('id, email, telefone, telefone_login')
+      .select('id, email, telefone, telefone_login, nome, unidade_id')
       .ilike('email', emailIn)
       .limit(10);
 
     if (error && isMissingTelefoneLoginColumn(error.message)) {
       const retry = await supabase
         .from('colaboradores')
-        .select('id, email, telefone')
+        .select('id, email, telefone, nome, unidade_id')
         .ilike('email', emailIn)
         .limit(10);
       candidatos = retry.data as typeof candidatos;
       error = retry.error;
     }
 
+    // Falha de banco ou ausência de match: mesma resposta genérica (anti-enumeração).
     if (error) {
-      return NextResponse.json(
-        { ok: false, erro: 'Não encontramos esse telefone ou o e-mail não confere.' },
-        { status: 404 }
-      );
+      return NextResponse.json({ ok: true, mensagem: MENSAGEM_GENERICA });
     }
 
     const col = ((candidatos ?? []) as ColaboradorRecuperacao[]).find((c) => {
@@ -76,40 +129,24 @@ export async function POST(req: Request) {
       );
     });
 
-    if (!col) {
-      return NextResponse.json(
-        { ok: false, erro: 'Não encontramos esse telefone ou o e-mail não confere.' },
-        { status: 404 }
-      );
+    if (col) {
+      // Registra a solicitação na fila do RH. O índice único parcial garante no máximo uma
+      // pendente por colaborador; um conflito (23505) significa que já há pedido aberto — ok.
+      const insert = await supabase.from('solicitacoes_redefinicao_senha').insert({
+        colaborador_id: col.id,
+        unidade_id: col.unidade_id ?? null,
+        nome_snapshot: col.nome ?? null,
+        telefone_informado: telefoneLogin,
+        email_informado: emailIn,
+        status: 'pendente',
+      });
+      // Ignora erro de duplicidade (já existe pendente) e erro de tabela ausente (migration não
+      // aplicada): a resposta segue genérica para não revelar nada ao cliente.
+      void insert.error;
     }
 
-    const hash = hashPassword(SENHA_PADRAO);
-    const { error: upErr } = await supabase
-      .from('colaboradores')
-      .update({ senha_hash: hash, forca_troca_senha: true, updated_at: new Date().toISOString() })
-      .eq('id', col.id);
-
-    if (upErr) {
-      const msg = String(upErr.message ?? '').toLowerCase();
-      if (msg.includes('forca_troca_senha') || msg.includes('column')) {
-        const retry = await supabase
-          .from('colaboradores')
-          .update({ senha_hash: hash, updated_at: new Date().toISOString() })
-          .eq('id', col.id);
-        if (retry.error) {
-          return NextResponse.json({ ok: false, erro: 'Não foi possível atualizar a senha.' }, { status: 500 });
-        }
-      } else {
-        return NextResponse.json({ ok: false, erro: 'Não foi possível atualizar a senha.' }, { status: 500 });
-      }
-    }
-
-    return NextResponse.json({
-      ok: true,
-      mensagem: 'Senha redefinida para 123456. Faça login e cadastre uma nova senha.',
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Erro';
-    return NextResponse.json({ ok: false, erro: msg }, { status: 500 });
+    return NextResponse.json({ ok: true, mensagem: MENSAGEM_GENERICA });
+  } catch {
+    return NextResponse.json({ ok: true, mensagem: MENSAGEM_GENERICA });
   }
 }

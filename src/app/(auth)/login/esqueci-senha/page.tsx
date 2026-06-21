@@ -42,10 +42,10 @@ export default function EsqueciSenhaPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        setOkMsg(data.mensagem || 'Senha redefinida. Redirecionando para o login…');
-        setTimeout(() => router.push('/login'), 2000);
+        setOkMsg(data.mensagem || 'Pedido enviado. Procure o RH para concluir a redefinição.');
+        setTimeout(() => router.push('/login'), 4000);
       } else {
-        setErro(data.erro || 'Não foi possível redefinir.');
+        setErro(data.erro || 'Não foi possível enviar o pedido.');
       }
     } catch {
       setErro('Erro de conexão.');
@@ -58,11 +58,11 @@ export default function EsqueciSenhaPage() {
     <div className="min-h-screen flex items-center justify-center bg-cream-100 px-4 py-8">
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
         <h1 className="mb-2 text-2xl font-display font-semibold text-cafeteria-800">
-          Redefinir senha
+          Solicitar redefinição
         </h1>
         <p className="mb-6 text-sm text-cafeteria-600">
-          Informe o celular (com DDD) e o e-mail cadastrados no RH. Se os dados conferirem, sua senha
-          volta para 123456 e o portal pede uma nova senha no próximo login.
+          Informe o celular (com DDD) e o e-mail cadastrados no RH. Seu pedido vai para a equipe do RH,
+          que redefine a senha e avisa você. Por segurança, a redefinição não é automática.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -91,7 +91,7 @@ export default function EsqueciSenhaPage() {
           {erro && <p className="text-sm text-red-600">{erro}</p>}
           {okMsg && <p className="text-sm text-green-700">{okMsg}</p>}
           <Button type="submit" className="w-full" disabled={enviando}>
-            {enviando ? 'Redefinindo…' : 'Voltar para senha 123456'}
+            {enviando ? 'Enviando…' : 'Enviar pedido ao RH'}
           </Button>
         </form>
         <p className="mt-6 text-center text-sm">

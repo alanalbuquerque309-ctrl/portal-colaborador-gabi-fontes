@@ -41,6 +41,7 @@ export function AdminDashboardCockpit() {
   const [pendencias, setPendencias] = useState<PendenciasResumo | null>(null);
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [alertasEmocional, setAlertasEmocional] = useState(0);
+  const [redefinicoesPendentes, setRedefinicoesPendentes] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
 
@@ -96,6 +97,13 @@ export function AdminDashboardCockpit() {
               if (cancel || !emo?.ok) return;
               setAlertasEmocional(Array.isArray(emo.alertas) ? emo.alertas.length : 0);
             }),
+          fetch('/api/admin/redefinicoes-senha', { credentials: 'include', cache: 'no-store' })
+            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
+            .then((red) => {
+              if (cancel || !red?.ok) return;
+              setRedefinicoesPendentes(Array.isArray(red.solicitacoes) ? red.solicitacoes.length : 0);
+            })
+            .catch(() => {}),
         ];
 
         if (full && !rh) {
@@ -229,6 +237,15 @@ export function AdminDashboardCockpit() {
           sub={alertasEmocional > 0 ? 'Alertas hoje' : 'Sem alertas'}
           tom={alertasEmocional > 0 ? 'vermelho' : 'verde'}
           href="/admin/termometro-emocoes"
+        />
+
+        <AdminStatCard
+          emoji="🔑"
+          label="Redefinições"
+          valor={redefinicoesPendentes}
+          sub={redefinicoesPendentes > 0 ? 'Pedidos de senha' : 'Nada pendente'}
+          tom={redefinicoesPendentes > 0 ? 'dourado' : 'verde'}
+          href="/admin/redefinicoes-senha"
         />
       </div>
 
