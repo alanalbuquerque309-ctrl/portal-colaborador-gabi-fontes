@@ -100,7 +100,8 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 - **Plantão 12x36 (jun/2026):** rótulo do responsável inclui paridade efetiva do mês (ex.: «Silvia (dias ímpares)») via `src/lib/plantao-12x36.ts` + colunas `plantao_paridade` / `plantao_paridade_mes_ref` em `lideres_por_setor` (migration **042**). Paridade vinculada à **função de liderança**, não à pessoa; inversão automática mês a mês.
 - **Regra de lista (jun/2026, `260559a`):** incluir **somente** quem falta avaliação de **pelo menos um líder** e/ou **Visita RH** (elegível); **excluir** quem já tem líder **e** RH na semana.
 - **Filtro padrão:** `pendentes` (*Pendentes (líder ou RH)*); filtros secundários: `gerente`, `rh_complemento`, `rh_rede`.
-- **Semana de referência:** `resolverDataRefPendentes` — usa `semanaAvaliacaoEquipePadraoISO()` (semana passada); se vazia no banco e a semana atual tiver avaliações, escolhe a semana com dados (evita listar rede inteira por semana errada).
+- **Semana de referência:** `resolverDataRefPendentes` — **sempre** `semanaAnteriorSaoPaulo()` (semana passada em **America/Sao_Paulo**); **não** alterna para a semana corrente por contagem no banco (`6f22a9a`). Liderança no mapa só muda quando o mês vira; quem o líder já fechou na semana passada **não** aparece como «sem líder».
+- **`semanaAvaliacaoEquipePadraoISO()`** e avaliação operacional alinhadas a SP (`semana-referencia.ts` + `semana-brasil.ts`) — evita desvio UTC no Vercel.
 - **Labels na lista:** líder só se falta líder; RH só se falta Visita RH.
 - **Diagnóstico:** `node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]`.
 
@@ -258,7 +259,7 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
   - Env: `ANIVERSARIO_BALAO_PREVIEW=true` (default); `ANIVERSARIO_BALAO_REDE_ATIVO=false`; opcional `ANIVERSARIO_BALAO_PREVIEW_IDS=uuid,uuid`.
   - Match por nome em `src/lib/aniversario-balao-access.ts` (`nomeCoincide`).
 
-## Grãos de café (nossa moeda) — jun/2026 (`e6852d6`, `a7f61a9`)
+## Grãos de café (nossa moeda) — jun/2026 (`e6852d6`, `a7f61a9`, `ef748e0`, `6f22a9a`)
 
 Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por participação e **resgatam** itens do catálogo (docinhos, café, etc.). **Não é automático:** missões geram movimentos **`pendente`**; só **`confirmado`** após **elegibilidade da semana** (avaliação do líder + regras de assiduidade/notas).
 
@@ -266,7 +267,7 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 
 | Missão | Grãos | Notas |
 |--------|------:|-------|
-| Entrada no portal na semana | 5 | `login_semana` |
+| Entrada no portal na semana | 5 | `login_semana` — **só na 1.ª entrada da semana** (`ef748e0`); demais missões exigem login |
 | Confirmar aviso/comunicado | 5 | `aviso_semana` |
 | Avaliar liderança | 10 | `lideranca_semana` |
 | Enviar sugestão / elogio | 1 | `sugestao_semana` |
@@ -275,7 +276,9 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 | Troféus entre pares | até 5 | proporcional ao envio na semana |
 
 - **Teto sugestão/semana:** 1 + 9 = **10** (`GRAOS_SUGESTAO_MAX_SEMANA`).
-- **Complemento caixa (interno):** `GRAOS_CENTAVOS_POR_GRAO` — 35 grãos ≈ R$ 15 (`graos/constants.ts`).
+- **Valor do grão (caixa):** `GRAOS_CENTAVOS_POR_GRAO = 30` (R$ 0,30/grão) — complemento em dinheiro no resgate.
+- **Catálogo de resgate (`6f22a9a`):** preço **fixo em R$** em `graos_catalogo.preco_centavos` (migration **054**); grãos cobrados = `ceil(preco_centavos / GRAOS_CENTAVOS_POR_GRAO)` via `src/lib/graos/catalogo.ts`. Ao mudar o valor do grão, **itens do catálogo recalculam** sem alterar o que o caixa cobra. Fallback legado: `grãos_seed × 35` centavos se coluna ainda não existir.
+- **Líder não avaliou:** colaborador só recebe os **5 Grãos de login** na semana (`ef748e0`); restante fica pendente até avaliação.
 
 ### Elegibilidade semanal (`src/lib/graos/elegibilidade.ts`, `movimentos.ts`)
 
@@ -284,7 +287,7 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 | Líder ainda não avaliou | pendente, não confirma | — |
 | **Presente** + critérios OK | confirma | normal |
 | **Falta justificada** | **sem Grãos** | **nota do líder vale** |
-| **Falta injustificada** | **sem Grãos** | **média zera** |
+| **Falta injustificada** | **sem Grãos** | **média zera**; **zera todo saldo acumulado** (`aplicarZeragemFaltaInjustificadaGraos`, `6f22a9a`) |
 | **Férias** | sem Grãos | isenta da média |
 | **Fora do plantão** | aguarda outro líder | — |
 | Nota ≤2 em pontualidade, vestimenta, equipe, desempenho ou proatividade | sem Grãos | saldo acumulado anterior mantém |
@@ -308,12 +311,13 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 |------|---------|
 | UI colaborador | `/portal/graos` — `GraosPageClient.tsx` |
 | Banner home | `GraosHomeBanner.tsx` |
-| Nav | `Header.tsx` — ícone Grãos + badge saldo |
+| Nav | `Header.tsx` — ícone Grãos + badge saldo (**some** em `/portal/graos`, `bf14979`) |
 | APIs portal | `GET/POST /api/portal/graos`, `.../resgate`, `.../quinta`, `.../lider-bloqueio` |
 | Ledger | `graos_movimentos` (estados `pendente` \| `confirmado` \| `cancelado`) |
-| Catálogo / resgates | `graos_catalogo`, `graos_resgates` |
+| Catálogo / resgates | `graos_catalogo` (`preco_centavos` + `graos` legado), `graos_resgates`; lógica `catalogo.ts` |
 | Missões sync | `missoes.ts`, `sincronizarMissoesSemanaGraos` |
 | Backfill | `scripts/backfill-graos-semanas.mjs`, `scripts/aplicar-graos-044.mjs` |
+| UI resgate | `GraosPageClient.tsx` — carrinho mostra complemento em **R$** quando faltam grãos |
 
 ### Copy operacional (WhatsApp — referência)
 
@@ -329,8 +333,10 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 | **`045_sugestao_graos_destaque.sql`** | `graos_destaque_em`, `graos_destaque_por` em `sugestoes_reclamacoes` (legado +7) |
 | **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato **só** em `reclamacao` |
 | **`047_sugestao_resposta_graos.sql`** | Coluna `graos_resposta_bonus` (0 \| 3 \| 5 \| 9) |
+| **`054_graos_catalogo_preco_centavos.sql`** | `preco_centavos` no catálogo; backfill `graos × 35`; grãos cobrados derivam de `GRAOS_CENTAVOS_POR_GRAO` no app |
 
 - SQL pronto editor: `supabase/APLIQUE_045_047_SUGESTOES_SQL_EDITOR.sql` (completo) ou **blocos menores** (evita diálogo RLS no Supabase): `supabase/PARTE1_SO_COLUNAS.sql`, `supabase/PARTE2_TIPO_ELOGIO.sql` — **só `ALTER TABLE`**, sem `CREATE TABLE`.
+- Aplicar **054:** `npm run db:apply-054`
 
 ## Comunicação (sugestões, reclamações e suporte)
 
@@ -388,7 +394,7 @@ Página única que agrupa os canais de feedback e contato. **Layout (jun/2026):*
 
 - **Média mensal** = média das **médias semanais** consolidadas (não maior nota isolada nem soma de dias).
 - **`semanas_avaliadas`:** quantas **semanas distintas** (segundas-feiras `data_referencia`) entraram na média do mês; rótulo via `rotuloSemanasAvaliadas` em `ranking-ui.tsx` («1 semana avaliada» / «N semanas avaliadas»).
-- **Normalização:** toda `data_referencia` é tratada como **segunda-feira** da semana (`inicioSemanaSegundaFeiraLocal` em `semana-referencia.ts`); agregação em `avaliacao-semanal-agregacao.ts` + `agruparMediasPorColaborador` (`avaliacao-ranking.ts`).
+- **Normalização:** toda `data_referencia` é tratada como **segunda-feira** da semana; operação/pendências/ranking semanal usam **America/Sao_Paulo** (`semana-brasil.ts`, `semana-referencia.ts`); agregação em `avaliacao-semanal-agregacao.ts` + `agruparMediasPorColaborador` (`avaliacao-ranking.ts`).
 - **Época oficial:** `AVALIACAO_RANKING_EPOCA_INICIO = '2026-06-02'` (primeira segunda do ranking jun/2026); `inicioDataReferenciaRanking(periodoIni)` usa o mais recente entre início do mês e essa época.
 - **Fim do mês:** filtro `periodoFim` normalizado para segunda da semana que contém o último dia do mês (evita contar semana «extra» fora do mês civil).
 - **Bug corrigido:** jun/2026 com avaliações ~dia 8 e ~15 mostrava «3 semanas»; agora reflete só semanas com nota válida no intervalo do mês.
@@ -605,6 +611,7 @@ npm run db:escalas-junho-2026 -- --confirmar   # gera escalas jun/2026 (DATABASE
 npm run db:apply-036                        # tipo_escala
 npm run db:diagnostico-avaliacoes           # contagens por semana (avaliacoes_diarias)
 node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/RH
+npm run db:apply-054                                      # preco_centavos catálogo Grãos
 ```
 
 **APIs admin correlatas:** `POST /api/admin/zerar-avaliacoes-trofeus`, `POST /api/admin/reabrir-onboarding` (exigem gestão completa, não RH).
@@ -624,8 +631,9 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 | **`045_sugestao_graos_destaque.sql`** | Destaque gestão em sugestões (+7 legado) |
 | **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato só em reclamação |
 | **`047_sugestao_resposta_graos.sql`** | Resposta gestão com Grãos 0/3/5/9 |
+| **`054_graos_catalogo_preco_centavos.sql`** | Preço R$ fixo no catálogo Grãos; grãos derivados no app |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`**. **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`**. **Portal Shell:** **`e088bb9`**. **Camada Evolução (Saúde da equipe + ILI):** commits do painel `/admin/evolucao`; fix **`d9ef398`**. **Performance portal (gate, home adiada, logo skeleton):** **`73d0d2c`**.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`**. **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`**. **Portal Shell:** **`e088bb9`**. **Camada Evolução (Saúde da equipe + ILI):** commits do painel `/admin/evolucao`; fix **`d9ef398`**. **Performance portal (gate, home adiada, logo skeleton):** **`73d0d2c`**. **Pendências SP + spinner + rankings semanal:** **`bf14979`**. **Grãos login 1×/semana + catálogo preco_centavos:** **`ef748e0`**, **`6f22a9a`**.
 
 ---
 
@@ -810,7 +818,8 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 ### Pendentes da semana — filtro correto (jun/2026, `260559a`, `8dc51d1`)
 
 - Modal deixava de listar a rede inteira por falta só de Visita RH ou por semana sem dados.
-- Filtro `pendentes`, exclusão de quem já tem líder+RH, resolução automática da semana com avaliações.
+- Filtro `pendentes`, exclusão de quem já tem líder+RH.
+- **Atualizado em `bf14979`:** semana fixa SP; removida heurística «semana com mais avaliações no banco» (ver secção **Pendências da semana — semana SP fixa**).
 
 ### Comunicação no mobile (jun/2026, `f72c779`)
 
@@ -873,6 +882,34 @@ node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]   # pendentes líder/
 - `DesdeUltimaVisitaHome`, `portal-resumo-desde-visita.ts`, `portal-ultima-visita.ts`, `GET /api/portal/resumo-desde-visita`.
 - Primeira evolução de **engajamento diário** (P6) entregue: novidades personalizadas sem push notification.
 
+### Pendências da semana — semana SP fixa (jun/2026, `bf14979`)
+
+- **`resolverDataRefPendentes`:** remove heurística que trocava para semana corrente; usa **sempre** `semanaAnteriorSaoPaulo()`.
+- **`semanaAvaliacaoEquipePadraoISO()`** alinhada a America/Sao_Paulo (Vercel UTC não desvia mais a semana).
+- Corrige falsos «sem líder» quando líderes já avaliaram a semana passada.
+
+### Rankings semanal e mensal — home e mural (jun/2026, `bf14979`)
+
+- **`semanaAnteriorSaoPaulo()`** para reconhecimento semanal (semana encerrada).
+- **`DestaquesHome`:** carrega semanal + mensal; troféus com abas próprias; pódios corrigidos.
+- **`MuralRankingsMensais`:** abas semanal/mensal; **`reconhecimento-semanal/route.ts`** alinhado.
+- **`mural-ranking-trofeus-pares.ts`:** troféus da semana corrente vs avaliação da semana anterior.
+
+### UX de carregamento — xícara (jun/2026, `bf14979`)
+
+- **`XicaraCarregando.tsx`:** xícara SVG com animação de encher (`tailwind.config.ts`: `xicara-encher`, `xicara-espuma`, `xicara-vapor`).
+- **`PortalPaginaCarregando.tsx`** + `loading.tsx` em rotas `/portal/*` (home, grãos, mural, desempenho, avaliação, pendências).
+- **`PortalNavigationLoader.tsx`:** overlay na navegação client-side ( `loading.tsx` não cobre páginas `use client`).
+- **`AvaliacoesPendentesPainel`:** xícara no carregamento inicial (não texto «Carregando…»).
+- **`PortalLayout`:** skeleton com xícara quando gate inicial.
+
+### Grãos — login, falta injustificada e catálogo (jun/2026, `ef748e0`, `6f22a9a`)
+
+- **Login 1×/semana:** `login_semana` só na primeira entrada; sem avaliação do líder → só 5 grãos confirmáveis.
+- **Falta injustificada:** zera **todo** saldo acumulado (`aplicarZeragemFaltaInjustificadaGraos`).
+- **`GRAOS_CENTAVOS_POR_GRAO = 30`**; catálogo com **`preco_centavos`** (migration **054**) + **`catalogo.ts`** — grãos do item recalculam quando muda valor do grão; R$ no caixa permanece.
+- **Badge Grãos** no header some na aba `/portal/graos`.
+
 ### Segurança (pré-produção já feita)
 
 - Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
@@ -902,7 +939,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
-| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`**, **`046`**, **`047`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos |
+| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`**, **`046`**, **`047`**, **`054`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos; **054** preço R$ catálogo |
 | I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par); após migration 042 |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
@@ -934,7 +971,8 @@ src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, m
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
 src/contexts/PortalPerfilContext.tsx
-src/components/ui/LogoCarregando.tsx
+src/components/ui/LogoCarregando.tsx, XicaraCarregando.tsx, PortalPaginaCarregando.tsx
+src/components/portal/PortalNavigationLoader.tsx
 src/components/portal/PortalHomeSecaoAdiada.tsx
 src/lib/portal-atalhos-perfil.ts
 src/components/portal/home/PortalHomeEntrada.tsx
@@ -949,12 +987,12 @@ src/components/mural/AniversarianteCard.tsx
 src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
 src/lib/ajuda-chat-threads.ts
 src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/, graos/
-src/lib/graos/constants.ts, elegibilidade.ts, movimentos.ts, missoes.ts, sugestao-destaque.ts, graos-access.ts, lider-quinta-bloqueio.ts
+src/lib/graos/constants.ts, catalogo.ts, elegibilidade.ts, movimentos.ts, missoes.ts, sugestao-destaque.ts, graos-access.ts, lider-quinta-bloqueio.ts
 src/lib/sugestoes-pendentes.ts, sugestoes-events.ts, sugestao-resposta-graos.ts
 src/app/globals.css (`.portal-ambiente-fundo`, `.hero-xicara-*`)
 src/components/portal/GraosPageClient.tsx, GraosHomeBanner.tsx
 src/app/api/portal/graos/, api/admin/sugestoes/pendentes/
-src/lib/avaliacao-ranking.ts, semana-referencia.ts, avaliacao-semanal-agregacao.ts
+src/lib/avaliacao-ranking.ts, semana-brasil.ts, semana-referencia.ts, avaliacao-semanal-agregacao.ts
 src/lib/trofeus-pares-ranking.ts
 src/components/admin/AdminTrofeusRanking.tsx
 src/app/(admin)/admin/avaliacao-entre-pares/page.tsx
@@ -996,12 +1034,12 @@ src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
 supabase/migrations/041_aniversario_dia_acao.sql, 042_plantao_12x36_paridade.sql
-supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql, 046_sugestoes_tipo_elogio.sql, 047_sugestao_resposta_graos.sql
+supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql, 046_sugestoes_tipo_elogio.sql, 047_sugestao_resposta_graos.sql, 054_graos_catalogo_preco_centavos.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
 scripts/backfill-graos-semanas.mjs, aplicar-graos-044.mjs
 scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
 scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs
-scripts/aplicar-migrations-038-039.mjs, aplicar-migration-040.mjs, ignorar-avaliacoes-vinculo-incorreto.mjs
+scripts/aplicar-migrations-038-039.mjs, aplicar-migration-040.mjs, aplicar-migration-054.mjs, ignorar-avaliacoes-vinculo-incorreto.mjs
 APLIQUE_040_SQL_EDITOR.sql
 supabase/APLIQUE_045_047_SUGESTOES_SQL_EDITOR.sql, PARTE1_SO_COLUNAS.sql, PARTE2_TIPO_ELOGIO.sql
 ```
