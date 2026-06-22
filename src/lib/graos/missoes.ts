@@ -4,6 +4,7 @@ import { calcularElegibilidadeSemanaComUi } from '@/lib/graos/elegibilidade';
 import {
   calcularSaldoGraos,
   creditarMissaoGraos,
+  cancelarMissoesSemLoginNaSemana,
   deduplicarLoginSemanaColaborador,
   deduplicarEnvioSugestaoSemanaColaborador,
   deduplicarBonusSugestaoSemanaColaborador,
@@ -11,6 +12,7 @@ import {
   processarElegibilidadeTodasSemanasPendentesGraos,
   refKeyGraos,
 } from '@/lib/graos/movimentos';
+import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 import { graosPorTrofeusEnviadosNaSemana } from '@/lib/graos/trofeus-graos';
 import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, semanaFimExclusiveUtcIsoSp, semanaInicioUtcIsoSp } from '@/lib/semana-brasil';
 import { GRAOS_ENVIO_SUGESTAO } from '@/lib/sugestao-resposta-graos';
@@ -50,8 +52,10 @@ export async function sincronizarMissoesSemanaGraos(
 
   await deduplicarLoginSemanaColaborador(supabase, colaboradorId);
 
-  // Entrada no portal: 1 crédito/semana, só quando o colaborador acessa o portal (sync explícito).
-  if (opts?.creditarLogin !== false) {
+  let temLoginSemana = await colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaInicio);
+
+  // Entrada no portal: 1 crédito/semana, só na primeira vez que acessa (sync com creditarLogin).
+  if (opts?.creditarLogin !== false && !temLoginSemana) {
     await creditarMissaoGraos(supabase, {
       colaboradorId,
       semanaInicio,
@@ -60,6 +64,14 @@ export async function sincronizarMissoesSemanaGraos(
       refKey: refKeyGraos(colaboradorId, 'login_semana', semanaInicio),
       descricao: 'Entrada no portal na semana',
     });
+    temLoginSemana = true;
+  }
+
+  if (!temLoginSemana) {
+    await cancelarMissoesSemLoginNaSemana(supabase, colaboradorId, semanaInicio);
+    await processarElegibilidadeTodasSemanasPendentesGraos(supabase, colaboradorId);
+    await encerrarPendentesSemanasPassadas(supabase, colaboradorId, semanaInicio);
+    return;
   }
 
   // Aviso confirmado (1/semana) — coluna confirmado_em (não created_at)

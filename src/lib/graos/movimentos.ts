@@ -3,6 +3,7 @@ import { calcularElegibilidadeSemana } from '@/lib/graos/elegibilidade';
 import type { GraosMissaoId } from '@/lib/graos/constants';
 import { GRAOS_PRIMEIRA_SEMANA_INICIO } from '@/lib/graos/constants';
 import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
+import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 
 export type GraosEstadoMovimento = 'pendente' | 'confirmado' | 'cancelado';
 
@@ -263,6 +264,41 @@ export async function deduplicarBonusSugestaoSemanaColaborador(
   return cancelarIds.length;
 }
 
+/** Sem entrada no portal na semana: missões extras não valem (só login habilita). */
+export async function cancelarMissoesSemLoginNaSemana(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('id, missao, estado')
+    .eq('colaborador_id', colaboradorId)
+    .eq('semana_inicio', semanaInicio)
+    .eq('estado', 'pendente')
+    .gt('graos', 0)
+    .neq('missao', 'login_semana');
+
+  if (error) {
+    if (tabelaAusente(error.message)) return 0;
+    throw new Error(error.message);
+  }
+
+  const ids = (data ?? []).map((r) => r.id);
+  if (ids.length === 0) return 0;
+
+  const { error: updErr } = await supabase
+    .from('graos_movimentos')
+    .update({
+      estado: 'cancelado',
+      meta: { ajuste_sistema: 'sem_login_semana', oculto_colaborador: true },
+    })
+    .in('id', ids);
+
+  if (updErr) throw new Error(updErr.message);
+  return ids.length;
+}
+
 /** Credita missão (pendente). Idempotente via ref_key. */
 export async function creditarMissaoGraos(
   supabase: SupabaseClient,
@@ -293,6 +329,10 @@ export async function creditarMissaoGraos(
     const est = existente.estado as GraosEstadoMovimento;
     const meta = (existente.meta as Record<string, unknown> | null) ?? {};
     const graosAtual = Number(existente.graos) || 0;
+    /** Login semanal: uma vez por semana; não reabrir linha cancelada. */
+    if (opts.missao === 'login_semana') {
+      return { ok: true, criado: false, estado: est };
+    }
     if (
       (opts.missao === 'sugestao_semana' || opts.missao === 'trofeu_semana') &&
       graosAtual !== opts.graos
@@ -364,6 +404,7 @@ export async function processarElegibilidadeSemanaGraos(
 ): Promise<void> {
   if (!semanaVigenteParaGraos(semanaInicio)) return;
 
+  const temLogin = await colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaInicio);
   const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
 
   const movimentos = await listarMovimentosMissaoSemana(supabase, colaboradorId, semanaInicio, [
@@ -373,8 +414,21 @@ export async function processarElegibilidadeSemanaGraos(
 
   if (!movimentos.length) return;
 
+  if (!temLogin) {
+    for (const p of movimentos.filter((m) => m.estado === 'pendente')) {
+      await supabase.from('graos_movimentos').update({ estado: 'cancelado' }).eq('id', p.id);
+    }
+    return;
+  }
+
   if (!eleg.elegivel) {
     if (eleg.estado === 'aguardando_lider' || eleg.estado === 'aguardando_outro_lider') {
+      /** Entrou no portal: confirma só os 5 Grãos de login; demais missões ficam pendentes até o líder avaliar. */
+      for (const p of movimentos.filter(
+        (m) => m.estado === 'pendente' && String(m.missao) === 'login_semana'
+      )) {
+        await supabase.from('graos_movimentos').update({ estado: 'confirmado' }).eq('id', p.id);
+      }
       return;
     }
     for (const p of movimentos.filter((m) => m.estado === 'pendente')) {
@@ -384,7 +438,9 @@ export async function processarElegibilidadeSemanaGraos(
   }
 
   for (const p of movimentos) {
-    await supabase.from('graos_movimentos').update({ estado: 'confirmado' }).eq('id', p.id);
+    if (p.estado === 'pendente') {
+      await supabase.from('graos_movimentos').update({ estado: 'confirmado' }).eq('id', p.id);
+    }
   }
 }
 
