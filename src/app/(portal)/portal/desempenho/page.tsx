@@ -6,6 +6,7 @@ import { getPortalSession } from '@/lib/utils/session';
 import { estrelasParaFrase } from '@/lib/frases-motivacao-desempenho';
 import { normalizePortalRole } from '@/lib/roles';
 import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
+import { PortalPaginaCarregando } from '@/components/ui/PortalPaginaCarregando';
 
 type TopItem = { id: string; nome: string; media: number };
 
@@ -106,7 +107,7 @@ export default function DesempenhoPortalPage() {
   }, [mes]);
 
   if (!sessionOk) {
-    return <p className="text-cafeteria-700 text-center py-12">Carregando…</p>;
+    return <PortalPaginaCarregando label="Carregando desempenho…" />;
   }
 
   return (
@@ -145,7 +146,7 @@ export default function DesempenhoPortalPage() {
       {erro && <p className="text-red-600 text-sm">{erro}</p>}
 
       {carregando ? (
-        <p className="text-cafeteria-600">Carregando…</p>
+        <PortalPaginaCarregando variant="section" label="Carregando desempenho…" />
       ) : dados ? (
         <div className="space-y-8">
           <section className="rounded-xl border border-cafeteria-200 bg-white p-6 shadow-sm">

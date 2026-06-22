@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana';
+import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 type Props = {
   apiBase?: '/api/admin/avaliacoes-pendentes' | '/api/portal/avaliacoes-pendentes';
@@ -53,7 +54,7 @@ export function AvaliacoesPendentesPainel({
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [filtro, setFiltro] = useState<FiltroPendenciasSemana>(filtroInicial ?? 'pendentes');
   const [busca, setBusca] = useState('');
-  const [carregando, setCarregando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [intervalo, setIntervalo] = useState('');
   const [atualizadoEm, setAtualizadoEm] = useState('');
@@ -447,7 +448,9 @@ export function AvaliacoesPendentesPainel({
       <div className={compacto ? '' : 'rounded-xl border border-cream-200 bg-white p-4 shadow-sm'}>
         {erro && <p className="text-sm text-red-600 mb-2">{erro}</p>}
         {carregando && itens.length === 0 ? (
-          <p className="text-sm text-coffee-100 text-center py-8">Carregando…</p>
+          <div className="flex justify-center py-10">
+            <XicaraCarregando size="md" label="Carregando pendências…" />
+          </div>
         ) : itensVisiveis.length === 0 ? (
           <p className="text-sm text-green-700 text-center py-8">Nenhuma pendência neste filtro.</p>
         ) : (

@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PodioTop3 } from '@/components/portal/vivo/PodioTop3';
 import { PodioTop3Trofeus } from '@/components/portal/vivo/PodioTop3Trofeus';
@@ -10,6 +9,8 @@ import {
   LinhaRankingTrofeu,
   proximoLoteRankingTrofeus,
   rotuloMes,
+  ROTULO_PERIODO_RANKING_MENSAL,
+  ROTULO_PERIODO_RANKING_SEMANAL,
   SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE,
   SUBTITULO_RANKING_AVALIACAO_SEMANAL,
   SUBTITULO_RANKING_TROFEUS_MENSAL,
@@ -34,14 +35,13 @@ type Props = {
 
 /** Home: pódio avaliação + pódio troféus; lista detalhada só após «Ver mais». */
 export function DestaquesHome({ aba }: Props) {
-  const [mensalCarregado, setMensalCarregado] = useState(false);
-  const [loadingSemanal, setLoadingSemanal] = useState(true);
-  const [loadingMensal, setLoadingMensal] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [abaUnidade, setAbaUnidade] = useState<DestaqueAbaUnidadeId>('geral');
   const [trofeusExpandido, setTrofeusExpandido] = useState(false);
   const [trofeusVisiveis, setTrofeusVisiveis] = useState(4);
   const [periodoTrofeusAba, setPeriodoTrofeusAba] = useState<'semanal' | 'mensal'>('semanal');
   const [semanaRotulo, setSemanaRotulo] = useState('');
+  const [semanaRotuloTrofeus, setSemanaRotuloTrofeus] = useState('');
   const [semanalGeral, setSemanalGeral] = useState<RankingAvaliacaoItem[]>([]);
   const [semanalPorUnidade, setSemanalPorUnidade] = useState<RankingPorUnidade[]>([]);
   const [semanalTrofeus, setSemanalTrofeus] = useState<RankingTrofeuItem[]>([]);
@@ -51,57 +51,48 @@ export function DestaquesHome({ aba }: Props) {
   const [mensalTrofeus, setMensalTrofeus] = useState<RankingTrofeuItem[]>([]);
 
   useEffect(() => {
-    const session = getPortalSession();
-    if (!session?.colaboradorId) {
-      setLoadingSemanal(false);
-      return;
-    }
+    let cancel = false;
+    setLoading(true);
 
-    fetch('/api/portal/reconhecimento-semanal', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((sem) => {
+    Promise.all([
+      fetch('/api/portal/reconhecimento-semanal', { credentials: 'include', cache: 'no-store' }).then((r) =>
+        r.json()
+      ),
+      fetch('/api/portal/destaque', { credentials: 'include', cache: 'no-store' }).then((r) => r.json()),
+    ])
+      .then(([sem, mes]) => {
+        if (cancel) return;
         if (sem?.ok === true) {
           setSemanaRotulo(String(sem.semana_rotulo ?? ''));
+          setSemanaRotuloTrofeus(String(sem.semana_rotulo_trofeus ?? sem.semana_rotulo ?? ''));
           setSemanalGeral(normalizarTop3Geral(sem.ranking_geral_top3));
           setSemanalPorUnidade(normalizarPorUnidade(sem.ranking_por_unidade));
           setSemanalTrofeus(normalizarTrofeus(sem.ranking_trofeus));
         }
-      })
-      .finally(() => setLoadingSemanal(false));
-  }, []);
-
-  useEffect(() => {
-    if (aba !== 'mensal' || mensalCarregado) return;
-    const session = getPortalSession();
-    if (!session?.colaboradorId) return;
-
-    let cancel = false;
-    setLoadingMensal(true);
-    fetch('/api/portal/destaque', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((mes) => {
-        if (cancel || mes?.ok !== true) return;
-        setMesRef(String(mes.mes_referencia ?? ''));
-        setMensalGeral(normalizarTop3Geral(mes.ranking_geral_top3));
-        setMensalPorUnidade(normalizarPorUnidade(mes.ranking_por_unidade));
-        setMensalTrofeus(normalizarTrofeus(mes.ranking_trofeus));
-        setMensalCarregado(true);
+        if (mes?.ok === true) {
+          setMesRef(String(mes.mes_referencia ?? ''));
+          setMensalGeral(normalizarTop3Geral(mes.ranking_geral_top3));
+          setMensalPorUnidade(normalizarPorUnidade(mes.ranking_por_unidade));
+          setMensalTrofeus(normalizarTrofeus(mes.ranking_trofeus));
+        }
       })
       .finally(() => {
-        if (!cancel) setLoadingMensal(false);
+        if (!cancel) setLoading(false);
       });
 
     return () => {
       cancel = true;
     };
-  }, [aba, mensalCarregado]);
+  }, []);
+
+  useEffect(() => {
+    setPeriodoTrofeusAba(aba);
+  }, [aba]);
 
   useEffect(() => {
     setTrofeusExpandido(false);
     setTrofeusVisiveis(4);
   }, [aba, abaUnidade, periodoTrofeusAba]);
-
-  const loading = aba === 'mensal' ? loadingMensal : loadingSemanal;
 
   if (loading) {
     return (
@@ -132,7 +123,7 @@ export function DestaquesHome({ aba }: Props) {
 
   const periodoLabelTrofeus =
     periodoTrofeusAba === 'semanal'
-      ? semanaRotulo || 'esta semana'
+      ? semanaRotuloTrofeus || semanaRotulo || 'esta semana'
       : mesRef
         ? rotuloMes(mesRef)
         : 'este mês';
@@ -146,6 +137,7 @@ export function DestaquesHome({ aba }: Props) {
       : SUBTITULO_RANKING_TROFEUS_MENSAL;
 
   const labelUnidade = DESTAQUE_ABAS_UNIDADE.find((u) => u.id === abaUnidade)?.label ?? 'Geral';
+  const etiquetaPeriodo = aba === 'semanal' ? ROTULO_PERIODO_RANKING_SEMANAL : ROTULO_PERIODO_RANKING_MENSAL;
 
   const temAvaliacao =
     semanalGeral.length > 0 ||
@@ -202,12 +194,19 @@ export function DestaquesHome({ aba }: Props) {
       </div>
 
       <div className="rounded-xl border border-dourado-200/70 bg-white/95 p-4 sm:p-5">
+        <span
+          className={`inline-block rounded-full text-xs font-semibold px-2.5 py-0.5 mb-2 ${
+            aba === 'semanal' ? 'bg-sky-100 text-sky-900' : 'bg-dourado-100 text-dourado-900'
+          }`}
+        >
+          {etiquetaPeriodo}
+        </span>
         <h3 className="text-base font-semibold text-cafeteria-800">
           Top 3 · Avaliação · {labelUnidade} · {periodoLabel}
         </h3>
         <p className="text-sm text-cafeteria-600 mt-1 mb-4 leading-relaxed">{subtituloAvaliacao}</p>
         {top3.length > 0 ? (
-          <PodioTop3 itens={top3} modo={periodoTrofeus} />
+          <PodioTop3 itens={top3} modo={aba} />
         ) : (
           <p className="text-sm text-cafeteria-600 py-4 text-center">
             Ainda sem ranking de avaliação para {labelUnidade} neste período.
@@ -215,88 +214,97 @@ export function DestaquesHome({ aba }: Props) {
         )}
       </div>
 
-      {(semanalTrofeus.length > 0 || mensalTrofeus.length > 0) && (
-        <div className="rounded-xl border border-dourado-200/70 bg-white/95 p-4 sm:p-5">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-base font-semibold text-cafeteria-800">
-                Top 3 · Troféus entre pares · {labelUnidade} · {periodoLabelTrofeus}
-              </h3>
-              <p className="text-sm text-cafeteria-600 mt-1 leading-relaxed">{subtituloTrofeus}</p>
-            </div>
-            <div
-              className="inline-flex rounded-xl border border-dourado-base/40 bg-cream-50 p-1 self-start shrink-0"
-              role="tablist"
-              aria-label="Período do ranking de troféus"
+      <div className="rounded-xl border border-dourado-200/70 bg-white/95 p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+          <div>
+            <span
+              className={`inline-block rounded-full text-xs font-semibold px-2.5 py-0.5 mb-2 ${
+                periodoTrofeusAba === 'semanal'
+                  ? 'bg-sky-100 text-sky-900'
+                  : 'bg-dourado-100 text-dourado-900'
+              }`}
             >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={periodoTrofeusAba === 'semanal'}
-                onClick={() => setPeriodoTrofeusAba('semanal')}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium min-h-[36px] transition-colors ${
-                  periodoTrofeusAba === 'semanal'
-                    ? 'bg-portal-action text-white shadow-sm'
-                    : 'text-cafeteria-700 hover:bg-white'
-                }`}
-              >
-                Semanal
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={periodoTrofeusAba === 'mensal'}
-                onClick={() => setPeriodoTrofeusAba('mensal')}
-                className={`rounded-lg px-3 py-1.5 text-sm font-medium min-h-[36px] transition-colors ${
-                  periodoTrofeusAba === 'mensal'
-                    ? 'bg-dourado-base text-coffee-base shadow-sm'
-                    : 'text-cafeteria-700 hover:bg-white'
-                }`}
-              >
-                Mensal
-              </button>
-            </div>
+              {periodoTrofeusAba === 'semanal'
+                ? ROTULO_PERIODO_RANKING_SEMANAL
+                : ROTULO_PERIODO_RANKING_MENSAL}
+            </span>
+            <h3 className="text-base font-semibold text-cafeteria-800">
+              Top 3 · Troféus entre pares · {labelUnidade} · {periodoLabelTrofeus}
+            </h3>
+            <p className="text-sm text-cafeteria-600 mt-1 leading-relaxed">{subtituloTrofeus}</p>
           </div>
-          {top3Trofeus.length > 0 ? (
-            <PodioTop3Trofeus itens={top3Trofeus} periodo={periodoTrofeus} />
-          ) : (
-            <p className="text-sm text-cafeteria-600 py-4 text-center">
-              Ainda sem ranking de troféus para {labelUnidade} neste período.
-            </p>
-          )}
-
-          {top3Trofeus.length > 0 && restoTrofeus.length > 0 && !trofeusExpandido && (
+          <div
+            className="inline-flex rounded-xl border border-dourado-base/40 bg-cream-50 p-1 self-start shrink-0"
+            role="tablist"
+            aria-label="Período do ranking de troféus"
+          >
             <button
               type="button"
-              onClick={() => setTrofeusExpandido(true)}
-              className="mt-4 w-full rounded-lg border border-dourado-300 bg-cream-50 px-4 py-2.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 min-h-[44px]"
+              role="tab"
+              aria-selected={periodoTrofeusAba === 'semanal'}
+              onClick={() => setPeriodoTrofeusAba('semanal')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium min-h-[36px] transition-colors ${
+                periodoTrofeusAba === 'semanal'
+                  ? 'bg-portal-action text-white shadow-sm'
+                  : 'text-cafeteria-700 hover:bg-white'
+              }`}
             >
-              Ver mais ({restoTrofeus.length} {restoTrofeus.length === 1 ? 'colocado' : 'colocados'})
+              Semanal
             </button>
-          )}
-
-          {top3Trofeus.length > 0 && trofeusExpandido && restoTrofeus.length > 0 && (
-            <div className="mt-4 space-y-3 border-t border-cream-200 pt-4">
-              {restoVisivel.map((item) => (
-                <LinhaRankingTrofeu
-                  key={`trof-${item.colaborador_id}`}
-                  item={item}
-                  periodo={periodoTrofeus}
-                />
-              ))}
-              {restoRestantes > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setTrofeusVisiveis((n) => Math.min(restoTrofeus.length, n + loteTrofeus))}
-                  className="w-full rounded-lg border border-dourado-300 bg-cream-50 px-4 py-2.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 min-h-[44px]"
-                >
-                  Ver mais ({proximosTrofeus} {proximosTrofeus === 1 ? 'colocado' : 'colocados'})
-                </button>
-              )}
-            </div>
-          )}
+            <button
+              type="button"
+              role="tab"
+              aria-selected={periodoTrofeusAba === 'mensal'}
+              onClick={() => setPeriodoTrofeusAba('mensal')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium min-h-[36px] transition-colors ${
+                periodoTrofeusAba === 'mensal'
+                  ? 'bg-dourado-base text-coffee-base shadow-sm'
+                  : 'text-cafeteria-700 hover:bg-white'
+              }`}
+            >
+              Mensal
+            </button>
+          </div>
         </div>
-      )}
+        {top3Trofeus.length > 0 ? (
+          <PodioTop3Trofeus itens={top3Trofeus} periodo={periodoTrofeus} />
+        ) : (
+          <p className="text-sm text-cafeteria-600 py-4 text-center">
+            Ainda sem ranking de troféus para {labelUnidade} neste período.
+          </p>
+        )}
+
+        {top3Trofeus.length > 0 && restoTrofeus.length > 0 && !trofeusExpandido && (
+          <button
+            type="button"
+            onClick={() => setTrofeusExpandido(true)}
+            className="mt-4 w-full rounded-lg border border-dourado-300 bg-cream-50 px-4 py-2.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 min-h-[44px]"
+          >
+            Ver mais ({restoTrofeus.length} {restoTrofeus.length === 1 ? 'colocado' : 'colocados'})
+          </button>
+        )}
+
+        {top3Trofeus.length > 0 && trofeusExpandido && restoTrofeus.length > 0 && (
+          <div className="mt-4 space-y-3 border-t border-cream-200 pt-4">
+            {restoVisivel.map((item) => (
+              <LinhaRankingTrofeu
+                key={`trof-${item.colaborador_id}`}
+                item={item}
+                periodo={periodoTrofeus}
+              />
+            ))}
+            {restoRestantes > 0 && (
+              <button
+                type="button"
+                onClick={() => setTrofeusVisiveis((n) => Math.min(restoTrofeus.length, n + loteTrofeus))}
+                className="w-full rounded-lg border border-dourado-300 bg-cream-50 px-4 py-2.5 text-sm font-medium text-coffee-base hover:bg-dourado-50 min-h-[44px]"
+              >
+                Ver mais ({proximosTrofeus} {proximosTrofeus === 1 ? 'colocado' : 'colocados'})
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       <Link
         href="/portal/mural"

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { PortalPaginaCarregando } from '@/components/ui/PortalPaginaCarregando';
 import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
@@ -172,7 +173,7 @@ export function GraosPageClient() {
   };
 
   if (carregando && !data) {
-    return <p className="text-cafeteria-600 p-6">Carregando Grãos…</p>;
+    return <PortalPaginaCarregando label="Carregando Grãos…" />;
   }
 
   if (!data?.ok) {

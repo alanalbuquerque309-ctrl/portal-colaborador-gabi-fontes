@@ -1,17 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalEmptyState } from '@/components/portal/shell/PortalEmptyState';
 import {
   BlocoTop3PorUnidade,
   BlocoRankingTrofeus,
-  CardRankingAvaliacao,
+  BlocoTop3Geral,
   rotuloMes,
   SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE,
   SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE,
+  SUBTITULO_RANKING_AVALIACAO_SEMANAL,
   SUBTITULO_RANKING_TROFEUS_MENSAL,
+  SUBTITULO_RANKING_TROFEUS_SEMANAL,
   type RankingAvaliacaoItem,
   type RankingPorUnidade,
   type RankingTrofeuItem,
@@ -19,79 +20,164 @@ import {
 import { PodioTop3 } from '@/components/portal/vivo/PodioTop3';
 
 export function MuralRankingsMensais() {
+  const [aba, setAba] = useState<'semanal' | 'mensal'>('semanal');
   const [loading, setLoading] = useState(true);
   const [mesRef, setMesRef] = useState('');
-  const [geralTop3, setGeralTop3] = useState<RankingAvaliacaoItem[]>([]);
-  const [porUnidade, setPorUnidade] = useState<RankingPorUnidade[]>([]);
-  const [trofeus, setTrofeus] = useState<RankingTrofeuItem[]>([]);
+  const [semanaRotulo, setSemanaRotulo] = useState('');
+  const [semanaRotuloTrofeus, setSemanaRotuloTrofeus] = useState('');
   const [minSemanas, setMinSemanas] = useState(1);
+  const [semanalGeral, setSemanalGeral] = useState<RankingAvaliacaoItem[]>([]);
+  const [semanalPorUnidade, setSemanalPorUnidade] = useState<RankingPorUnidade[]>([]);
+  const [semanalTrofeus, setSemanalTrofeus] = useState<RankingTrofeuItem[]>([]);
+  const [mensalGeral, setMensalGeral] = useState<RankingAvaliacaoItem[]>([]);
+  const [mensalPorUnidade, setMensalPorUnidade] = useState<RankingPorUnidade[]>([]);
+  const [mensalTrofeus, setMensalTrofeus] = useState<RankingTrofeuItem[]>([]);
 
   useEffect(() => {
-    const session = getPortalSession();
-    if (!session?.colaboradorId) {
-      setLoading(false);
-      return;
-    }
+    let cancel = false;
+    setLoading(true);
 
-    void fetch('/api/portal/destaque', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data?.ok !== true) return;
-        setMesRef(String(data.mes_referencia ?? ''));
-        setMinSemanas(Number(data.min_semanas_ranking_mensal ?? 1));
-        setGeralTop3(Array.isArray(data.ranking_geral_top3) ? data.ranking_geral_top3 : []);
-        setPorUnidade(Array.isArray(data.ranking_por_unidade) ? data.ranking_por_unidade : []);
-        setTrofeus(Array.isArray(data.ranking_trofeus) ? data.ranking_trofeus : []);
+    Promise.all([
+      fetch('/api/portal/reconhecimento-semanal', { credentials: 'include', cache: 'no-store' }).then((r) =>
+        r.json()
+      ),
+      fetch('/api/portal/destaque', { credentials: 'include', cache: 'no-store' }).then((r) => r.json()),
+    ])
+      .then(([sem, mes]) => {
+        if (cancel) return;
+        if (sem?.ok === true) {
+          setSemanaRotulo(String(sem.semana_rotulo ?? ''));
+          setSemanaRotuloTrofeus(String(sem.semana_rotulo_trofeus ?? sem.semana_rotulo ?? ''));
+          setSemanalGeral(Array.isArray(sem.ranking_geral_top3) ? sem.ranking_geral_top3 : []);
+          setSemanalPorUnidade(Array.isArray(sem.ranking_por_unidade) ? sem.ranking_por_unidade : []);
+          setSemanalTrofeus(Array.isArray(sem.ranking_trofeus) ? sem.ranking_trofeus : []);
+        }
+        if (mes?.ok === true) {
+          setMesRef(String(mes.mes_referencia ?? ''));
+          setMinSemanas(Number(mes.min_semanas_ranking_mensal ?? 1));
+          setMensalGeral(Array.isArray(mes.ranking_geral_top3) ? mes.ranking_geral_top3 : []);
+          setMensalPorUnidade(Array.isArray(mes.ranking_por_unidade) ? mes.ranking_por_unidade : []);
+          setMensalTrofeus(Array.isArray(mes.ranking_trofeus) ? mes.ranking_trofeus : []);
+        }
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!cancel) setLoading(false);
+      });
+
+    return () => {
+      cancel = true;
+    };
   }, []);
 
   if (loading) {
     return (
       <div className="flex justify-center py-6">
-        <XicaraCarregando size="sm" label="Carregando rankings do mês…" />
+        <XicaraCarregando size="sm" label="Carregando rankings…" />
       </div>
     );
   }
 
+  const geralTop3 = aba === 'semanal' ? semanalGeral : mensalGeral;
+  const porUnidade = aba === 'semanal' ? semanalPorUnidade : mensalPorUnidade;
+  const trofeus = aba === 'semanal' ? semanalTrofeus : mensalTrofeus;
+  const modo = aba;
+  const periodoRotulo =
+    aba === 'semanal'
+      ? semanaRotulo || 'esta semana'
+      : mesRef
+        ? rotuloMes(mesRef)
+        : 'este mês';
+  const periodoRotuloTrofeus =
+    aba === 'semanal' ? semanaRotuloTrofeus || semanaRotulo || 'esta semana' : periodoRotulo;
+
   const temAvaliacoes = geralTop3.length > 0 || porUnidade.length > 0;
   const temTrofeus = trofeus.length > 0;
-  const mesRotulo = mesRef ? rotuloMes(mesRef) : 'este mês';
 
   if (!temAvaliacoes && !temTrofeus) {
     return (
       <PortalEmptyState
-        message={`Os destaques do mês aparecem aqui conforme as avaliações semanais vão entrando (mínimo de ${minSemanas} semana por colaborador) e os troféus entre pares se acumulam até o fechamento do mês.`}
+        message={`Os destaques aparecem conforme as avaliações semanais vão entrando (mínimo de ${minSemanas} semana por colaborador no mensal) e os troféus entre pares se acumulam.`}
       />
     );
   }
 
+  const subtituloAvaliacao =
+    aba === 'semanal' ? SUBTITULO_RANKING_AVALIACAO_SEMANAL : SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE;
+  const subtituloUnidade =
+    aba === 'semanal' ? SUBTITULO_RANKING_AVALIACAO_SEMANAL : SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE;
+  const subtituloTrofeus =
+    aba === 'semanal' ? SUBTITULO_RANKING_TROFEUS_SEMANAL : SUBTITULO_RANKING_TROFEUS_MENSAL;
+
   return (
-    <div className="space-y-8">
-      {geralTop3.length > 0 && (
-        <section className="rounded-2xl border border-dourado-200 bg-white/95 p-5 shadow-sm">
-          <h3 className="text-base font-semibold text-cafeteria-800 mb-0.5">{`Destaques do mês · ${mesRotulo}`}</h3>
-          <p className="text-sm text-cafeteria-600 mb-4 leading-relaxed">{SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE}</p>
-          <PodioTop3 itens={geralTop3.slice(0, 3)} modo="mensal" />
-          <div className="mt-4 space-y-2 border-t border-cream-200 pt-4">
-            {geralTop3.map((item) => (
-              <CardRankingAvaliacao key={item.colaborador_id} item={item} modo="mensal" />
-            ))}
-          </div>
+    <div className="space-y-6">
+      <div
+        className="inline-flex rounded-xl border border-dourado-base/40 bg-white p-1"
+        role="tablist"
+        aria-label="Período do ranking"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'semanal'}
+          onClick={() => setAba('semanal')}
+          className={`rounded-lg px-4 py-2 text-sm font-medium min-h-[40px] transition-colors ${
+            aba === 'semanal'
+              ? 'bg-portal-action text-white shadow-sm'
+              : 'text-cafeteria-700 hover:bg-cream-50'
+          }`}
+        >
+          Semanal
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={aba === 'mensal'}
+          onClick={() => setAba('mensal')}
+          className={`rounded-lg px-4 py-2 text-sm font-medium min-h-[40px] transition-colors ${
+            aba === 'mensal'
+              ? 'bg-dourado-base text-coffee-base shadow-sm'
+              : 'text-cafeteria-700 hover:bg-cream-50'
+          }`}
+        >
+          Mensal
+        </button>
+      </div>
+
+      {geralTop3.length > 0 ? (
+        <section className="rounded-2xl border border-dourado-200 bg-white/95 p-5 shadow-sm space-y-4">
+          <PodioTop3 itens={geralTop3.slice(0, 3)} modo={modo} />
+          <BlocoTop3Geral
+            titulo={`Destaques da rede · ${periodoRotulo}`}
+            subtitulo={subtituloAvaliacao}
+            itens={geralTop3}
+            modo={modo}
+          />
         </section>
+      ) : (
+        <p className="text-sm text-cafeteria-600 rounded-xl border border-dourado-200 bg-cream-50 p-4">
+          Ainda sem ranking de avaliação da rede neste período ({periodoRotulo}).
+        </p>
       )}
+
       <BlocoTop3PorUnidade
-        titulo={`Destaques por unidade · ${mesRotulo}`}
-        subtitulo={SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE}
+        titulo={`Destaques por unidade · ${periodoRotulo}`}
+        subtitulo={subtituloUnidade}
         blocos={porUnidade}
-        modo="mensal"
+        modo={modo}
       />
-      <BlocoRankingTrofeus
-        titulo={`Troféus entre pares · ${mesRotulo}`}
-        subtitulo={SUBTITULO_RANKING_TROFEUS_MENSAL}
-        itens={trofeus}
-        periodo="mensal"
-      />
+
+      {temTrofeus ? (
+        <BlocoRankingTrofeus
+          titulo={`Troféus entre pares · ${periodoRotuloTrofeus}`}
+          subtitulo={subtituloTrofeus}
+          itens={trofeus}
+          periodo={modo}
+        />
+      ) : (
+        <p className="text-sm text-cafeteria-600 rounded-xl border border-dourado-200 bg-cream-50 p-4">
+          Ainda sem troféus entre pares neste período ({periodoRotuloTrofeus}).
+        </p>
+      )}
     </div>
   );
 }

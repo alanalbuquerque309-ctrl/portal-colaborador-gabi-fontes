@@ -10,6 +10,7 @@ import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, semanaAvali
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 import { QuintaTreinoLiderBanner } from '@/components/portal/QuintaTreinoLiderBanner';
 import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
+import { PortalPaginaCarregando } from '@/components/ui/PortalPaginaCarregando';
 
 function isRoleGerenteAvaliadorPortal(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
@@ -99,7 +100,7 @@ export default function AvaliacaoMasterPage() {
   }, [autorizado, carregar]);
 
   if (!session || !autorizado) {
-    return <p className="text-cafeteria-700 text-center py-12">Carregando…</p>;
+    return <PortalPaginaCarregando label="Carregando avaliação…" />;
   }
 
   return (
@@ -244,7 +245,7 @@ export default function AvaliacaoMasterPage() {
       )}
 
       {carregando ? (
-        <p className="text-cafeteria-600">Carregando equipe…</p>
+        <PortalPaginaCarregando variant="section" label="Carregando equipe…" />
       ) : equipe.length === 0 ? (
         <div className="rounded-xl border border-dourado-base/40 bg-dourado-50/50 p-6 text-cafeteria-800">
           <p className="font-medium">Nenhum colaborador na sua equipe</p>

@@ -8,7 +8,7 @@ import { MeuPainelHome } from '@/components/portal/home/MeuPainelHome';
 import { PainelLiderHome } from '@/components/portal/home/PainelLiderHome';
 import { FacaAgoraHome } from '@/components/portal/FacaAgoraHome';
 import { PORTAL_HOME_ATUALIZADO } from '@/lib/portal-home-events';
-import { LogoCarregando } from '@/components/ui/LogoCarregando';
+import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 function PendenciasDrawer({
   tarefas,
@@ -132,7 +132,7 @@ export function PortalHomeEntrada() {
   if (!dados) {
     return (
       <section className="rounded-2xl border border-cafeteria-200 bg-white/80 p-8 flex justify-center">
-        <LogoCarregando size="sm" revelarCor label="Preparando sua home…" />
+        <XicaraCarregando size="md" label="Preparando sua home…" />
       </section>
     );
   }

@@ -14,6 +14,8 @@ export type GraosElegibilidadeSemana = {
   motivo: string | null;
   elegivel: boolean;
   avaliacao_id: string | null;
+  /** Falta injustificada zera todo o saldo acumulado de Grãos. */
+  falta_injustificada?: boolean;
 };
 
 type AvaliacaoRow = {
@@ -75,9 +77,10 @@ export function avaliarElegibilidadeDeLinha(row: AvaliacaoRow | null): GraosEleg
   if (a === 'falta_injustificada') {
     return {
       estado: 'inelegivel',
-      motivo: 'Falta injustificada — sem Grãos e nota da semana zerada.',
+      motivo: 'Falta injustificada — perde todo o saldo de Grãos (fica zerado) e a nota da semana zera.',
       elegivel: false,
       avaliacao_id: row.id,
+      falta_injustificada: true,
     };
   }
 

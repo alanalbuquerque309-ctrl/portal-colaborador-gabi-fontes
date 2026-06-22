@@ -20,6 +20,18 @@ export function segundaSemanaSaoPaulo(ref: Date = new Date()): string {
   return `${ys}-${ms}-${ds}`;
 }
 
+/** Segunda-feira da semana civil anterior em America/Sao_Paulo (semana já encerrada / em avaliação). */
+export function semanaAnteriorSaoPaulo(ref: Date = new Date()): string {
+  const cur = segundaSemanaSaoPaulo(ref);
+  const [y, m, d] = cur.split('-').map((x) => parseInt(x, 10));
+  const local = new Date(y, (m || 1) - 1, d || 1);
+  local.setDate(local.getDate() - 7);
+  const ys = local.getFullYear();
+  const ms = String(local.getMonth() + 1).padStart(2, '0');
+  const ds = String(local.getDate()).padStart(2, '0');
+  return `${ys}-${ms}-${ds}`;
+}
+
 /** Domingo (data local) da semana de `ref`, em America/Sao_Paulo, formato YYYY-MM-DD. */
 export function domingoSemanaSaoPaulo(ref: Date = new Date()): string {
   const inicio = segundaSemanaSaoPaulo(ref);

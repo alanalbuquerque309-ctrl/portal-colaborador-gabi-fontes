@@ -104,12 +104,19 @@ const config: Config = {
       },
       keyframes: {
         'xicara-encher': {
-          '0%': { transform: 'translateY(100%) scaleY(0)' },
-          '15%': { transform: 'translateY(100%) scaleY(0.15)' },
-          '40%': { transform: 'translateY(100%) scaleY(0.55)' },
-          '70%': { transform: 'translateY(100%) scaleY(0.9)' },
-          '85%': { transform: 'translateY(100%) scaleY(0.95)' },
-          '100%': { transform: 'translateY(100%) scaleY(0)' },
+          '0%': { transform: 'scaleY(0)' },
+          '55%': { transform: 'scaleY(1)' },
+          '75%': { transform: 'scaleY(1)' },
+          '100%': { transform: 'scaleY(0)' },
+        },
+        'xicara-espuma': {
+          '0%, 100%': { transform: 'translateY(68px)', opacity: '0' },
+          '55%, 75%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        'xicara-vapor': {
+          '0%': { transform: 'translateY(6px)', opacity: '0' },
+          '40%': { transform: 'translateY(0)', opacity: '0.5' },
+          '100%': { transform: 'translateY(-10px)', opacity: '0' },
         },
         'aniversario-confetti': {
           '0%': { transform: 'translateY(0) rotate(0deg)', opacity: '0.9' },
@@ -125,7 +132,9 @@ const config: Config = {
         },
       },
       animation: {
-        'xicara-encher': 'xicara-encher 2s ease-in-out infinite',
+        'xicara-encher': 'xicara-encher 2.4s ease-in-out infinite',
+        'xicara-espuma': 'xicara-espuma 2.4s ease-in-out infinite',
+        'xicara-vapor': 'xicara-vapor 2.4s ease-in-out infinite',
         'aniversario-confetti': 'aniversario-confetti 2.2s ease-out infinite',
         'aniversario-balao-in': 'aniversario-balao-in 0.35s ease-out forwards',
         'logo-revelar-cor': 'logo-revelar-cor 2.2s ease-in-out infinite',

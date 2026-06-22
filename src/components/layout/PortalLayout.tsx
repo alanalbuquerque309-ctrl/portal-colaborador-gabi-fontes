@@ -14,7 +14,8 @@ import { AniversarioBalaoPortal } from '@/components/aniversario/AniversarioBala
 import { PortalPwaRefresh } from '@/components/portal/PortalPwaRefresh';
 import { PortalAmbientePagina } from '@/components/portal/vivo/PortalBalaoCard';
 import { PortalPerfilProvider } from '@/contexts/PortalPerfilContext';
-import { LogoCarregando } from '@/components/ui/LogoCarregando';
+import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
+import { PortalNavigationLoader } from '@/components/portal/PortalNavigationLoader';
 
 type ColaboradorGate = {
   role?: string | null;
@@ -35,7 +36,7 @@ type PerfilResposta = {
 function PortalLayoutSkeleton() {
   return (
     <div className="flex justify-center py-16 md:py-24" aria-busy="true">
-      <LogoCarregando size="md" revelarCor label="Carregando portal…" />
+      <XicaraCarregando size="lg" label="Carregando portal…" />
     </div>
   );
 }
@@ -291,6 +292,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   return (
     <PortalPerfilProvider value={perfilCtx}>
       <div className="relative min-h-screen bg-cream-100">
+        <PortalNavigationLoader />
         <PortalAmbientePagina />
         <Header perfilRole={perfilRole} perfilCarregado={gateOk} />
         <PortalPwaRefresh />

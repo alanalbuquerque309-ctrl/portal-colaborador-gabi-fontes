@@ -6,7 +6,7 @@ import {
   calcularTop3PorUnidadeSemana,
 } from '@/lib/mural-ranking-unidade';
 import { calcularRankingTrofeusSemanaCompleto } from '@/lib/mural-ranking-trofeus-pares';
-import { segundaSemanaSaoPaulo, rotuloSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { segundaSemanaSaoPaulo, semanaAnteriorSaoPaulo, rotuloSemanaSaoPaulo } from '@/lib/semana-brasil';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,13 +20,15 @@ export async function GET() {
 
   try {
     const supabase = createAdminClient();
-    const semanaInicio = segundaSemanaSaoPaulo();
+    /** Avaliação: semana que já terminou (a que a liderança registra). Troféus: semana corrente. */
+    const semanaAvaliacao = semanaAnteriorSaoPaulo();
+    const semanaTrofeus = segundaSemanaSaoPaulo();
 
     const [geral, porUnidade, trofeus] = await Promise.all([
-      calcularTop3GeralSemana(supabase, semanaInicio),
-      calcularTop3PorUnidadeSemana(supabase, semanaInicio),
-      calcularRankingTrofeusSemanaCompleto(supabase, semanaInicio).catch(() => ({
-        semana_inicio: semanaInicio,
+      calcularTop3GeralSemana(supabase, semanaAvaliacao),
+      calcularTop3PorUnidadeSemana(supabase, semanaAvaliacao),
+      calcularRankingTrofeusSemanaCompleto(supabase, semanaTrofeus).catch(() => ({
+        semana_inicio: semanaTrofeus,
         ranking: [],
       })),
     ]);
@@ -34,8 +36,10 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: true,
-        semana_inicio: semanaInicio,
-        semana_rotulo: rotuloSemanaSaoPaulo(semanaInicio),
+        semana_inicio: semanaAvaliacao,
+        semana_trofeus_inicio: semanaTrofeus,
+        semana_rotulo: rotuloSemanaSaoPaulo(semanaAvaliacao),
+        semana_rotulo_trofeus: rotuloSemanaSaoPaulo(semanaTrofeus),
         ranking_geral_top3: geral.top,
         ranking_por_unidade: porUnidade.unidades,
         ranking_trofeus: trofeus.ranking,

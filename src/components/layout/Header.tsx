@@ -439,6 +439,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
 
   const isAdm = roleNav === 'admin' || roleNav === 'socio';
   const isLider = roleNav === 'gerente' || roleNav === 'master';
+  const naAbaGraos = navAtivo(pathname, '/portal/graos');
 
   const itemGraos: NavItem = {
     href: '/portal/graos',
@@ -657,7 +658,11 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                     const alertaAjuda = href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
                     const alertaSugestoes =
                       href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
-                    const badgeGraos = href === '/portal/graos' && graosSaldo != null && graosSaldo > 0;
+                    const badgeGraos =
+                      href === '/portal/graos' &&
+                      !naAbaGraos &&
+                      graosSaldo != null &&
+                      graosSaldo > 0;
                     return (
                       <li key={href}>
                         <Link
@@ -732,7 +737,11 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                   const alertaAjuda = href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
                   const alertaSugestoes =
                     href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
-                  const badgeGraos = href === '/portal/graos' && graosSaldo != null && graosSaldo > 0;
+                  const badgeGraos =
+                    href === '/portal/graos' &&
+                    !naAbaGraos &&
+                    graosSaldo != null &&
+                    graosSaldo > 0;
                   return (
                     <Link
                       key={href}

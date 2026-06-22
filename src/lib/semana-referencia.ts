@@ -1,9 +1,11 @@
 /**
- * Semana civil: segunda a domingo, fuso horário local do navegador/servidor.
+ * Semana civil: segunda a domingo.
  * `data_referencia` em `avaliacoes_diarias` guarda sempre a segunda-feira da semana.
+ * Operação (avaliação, pendências): America/Sao_Paulo — evita desvio UTC no Vercel.
  */
 
 export { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
+import { semanaAnteriorSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 
 export function parseDataLocalISO(ymd: string): Date {
   const [y, m, d] = ymd.split('-').map((x) => parseInt(x, 10));
@@ -69,15 +71,19 @@ export function listarUltimasSemanasSegunda(
 
 /** Segunda-feira da semana anterior (operacional: avaliar a semana que acabou no domingo). */
 export function semanaAnteriorInicioISO(ref: Date = new Date()): string {
-  const segAtual = parseDataLocalISO(inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(ref)));
-  if (Number.isNaN(segAtual.getTime())) return hojeInicioSemanaISO();
-  segAtual.setDate(segAtual.getDate() - 7);
-  return inicioSemanaSegundaFeiraLocal(formatarDataLocalISO(segAtual));
+  return semanaAnteriorSaoPaulo(ref);
 }
 
-/** Semana que a liderança deve avaliar por defeito (semana civil anterior). */
+/** Semana que a liderança deve avaliar por defeito (semana civil anterior em SP). */
 export function semanaAvaliacaoEquipePadraoISO(): string {
-  return semanaAnteriorInicioISO();
+  return semanaAnteriorSaoPaulo();
+}
+
+/** Segunda-feira da semana que contém `dataIso`, alinhada a America/Sao_Paulo. */
+export function inicioSemanaSegundaFeiraSaoPaulo(dataIso: string): string {
+  const d = parseDataLocalISO(dataIso);
+  if (Number.isNaN(d.getTime())) return dataIso;
+  return segundaSemanaSaoPaulo(d);
 }
 
 /** Texto curto para lembretes na home e telas de liderança. */

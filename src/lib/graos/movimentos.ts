@@ -8,7 +8,11 @@ import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-p
 export type GraosEstadoMovimento = 'pendente' | 'confirmado' | 'cancelado';
 
 /** Missões que não entram na elegibilidade semanal (débitos/ajustes). */
-const MISSOES_FORA_ELEGIBILIDADE = new Set(['debito_resgate', 'ajuste_rh']);
+const MISSOES_FORA_ELEGIBILIDADE = new Set([
+  'debito_resgate',
+  'ajuste_rh',
+  'penalidade_falta_injustificada',
+]);
 
 export type GraosSaldo = {
   confirmado: number;
@@ -299,6 +303,89 @@ export async function cancelarMissoesSemLoginNaSemana(
   return ids.length;
 }
 
+/** Cancela todos os créditos pendentes em semanas vigentes. */
+async function cancelarTodosPendentesVigentesGraos(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  metaAjuste: Record<string, unknown>
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('graos_movimentos')
+    .select('id, semana_inicio')
+    .eq('colaborador_id', colaboradorId)
+    .eq('estado', 'pendente')
+    .gt('graos', 0);
+
+  if (error) {
+    if (tabelaAusente(error.message)) return 0;
+    throw new Error(error.message);
+  }
+
+  const ids = (data ?? [])
+    .filter((r) => {
+      const sem = r.semana_inicio ? String(r.semana_inicio) : null;
+      return sem ? semanaVigenteParaGraos(sem) : false;
+    })
+    .map((r) => r.id);
+
+  if (ids.length === 0) return 0;
+
+  const { error: updErr } = await supabase
+    .from('graos_movimentos')
+    .update({ estado: 'cancelado', meta: metaAjuste })
+    .in('id', ids);
+
+  if (updErr) throw new Error(updErr.message);
+  return ids.length;
+}
+
+/**
+ * Falta injustificada: cancela pendentes e debita saldo confirmado inteiro (fica zerado).
+ * Idempotente por semana (ref_key única).
+ */
+export async function aplicarZeragemFaltaInjustificadaGraos(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string,
+  avaliacaoId: string | null
+): Promise<void> {
+  if (!semanaVigenteParaGraos(semanaInicio)) return;
+
+  const refKey = refKeyGraos(colaboradorId, 'penalidade_falta_injustificada', semanaInicio);
+  const { data: existente } = await supabase
+    .from('graos_movimentos')
+    .select('id')
+    .eq('ref_key', refKey)
+    .maybeSingle();
+
+  await cancelarTodosPendentesVigentesGraos(supabase, colaboradorId, {
+    ajuste_sistema: 'falta_injustificada_zeragem',
+    oculto_colaborador: true,
+  });
+
+  if (existente) return;
+
+  const saldo = await calcularSaldoGraos(supabase, colaboradorId);
+  if (saldo.confirmado <= 0) return;
+
+  const { error } = await supabase.from('graos_movimentos').insert({
+    colaborador_id: colaboradorId,
+    semana_inicio: semanaInicio,
+    missao: 'penalidade_falta_injustificada',
+    graos: -saldo.confirmado,
+    estado: 'confirmado',
+    ref_key: refKey,
+    descricao: 'Falta injustificada — saldo zerado',
+    meta: { avaliacao_id: avaliacaoId },
+  });
+
+  if (error) {
+    if (error.code === '23505') return;
+    if (tabelaAusente(error.message)) return;
+    throw new Error(error.message);
+  }
+}
+
 /** Credita missão (pendente). Idempotente via ref_key. */
 export async function creditarMissaoGraos(
   supabase: SupabaseClient,
@@ -404,8 +491,19 @@ export async function processarElegibilidadeSemanaGraos(
 ): Promise<void> {
   if (!semanaVigenteParaGraos(semanaInicio)) return;
 
-  const temLogin = await colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaInicio);
   const eleg = await calcularElegibilidadeSemana(supabase, colaboradorId, semanaInicio);
+
+  if (!eleg.elegivel && eleg.falta_injustificada) {
+    await aplicarZeragemFaltaInjustificadaGraos(
+      supabase,
+      colaboradorId,
+      semanaInicio,
+      eleg.avaliacao_id
+    );
+    return;
+  }
+
+  const temLogin = await colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaInicio);
 
   const movimentos = await listarMovimentosMissaoSemana(supabase, colaboradorId, semanaInicio, [
     'pendente',

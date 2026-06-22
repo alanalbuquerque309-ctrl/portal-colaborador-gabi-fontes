@@ -152,12 +152,16 @@ export async function calcularRankingTrofeusMesCompleto(
   opts: { ano: number; mes: number }
 ): Promise<{ mes_referencia: string; ranking: RankingTrofeuDetalheItem[] }> {
   const { ini, fim, mesRef } = mesBoundsUTC(opts.ano, opts.mes);
+  const proxMes =
+    opts.mes === 12
+      ? `${opts.ano + 1}-01-01`
+      : `${opts.ano}-${String(opts.mes + 1).padStart(2, '0')}-01`;
 
   const { data: trofeus, error: errTrof } = await supabase
     .from('trofeus_entre_pares')
-    .select('destinatario_id, tipo')
-    .gte('semana_inicio', ini)
-    .lte('semana_inicio', fim)
+    .select('destinatario_id, tipo, semana_inicio, created_at')
+    .gte('created_at', `${ini}T00:00:00.000Z`)
+    .lt('created_at', `${proxMes}T00:00:00.000Z`)
     .limit(8000);
 
   if (errTrof) throw new Error(errTrof.message);

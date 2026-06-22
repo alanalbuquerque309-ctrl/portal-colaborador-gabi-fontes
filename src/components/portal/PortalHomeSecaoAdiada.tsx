@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { LogoCarregando } from '@/components/ui/LogoCarregando';
+import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 type Props = {
   children: ReactNode;
@@ -47,7 +47,7 @@ export function PortalHomeSecaoAdiada({ children, minHeight = '6rem', delayMs = 
         className="flex items-center justify-center rounded-2xl border border-cafeteria-100/80 bg-cream-50/60 py-8"
         aria-hidden
       >
-        <LogoCarregando size="sm" revelarCor />
+        <XicaraCarregando size="sm" />
       </div>
     );
   }

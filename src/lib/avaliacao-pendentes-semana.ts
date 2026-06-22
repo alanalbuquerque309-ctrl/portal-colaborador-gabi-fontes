@@ -20,13 +20,11 @@ import {
 } from '@/lib/plantao-12x36';
 import {
   formatarIntervaloSemanaPtBR,
-  hojeInicioSemanaISO,
-  inicioSemanaSegundaFeiraLocal,
+  inicioSemanaSegundaFeiraSaoPaulo,
   isDateIsoAvaliacao,
-  semanaAvaliacaoEquipePadraoISO,
 } from '@/lib/semana-referencia';
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
-import { ehSextaSaoPaulo } from '@/lib/semana-brasil';
+import { ehSextaSaoPaulo, semanaAnteriorSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -456,33 +454,19 @@ export type FiltroPendenciasSemana =
   | 'critico_sexta'
   | 'todos';
 
-/** Semana com dados reais quando a operacional (semana passada) ainda está vazia. */
+/**
+ * Semana monitorada nas pendências: sempre a semana passada (SP), salvo data explícita.
+ * Não alterna para a semana corrente — líderes avaliam a semana encerrada; liderança só muda no mês.
+ */
 export async function resolverDataRefPendentes(
-  supabase: SupabaseAdmin,
+  _supabase: SupabaseAdmin,
   dataIso?: string
 ): Promise<string> {
   const informada = dataIso?.trim();
   if (informada && isDateIsoAvaliacao(informada)) {
-    return inicioSemanaSegundaFeiraLocal(informada);
+    return inicioSemanaSegundaFeiraSaoPaulo(informada);
   }
-
-  const padrao = semanaAvaliacaoEquipePadraoISO();
-  const atual = hojeInicioSemanaISO();
-  if (padrao === atual) return padrao;
-
-  const { data, error } = await supabase
-    .from('avaliacoes_diarias')
-    .select('data_referencia')
-    .in('data_referencia', [padrao, atual]);
-  if (error) return padrao;
-
-  const counts: Record<string, number> = { [padrao]: 0, [atual]: 0 };
-  for (const row of data ?? []) {
-    const d = String(row.data_referencia ?? '');
-    if (d in counts) counts[d]++;
-  }
-  if (counts[atual] > counts[padrao]) return atual;
-  return padrao;
+  return semanaAnteriorSaoPaulo();
 }
 
 export async function calcularPendenciasSemana(

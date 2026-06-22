@@ -22,8 +22,8 @@ export default function MuralPage() {
       </PortalSection>
 
       <PortalSection
-        title="Destaques do mês"
-        description="Média das notas semanais no mês e troféus somados. Atualiza a cada nova avaliação ou troféu."
+        title="Rankings"
+        description="Avaliação e troféus entre pares — semanal (semana em avaliação / troféus da semana) ou mensal (acumulado)."
       >
         <MuralRankingsMensais />
       </PortalSection>
