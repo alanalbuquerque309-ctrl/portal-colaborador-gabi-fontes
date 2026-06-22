@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { ColaboradorAvaliacaoCard, type AvaliacaoServidor } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
 import { normalizePortalRole } from '@/lib/roles';
 import { colaboradorPermiteMarcarForaPlantao } from '@/lib/escala-portal';
-import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
+import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 import { QuintaTreinoLiderBanner } from '@/components/portal/QuintaTreinoLiderBanner';
+import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
 
 function isRoleGerenteAvaliadorPortal(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
@@ -46,8 +46,6 @@ export default function AvaliacaoMasterPage() {
   const pendentesNaSemana = Math.max(0, equipe.length - avaliadosNaSemana);
   const naoAtivaramPortal = equipe.filter((m) => m.onboarding_completo === false);
   const intervaloSemana = formatarIntervaloSemanaPtBR(dataRef);
-  const lembretePadrao = lembreteAvaliacaoSemanaPassada();
-  const exibindoSemanaPassada = dataRef === semanaAvaliacaoEquipePadraoISO();
 
   useEffect(() => {
     const s = getPortalSession();
@@ -106,44 +104,60 @@ export default function AvaliacaoMasterPage() {
   return (
     <main className="space-y-6">
       <QuintaTreinoLiderBanner />
-      <div>
-        <Link href="/portal" className="text-sm text-dourado-base hover:underline font-medium">
-          ← Voltar ao portal
-        </Link>
-        <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
-          Avaliação da equipe
-        </h1>
-        <p className="mt-2 text-base md:text-lg font-medium text-dourado-900 max-w-2xl">
-          {exibindoSemanaPassada ? lembretePadrao.titulo : 'Semana selecionada'}:{' '}
-          <strong>{intervaloSemana}</strong>
-        </p>
-        <p className="text-cafeteria-600 mt-2 text-sm md:text-base max-w-2xl">
-          Avaliação <strong>semanal</strong> sobre a <strong>semana que já terminou</strong> (segunda a domingo). Por
-          padrão abrimos a <strong>semana passada</strong>. Cada colaborador pode receber também uma{' '}
-          <strong>visita RH</strong> independente na mesma semana.
-        </p>
 
-        <div className="mt-3 rounded-xl border-2 border-dourado-base/50 bg-dourado-50/80 px-4 py-3 max-w-2xl space-y-2">
-          <p className="text-sm md:text-base font-semibold text-cafeteria-900">
-            Semana em avaliação: {intervaloSemana}
-          </p>
-          <p className="text-sm text-cafeteria-800">
-            Pense nesta semana, <strong>não no plantão que começou hoje</strong>. Na troca mensal de líderes (12x36),
-            quem estava com o colaborador <strong>naquela semana</strong> dá as notas; o outro líder usa{' '}
-            <strong>Não estava no meu plantão</strong>.
-          </p>
-          <p className="text-sm text-cafeteria-700">
-            Exemplo: no dia 1º viramos o plantão, mas a semana passada (até domingo) ainda era do líder anterior — ele
-            avalia; o líder novo só marca fora do plantão se a pessoa não estava com ele naquela semana.
-          </p>
-        </div>
+      <PortalPageHeader
+        title="Avaliação da equipe"
+        description={`Avalie a semana que já terminou (segunda a domingo). Semana em avaliação: ${intervaloSemana}.`}
+        backHref="/portal"
+        backLabel="Voltar ao portal"
+        icon="📋"
+        accent="verde"
+      />
 
-        <p className="mt-2 text-sm rounded-md bg-amber-50 border border-amber-300 px-3 py-2.5 text-amber-800 max-w-2xl">
-          Aviso interno da liderança: esta avaliação da equipe é obrigatória. Depois de salvar, use o botão{' '}
-          <strong>✏️ Editar</strong> no checklist ou no card (uma correção por semana). Semanas anteriores: altere a
-          data acima e toque em <strong>Atualizar lista</strong>.
-        </p>
-      </div>
+      <section className="rounded-2xl border border-mel-200 bg-gradient-to-br from-mel-50/70 via-white to-cream-50 overflow-hidden shadow-sm">
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 hover:bg-mel-50/60 transition-colors [&::-webkit-details-marker]:hidden">
+            <span className="flex items-center gap-2.5">
+              <span aria-hidden className="text-lg">
+                💡
+              </span>
+              <span className="text-sm font-semibold text-cafeteria-900">Como funciona esta avaliação</span>
+            </span>
+            <svg
+              className="w-5 h-5 shrink-0 text-mel-600 transition-transform group-open:rotate-180"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </summary>
+          <div className="px-4 pb-4 pt-1 border-t border-mel-100 space-y-3 text-sm text-cafeteria-800">
+            <p>
+              É uma avaliação <strong>semanal</strong> sobre a <strong>semana que já terminou</strong>. Por padrão
+              abrimos a <strong>semana passada</strong>. Cada colaborador pode receber também uma{' '}
+              <strong>visita RH</strong> independente na mesma semana.
+            </p>
+            <p>
+              Pense na semana avaliada, <strong>não no plantão que começou hoje</strong>. Na troca mensal de líderes
+              (12x36), quem estava com o colaborador <strong>naquela semana</strong> dá as notas; o outro líder usa{' '}
+              <strong>Não estava no meu plantão</strong>.
+            </p>
+            <p className="text-cafeteria-700">
+              Exemplo: no dia 1º viramos o plantão, mas a semana passada (até domingo) ainda era do líder anterior — ele
+              avalia.
+            </p>
+            <p className="rounded-lg bg-mel-50 border border-mel-200 px-3 py-2 text-cafeteria-800">
+              Avaliação <strong>obrigatória</strong>. Depois de salvar, use <strong>✏️ Editar</strong> (uma correção por
+              semana). Para semanas anteriores, mude a data abaixo e toque em <strong>Atualizar lista</strong>.
+            </p>
+          </div>
+        </details>
+      </section>
 
       <div className="flex flex-wrap items-end gap-4 bg-white border border-cafeteria-200 rounded-xl p-4">
         <div>
