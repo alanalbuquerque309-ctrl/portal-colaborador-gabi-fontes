@@ -175,6 +175,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [colaboradorIdNav, setColaboradorIdNav] = useState<string | null>(null);
   const [mostrarGraosNav, setMostrarGraosNav] = useState(false);
   const [graosSaldo, setGraosSaldo] = useState<number | null>(null);
+  const [maisAberto, setMaisAberto] = useState(false);
 
   const roleNav = perfilCarregado
     ? normalizePortalRole(perfilRoleLayout)
@@ -428,6 +429,10 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     };
   }, [pathname]);
 
+  useEffect(() => {
+    setMaisAberto(false);
+  }, [pathname]);
+
   const manualNav: NavItem[] = mostrarMeuManual
     ? [{ href: '/portal/meu-manual', label: 'Meu manual', short: 'Manual', icon: 'meu-manual' }]
     : [];
@@ -601,99 +606,193 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
           </nav>
         </div>
       </header>
-      {/* Nav inferior no mobile — flex com scroll para garantir que Perfil sempre apareça */}
-      <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-cafeteria-200 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]"
-        aria-label="Navegação principal"
-      >
-        <div className="flex overflow-x-auto overflow-y-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] scrollbar-none">
-          {navMobile.map(({ href, label, short }) => {
-            const ativo = navAtivo(pathname, href);
-            const iconKey = iconePorHref[href] ?? 'mural';
-            const alertaAjuda =
-              href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
-            const alertaSugestoes =
-              href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
-            const badgeGraos = href === '/portal/graos' && graosSaldo != null && graosSaldo > 0;
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={ativo ? 'page' : undefined}
-                aria-label={
-                  alertaSugestoes
-                    ? `${label}: ${sugestoesPendentes} sugestão(ões) aguardando análise`
-                    : alertaAjuda
-                      ? `${label}: ${pendenciasAjuda} sem resposta`
-                      : label
-                }
-                className={`flex flex-col items-center justify-center py-2.5 px-1 min-w-[58px] shrink-0 min-h-[52px] ${
-                  ativo ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
-                }`}
+      {/* Nav inferior no mobile — 4 fixos + Mais (resto, Admin e Sair na gaveta) */}
+      {(() => {
+        const primarios = navMobile.slice(0, 4);
+        const extras = navMobile.slice(4);
+        const extraTemAlerta =
+          extras.some((i) => i.href === '/portal/comunicacao') &&
+          ((podeContadorSugestoes && sugestoesPendentes > 0) || (podeVisualizarAjuda && pendenciasAjuda > 0));
+        const maisAtivo =
+          extras.some((i) => navAtivo(pathname, i.href)) || (pathname?.startsWith('/admin') ?? false);
+
+        const itemClasse = (ativo: boolean) =>
+          `flex flex-col items-center justify-center py-2.5 px-1 flex-1 min-w-0 min-h-[54px] ${
+            ativo ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
+          }`;
+
+        return (
+          <>
+            {maisAberto && (
+              <div
+                className="md:hidden fixed inset-0 z-50 bg-coffee-base/40 backdrop-blur-[1px]"
+                onClick={() => setMaisAberto(false)}
+                aria-hidden
+              />
+            )}
+
+            {maisAberto && (
+              <div
+                className="md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white border-t border-cafeteria-200 shadow-[0_-8px_30px_rgba(0,0,0,0.18)] pb-[max(1rem,env(safe-area-inset-bottom,0px))] max-h-[75vh] overflow-y-auto"
+                role="dialog"
+                aria-label="Mais opções"
               >
-                <span className="relative">
-                  <NavIcon type={iconKey} />
-                  {badgeGraos && (
-                    <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
-                      {graosSaldo > 99 ? '99+' : graosSaldo}
-                    </span>
+                <div className="flex items-center justify-between px-5 pt-3 pb-2">
+                  <span className="mx-auto h-1.5 w-10 rounded-full bg-cafeteria-200" aria-hidden />
+                </div>
+                <div className="flex items-center justify-between px-5 pb-2">
+                  <h2 className="text-base font-display font-semibold text-cafeteria-900">Mais opções</h2>
+                  <button
+                    type="button"
+                    onClick={() => setMaisAberto(false)}
+                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-cafeteria-600 hover:bg-cream-100 min-h-[40px]"
+                  >
+                    Fechar
+                  </button>
+                </div>
+                <ul className="grid grid-cols-2 gap-2 px-4 pt-1 list-none m-0">
+                  {extras.map(({ href, label }) => {
+                    const ativo = navAtivo(pathname, href);
+                    const iconKey = iconePorHref[href] ?? 'mural';
+                    const alertaAjuda = href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
+                    const alertaSugestoes =
+                      href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
+                    const badgeGraos = href === '/portal/graos' && graosSaldo != null && graosSaldo > 0;
+                    return (
+                      <li key={href}>
+                        <Link
+                          href={href}
+                          onClick={() => setMaisAberto(false)}
+                          aria-current={ativo ? 'page' : undefined}
+                          className={`flex items-center gap-3 rounded-xl border px-3 py-3 min-h-[56px] ${
+                            ativo
+                              ? 'border-dourado-base bg-dourado-50/70 text-cafeteria-900'
+                              : 'border-cafeteria-200 bg-white text-cafeteria-700'
+                          }`}
+                        >
+                          <span className="relative shrink-0 text-cafeteria-600">
+                            <NavIcon type={iconKey} />
+                            {(badgeGraos || alertaSugestoes || alertaAjuda) && (
+                              <span className="absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full bg-terracota-500" />
+                            )}
+                          </span>
+                          <span className="text-sm font-medium leading-tight">{label}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                  {podeAdmin && (
+                    <li>
+                      <Link
+                        href="/admin/dashboard"
+                        onClick={() => setMaisAberto(false)}
+                        className={`flex items-center gap-3 rounded-xl border px-3 py-3 min-h-[56px] ${
+                          pathname?.startsWith('/admin')
+                            ? 'border-dourado-base bg-dourado-50/70'
+                            : 'border-dourado-base/40 bg-dourado-50/40'
+                        }`}
+                      >
+                        <span className="relative shrink-0 text-dourado-500">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {sugestoesPendentes > 0 && podeContadorSugestoes && (
+                            <span className="absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full bg-terracota-500" />
+                          )}
+                        </span>
+                        <span className="text-sm font-semibold text-dourado-500 leading-tight">Admin</span>
+                      </Link>
+                    </li>
                   )}
-                  {alertaSugestoes && (
-                    <span className="absolute -top-2 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-coffee-base text-[10px] font-bold flex items-center justify-center">
-                      {sugestoesPendentes > 9 ? '9+' : sugestoesPendentes}
-                    </span>
-                  )}
-                  {alertaAjuda && (
-                    <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
-                      {pendenciasAjuda > 9 ? '9+' : pendenciasAjuda}
-                    </span>
-                  )}
-                </span>
-                <span className="text-[13px] mt-1 max-w-[72px] text-center leading-tight whitespace-normal">
-                  {short}
-                </span>
-              </Link>
-            );
-          })}
-          {podeAdmin && (
-            <Link
-              href="/admin/dashboard"
-              aria-label={
-                sugestoesPendentes > 0 && podeContadorSugestoes
-                  ? `Admin: ${sugestoesPendentes} sugestões aguardando análise`
-                  : 'Área administrativa'
-              }
-              className={`relative flex flex-col items-center justify-center py-2.5 px-1 min-w-[58px] shrink-0 min-h-[52px] ${
-                pathname?.startsWith('/admin') ? 'text-dourado-base font-medium' : 'text-cafeteria-600'
-              }`}
+                  <li>
+                    <button
+                      type="button"
+                      onClick={handleSair}
+                      className="w-full flex items-center gap-3 rounded-xl border border-cafeteria-200 bg-white px-3 py-3 min-h-[56px] text-cafeteria-700"
+                    >
+                      <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span className="text-sm font-medium leading-tight">Sair</span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            )}
+
+            <nav
+              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-cafeteria-200 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]"
+              aria-label="Navegação principal"
             >
-              <span className="relative">
-                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                {sugestoesPendentes > 0 && podeContadorSugestoes && (
-                  <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-coffee-base text-[10px] font-bold flex items-center justify-center">
-                    {sugestoesPendentes > 9 ? '9+' : sugestoesPendentes}
+              <div className="flex">
+                {primarios.map(({ href, label, short }) => {
+                  const ativo = navAtivo(pathname, href);
+                  const iconKey = iconePorHref[href] ?? 'mural';
+                  const alertaAjuda = href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
+                  const alertaSugestoes =
+                    href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
+                  const badgeGraos = href === '/portal/graos' && graosSaldo != null && graosSaldo > 0;
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      aria-current={ativo ? 'page' : undefined}
+                      aria-label={
+                        alertaSugestoes
+                          ? `${label}: ${sugestoesPendentes} sugestão(ões) aguardando análise`
+                          : alertaAjuda
+                            ? `${label}: ${pendenciasAjuda} sem resposta`
+                            : label
+                      }
+                      className={itemClasse(ativo)}
+                    >
+                      <span className="relative">
+                        <NavIcon type={iconKey} />
+                        {badgeGraos && (
+                          <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
+                            {graosSaldo > 99 ? '99+' : graosSaldo}
+                          </span>
+                        )}
+                        {alertaSugestoes && (
+                          <span className="absolute -top-2 -left-2 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 text-coffee-base text-[10px] font-bold flex items-center justify-center">
+                            {sugestoesPendentes > 9 ? '9+' : sugestoesPendentes}
+                          </span>
+                        )}
+                        {alertaAjuda && (
+                          <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                            {pendenciasAjuda > 9 ? '9+' : pendenciasAjuda}
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[12px] mt-1 max-w-[76px] text-center leading-tight whitespace-normal">
+                        {short}
+                      </span>
+                    </Link>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => setMaisAberto((v) => !v)}
+                  aria-expanded={maisAberto}
+                  aria-label="Mais opções"
+                  className={itemClasse(maisAtivo)}
+                >
+                  <span className="relative">
+                    <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    {extraTemAlerta && (
+                      <span className="absolute -top-1.5 -right-2 h-2.5 w-2.5 rounded-full bg-terracota-500" />
+                    )}
                   </span>
-                )}
-              </span>
-              <span className="text-[13px] mt-1 text-center leading-tight">Admin</span>
-            </Link>
-          )}
-          <button
-            type="button"
-            onClick={handleSair}
-            aria-label="Sair do portal"
-            className="flex flex-col items-center justify-center py-2.5 px-1 min-w-[58px] shrink-0 min-h-[52px] text-cafeteria-600"
-          >
-            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            <span className="text-[13px] mt-1 text-center leading-tight">Sair</span>
-          </button>
-        </div>
-      </nav>
+                  <span className="text-[12px] mt-1 text-center leading-tight">Mais</span>
+                </button>
+              </div>
+            </nav>
+          </>
+        );
+      })()}
     </>
   );
 }
