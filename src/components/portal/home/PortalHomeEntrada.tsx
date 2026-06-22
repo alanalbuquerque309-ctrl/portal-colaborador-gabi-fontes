@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { PortalHomeResumo } from '@/lib/portal-home-types';
+import Link from 'next/link';
+import type { PortalHomeResumo, PortalHomeTarefa } from '@/lib/portal-home-types';
 import { MinhaSituacaoHome } from '@/components/portal/home/MinhaSituacaoHome';
 import { MeuPainelHome } from '@/components/portal/home/MeuPainelHome';
 import { PainelLiderHome } from '@/components/portal/home/PainelLiderHome';
@@ -9,9 +10,73 @@ import { FacaAgoraHome } from '@/components/portal/FacaAgoraHome';
 import { PORTAL_HOME_ATUALIZADO } from '@/lib/portal-home-events';
 import { LogoCarregando } from '@/components/ui/LogoCarregando';
 
+function PendenciasDrawer({
+  tarefas,
+  aberto,
+  onFechar,
+}: {
+  tarefas: PortalHomeTarefa[];
+  aberto: boolean;
+  onFechar: () => void;
+}) {
+  if (!aberto) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-coffee-base/40 backdrop-blur-[1px]" onClick={onFechar} aria-hidden />
+      <div
+        className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white border-t border-cafeteria-200 shadow-[0_-8px_30px_rgba(0,0,0,0.18)] pb-[max(1rem,env(safe-area-inset-bottom,0px))] max-h-[80vh] overflow-y-auto"
+        role="dialog"
+        aria-label="Pendências"
+      >
+        <div className="flex justify-center pt-3 pb-1">
+          <span className="h-1.5 w-10 rounded-full bg-cafeteria-200" aria-hidden />
+        </div>
+        <div className="flex items-center justify-between px-5 pb-3">
+          <h2 className="text-base font-display font-semibold text-cafeteria-900">
+            O que fazer agora{tarefas.length > 0 ? ` (${tarefas.length})` : ''}
+          </h2>
+          <button
+            type="button"
+            onClick={onFechar}
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-cafeteria-600 hover:bg-cream-100 min-h-[40px]"
+          >
+            Fechar
+          </button>
+        </div>
+        {tarefas.length === 0 ? (
+          <p className="px-5 pb-6 text-sm text-cafeteria-600">Tudo em dia. Nada pendente agora. 🎉</p>
+        ) : (
+          <ul className="px-4 pb-4 space-y-2.5 list-none m-0">
+            {tarefas.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={t.href}
+                  onClick={onFechar}
+                  className={`block rounded-xl border px-4 py-3.5 min-h-[56px] transition-colors ${
+                    t.urgente
+                      ? 'border-terracota-300 bg-terracota-50/70 hover:bg-terracota-50'
+                      : 'border-cafeteria-200 bg-white hover:border-dourado-base'
+                  }`}
+                >
+                  <p className="text-base font-semibold text-cafeteria-900 leading-snug">{t.titulo}</p>
+                  <p className="text-sm text-cafeteria-600 mt-0.5">{t.detalhe}</p>
+                  <span className="inline-block mt-2 text-sm font-semibold text-portal-action">
+                    {t.acaoLabel ?? 'Resolver agora →'}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+}
+
 export function PortalHomeEntrada() {
   const [dados, setDados] = useState<PortalHomeResumo | null>(null);
   const [erro, setErro] = useState(false);
+  const [drawerAberto, setDrawerAberto] = useState(false);
   const facaAgoraRef = useRef<HTMLDivElement>(null);
 
   const carregarResumo = () => {
@@ -74,7 +139,10 @@ export function PortalHomeEntrada() {
 
   return (
     <div className="space-y-6">
-      <MinhaSituacaoHome situacao={dados.situacao} onVerPendencias={scrollParaFacaAgora} />
+      <MinhaSituacaoHome
+        situacao={dados.situacao}
+        onVerPendencias={dados.tarefas.length > 0 ? () => setDrawerAberto(true) : scrollParaFacaAgora}
+      />
 
       {dados.painel ? <MeuPainelHome painel={dados.painel} /> : null}
       {dados.painel_lider ? <PainelLiderHome painel={dados.painel_lider} /> : null}
@@ -82,6 +150,12 @@ export function PortalHomeEntrada() {
       <div ref={facaAgoraRef}>
         <FacaAgoraHome tarefasExternas={dados.tarefas} />
       </div>
+
+      <PendenciasDrawer
+        tarefas={dados.tarefas}
+        aberto={drawerAberto}
+        onFechar={() => setDrawerAberto(false)}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { DestaqueSection } from '@/components/destaque/DestaqueSection';
 import { SugestoesEquipeHome } from '@/components/portal/SugestoesEquipeHome';
 import { PortalAtalhosPerfil } from '@/components/portal/PortalAtalhosPerfil';
 import { TermometroEmocional } from '@/components/emocional/TermometroEmocional';
+import { TermometroHomeGate } from '@/components/emocional/TermometroHomeGate';
 import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasGestao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { PortalHomeEntrada } from '@/components/portal/home/PortalHomeEntrada';
@@ -85,23 +86,25 @@ export default function PortalHomePage() {
           </PortalHomeSecaoAdiada>
         </PortalHomeGrupo>
 
-        <PortalHomeSecaoAdiada minHeight="8rem">
-          <section id="termometro-emocoes" className="rounded-2xl border border-terracota-200/70 bg-gradient-to-br from-terracota-50/60 via-white to-cream-50 p-4 sm:p-5 shadow-sm">
-            <div className="flex items-center gap-3 mb-4">
-              <span
-                aria-hidden
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-terracota-100 text-terracota-600 text-xl"
-              >
-                💬
-              </span>
-              <div>
-                <h2 className="text-xl font-display font-semibold text-cafeteria-900">Como você está hoje?</h2>
-                <p className="text-sm text-cafeteria-600 mt-0.5">Conta pra gente em um toque. É anônimo.</p>
+        <TermometroHomeGate>
+          <PortalHomeSecaoAdiada minHeight="8rem">
+            <section id="termometro-emocoes" className="rounded-2xl border border-terracota-200/70 bg-gradient-to-br from-terracota-50/60 via-white to-cream-50 p-4 sm:p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-4">
+                <span
+                  aria-hidden
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-terracota-100 text-terracota-600 text-xl"
+                >
+                  💬
+                </span>
+                <div>
+                  <h2 className="text-xl font-display font-semibold text-cafeteria-900">Termômetro de emoções</h2>
+                  <p className="text-sm text-cafeteria-600 mt-0.5">Uso interno do RH. Respostas anônimas no resumo.</p>
+                </div>
               </div>
-            </div>
-            <TermometroEmocional />
-          </section>
-        </PortalHomeSecaoAdiada>
+              <TermometroEmocional />
+            </section>
+          </PortalHomeSecaoAdiada>
+        </TermometroHomeGate>
         <PortalRodapeFrase variant="home" />
       </div>
     </main>

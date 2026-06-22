@@ -114,10 +114,9 @@ export async function GET() {
 
     const { data: colegasRaw, error: errColegas } = await supabase
       .from('colaboradores')
-      .select('id, nome, cargo, setor')
+      .select('id, nome, cargo, setor, role')
       .eq('unidade_id', unidadeId)
       .eq('role', 'colaborador')
-      .eq('onboarding_completo', true)
       .neq('id', colaboradorId)
       .order('nome', { ascending: true })
       .limit(200);
