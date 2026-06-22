@@ -12,6 +12,7 @@ type Alerta = {
   emocao: string;
   emocao_label: string;
   emoji: string;
+  motivo: string | null;
   data: string;
 };
 
@@ -127,6 +128,11 @@ export function EmocionalAlertasGestao() {
                   {a.unidade_nome ? ` · ${a.unidade_nome}` : ''}
                   {a.setor ? ` · ${a.setor}` : ''}
                 </span>
+                {a.motivo && (
+                  <span className="block text-xs text-amber-950/90 mt-0.5 whitespace-pre-wrap break-words">
+                    “{a.motivo}”
+                  </span>
+                )}
               </span>
               <button
                 type="button"

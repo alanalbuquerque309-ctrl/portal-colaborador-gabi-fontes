@@ -89,7 +89,7 @@ export async function montarPendenciasPortalHome(
       lista.push({
         id: 'termometro',
         titulo: 'Responder termômetro de emoções',
-        detalhe: 'Primeiro passo do dia — resposta anônima no resumo.',
+        detalhe: 'Primeiro passo do dia — só gestão vê sua resposta.',
         href: '#termometro-emocoes',
         urgente: true,
         acaoLabel: 'Responder agora →',

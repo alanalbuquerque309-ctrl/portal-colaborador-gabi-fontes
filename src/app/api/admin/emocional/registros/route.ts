@@ -10,6 +10,15 @@ import { dataCivilBr } from '@/lib/data-civil-br';
 
 export const dynamic = 'force-dynamic';
 
+const SELECTS_REGISTRO_ADMIN = [
+  'emocao, motivo, data, created_at, colaborador_id, colaboradores(nome, setor, role, unidades(nome))',
+  'emocao, data, created_at, colaborador_id, colaboradores(nome, setor, role, unidades(nome))',
+] as const;
+
+function erroColunaMotivoAdmin(msg: string): boolean {
+  return /motivo|column .* does not exist|schema cache/i.test(msg);
+}
+
 /** Lista todas as respostas do termômetro na data (gestão: Daniel, Keila, sócios, admin). */
 export async function GET(req: Request) {
   const auth = await authGestorEmocional();
@@ -22,13 +31,23 @@ export async function GET(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from('emocional_registro')
-      .select(
-        'emocao, data, created_at, colaborador_id, colaboradores(nome, setor, role, unidades(nome))'
-      )
-      .eq('data', dataRef)
-      .order('created_at', { ascending: false });
+    let data: Record<string, unknown>[] | null = null;
+    let error: { message: string } | null = null;
+
+    for (const sel of SELECTS_REGISTRO_ADMIN) {
+      const res = await supabase
+        .from('emocional_registro')
+        .select(sel)
+        .eq('data', dataRef)
+        .order('created_at', { ascending: false });
+      if (!res.error) {
+        data = (res.data ?? []) as Record<string, unknown>[];
+        error = null;
+        break;
+      }
+      error = res.error;
+      if (!erroColunaMotivoAdmin(res.error.message)) break;
+    }
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
 
@@ -56,6 +75,7 @@ export async function GET(req: Request) {
           emocao_label: meta?.label ?? emocao,
           emoji: meta?.emoji ?? '❓',
           negativa: emocaoEhNegativa(emocao),
+          motivo: row.motivo != null && String(row.motivo).trim() ? String(row.motivo).trim() : null,
           data: String(row.data ?? dataRef),
           registrado_em: row.created_at ? String(row.created_at) : null,
         };

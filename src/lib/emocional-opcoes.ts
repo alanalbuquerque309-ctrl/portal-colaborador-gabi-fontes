@@ -103,3 +103,16 @@ export function ordenarRegistrosEmocional<T extends { emocao: string; registrado
     return tb - ta;
   });
 }
+
+const MOTIVO_MAX = 500;
+
+/** Comentário opcional do colaborador ao registrar emoção. */
+export function sanitizarMotivoEmocional(value: unknown): string | null {
+  const t = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!t) return null;
+  return t.length > MOTIVO_MAX ? t.slice(0, MOTIVO_MAX) : t;
+}
+
+export const EMOCIONAL_MOTIVO_MAX = MOTIVO_MAX;

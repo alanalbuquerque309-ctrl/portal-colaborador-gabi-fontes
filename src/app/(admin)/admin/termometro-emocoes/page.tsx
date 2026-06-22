@@ -14,6 +14,7 @@ type Registro = {
   emocao_label: string;
   emoji: string;
   negativa: boolean;
+  motivo: string | null;
   data: string;
   registrado_em: string | null;
 };
@@ -200,6 +201,11 @@ function ListaRegistros({
                 {r.setor ? ` · ${r.setor}` : ''}
                 {hora ? ` · ${hora}` : ''}
               </p>
+              {r.motivo && (
+                <p className="text-sm text-coffee-base/90 mt-1 whitespace-pre-wrap break-words">
+                  {r.motivo}
+                </p>
+              )}
             </div>
             <Link
               href={`/admin/colaboradores?busca=${encodeURIComponent(r.nome)}`}

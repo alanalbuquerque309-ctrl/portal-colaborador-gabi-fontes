@@ -25,14 +25,29 @@ export async function GET() {
 
     const idsVistos = new Set((vistos ?? []).map((v) => String(v.colaborador_id)));
 
-    const { data, error } = await supabase
-      .from('emocional_registro')
-      .select(
-        'emocao, data, created_at, colaborador_id, colaboradores(nome, setor, unidades(nome))'
-      )
-      .eq('data', hoje)
-      .in('emocao', [...EMOCOES_ALERTA_GESTAO])
-      .order('created_at', { ascending: false });
+    const selects = [
+      'emocao, motivo, data, created_at, colaborador_id, colaboradores(nome, setor, unidades(nome))',
+      'emocao, data, created_at, colaborador_id, colaboradores(nome, setor, unidades(nome))',
+    ] as const;
+
+    let data: Record<string, unknown>[] | null = null;
+    let error: { message: string } | null = null;
+
+    for (const sel of selects) {
+      const res = await supabase
+        .from('emocional_registro')
+        .select(sel)
+        .eq('data', hoje)
+        .in('emocao', [...EMOCOES_ALERTA_GESTAO])
+        .order('created_at', { ascending: false });
+      if (!res.error) {
+        data = (res.data ?? []) as Record<string, unknown>[];
+        error = null;
+        break;
+      }
+      error = res.error;
+      if (!/motivo|column .* does not exist|schema cache/i.test(res.error.message)) break;
+    }
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
 
@@ -53,6 +68,8 @@ export async function GET() {
           emocao: String(row.emocao ?? ''),
           emocao_label: meta?.label ?? String(row.emocao ?? ''),
           emoji: meta?.emoji ?? '⚠️',
+          motivo:
+            row.motivo != null && String(row.motivo).trim() ? String(row.motivo).trim() : null,
           data: String(row.data ?? hoje),
           registrado_em: row.created_at ? String(row.created_at) : null,
         };
