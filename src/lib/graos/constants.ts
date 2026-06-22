@@ -6,9 +6,9 @@ export const GRAOS_PRIMEIRA_SEMANA_INICIO = '2026-06-15';
 
 
 
-/** Valor interno para complemento em dinheiro no caixa (35 grãos ≈ R$ 15). */
+/** Valor interno para complemento em dinheiro no caixa (1 grão = R$ 0,30). */
 
-export const GRAOS_CENTAVOS_POR_GRAO = Math.round((1500 / 35) * 100) / 100;
+export const GRAOS_CENTAVOS_POR_GRAO = 30;
 
 
 

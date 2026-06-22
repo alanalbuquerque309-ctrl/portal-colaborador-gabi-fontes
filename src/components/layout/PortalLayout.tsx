@@ -10,7 +10,6 @@ import { normalizePortalRole } from '@/lib/roles';
 import { ManualEventosToast } from '@/components/notificacoes/ManualEventosToast';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 import { fotoObrigatoriaPortal } from '@/lib/perfil-completo';
-import { EMOCOES_TERMOMETRO } from '@/lib/emocional-opcoes';
 import { AniversarioBalaoPortal } from '@/components/aniversario/AniversarioBalaoPortal';
 import { PortalPwaRefresh } from '@/components/portal/PortalPwaRefresh';
 import { PortalAmbientePagina } from '@/components/portal/vivo/PortalBalaoCard';
@@ -58,14 +57,11 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   /** Com cookie de sessão, libera UI na hora; perfil valida em segundo plano. */
   const [gateOk, setGateOk] = useState(sessaoPortalAtivaNoCliente);
-  const [abrirEmocionalObrigatorio, setAbrirEmocionalObrigatorio] = useState(false);
-  const [enviandoEmocao, setEnviandoEmocao] = useState(false);
   const [perfilRole, setPerfilRole] = useState(roleInicialDoCookie);
   const [podeVisitaRh, setPodeVisitaRh] = useState(false);
 
   const perfilCacheRef = useRef<PerfilResposta | null>(null);
   const sessaoValidadaRef = useRef(false);
-  const emocionalVerificadoRef = useRef(false);
   const pathnameAnteriorRef = useRef(pathname);
 
   const aplicarPerfilNaSessao = (d: PerfilResposta) => {
@@ -212,36 +208,6 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, gateOk, router]);
 
-  /** Termômetro obrigatório: uma vez por aba, não a cada navegação. */
-  useEffect(() => {
-    if (!gateOk || emocionalVerificadoRef.current || isPendingRegistration()) return;
-    const col = perfilCacheRef.current?.colaborador;
-    const role = normalizePortalRole(col?.role ?? perfilRole);
-    if (role !== 'colaborador' || col?.perfil_completo !== true || col?.foto_cadastrada !== true) {
-      setAbrirEmocionalObrigatorio(false);
-      emocionalVerificadoRef.current = true;
-      return;
-    }
-
-    let cancelled = false;
-    fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' })
-      .then((r) => r.json())
-      .then((emo) => {
-        if (cancelled) return;
-        setAbrirEmocionalObrigatorio(!(emo?.ok && emo?.emocao));
-        emocionalVerificadoRef.current = true;
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setAbrirEmocionalObrigatorio(false);
-          emocionalVerificadoRef.current = true;
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [gateOk, perfilRole]);
 
   useEffect(() => {
     if (!gateOk || isPendingRegistration()) return;
@@ -305,6 +271,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
   const perfilCtx = { role: perfilRole, podeVisitaRh, carregado: gateOk };
 
+
   if (isPendingRegistration()) {
     return (
       <PortalPerfilProvider value={perfilCtx}>
@@ -333,47 +300,6 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         <BotaoAjuda />
         {!carregandoInicial && <ManualEventosToast />}
         {!carregandoInicial && <AniversarioBalaoPortal ativo={gateOk} />}
-        {perfilRole === 'colaborador' && abrirEmocionalObrigatorio && (
-          <div className="fixed inset-0 z-[70] bg-black/55 backdrop-blur-[1px] flex items-center justify-center p-4">
-            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-dourado-200 bg-white p-5 shadow-2xl">
-              <h2 className="font-display text-xl text-coffee-base font-semibold">Termômetro de emoções</h2>
-              <p className="text-sm text-coffee-100 mt-1">
-                Primeiro acesso do dia: selecione como você está se sentindo para continuar no portal.
-              </p>
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {EMOCOES_TERMOMETRO.map((e) => (
-                  <button
-                    key={e.id}
-                    type="button"
-                    disabled={enviandoEmocao}
-                    onClick={async () => {
-                      setEnviandoEmocao(true);
-                      try {
-                        const res = await fetch('/api/portal/emocional', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          credentials: 'include',
-                          body: JSON.stringify({ emocao: e.id }),
-                        });
-                        const data = await res.json();
-                        if (data.ok) setAbrirEmocionalObrigatorio(false);
-                      } finally {
-                        setEnviandoEmocao(false);
-                      }
-                    }}
-                    className="flex items-center gap-3 rounded-xl border border-cream-300 bg-cream-50 px-3 py-2 text-left hover:border-dourado-base/60 hover:bg-dourado-50 disabled:opacity-60"
-                  >
-                    <span className="text-2xl">{e.emoji}</span>
-                    <span>
-                      <span className="block text-sm font-medium text-coffee-base">{e.label}</span>
-                      <span className="block text-xs text-coffee-100">{e.desc}</span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </PortalPerfilProvider>
   );
