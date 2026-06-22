@@ -22,6 +22,7 @@ type MembroEquipe = {
   cargo: string | null;
   setor: string | null;
   unidade_nome?: string | null;
+  unidade_slug?: string | null;
   tipo_escala?: string | null;
   onboarding_completo?: boolean;
   operacao_apto?: boolean;
@@ -280,7 +281,9 @@ export default function AvaliacaoMasterPage() {
                   setEditandoId(null);
                   carregar();
                 }}
-                mostrarForaPlantao={colaboradorPermiteMarcarForaPlantao(m.tipo_escala)}
+                mostrarForaPlantao={colaboradorPermiteMarcarForaPlantao(m.tipo_escala, {
+                  unidadeSlug: m.unidade_slug,
+                })}
                 mostrarFerias
               />
             </li>

@@ -33,15 +33,18 @@ export async function GET(req: Request) {
     const ids = equipe.map((c) => c.id);
 
     const unidadePorColab: Record<string, string> = {};
+    const unidadeSlugPorColab: Record<string, string> = {};
     if (ids.length > 0) {
       const { data: cols } = await supabase
         .from('colaboradores')
-        .select('id, unidades(nome)')
+        .select('id, unidades(nome, slug)')
         .in('id', ids);
       for (const c of cols ?? []) {
-        const un = (c as { unidades?: { nome?: string } | { nome?: string }[] | null }).unidades;
+        const un = (c as { unidades?: { nome?: string; slug?: string } | { nome?: string; slug?: string }[] | null }).unidades;
         const u = Array.isArray(un) ? un[0] : un;
-        if (u?.nome) unidadePorColab[String((c as { id: string }).id)] = String(u.nome);
+        const cid = String((c as { id: string }).id);
+        if (u?.nome) unidadePorColab[cid] = String(u.nome);
+        if (u?.slug) unidadeSlugPorColab[cid] = String(u.slug);
       }
     }
 
@@ -86,6 +89,7 @@ export async function GET(req: Request) {
       equipe: equipe.map((c) => ({
         ...c,
         unidade_nome: unidadePorColab[c.id] ?? null,
+        unidade_slug: unidadeSlugPorColab[c.id] ?? null,
         avaliacao: avaliacoesPorColab[c.id] ?? null,
       })),
     });

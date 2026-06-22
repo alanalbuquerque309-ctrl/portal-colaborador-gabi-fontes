@@ -235,10 +235,13 @@ export async function GET() {
 
     const pendentes = avaliados.filter((a) => !a.ja_avaliado_esta_semana);
     const ultimoDiaSemana = hojeEhDomingoSaoPaulo();
+    const lideresPlantao = avaliadosPermitidos.filter((a) => a.papel === 'lider_direto').length;
 
     return NextResponse.json({
       ok: true,
       tipo_escala: tipoEscala,
+      precisa_escolher_plantao: lideresPlantao >= 2,
+      qtd_lideres_plantao: lideresPlantao,
       semana_inicio: semanaInicio,
       semana_fim: domingoSemanaSaoPaulo(),
       bloqueado_ferias: deFerias,

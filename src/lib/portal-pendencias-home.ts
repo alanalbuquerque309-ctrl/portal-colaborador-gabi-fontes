@@ -103,13 +103,7 @@ export async function montarPendenciasPortalHome(
       });
       const idsLideres = lideres.map((l) => l.id).filter(Boolean);
 
-      const { data: euEscala } = await supabase
-        .from('colaboradores')
-        .select('tipo_escala')
-        .eq('id', ctx.colaboradorId)
-        .maybeSingle();
-      const ehDozeTrintaSeis =
-        String((euEscala as { tipo_escala?: string | null } | null)?.tipo_escala ?? '') === '12x36';
+      const plantaoDuplo = idsLideres.length >= 2;
 
       const lideresPendentes: { nome: string }[] = [];
 
@@ -123,14 +117,14 @@ export async function montarPendenciasPortalHome(
 
         const avaliadosIds = new Set((avalLid ?? []).map((r) => String(r.avaliado_id)));
 
-        if (ehDozeTrintaSeis) {
-          // 12x36: só trabalhou com um líder de plantão na semana. Avaliar um já encerra.
+        if (plantaoDuplo) {
+          // Dois gerentes na loja (12x36): avalia só o líder do plantão da semana passada.
           const algumPlantaoAvaliado = lideres.some((l) => l.id && avaliadosIds.has(l.id));
           if (!algumPlantaoAvaliado && lideres.length > 0) {
             lideresPendentes.push({ nome: 'seu líder do plantão' });
           }
         } else {
-          // 6x1 / 5x2: avalia cada líder vinculado.
+          // Um líder ou setor sem par: avalia cada vínculo.
           for (const l of lideres) {
             if (l.id && !avaliadosIds.has(l.id)) {
               lideresPendentes.push({ nome: l.nome ?? 'Líder' });
@@ -144,8 +138,8 @@ export async function montarPendenciasPortalHome(
         lista.push({
           id: 'lideranca',
           titulo: 'Avaliar liderança',
-          detalhe: ehDozeTrintaSeis
-            ? 'Avalie o líder com quem você trabalhou na semana passada.'
+          detalhe: plantaoDuplo
+            ? 'Confirme o líder do seu plantão na semana passada e avalie.'
             : `Falta${lideresPendentes.length === 1 ? '' : 'm'} avaliar: ${formatarNomes(nomes)}.`,
           href: '/portal/avaliacao-lideranca?aba=lideranca&pendentes=1',
           urgente: false,

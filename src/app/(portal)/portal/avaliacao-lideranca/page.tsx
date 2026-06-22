@@ -51,6 +51,7 @@ export default function AvaliacaoLiderancaPage() {
   const [motivoBloqueioFerias, setMotivoBloqueioFerias] = useState('');
   const [filtroPendentes, setFiltroPendentes] = useState(false);
   const [tipoEscala, setTipoEscala] = useState<string | null>(null);
+  const [precisaEscolherPlantao, setPrecisaEscolherPlantao] = useState(false);
   const [liderPlantaoEscolhido, setLiderPlantaoEscolhido] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function AvaliacaoLiderancaPage() {
           setBloqueadoFerias(data.bloqueado_ferias === true);
           setMotivoBloqueioFerias(String(data.bloqueado_ferias_motivo ?? ''));
           setTipoEscala(data.tipo_escala ?? null);
+          setPrecisaEscolherPlantao(data.precisa_escolher_plantao === true);
         } else {
           setErro(data.erro || 'Não foi possível carregar.');
         }
@@ -148,11 +150,11 @@ export default function AvaliacaoLiderancaPage() {
   };
 
   const plantaoLeaders = avaliados.filter((a) => a.papel === 'lider_direto');
-  const precisaEscolherPlantao = tipoEscala === '12x36' && plantaoLeaders.length >= 2;
+  const precisaPlantao = precisaEscolherPlantao || plantaoLeaders.length >= 2;
   const plantaoJaAvaliado = plantaoLeaders.find((a) => a.ja_avaliado_esta_semana) ?? null;
   const plantaoEscolhidoId = liderPlantaoEscolhido ?? plantaoJaAvaliado?.id ?? null;
 
-  const avaliadosVisiveis = !precisaEscolherPlantao
+  const avaliadosVisiveis = !precisaPlantao
     ? avaliados
     : plantaoEscolhidoId
       ? avaliados.filter((a) => a.papel !== 'lider_direto' || a.id === plantaoEscolhidoId)
@@ -278,36 +280,71 @@ export default function AvaliacaoLiderancaPage() {
               </p>
             ) : avaliados.length > 0 ? (
               <>
-                {precisaEscolherPlantao && (
+                {precisaPlantao && (
                   <section className="rounded-xl border border-uva-200 bg-gradient-to-br from-uva-50/70 via-white to-cream-50 p-4 shadow-sm">
                     <h2 className="text-base font-display font-semibold text-cafeteria-900">
                       Com qual líder você trabalhou na semana passada?
                     </h2>
                     <p className="text-sm text-cafeteria-600 mt-0.5">
-                      Você é 12x36: avalie apenas o líder do seu plantão na semana avaliada.
+                      Sua loja tem dois gerentes em plantão. Confirme o seu; o outro fica como «outro plantão».
                     </p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="mt-3 space-y-2">
                       {plantaoLeaders.map((l) => {
                         const ativo = plantaoEscolhidoId === l.id;
                         const bloqueadoAuto = !!plantaoJaAvaliado && plantaoJaAvaliado.id !== l.id;
+                        const outroPlantao = !!plantaoEscolhidoId && plantaoEscolhidoId !== l.id;
                         return (
-                          <button
+                          <div
                             key={l.id}
-                            type="button"
-                            disabled={bloqueadoAuto}
-                            onClick={() => setLiderPlantaoEscolhido(l.id)}
-                            className={`text-left rounded-xl border px-4 py-3 min-h-[56px] transition-colors ${
+                            className={`flex flex-col sm:flex-row sm:items-stretch gap-2 rounded-xl border p-3 ${
                               ativo
-                                ? 'border-uva-400 bg-uva-100/70 text-cafeteria-900'
-                                : 'border-cafeteria-200 bg-white text-cafeteria-700 hover:border-uva-300'
-                            } disabled:opacity-40`}
+                                ? 'border-uva-400 bg-uva-100/50'
+                                : outroPlantao
+                                  ? 'border-violet-200 bg-violet-50/40 opacity-80'
+                                  : 'border-cafeteria-200 bg-white'
+                            }`}
                           >
-                            <span className="block font-semibold leading-tight">{l.nome}</span>
-                            <span className="block text-xs text-cafeteria-600 mt-0.5">
-                              {l.role_label ?? l.role}
-                              {l.ja_avaliado_esta_semana ? ' · já avaliado' : ''}
-                            </span>
-                          </button>
+                            <div className="flex-1 min-w-0">
+                              <span className="block font-semibold leading-tight text-cafeteria-900">{l.nome}</span>
+                              <span className="block text-xs text-cafeteria-600 mt-0.5">
+                                {l.role_label ?? l.role}
+                                {l.ja_avaliado_esta_semana ? ' · já avaliado' : ''}
+                                {ativo ? ' · meu plantão' : ''}
+                                {outroPlantao ? ' · outro plantão' : ''}
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2 shrink-0">
+                              <button
+                                type="button"
+                                disabled={bloqueadoAuto || ativo}
+                                onClick={() => {
+                                  setLiderPlantaoEscolhido(l.id);
+                                  setSelecionado(null);
+                                }}
+                                className={`rounded-lg px-3 py-2 text-sm font-medium min-h-[44px] ${
+                                  ativo
+                                    ? 'bg-uva-600 text-white'
+                                    : 'border border-uva-300 bg-white text-uva-800 hover:bg-uva-50'
+                                } disabled:opacity-40`}
+                              >
+                                {ativo ? 'Meu plantão ✓' : 'Trabalhei com este'}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={bloqueadoAuto || outroPlantao}
+                                onClick={() => {
+                                  const outro = plantaoLeaders.find((x) => x.id !== l.id);
+                                  if (outro) {
+                                    setLiderPlantaoEscolhido(outro.id);
+                                    setSelecionado(null);
+                                  }
+                                }}
+                                className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-2 text-sm font-medium text-violet-900 min-h-[44px] hover:bg-violet-100 disabled:opacity-40"
+                              >
+                                Outro plantão
+                              </button>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -320,13 +357,13 @@ export default function AvaliacaoLiderancaPage() {
                         }}
                         className="mt-3 text-sm font-medium text-uva-600 hover:underline"
                       >
-                        Trocar líder
+                        Limpar escolha
                       </button>
                     )}
                   </section>
                 )}
 
-                {precisaEscolherPlantao && !plantaoEscolhidoId ? (
+                {precisaPlantao && !plantaoEscolhidoId ? (
                   <p className="text-sm text-cafeteria-600 rounded-xl border border-cafeteria-200 bg-white p-4">
                     Escolha acima o líder do seu plantão para liberar a avaliação. Keila (RH) e demais referências
                     continuam na lista.

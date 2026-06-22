@@ -6,6 +6,7 @@ import {
   type TipoEscala,
 } from '@/lib/escala-calendario';
 import { formatarDataLocalISO, parseDataLocalISO } from '@/lib/semana-referencia';
+import { ehUnidadeLoja } from '@/lib/lideranca-org';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -62,9 +63,16 @@ function isTipoEscala(v: string | null | undefined): v is TipoEscala {
   return v === '5x2' || v === '6x1' || v === '12x36';
 }
 
-/** «Outro plantão» só faz sentido para colaboradores em regime 12x36 (par de gerentes). */
-export function colaboradorPermiteMarcarForaPlantao(tipoEscala: string | null | undefined): boolean {
-  return tipoEscala === '12x36';
+/**
+ * «Outro plantão» na avaliação semanal do gerente:
+ * colaborador 12x36 OU colaborador de loja (Mesquita, Barra, Nova Iguaçu) com par de gerentes.
+ */
+export function colaboradorPermiteMarcarForaPlantao(
+  tipoEscala: string | null | undefined,
+  opts?: { unidadeSlug?: string | null }
+): boolean {
+  if (tipoEscala === '12x36') return true;
+  return ehUnidadeLoja(opts?.unidadeSlug);
 }
 
 type ColabEscala = {
