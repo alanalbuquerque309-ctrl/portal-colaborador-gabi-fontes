@@ -129,7 +129,7 @@ function LinhaRecolhida({
     >
       <span className="text-sm font-semibold text-cafeteria-900 shrink-0">Comunicado</span>
       <span className="text-sm text-cafeteria-600 truncate flex-1 min-w-0">{aviso.titulo}</span>
-      <MegafoneAnimado ativo={pendente} className="w-10 h-8 shrink-0" />
+      <MegafoneAnimado ativo={pendente} className="w-11 h-9 shrink-0" />
     </button>
   );
 }
@@ -286,7 +286,7 @@ export function AvisosHome() {
                   <span className="text-xs font-semibold uppercase tracking-wide text-dourado-800">
                     Comunicado
                   </span>
-                  <MegafoneAnimado ativo={pendente || true} className="w-10 h-8 shrink-0" />
+                  <MegafoneAnimado ativo={pendente} className="w-11 h-9 shrink-0" />
                 </div>
                 <ConteudoComunicado
                   aviso={a}
@@ -327,7 +327,7 @@ export function AvisosHome() {
                 <span className="text-sm font-semibold text-cafeteria-900 shrink-0">Comunicado</span>
                 <MegafoneAnimado
                   ativo={Boolean(avisoGaveta.exige_confirmacao && !avisoGaveta.confirmado)}
-                  className="w-9 h-7 shrink-0"
+                  className="w-10 h-8 shrink-0"
                 />
               </div>
               <button

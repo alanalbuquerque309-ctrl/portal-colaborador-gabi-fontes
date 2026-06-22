@@ -28,20 +28,37 @@ select {
   100% {
     transform: scale(1) rotate(0deg);
   }
-  20% {
-    transform: scale(1.04) rotate(-2deg);
+  25% {
+    transform: scale(1.03) rotate(-1.5deg);
   }
-  40% {
-    transform: scale(1.02) rotate(1.5deg);
+  50% {
+    transform: scale(1.01) rotate(1deg);
   }
-  60% {
-    transform: scale(1.05) rotate(-1deg);
+  75% {
+    transform: scale(1.04) rotate(-0.5deg);
+  }
+}
+
+@keyframes megafone-ondas {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(2px);
   }
 }
 
 .animate-megafone-aviso {
-  animation: megafone-aviso 2.4s ease-in-out infinite;
-  transform-origin: center bottom;
+  animation: megafone-aviso 2.8s ease-in-out infinite;
+  transform-origin: 40% 70%;
+}
+
+.animate-megafone-aviso .mf-ondas {
+  animation: megafone-ondas 2.8s ease-in-out infinite;
+  transform-origin: left center;
 }
 
 /** Xícara hero: bordas somem no fundo cream da página (evita efeito “recorte colado”). */

@@ -44,23 +44,112 @@ export function IlustracaoGraos({ className = 'w-28 h-20' }: { className?: strin
 
 export function IlustracaoMegafone({ className = 'w-28 h-24' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 120 100" fill="none" aria-hidden>
-      <path d="M18 42h28l34-18v52L46 58H18V42z" fill="#D4AF37" />
-      <path d="M46 58l8 22c2 6-2 10-8 8l-6-18" fill="#b8941f" />
-      <path
-        d="M78 32c12 6 18 14 18 22s-6 16-18 22"
-        stroke="#1a5c45"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M86 26c16 8 24 20 24 34s-8 26-24 34"
-        stroke="#1a5c45"
-        strokeWidth="2"
-        strokeLinecap="round"
-        opacity="0.5"
-      />
-      <circle cx="92" cy="28" r="4" fill="#f5e6c8" stroke="#D4AF37" strokeWidth="1.5" />
+    <svg className={className} viewBox="0 0 128 128" fill="none" aria-hidden xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="mf-cone" x1="18" y1="52" x2="92" y2="52" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#C9A227" />
+          <stop offset="35%" stopColor="#F0D78C" />
+          <stop offset="55%" stopColor="#E8C547" />
+          <stop offset="100%" stopColor="#9A7420" />
+        </linearGradient>
+        <linearGradient id="mf-cone-inner" x1="44" y1="40" x2="88" y2="88" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#8B6914" />
+          <stop offset="100%" stopColor="#5C4510" />
+        </linearGradient>
+        <linearGradient id="mf-grip" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#4A3728" />
+          <stop offset="50%" stopColor="#2E2118" />
+          <stop offset="100%" stopColor="#1A120C" />
+        </linearGradient>
+        <linearGradient id="mf-rim" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F5EED6" />
+          <stop offset="100%" stopColor="#B89850" />
+        </linearGradient>
+        <filter id="mf-shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#3E2723" floodOpacity="0.22" />
+        </filter>
+        <filter id="mf-glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+
+      {/* sombra no chão */}
+      <ellipse cx="52" cy="112" rx="28" ry="5" fill="#3E2723" fillOpacity="0.12" />
+
+      {/* ondas de som (estáticas; animação no wrapper) */}
+      <g className="mf-ondas" opacity="0.85">
+        <path
+          d="M96 44c10 4 16 12 16 20s-6 16-16 20"
+          stroke="#15803D"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          fill="none"
+        />
+        <path
+          d="M104 36c14 6 22 16 22 28s-8 22-22 28"
+          stroke="#15803D"
+          strokeWidth="2"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.55"
+        />
+        <path
+          d="M112 28c18 8 28 22 28 36s-10 28-28 36"
+          stroke="#15803D"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          fill="none"
+          opacity="0.3"
+        />
+      </g>
+
+      <g filter="url(#mf-shadow)">
+        {/* corpo / cone */}
+        <path
+          d="M24 48 L24 80 L52 92 L96 72 L96 56 L52 36 Z"
+          fill="url(#mf-cone)"
+        />
+        {/* borda interna do cone */}
+        <path
+          d="M52 40 L88 58 L88 70 L52 84 Z"
+          fill="url(#mf-cone-inner)"
+          fillOpacity="0.55"
+        />
+        {/* brilho no cone */}
+        <path
+          d="M30 52 L48 44 L48 76 L30 76 Z"
+          fill="#FFF8E7"
+          fillOpacity="0.35"
+        />
+        {/* aro da boca */}
+        <ellipse cx="94" cy="64" rx="5" ry="14" fill="url(#mf-rim)" stroke="#8B6914" strokeWidth="1" />
+        <ellipse cx="94" cy="64" rx="2.5" ry="9" fill="#2E2118" fillOpacity="0.5" />
+
+        {/* garganta / pescoço */}
+        <path d="M24 48 L24 80 L36 76 L36 52 Z" fill="#6B4423" />
+        <path d="M24 52 L36 50 L36 54 L24 56 Z" fill="#FFF8E7" fillOpacity="0.2" />
+
+        {/* empunhadura */}
+        <rect x="14" y="54" width="14" height="28" rx="4" fill="url(#mf-grip)" />
+        <rect x="16" y="58" width="3" height="20" rx="1.5" fill="#FFF8E7" fillOpacity="0.12" />
+        <rect x="23" y="58" width="2" height="20" rx="1" fill="#000" fillOpacity="0.15" />
+
+        {/* botão / gatilho */}
+        <circle cx="21" cy="78" r="3.5" fill="#C9A227" stroke="#8B6914" strokeWidth="0.8" />
+        <circle cx="20.5" cy="77.5" r="1.2" fill="#FFF8E7" fillOpacity="0.5" />
+
+        {/* detalhe verde marca (café) */}
+        <path
+          d="M56 58 L68 52 L68 68 L56 74 Z"
+          fill="#15803D"
+          fillOpacity="0.85"
+        />
+        <path d="M58 60 L66 56 L66 66 L58 70 Z" fill="#22C55E" fillOpacity="0.35" />
+      </g>
     </svg>
   );
 }
