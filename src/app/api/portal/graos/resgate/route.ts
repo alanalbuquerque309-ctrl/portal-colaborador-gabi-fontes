@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
-import { GRAOS_CENTAVOS_POR_GRAO } from '@/lib/graos/constants';
+import { buscarItensCatalogoGraosPorIds, complementoCentavosResgate } from '@/lib/graos/catalogo';
 import { calcularSaldoGraos, debitarResgateGraos } from '@/lib/graos/movimentos';
 import {
   avaliarElegibilidadeResgateSairCedo,
@@ -51,31 +51,24 @@ export async function POST(req: Request) {
     }
 
     const ids = Array.from(new Set(linhas.map((l) => l.catalogo_id)));
-    const { data: catalogo, error: errCat } = await supabase
-      .from('graos_catalogo')
-      .select('id, nome, graos, ativo')
-      .in('id', ids);
-
-    if (errCat) return NextResponse.json({ ok: false, erro: errCat.message }, { status: 500, headers: NO_STORE });
-
-    const porId = Object.fromEntries((catalogo ?? []).map((c) => [String(c.id), c]));
+    const porId = await buscarItensCatalogoGraosPorIds(supabase, ids);
     const itensResgate: Array<{ catalogo_id: string; nome: string; graos: number; qtd: number }> = [];
     let totalGraos = 0;
     let pedeSairCedo = false;
 
     for (const linha of linhas) {
-      const item = porId[linha.catalogo_id];
+      const item = porId.get(linha.catalogo_id);
       if (!item || !item.ativo) {
         return NextResponse.json({ ok: false, erro: 'Item inválido ou indisponível.' }, { status: 400, headers: NO_STORE });
       }
       if (itemCatalogoEhSairCedo(String(item.nome))) pedeSairCedo = true;
       const qtd = Math.min(10, Math.max(1, linha.quantidade ?? 1));
-      const sub = Number(item.graos) * qtd;
+      const sub = item.graos * qtd;
       totalGraos += sub;
       itensResgate.push({
-        catalogo_id: String(item.id),
-        nome: String(item.nome),
-        graos: Number(item.graos),
+        catalogo_id: item.id,
+        nome: item.nome,
+        graos: item.graos,
         qtd,
       });
     }
@@ -93,7 +86,7 @@ export async function POST(req: Request) {
     const saldo = await calcularSaldoGraos(supabase, colaboradorId);
     const complementoGraos = Math.max(0, totalGraos - saldo.confirmado);
     const graosDebitados = totalGraos - complementoGraos;
-    const complementoCentavos = Math.round(complementoGraos * GRAOS_CENTAVOS_POR_GRAO);
+    const complementoCentavos = complementoCentavosResgate(complementoGraos);
 
     const codigo = gerarCodigoResgate();
     const resgateId = crypto.randomUUID();

@@ -7,6 +7,7 @@ import { segundaSemanaSaoPaulo, ehQuintaSaoPaulo } from '@/lib/semana-brasil';
 import { calcularSaldoGraos, listarExtratoGraos } from '@/lib/graos/movimentos';
 import { obterResumoGraosColaborador } from '@/lib/graos/missoes';
 import { listarGraosGestao } from '@/lib/graos/gestao-lista';
+import { listarCatalogoGraosAtivo } from '@/lib/graos/catalogo';
 import { nivelGraosPorTotal } from '@/lib/graos/nivel';
 import { resolverQuintaTreino, resolverParTreinosQuinta } from '@/lib/graos/quinta-treino';
 import {
@@ -70,11 +71,7 @@ export async function GET(req: Request) {
 
     if (gestao && !alvoParam) {
       const colaboradores = await listarGraosGestao(supabase, semanaInicio);
-      const { data: catalogo } = await supabase
-        .from('graos_catalogo')
-        .select('id, nome, graos')
-        .eq('ativo', true)
-        .order('ordem', { ascending: true });
+      const catalogo = await listarCatalogoGraosAtivo(supabase);
 
       return NextResponse.json(
         {
@@ -85,7 +82,7 @@ export async function GET(req: Request) {
           eh_quinta: ehQuinta,
           treinos_quinta: treinosQuinta,
           colaboradores,
-          catalogo: catalogo ?? [],
+          catalogo,
         },
         { headers: NO_STORE }
       );
@@ -116,17 +113,13 @@ export async function GET(req: Request) {
     const extrato = await listarExtratoGraos(supabase, colaboradorId, 15, { ocultarCancelados: true });
     const nivel = nivelGraosPorTotal(saldoTotal.total_ganho_confirmado);
 
-    const { data: catalogo } = await supabase
-      .from('graos_catalogo')
-      .select('id, nome, graos')
-      .eq('ativo', true)
-      .order('ordem', { ascending: true });
+    const catalogo = await listarCatalogoGraosAtivo(supabase);
 
     const elegSairCedo =
       colaboradorOperacao && colaboradorId === viewerId
         ? await avaliarElegibilidadeResgateSairCedo(supabase, colaboradorId)
         : null;
-    const catalogoEnriquecido = enriquecerCatalogoResgateSairCedo(catalogo ?? [], elegSairCedo);
+    const catalogoEnriquecido = enriquecerCatalogoResgateSairCedo(catalogo, elegSairCedo);
 
     let colaboradorNome: string | undefined;
     if (gestao && colaboradorId !== viewerId) {

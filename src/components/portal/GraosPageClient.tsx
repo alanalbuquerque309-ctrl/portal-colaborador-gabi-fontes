@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { PortalPaginaCarregando } from '@/components/ui/PortalPaginaCarregando';
+import { complementoCentavosResgate } from '@/lib/graos/catalogo';
 import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
@@ -129,6 +130,7 @@ export function GraosPageClient() {
   const totalCarrinho = carrinho.reduce((s, l) => s + l.graos * l.qtd, 0);
   const saldoConfirmado = data?.saldo_confirmado ?? 0;
   const complementoGraos = Math.max(0, totalCarrinho - saldoConfirmado);
+  const complementoCentavos = complementoCentavosResgate(complementoGraos);
 
   const confirmarCompra = async () => {
     if (carrinho.length === 0) return;
@@ -554,7 +556,8 @@ export function GraosPageClient() {
               </p>
               {complementoGraos > 0 && (
                 <p className="text-amber-900">
-                  Faltam {complementoGraos} Grãos — complemento em dinheiro no caixa (gerente aplica desconto).
+                  Faltam {complementoGraos} Grãos — complemento no caixa: R${' '}
+                  {(complementoCentavos / 100).toFixed(2).replace('.', ',')}.
                 </p>
               )}
               <p className="text-xs text-cafeteria-600">
