@@ -49,9 +49,9 @@ const sql = fs.readFileSync(sqlPath, 'utf8');
 const client = postgres(databaseUrl, { max: 1, ssl: 'require' });
 try {
   await client.unsafe(sql);
-  console.log('Migration 040 aplicada.');
+  console.log('[db:apply-040] OK — coluna ignorada aplicada.');
 } catch (e) {
-  console.error(e instanceof Error ? e.message : e);
+  console.error('[db:apply-040] ERRO:', e instanceof Error ? e.message : e);
   process.exit(1);
 } finally {
   await client.end();

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
+import { filtrarAvaliacoesParaMedia, colunasSemIgnorada, erroColunaIgnoradaAusente } from '@/lib/avaliacao-ignorada';
 import {
   agruparMediasPorColaborador,
   mediaMensalColaborador,
@@ -59,12 +59,23 @@ export async function avaliarElegibilidadeResgateSairCedo(
   const selectCols =
     'colaborador_id, avaliador_id, data_referencia, media_dia, assiduidade, justificativa_nota_baixa, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, nota_vestimenta, created_at, ignorada';
 
-  const { data: linhasRaw, error } = await supabase
+  let { data: linhasRaw, error } = await supabase
     .from('avaliacoes_diarias')
     .select(selectCols)
     .eq('colaborador_id', colaboradorId)
     .gte('data_referencia', ini)
     .lte('data_referencia', fim);
+
+  if (error && erroColunaIgnoradaAusente(error.message)) {
+    const retry = await supabase
+      .from('avaliacoes_diarias')
+      .select(colunasSemIgnorada(selectCols))
+      .eq('colaborador_id', colaboradorId)
+      .gte('data_referencia', ini)
+      .lte('data_referencia', fim);
+    linhasRaw = (retry.data ?? null) as typeof linhasRaw;
+    error = retry.error;
+  }
 
   if (error) throw new Error(error.message);
 

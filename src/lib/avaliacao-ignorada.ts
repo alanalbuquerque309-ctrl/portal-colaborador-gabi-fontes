@@ -21,6 +21,25 @@ export function filtrarAvaliacoesParaMedia<T>(rows: T[]): T[] {
   return rows.filter((r) => avaliacaoContaNaMedia(r as CamposIgnoradaAvaliacao));
 }
 
+/** Remove a coluna `ignorada` de uma lista de colunas (fallback p/ migration 040 não aplicada). */
+export function colunasSemIgnorada(cols: string): string {
+  return cols
+    .split(',')
+    .map((c) => c.trim())
+    .filter((c) => c.length > 0 && c.toLowerCase() !== 'ignorada')
+    .join(', ');
+}
+
+/** `true` se o erro for da coluna `ignorada` ausente (migration 040 pendente). */
+export function erroColunaIgnoradaAusente(msg: string | null | undefined): boolean {
+  if (!msg) return false;
+  const m = msg.toLowerCase();
+  return (
+    m.includes('ignorada') &&
+    (m.includes('does not exist') || m.includes('schema cache') || m.includes('could not find'))
+  );
+}
+
 export function sanitizeMotivoIgnorarAvaliacao(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim();
 }

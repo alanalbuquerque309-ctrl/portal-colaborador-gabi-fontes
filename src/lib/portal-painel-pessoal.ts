@@ -13,7 +13,7 @@ import {
   topTresComEmpateNoTerceiro,
   type ScoreMensal,
 } from '@/lib/avaliacao-ranking';
-import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
+import { filtrarAvaliacoesParaMedia, colunasSemIgnorada, erroColunaIgnoradaAusente } from '@/lib/avaliacao-ignorada';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { fraseMotivacionalDesempenho } from '@/lib/frases-motivacao-desempenho';
 import { slugsDoGrupoMural, rotuloGrupoMural } from '@/lib/mural-unidade-grupo';
@@ -84,12 +84,22 @@ async function calcularRankingEscopo(
 
   const refMin = inicioDataReferenciaRanking(opts.ini);
 
-  const { data: linhas } = await supabase
+  const colsRanking = 'colaborador_id, avaliador_id, media_dia, data_referencia, created_at, ignorada';
+  let { data: linhas, error: errRanking } = await supabase
     .from('avaliacoes_diarias')
-    .select('colaborador_id, avaliador_id, media_dia, data_referencia, created_at, ignorada')
+    .select(colsRanking)
     .in('colaborador_id', ids)
     .gte('data_referencia', refMin)
     .lte('data_referencia', opts.fim);
+  if (errRanking && erroColunaIgnoradaAusente(errRanking.message)) {
+    const retry = await supabase
+      .from('avaliacoes_diarias')
+      .select(colunasSemIgnorada(colsRanking))
+      .in('colaborador_id', ids)
+      .gte('data_referencia', refMin)
+      .lte('data_referencia', opts.fim);
+    linhas = (retry.data ?? null) as typeof linhas;
+  }
 
   const linhasMapeadas = filtrarAvaliacoesParaMedia(
     (linhas ?? []).map((row) => ({
@@ -146,13 +156,23 @@ async function mediasCriteriosColaborador(
   const selectCols =
     'assiduidade, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, nota_vestimenta, ignorada, data_referencia';
 
-  const { data: rows } = await supabase
+  let { data: rows, error: errCriterios } = await supabase
     .from('avaliacoes_diarias')
     .select(selectCols)
     .eq('colaborador_id', colaboradorId)
     .gte('data_referencia', desdeIso)
     .order('data_referencia', { ascending: false })
     .limit(80);
+  if (errCriterios && erroColunaIgnoradaAusente(errCriterios.message)) {
+    const retry = await supabase
+      .from('avaliacoes_diarias')
+      .select(colunasSemIgnorada(selectCols))
+      .eq('colaborador_id', colaboradorId)
+      .gte('data_referencia', desdeIso)
+      .order('data_referencia', { ascending: false })
+      .limit(80);
+    rows = (retry.data ?? null) as typeof rows;
+  }
 
   const presentes = (rows ?? []).filter((r) => {
     if ((r as { ignorada?: boolean }).ignorada === true) return false;
