@@ -58,73 +58,92 @@ export default function MinhaEscalaPage() {
       ? `${new Date(`${periodo.de}T12:00:00`).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}`
       : null;
 
+  const hojeIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
   return (
     <main>
-      <h1 className="text-2xl font-display font-semibold text-cafeteria-800 mb-2">Minha escala</h1>
-      {periodoFmt && (
-        <p className="text-sm text-coffee-100 mb-6">Calendário a partir de {periodoFmt}</p>
-      )}
+      <div className="flex items-center gap-3 mb-5">
+        <span
+          aria-hidden
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-oceano-100 text-oceano-600 text-2xl"
+        >
+          📅
+        </span>
+        <div>
+          <h1 className="text-2xl font-display font-semibold text-cafeteria-900 leading-tight">Minha escala</h1>
+          {periodoFmt && <p className="text-sm text-cafeteria-600">A partir de {periodoFmt}</p>}
+        </div>
+      </div>
 
       {erro && (
-        <div className="rounded-xl border border-red-300 bg-red-50 p-4 mb-4 text-sm text-red-900">{erro}</div>
+        <div className="rounded-xl border border-terracota-300 bg-terracota-50 p-4 mb-4 text-sm text-terracota-700">
+          {erro}
+        </div>
       )}
 
       {aviso && !erro && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-4 text-sm text-amber-950">
-          {aviso}
-        </div>
+        <div className="rounded-xl border border-mel-300 bg-mel-50 p-4 mb-4 text-sm text-mel-700">{aviso}</div>
       )}
 
       {escalas.length === 0 && !erro ? (
-        <div className="rounded-xl border border-dourado-200 bg-cream-50 p-6">
-          <p className="text-coffee-base">
-            Nenhum dia de escala neste período. Se você já deveria ver folgas ou turnos, fale com o RH para
-            cadastrar ou rodar a atualização de junho.
+        <div className="rounded-2xl border border-oceano-200/70 bg-gradient-to-br from-oceano-50/60 via-white to-cream-50 p-6">
+          <p className="text-cafeteria-800">
+            Nenhum dia de escala neste período. Se você já deveria ver folgas ou turnos, fale com o RH.
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-dourado-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-cream-200">
-              <tr>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Data</th>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Entrada</th>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Saída</th>
-                <th className="text-left px-4 py-3 text-coffee-base font-medium">Observação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {escalas.map((e) => {
-                const folga =
-                  (e.observacao ?? '').toLowerCase().includes('folga') ||
-                  (e.hora_entrada === '00:00' && e.hora_saida === '00:00');
-                return (
-                  <tr
-                    key={e.id}
-                    className={`border-t border-cream-200 ${folga ? 'bg-cafeteria-50/80' : 'hover:bg-cream-50'}`}
-                  >
-                    <td className="px-4 py-3 text-coffee-base font-medium">
-                      {new Date(e.data + 'T12:00:00').toLocaleDateString('pt-BR', {
-                        weekday: 'short',
-                        day: '2-digit',
-                        month: 'short',
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-coffee-100">{folga ? '—' : e.hora_entrada}</td>
-                    <td className="px-4 py-3 text-coffee-100">{folga ? '—' : e.hora_saida}</td>
-                    <td className="px-4 py-3 text-coffee-100">
-                      {folga ? (
-                        <span className="font-medium text-cafeteria-700">Folga</span>
-                      ) : (
-                        e.observacao ?? '-'
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {escalas.map((e) => {
+            const folga =
+              (e.observacao ?? '').toLowerCase().includes('folga') ||
+              (e.hora_entrada === '00:00' && e.hora_saida === '00:00');
+            const ehHoje = e.data === hojeIso;
+            const d = new Date(e.data + 'T12:00:00');
+            const semana = d.toLocaleDateString('pt-BR', { weekday: 'long' });
+            const diaMes = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+            const obsLimpa = (e.observacao ?? '').toLowerCase().includes('folga') ? null : e.observacao;
+            return (
+              <li
+                key={e.id}
+                className={`rounded-2xl border p-4 shadow-sm transition-shadow ${
+                  ehHoje
+                    ? 'border-dourado-base ring-2 ring-dourado-base/30 bg-gradient-to-br from-mel-50/70 via-white to-cream-50'
+                    : folga
+                      ? 'border-cafeteria-200 bg-cafeteria-50/60'
+                      : 'border-oceano-200/70 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold text-cafeteria-900 capitalize leading-tight">
+                      {semana}
+                      {ehHoje && (
+                        <span className="ml-2 align-middle text-[11px] font-bold uppercase tracking-wide text-dourado-500">
+                          Hoje
+                        </span>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    </p>
+                    <p className="text-sm text-cafeteria-600 capitalize">{diaMes}</p>
+                  </div>
+                  {folga ? (
+                    <span className="shrink-0 rounded-full bg-cafeteria-200/80 px-3 py-1.5 text-sm font-semibold text-cafeteria-700">
+                      Folga
+                    </span>
+                  ) : (
+                    <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-oceano-100 px-3 py-1.5 text-sm font-bold tabular-nums text-oceano-700">
+                      {e.hora_entrada}
+                      <span className="text-oceano-400" aria-hidden>
+                        →
+                      </span>
+                      {e.hora_saida}
+                    </span>
+                  )}
+                </div>
+                {obsLimpa && <p className="mt-2 text-sm text-cafeteria-600">{obsLimpa}</p>}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </main>
   );
