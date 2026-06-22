@@ -75,6 +75,20 @@ export function colaboradorPermiteMarcarForaPlantao(
   return ehUnidadeLoja(opts?.unidadeSlug);
 }
 
+/** Ao marcar «outro plantão», o colaborador passa a 12x36 no cadastro (se ainda não estiver). */
+export async function aplicarTipoEscala12x36PorForaPlantao(
+  supabase: SupabaseAdmin,
+  colaboradorId: string
+): Promise<void> {
+  const { data } = await supabase
+    .from('colaboradores')
+    .select('tipo_escala')
+    .eq('id', colaboradorId)
+    .maybeSingle();
+  if (!data || (data as { tipo_escala?: string | null }).tipo_escala === '12x36') return;
+  await supabase.from('colaboradores').update({ tipo_escala: '12x36' }).eq('id', colaboradorId);
+}
+
 type ColabEscala = {
   tipo_escala: string | null;
   escala_folga_dias: string | null;
