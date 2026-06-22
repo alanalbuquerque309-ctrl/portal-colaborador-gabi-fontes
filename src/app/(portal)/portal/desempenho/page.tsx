@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { getPortalSession } from '@/lib/utils/session';
 import { estrelasParaFrase } from '@/lib/frases-motivacao-desempenho';
 import { normalizePortalRole } from '@/lib/roles';
+import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
 
 type TopItem = { id: string; nome: string; media: number };
 
@@ -111,15 +111,14 @@ export default function DesempenhoPortalPage() {
 
   return (
     <main className="space-y-6">
-      <div>
-        <Link href="/portal" className="text-sm text-dourado-base hover:underline font-medium">
-          ← Voltar ao portal
-        </Link>
-        <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">Desempenho</h1>
-        <p className="text-cafeteria-600 mt-1 text-sm md:text-base max-w-2xl">
-          Reconhecimento interno na sua unidade: destaque do mês e o seu resultado (sem posição no ranking).
-        </p>
-      </div>
+      <PortalPageHeader
+        title="Desempenho"
+        description="Reconhecimento interno na sua unidade: destaque do mês e o seu resultado (sem posição no ranking)."
+        backHref="/portal"
+        backLabel="Voltar ao portal"
+        icon="📈"
+        accent="uva"
+      />
 
       <div className="flex flex-wrap items-end gap-4 bg-white border border-cafeteria-200 rounded-xl p-4">
         <div>

@@ -118,6 +118,8 @@ export default function PortalTreinamentoPage() {
         backHref="/portal"
         backLabel="Voltar ao portal"
         breadcrumb={[{ label: 'Portal', href: '/portal' }, { label: 'Treinamento' }]}
+        icon="🎓"
+        accent="oceano"
       />
 
       {itens.length > 0 && (
