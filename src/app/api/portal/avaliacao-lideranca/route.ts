@@ -177,7 +177,7 @@ export async function GET() {
     const supabase = createAdminClient();
     const { data: eu, error: errEu } = await supabase
       .from('colaboradores')
-      .select('id, nome, unidade_id, role, lider_id, setor, unidades(slug)')
+      .select('id, nome, unidade_id, role, lider_id, setor, tipo_escala, unidades(slug)')
       .eq('id', colaboradorId)
       .single();
 
@@ -186,6 +186,7 @@ export async function GET() {
     }
 
     const role = normalizePortalRole((eu as { role?: string }).role);
+    const tipoEscala = String((eu as { tipo_escala?: string | null }).tipo_escala ?? '') || null;
     if (role !== 'colaborador' && role !== 'admin') {
       return NextResponse.json(
         { ok: false, erro: 'Avaliação disponível apenas para colaborador e administrador.' },
@@ -237,6 +238,7 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
+      tipo_escala: tipoEscala,
       semana_inicio: semanaInicio,
       semana_fim: domingoSemanaSaoPaulo(),
       bloqueado_ferias: deFerias,

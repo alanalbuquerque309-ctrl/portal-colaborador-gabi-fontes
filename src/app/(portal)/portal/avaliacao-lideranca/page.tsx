@@ -50,6 +50,8 @@ export default function AvaliacaoLiderancaPage() {
   const [bloqueadoFerias, setBloqueadoFerias] = useState(false);
   const [motivoBloqueioFerias, setMotivoBloqueioFerias] = useState('');
   const [filtroPendentes, setFiltroPendentes] = useState(false);
+  const [tipoEscala, setTipoEscala] = useState<string | null>(null);
+  const [liderPlantaoEscolhido, setLiderPlantaoEscolhido] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -98,6 +100,7 @@ export default function AvaliacaoLiderancaPage() {
           setPendentesNoUltimoDia(Number(data.pendentes_no_ultimo_dia ?? 0));
           setBloqueadoFerias(data.bloqueado_ferias === true);
           setMotivoBloqueioFerias(String(data.bloqueado_ferias_motivo ?? ''));
+          setTipoEscala(data.tipo_escala ?? null);
         } else {
           setErro(data.erro || 'Não foi possível carregar.');
         }
@@ -144,8 +147,19 @@ export default function AvaliacaoLiderancaPage() {
     }
   };
 
-  const totalLista = avaliados.length;
-  const jaAvaliados = avaliados.filter((a) => a.ja_avaliado_esta_semana).length;
+  const plantaoLeaders = avaliados.filter((a) => a.papel === 'lider_direto');
+  const precisaEscolherPlantao = tipoEscala === '12x36' && plantaoLeaders.length >= 2;
+  const plantaoJaAvaliado = plantaoLeaders.find((a) => a.ja_avaliado_esta_semana) ?? null;
+  const plantaoEscolhidoId = liderPlantaoEscolhido ?? plantaoJaAvaliado?.id ?? null;
+
+  const avaliadosVisiveis = !precisaEscolherPlantao
+    ? avaliados
+    : plantaoEscolhidoId
+      ? avaliados.filter((a) => a.papel !== 'lider_direto' || a.id === plantaoEscolhidoId)
+      : avaliados.filter((a) => a.papel !== 'lider_direto');
+
+  const totalLista = avaliadosVisiveis.length;
+  const jaAvaliados = avaliadosVisiveis.filter((a) => a.ja_avaliado_esta_semana).length;
   const pendentesLista = totalLista - jaAvaliados;
 
   if (!sessionOk) {
@@ -263,30 +277,89 @@ export default function AvaliacaoLiderancaPage() {
                 Sem checklist nesta semana: férias registradas pela gestão.
               </p>
             ) : avaliados.length > 0 ? (
-              <AvaliacaoSemanalChecklist
-                titulo="Quem avaliar esta semana"
-                itens={avaliados.map((a) => ({
-                  id: a.id,
-                  nome: a.nome,
-                  concluido: a.ja_avaliado_esta_semana,
-                  subtitulo: `${a.papel_label ?? 'Referência'} · ${a.role_label ?? a.role}`,
-                }))}
-                filtroPendentes={filtroPendentes}
-                onToggleFiltro={() => setFiltroPendentes((v) => !v)}
-                selecionadoId={selecionado}
-                onIrPara={(id) => {
-                  setSelecionado(id);
-                  setNotas({
-                    n_exemplo: 3,
-                    n_comunicacao: 3,
-                    n_suporte: 3,
-                    n_justica: 3,
-                    n_clima: 3,
-                  });
-                  setJustificativaNotaBaixa('');
-                  setAnonimo(true);
-                }}
-              />
+              <>
+                {precisaEscolherPlantao && (
+                  <section className="rounded-xl border border-uva-200 bg-gradient-to-br from-uva-50/70 via-white to-cream-50 p-4 shadow-sm">
+                    <h2 className="text-base font-display font-semibold text-cafeteria-900">
+                      Com qual líder você trabalhou na semana passada?
+                    </h2>
+                    <p className="text-sm text-cafeteria-600 mt-0.5">
+                      Você é 12x36: avalie apenas o líder do seu plantão na semana avaliada.
+                    </p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      {plantaoLeaders.map((l) => {
+                        const ativo = plantaoEscolhidoId === l.id;
+                        const bloqueadoAuto = !!plantaoJaAvaliado && plantaoJaAvaliado.id !== l.id;
+                        return (
+                          <button
+                            key={l.id}
+                            type="button"
+                            disabled={bloqueadoAuto}
+                            onClick={() => setLiderPlantaoEscolhido(l.id)}
+                            className={`text-left rounded-xl border px-4 py-3 min-h-[56px] transition-colors ${
+                              ativo
+                                ? 'border-uva-400 bg-uva-100/70 text-cafeteria-900'
+                                : 'border-cafeteria-200 bg-white text-cafeteria-700 hover:border-uva-300'
+                            } disabled:opacity-40`}
+                          >
+                            <span className="block font-semibold leading-tight">{l.nome}</span>
+                            <span className="block text-xs text-cafeteria-600 mt-0.5">
+                              {l.role_label ?? l.role}
+                              {l.ja_avaliado_esta_semana ? ' · já avaliado' : ''}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {plantaoEscolhidoId && !plantaoJaAvaliado && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLiderPlantaoEscolhido(null);
+                          setSelecionado(null);
+                        }}
+                        className="mt-3 text-sm font-medium text-uva-600 hover:underline"
+                      >
+                        Trocar líder
+                      </button>
+                    )}
+                  </section>
+                )}
+
+                {precisaEscolherPlantao && !plantaoEscolhidoId ? (
+                  <p className="text-sm text-cafeteria-600 rounded-xl border border-cafeteria-200 bg-white p-4">
+                    Escolha acima o líder do seu plantão para liberar a avaliação. Keila (RH) e demais referências
+                    continuam na lista.
+                  </p>
+                ) : null}
+
+                {avaliadosVisiveis.length > 0 && (
+                  <AvaliacaoSemanalChecklist
+                    titulo="Quem avaliar esta semana"
+                    itens={avaliadosVisiveis.map((a) => ({
+                      id: a.id,
+                      nome: a.nome,
+                      concluido: a.ja_avaliado_esta_semana,
+                      subtitulo: `${a.papel_label ?? 'Referência'} · ${a.role_label ?? a.role}`,
+                    }))}
+                    filtroPendentes={filtroPendentes}
+                    onToggleFiltro={() => setFiltroPendentes((v) => !v)}
+                    selecionadoId={selecionado}
+                    onIrPara={(id) => {
+                      setSelecionado(id);
+                      setNotas({
+                        n_exemplo: 3,
+                        n_comunicacao: 3,
+                        n_suporte: 3,
+                        n_justica: 3,
+                        n_clima: 3,
+                      });
+                      setJustificativaNotaBaixa('');
+                      setAnonimo(true);
+                    }}
+                  />
+                )}
+              </>
             ) : (
               <p className="text-sm text-cafeteria-600 rounded-xl border border-cafeteria-200 bg-white p-4">
                 Sua lista de avaliação está vazia. Verifique com o administrativo se o líder direto está definido.
