@@ -120,10 +120,19 @@ type DadosSemanaCache = {
   semanaFeedback: string;
   semanaAnterior: string;
   avaliacoesEquipe: Map<string, { media: number | null; avaliador_id: string | null }>;
+  avaliacoesSemanaAnterior: Map<string, { media: number | null; avaliador_id: string | null }>;
   feedbackPorLider: Map<string, number[]>;
   trofeusPorColab: Map<string, number>;
   mediasEquipePorLider: Map<string, number | null>;
 };
+
+type RankingCacheEntry = {
+  expira: number;
+  payload: Awaited<ReturnType<typeof calcularRankingLiderInspiradorCore>>;
+};
+
+const rankingCachePorSemana = new Map<string, RankingCacheEntry>();
+const RANKING_CACHE_TTL_MS = 5 * 60 * 1000;
 
 async function carregarDadosSemana(
   supabase: SupabaseClient,
@@ -136,8 +145,8 @@ async function carregarDadosSemana(
     supabase
       .from('avaliacoes_diarias')
       .select('colaborador_id, avaliador_id, media_dia, data_referencia')
-      .eq('data_referencia', semanaEquipe)
-      .limit(5000),
+      .in('data_referencia', [semanaEquipe, semanaAnterior])
+      .limit(10000),
     supabase
       .from('avaliacoes_lideranca')
       .select(
@@ -153,13 +162,20 @@ async function carregarDadosSemana(
   ]);
 
   const avaliacoesEquipe = new Map<string, { media: number | null; avaliador_id: string | null }>();
+  const avaliacoesSemanaAnterior = new Map<string, { media: number | null; avaliador_id: string | null }>();
   for (const row of avaliacoes ?? []) {
     const cid = String(row.colaborador_id ?? '');
     if (!cid) continue;
-    avaliacoesEquipe.set(cid, {
+    const ref = String(row.data_referencia ?? '');
+    const entry = {
       media: row.media_dia != null ? Number(row.media_dia) : null,
       avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
-    });
+    };
+    if (ref === semanaAnterior) {
+      avaliacoesSemanaAnterior.set(cid, entry);
+    } else {
+      avaliacoesEquipe.set(cid, entry);
+    }
   }
 
   const feedbackPorLider = new Map<string, number[]>();
@@ -184,6 +200,7 @@ async function carregarDadosSemana(
     semanaFeedback,
     semanaAnterior,
     avaliacoesEquipe,
+    avaliacoesSemanaAnterior,
     feedbackPorLider,
     trofeusPorColab,
     mediasEquipePorLider: new Map(),
@@ -233,9 +250,11 @@ async function mediaEquipeSemana(
   semanaInicio: string,
   cache: DadosSemanaCache
 ): Promise<number | null> {
+  const mapa =
+    semanaInicio === cache.semanaAnterior ? cache.avaliacoesSemanaAnterior : cache.avaliacoesEquipe;
   const medias: number[] = [];
   for (const id of equipeIds) {
-    let row = cache.avaliacoesEquipe.get(id);
+    let row = mapa.get(id);
     if (!row) {
       const { data } = await supabase
         .from('avaliacoes_diarias')
@@ -416,6 +435,24 @@ export async function calcularRankingLiderInspirador(
   vencedor: LiderInspiradorVencedor | null;
 }> {
   const semanaEquipe = opts?.semanaEquipe ?? semanaReferenciaLiderInspirador();
+  const cached = rankingCachePorSemana.get(semanaEquipe);
+  if (cached && cached.expira > Date.now()) {
+    return cached.payload;
+  }
+  const payload = await calcularRankingLiderInspiradorCore(supabase, semanaEquipe);
+  rankingCachePorSemana.set(semanaEquipe, { expira: Date.now() + RANKING_CACHE_TTL_MS, payload });
+  return payload;
+}
+
+async function calcularRankingLiderInspiradorCore(
+  supabase: SupabaseClient,
+  semanaEquipe: string
+): Promise<{
+  semana_inicio: string;
+  semana_rotulo: string;
+  ranking: ILICalculoInterno[];
+  vencedor: LiderInspiradorVencedor | null;
+}> {
   const semanaRotulo = formatarIntervaloSemanaPtBR(semanaEquipe);
   const calculos = await calcularTodosILILideresSemana(supabase, semanaEquipe);
 
@@ -458,7 +495,8 @@ export async function montarPainelLiderInspirador(
   supabase: SupabaseClient,
   liderId: string,
   nome: string,
-  role: string
+  role: string,
+  opts?: { usarRankingCompleto?: boolean }
 ): Promise<PainelLider | null> {
   const idsLideres = await listarIdsLideresAtivos(supabase);
   const podeEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, liderId, role);
@@ -466,13 +504,30 @@ export async function montarPainelLiderInspirador(
 
   const semanaEquipe = semanaReferenciaLiderInspirador();
   const semanaRotulo = formatarIntervaloSemanaPtBR(semanaEquipe);
-  const { ranking } = await calcularRankingLiderInspirador(supabase, { semanaEquipe });
-  const meu =
-    ranking.find((r) => r.lider_id === liderId) ??
-    (await calcularILILider(supabase, liderId, { semanaEquipe }));
+  const meu = await calcularILILider(supabase, liderId, { semanaEquipe });
 
-  const idx = meu.elegivel ? ranking.findIndex((r) => r.lider_id === liderId) : -1;
-  const posicao = idx >= 0 ? idx + 1 : null;
+  let posicao: number | null = null;
+  let totalElegiveis = 0;
+  let ehVencedor = false;
+
+  const cached = rankingCachePorSemana.get(semanaEquipe);
+  if (cached && cached.expira > Date.now()) {
+    const ranking = cached.payload.ranking;
+    totalElegiveis = ranking.length;
+    if (meu.elegivel) {
+      const idx = ranking.findIndex((r) => r.lider_id === liderId);
+      posicao = idx >= 0 ? idx + 1 : null;
+    }
+    ehVencedor = ranking[0]?.lider_id === liderId;
+  } else if (opts?.usarRankingCompleto) {
+    const { ranking } = await calcularRankingLiderInspirador(supabase, { semanaEquipe });
+    totalElegiveis = ranking.length;
+    if (meu.elegivel) {
+      const idx = ranking.findIndex((r) => r.lider_id === liderId);
+      posicao = idx >= 0 ? idx + 1 : null;
+    }
+    ehVencedor = ranking[0]?.lider_id === liderId;
+  }
 
   return {
     primeiro_nome: primeiroNome(nome),
@@ -486,7 +541,7 @@ export async function montarPainelLiderInspirador(
     elegivel: meu.elegivel,
     motivos_elegibilidade: meu.motivos_elegibilidade,
     posicao_entre_lideres: posicao,
-    total_lideres_elegiveis: ranking.length,
-    eh_vencedor_semana: ranking[0]?.lider_id === liderId,
+    total_lideres_elegiveis: totalElegiveis,
+    eh_vencedor_semana: ehVencedor,
   };
 }

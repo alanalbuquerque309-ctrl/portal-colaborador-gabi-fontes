@@ -41,7 +41,7 @@ export async function GET() {
         .in('emocao', [...EMOCOES_ALERTA_GESTAO])
         .order('created_at', { ascending: false });
       if (!res.error) {
-        data = (res.data ?? []) as Record<string, unknown>[];
+        data = (res.data ?? []) as unknown as Record<string, unknown>[];
         error = null;
         break;
       }

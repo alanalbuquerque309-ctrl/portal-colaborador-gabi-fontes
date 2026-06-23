@@ -8,6 +8,7 @@ import { montarPainelPessoalColaborador } from '@/lib/portal-painel-pessoal';
 import { montarPainelLiderInspirador } from '@/lib/lider-inspirador';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 import { sincronizarMissoesSemanaGraos } from '@/lib/graos/missoes';
 import type { PortalHomeResumo } from '@/lib/portal-home-types';
 
@@ -39,9 +40,13 @@ export async function GET() {
     const unidadeSlug = Array.isArray(unidadeEmbed) ? unidadeEmbed[0]?.slug : unidadeEmbed?.slug;
 
     if (podeParticiparGraosCafe(role)) {
-      await sincronizarMissoesSemanaGraos(supabase, colaboradorId, segundaSemanaSaoPaulo(), {
-        creditarLogin: true,
-      });
+      const semanaGraos = segundaSemanaSaoPaulo();
+      const jaEntrouNaSemana = await colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaGraos);
+      if (!jaEntrouNaSemana) {
+        await sincronizarMissoesSemanaGraos(supabase, colaboradorId, semanaGraos, {
+          creditarLogin: true,
+        });
+      }
     }
 
     const tarefas = await montarPendenciasPortalHome(supabase, {

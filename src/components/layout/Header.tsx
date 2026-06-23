@@ -17,6 +17,15 @@ import { podeVerBonificacaoInterna, podeVerPendenciasSemanaRede } from '@/lib/bo
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 
+const POLL_AJUDA_MS = 60_000;
+const POLL_SUGESTOES_MS = 60_000;
+const POLL_PENDENCIAS_MS = 90_000;
+
+function pollSeAbaVisivel(fn: () => void) {
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+  fn();
+}
+
 type NavItem = {
   href: string;
   label: string;
@@ -202,19 +211,21 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     }
     let cancel = false;
     const carregar = () => {
-      fetch(`/api/admin/sugestoes/pendentes?_=${Date.now()}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      })
-        .then((r) => r.json())
-        .then((d: { ok?: boolean; pendentes?: number }) => {
-          if (cancel || d.ok !== true) return;
-          setSugestoesPendentes(Math.max(0, Number(d.pendentes ?? 0)));
+      pollSeAbaVisivel(() => {
+        fetch(`/api/admin/sugestoes/pendentes?_=${Date.now()}`, {
+          credentials: 'include',
+          cache: 'no-store',
         })
-        .catch(() => {});
+          .then((r) => r.json())
+          .then((d: { ok?: boolean; pendentes?: number }) => {
+            if (cancel || d.ok !== true) return;
+            setSugestoesPendentes(Math.max(0, Number(d.pendentes ?? 0)));
+          })
+          .catch(() => {});
+      });
     };
     carregar();
-    const timer = window.setInterval(carregar, 15000);
+    const timer = window.setInterval(carregar, POLL_SUGESTOES_MS);
     window.addEventListener('focus', carregar);
     window.addEventListener(SUGESTOES_ATUALIZADO, carregar);
     return () => {
@@ -232,20 +243,22 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     }
     let cancel = false;
     const carregar = () => {
-      fetch(`/api/portal/avaliacoes-pendentes?resumo=1&_=${Date.now()}`, {
-        credentials: 'include',
-        cache: 'no-store',
-      })
-        .then((r) => r.json())
-        .then((d: { ok?: boolean; total?: number; meta?: { alerta_critico_sexta?: boolean } }) => {
-          if (cancel || d.ok !== true) return;
-          setPendenciasSemana(Math.max(0, Number(d.total ?? 0)));
-          setPendenciasSemanaCriticas(d.meta?.alerta_critico_sexta === true);
+      pollSeAbaVisivel(() => {
+        fetch(`/api/portal/avaliacoes-pendentes?resumo=1&_=${Date.now()}`, {
+          credentials: 'include',
+          cache: 'no-store',
         })
-        .catch(() => {});
+          .then((r) => r.json())
+          .then((d: { ok?: boolean; total?: number; meta?: { alerta_critico_sexta?: boolean } }) => {
+            if (cancel || d.ok !== true) return;
+            setPendenciasSemana(Math.max(0, Number(d.total ?? 0)));
+            setPendenciasSemanaCriticas(d.meta?.alerta_critico_sexta === true);
+          })
+          .catch(() => {});
+      });
     };
     carregar();
-    const timer = window.setInterval(carregar, 30000);
+    const timer = window.setInterval(carregar, POLL_PENDENCIAS_MS);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') carregar();
     };
@@ -344,21 +357,22 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     }
     let cancel = false;
     const carregar = () => {
-      fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
-        credentials: 'include',
-        cache: 'no-store',
-        headers: { Accept: 'application/json', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-      })
-        .then((r) => r.json())
-        .then((data: { ok?: boolean; itens?: unknown[] }) => {
-          if (cancel || !data.ok) return;
-          const itens = Array.isArray(data.itens) ? data.itens : [];
-          setPendenciasAjuda(itens.length);
+      pollSeAbaVisivel(() => {
+        fetch(`/api/admin/ajuda-chat?somente_pendentes=1&resumo=1&_=${Date.now()}`, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { Accept: 'application/json', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
         })
-        .catch(() => {});
+          .then((r) => r.json())
+          .then((data: { ok?: boolean; pendentes?: number }) => {
+            if (cancel || !data.ok) return;
+            setPendenciasAjuda(Math.max(0, Number(data.pendentes ?? 0)));
+          })
+          .catch(() => {});
+      });
     };
     carregar();
-    const timer = window.setInterval(carregar, 10000);
+    const timer = window.setInterval(carregar, POLL_AJUDA_MS);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') carregar();
     };

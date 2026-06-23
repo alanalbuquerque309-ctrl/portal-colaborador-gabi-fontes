@@ -17,15 +17,16 @@ export function BotaoAjuda() {
   const [aberto, setAberto] = useState(false);
 
   const carregarPendentes = useCallback(() => {
-    fetch(`/api/admin/ajuda-chat?somente_pendentes=1&_=${Date.now()}`, {
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+    fetch(`/api/admin/ajuda-chat?somente_pendentes=1&resumo=1&_=${Date.now()}`, {
       credentials: 'include',
       cache: 'no-store',
       headers: { Accept: 'application/json', 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
     })
       .then((r) => r.json())
-      .then((data: { ok?: boolean; itens?: unknown[] }) => {
+      .then((data: { ok?: boolean; pendentes?: number }) => {
         if (!data.ok) return;
-        setPendentes(Array.isArray(data.itens) ? data.itens.length : 0);
+        setPendentes(Math.max(0, Number(data.pendentes ?? 0)));
       })
       .catch(() => {});
   }, []);
@@ -63,7 +64,7 @@ export function BotaoAjuda() {
       return;
     }
     carregarPendentes();
-    const timer = window.setInterval(carregarPendentes, 10000);
+    const timer = window.setInterval(carregarPendentes, 60_000);
     const onVisible = () => {
       if (document.visibilityState === 'visible') carregarPendentes();
     };

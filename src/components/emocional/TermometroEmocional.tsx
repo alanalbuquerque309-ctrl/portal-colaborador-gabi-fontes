@@ -14,6 +14,7 @@ export function TermometroEmocional() {
   const [motivoTexto, setMotivoTexto] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [reescolhendo, setReescolhendo] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
     const session = getPortalSession();

@@ -44,9 +44,24 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const somentePendentes = searchParams.get('somente_pendentes') === '1';
+  const resumo = searchParams.get('resumo') === '1';
 
   try {
     const supabase = createAdminClient();
+
+    if (somentePendentes && resumo) {
+      const { data, error } = await supabase
+        .from('ajuda_chat')
+        .select('id, colaborador_id, mensagem, resposta, created_at, respondido_em')
+        .is('respondido_em', null)
+        .order('created_at', { ascending: false })
+        .limit(120);
+      if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500, headers: NO_STORE });
+      const rows = filtrarSomentePendentes((data ?? []) as Record<string, unknown>[]);
+      const pendentes = contarTopicosPendentes(rows as AjudaChatLinha[]);
+      return NextResponse.json({ ok: true, pendentes }, { headers: NO_STORE });
+    }
+
     let q = supabase
       .from('ajuda_chat')
       .select(
