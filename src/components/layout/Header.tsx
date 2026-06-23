@@ -24,6 +24,15 @@ type NavItem = {
   icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia' | 'graos' | 'treinamento';
 };
 
+function dedupeNavPorHref(items: NavItem[]): NavItem[] {
+  const vistos = new Set<string>();
+  return items.filter((item) => {
+    if (vistos.has(item.href)) return false;
+    vistos.add(item.href);
+    return true;
+  });
+}
+
 function navAtivo(pathname: string | null | undefined, href: string): boolean {
   const p = pathname ?? '';
   if (!p || !href) return false;
@@ -503,13 +512,12 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
         ]
   ));
 
-  const navDesktop: NavItem[] = [
+  const navDesktop: NavItem[] = dedupeNavPorHref([
     ...navMobile.filter((i) => i.href !== '/portal/perfil' && i.href !== '/portal/comunicacao'),
     itemComunicacao,
-    itemTreinamento,
     { href: '/portal/manuais', label: 'Manuais', short: 'Manuais', icon: 'manuais' },
     { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
-  ];
+  ]);
 
   const handleSair = () => {
     if (typeof window !== 'undefined' && !window.confirm('Deseja sair do portal?')) {
@@ -610,7 +618,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
       {/* Nav inferior no mobile — 4 fixos + Mais (resto, Admin e Sair na gaveta) */}
       {(() => {
         const primarios = navMobile.slice(0, 4);
-        const extras = navMobile.slice(4);
+        const extras = dedupeNavPorHref(navMobile.slice(4));
         const extraTemAlerta =
           extras.some((i) => i.href === '/portal/comunicacao') &&
           ((podeContadorSugestoes && sugestoesPendentes > 0) || (podeVisualizarAjuda && pendenciasAjuda > 0));
@@ -626,7 +634,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
           <>
             {maisAberto && (
               <div
-                className="md:hidden fixed inset-0 z-50 bg-coffee-base/40 backdrop-blur-[1px]"
+                className="md:hidden fixed inset-0 z-[60] bg-coffee-base/40 backdrop-blur-[1px]"
                 onClick={() => setMaisAberto(false)}
                 aria-hidden
               />
@@ -634,9 +642,10 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
 
             {maisAberto && (
               <div
-                className="md:hidden fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white border-t border-cafeteria-200 shadow-[0_-8px_30px_rgba(0,0,0,0.18)] pb-[max(1rem,env(safe-area-inset-bottom,0px))] max-h-[75vh] overflow-y-auto"
+                className="md:hidden fixed bottom-0 left-0 right-0 z-[60] rounded-t-3xl bg-white border-t border-cafeteria-200 shadow-[0_-8px_30px_rgba(0,0,0,0.18)] pb-[max(1rem,env(safe-area-inset-bottom,0px))] max-h-[75vh] overflow-y-auto"
                 role="dialog"
                 aria-label="Mais opções"
+                onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between px-5 pt-3 pb-2">
                   <span className="mx-auto h-1.5 w-10 rounded-full bg-cafeteria-200" aria-hidden />
@@ -727,8 +736,9 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
             )}
 
             <nav
-              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-cafeteria-200 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)]"
+              className={`md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-cafeteria-200 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)] ${maisAberto ? 'pointer-events-none opacity-0' : ''}`}
               aria-label="Navegação principal"
+              aria-hidden={maisAberto}
             >
               <div className="flex">
                 {primarios.map(({ href, label, short }) => {
