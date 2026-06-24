@@ -1,9 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana';
+import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana';
+import {
+  formatarIntervaloSemanaPtBR,
+  semanaAvaliacaoEquipePadraoISO,
+} from '@/lib/semana-referencia';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 type Props = {
@@ -50,13 +55,15 @@ export function AvaliacoesPendentesPainel({
   compacto = false,
   filtroInicial,
 }: Props) {
-  const [dataRef, setDataRef] = useState('');
+  const semanaPadraoInicial = semanaAvaliacaoEquipePadraoISO();
+  const [dataRef, setDataRef] = useState(semanaPadraoInicial);
+  const dataRefEscolhidaPeloUsuario = useRef(false);
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [filtro, setFiltro] = useState<FiltroPendenciasSemana>(filtroInicial ?? 'pendentes');
   const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [intervalo, setIntervalo] = useState('');
+  const [intervalo, setIntervalo] = useState(formatarIntervaloSemanaPtBR(semanaPadraoInicial));
   const [atualizadoEm, setAtualizadoEm] = useState('');
   const [resumo, setResumo] = useState({
     sem_lider: 0,
@@ -65,7 +72,13 @@ export function AvaliacoesPendentesPainel({
     criticos: 0,
     criticos_sem_avaliacao: 0,
   });
-  const [meta, setMeta] = useState({ eh_sexta: false, alerta_critico_sexta: false });
+  const [meta, setMeta] = useState({
+    eh_sexta: false,
+    alerta_critico_sexta: false,
+    semana_padrao: semanaPadraoInicial,
+    fora_semana_operacional: false,
+    avaliacoes_registradas: 0,
+  });
   const [itens, setItens] = useState<ItemPendenciaSemana[]>([]);
   const [filtroLider, setFiltroLider] = useState('');
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
@@ -84,24 +97,39 @@ export function AvaliacoesPendentesPainel({
   const podeGerarAviso =
     apiBase === '/api/admin/avaliacoes-pendentes' || apiBase === '/api/portal/avaliacoes-pendentes';
 
-  const porLider = useMemo(() => {
-    const mapa = new Map<string, number>();
+  const porLider = useMemo(() => agregarLideresComPendenciaDeEnvio(itens), [itens]);
+
+  const colaboradoresUnicosSemGerente = useMemo(() => {
+    const ids = new Set<string>();
     for (const item of itens) {
-      for (const r of item.responsaveis_lider) {
-        if (r.status !== 'pendente') continue;
-        const nome = r.lider_nome.trim() || '—';
-        mapa.set(nome, (mapa.get(nome) ?? 0) + 1);
+      if (
+        item.tipo === 'sem_lider' ||
+        item.tipo === 'sem_lider_e_rh' ||
+        item.tipo === 'critico_fora_plantao' ||
+        item.tipo === 'critico_sem_avaliacao'
+      ) {
+        ids.add(item.colaborador_id);
       }
     }
-    return Array.from(mapa.entries())
-      .map(([nome, total]) => ({ nome, total }))
-      .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
+    return ids.size;
   }, [itens]);
+
+  const semanaSemDados =
+    meta.avaliacoes_registradas === 0 && (meta.fora_semana_operacional || colaboradoresUnicosSemGerente > 0);
+
+  const usarSemanaPadrao = () => {
+    const padrao = semanaAvaliacaoEquipePadraoISO();
+    dataRefEscolhidaPeloUsuario.current = false;
+    setDataRef(padrao);
+    setIntervalo(formatarIntervaloSemanaPtBR(padrao));
+  };
 
   const itensVisiveis = useMemo(() => {
     if (!filtroLider) return itens;
     return itens.filter((item) =>
-      item.responsaveis_lider.some((r) => r.status === 'pendente' && r.lider_nome.trim() === filtroLider)
+      item.responsaveis_lider.some(
+        (r) => r.status === 'pendente' && r.lider_nome.trim() === filtroLider
+      )
     );
   }, [itens, filtroLider]);
 
@@ -121,7 +149,9 @@ export function AvaliacoesPendentesPainel({
         return;
       }
       setIntervalo(String(data.intervalo ?? ''));
-      if (data.data_referencia) setDataRef(String(data.data_referencia));
+      if (data.data_referencia && !dataRefEscolhidaPeloUsuario.current) {
+        setDataRef(String(data.data_referencia));
+      }
       setResumo(
         data.resumo ?? {
           sem_lider: 0,
@@ -131,7 +161,13 @@ export function AvaliacoesPendentesPainel({
           criticos_sem_avaliacao: 0,
         }
       );
-      setMeta(data.meta ?? { eh_sexta: false, alerta_critico_sexta: false });
+      setMeta({
+        eh_sexta: data.meta?.eh_sexta === true,
+        alerta_critico_sexta: data.meta?.alerta_critico_sexta === true,
+        semana_padrao: String(data.meta?.semana_padrao ?? semanaAvaliacaoEquipePadraoISO()),
+        fora_semana_operacional: data.meta?.fora_semana_operacional === true,
+        avaliacoes_registradas: Number(data.meta?.avaliacoes_registradas ?? 0),
+      });
       setItens(Array.isArray(data.itens) ? data.itens : []);
       setAtualizadoEm(
         new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
@@ -300,7 +336,7 @@ export function AvaliacoesPendentesPainel({
               <button
                 type="button"
                 onClick={() => void abrirPreviewAviso()}
-                disabled={gerandoAviso || resumo.sem_lider === 0}
+                disabled={gerandoAviso || colaboradoresUnicosSemGerente === 0}
                 className="rounded-lg border border-amber-500 bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-50"
               >
                 {gerandoAviso ? '…' : 'Gerar aviso p/ líderes'}
@@ -328,21 +364,61 @@ export function AvaliacoesPendentesPainel({
           </div>
         )}
 
+        {(meta.fora_semana_operacional || semanaSemDados) && (
+          <div className="rounded-lg border border-orange-300 bg-orange-50 px-3 py-2.5 text-sm text-orange-950">
+            <p className="font-semibold">
+              {meta.fora_semana_operacional
+                ? 'Semana fora do padrão operacional'
+                : 'Nenhuma avaliação salva nesta semana'}
+            </p>
+            <p className="mt-1 text-orange-900">
+              {meta.fora_semana_operacional ? (
+                <>
+                  Você está vendo <strong>{intervalo || dataRef}</strong>, não a semana passada (
+                  {formatarIntervaloSemanaPtBR(meta.semana_padrao)}). Números altos e iguais (ex.: 58 em
+                  tudo) costumam ser data antiga sem avaliações no banco.
+                </>
+              ) : (
+                <>
+                  Zero registros em avaliações para esta segunda-feira. Confira se a data está correta antes
+                  de cobrar líderes.
+                </>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={usarSemanaPadrao}
+              className="mt-2 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700"
+            >
+              Usar semana passada (padrão)
+            </button>
+          </div>
+        )}
+
         {erroAviso && !modalAviso && <p className="text-sm text-red-600">{erroAviso}</p>}
 
         <div className="flex flex-wrap gap-2 text-xs">
-          <span className="rounded-full bg-amber-100 text-amber-900 px-2.5 py-1">
-            {resumo.sem_lider} sem líder
+          <span className="rounded-full bg-dourado-base/20 text-coffee-base px-2.5 py-1 font-semibold">
+            {totalVisivel} na lista
           </span>
-          <span className="rounded-full bg-cream-100 text-coffee-base px-2.5 py-1">
-            {resumo.sem_rh_complemento} RH pendente (c/ gerente)
-          </span>
-          <span className="rounded-full bg-cream-100 text-coffee-base px-2.5 py-1">
-            {resumo.sem_rh_rede} sem Visita RH
-          </span>
+          {colaboradoresUnicosSemGerente > 0 && (
+            <span className="rounded-full bg-amber-100 text-amber-900 px-2.5 py-1">
+              {colaboradoresUnicosSemGerente} sem nota de gerente
+            </span>
+          )}
+          {resumo.sem_rh_rede > 0 && (
+            <span className="rounded-full bg-cream-100 text-coffee-base px-2.5 py-1">
+              {resumo.sem_rh_rede} sem Visita RH
+            </span>
+          )}
+          {resumo.sem_rh_complemento > 0 && (
+            <span className="rounded-full bg-cream-100 text-coffee-base px-2.5 py-1">
+              {resumo.sem_rh_complemento} RH pendente (gerente já avaliou)
+            </span>
+          )}
           {resumo.criticos > 0 && (
             <span className="rounded-full bg-red-100 text-red-800 px-2.5 py-1">
-              {resumo.criticos} fora plantão
+              {resumo.criticos} só «fora do plantão»
             </span>
           )}
           {resumo.criticos_sem_avaliacao > 0 && (
@@ -351,23 +427,39 @@ export function AvaliacoesPendentesPainel({
                 meta.eh_sexta ? 'bg-red-100 text-red-800 font-semibold' : 'bg-orange-100 text-orange-900'
               }`}
             >
-              {resumo.criticos_sem_avaliacao} sem ninguém{meta.eh_sexta ? ' · crítico sexta' : ''}
+              {resumo.criticos_sem_avaliacao} crítico{meta.eh_sexta ? ' · sexta' : ''}
             </span>
           )}
-          <span className="rounded-full bg-dourado-base/20 text-coffee-base px-2.5 py-1 font-medium">
-            {totalVisivel} na lista
-          </span>
+          {!semanaSemDados && meta.avaliacoes_registradas > 0 && (
+            <span className="rounded-full bg-green-50 text-green-800 px-2.5 py-1">
+              {meta.avaliacoes_registradas} avaliações salvas na semana
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-2 items-end">
           <div>
             <label className="block text-[10px] font-medium text-coffee-base mb-0.5">Semana (segunda)</label>
-            <input
-              type="date"
-              value={dataRef}
-              onChange={(e) => setDataRef(e.target.value)}
-              className="rounded-lg border border-cream-300 px-2 py-1.5 text-sm"
-            />
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <input
+                type="date"
+                value={dataRef}
+                onChange={(e) => {
+                  dataRefEscolhidaPeloUsuario.current = true;
+                  setDataRef(e.target.value);
+                }}
+                className="rounded-lg border border-cream-300 px-2 py-1.5 text-sm"
+              />
+              {dataRef !== meta.semana_padrao && (
+                <button
+                  type="button"
+                  onClick={usarSemanaPadrao}
+                  className="rounded-lg border border-dourado-base px-2 py-1.5 text-xs font-medium text-coffee-base hover:bg-dourado-50"
+                >
+                  Semana passada
+                </button>
+              )}
+            </div>
           </div>
           <div>
             <label className="block text-[10px] font-medium text-coffee-base mb-0.5">Unidade</label>
@@ -411,10 +503,14 @@ export function AvaliacoesPendentesPainel({
           ))}
         </div>
 
-        {porLider.length > 0 && (
+        {porLider.length > 0 && !semanaSemDados && (
           <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
-            <p className="text-xs font-semibold text-amber-900 mb-1.5">
-              Líderes que não avaliaram (toque para focar)
+            <p className="text-xs font-semibold text-amber-900 mb-0.5">
+              Líderes com cards pendentes de envio (toque para focar)
+            </p>
+            <p className="text-[11px] text-amber-800 mb-1.5">
+              Conta colaboradores sem nota de gerente na semana. Em loja 12×36 com dois gerentes, só quem
+              está no plantão precisa enviar; «fora do plantão» não conta como fechado.
             </p>
             <div className="flex flex-wrap gap-1.5">
               {filtroLider && (
@@ -428,16 +524,16 @@ export function AvaliacoesPendentesPainel({
               )}
               {porLider.map((l) => (
                 <button
-                  key={l.nome}
+                  key={l.lider_id}
                   type="button"
-                  onClick={() => setFiltroLider((cur) => (cur === l.nome ? '' : l.nome))}
+                  onClick={() => setFiltroLider((cur) => (cur === l.lider_nome ? '' : l.lider_nome))}
                   className={`rounded-full px-2.5 py-1 text-xs font-medium border ${
-                    filtroLider === l.nome
+                    filtroLider === l.lider_nome
                       ? 'bg-amber-600 text-white border-amber-600'
                       : 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100'
                   }`}
                 >
-                  {l.nome.split(/\s+/)[0]} · {l.total}
+                  {l.lider_nome.split(/\s+/)[0]} · {l.total}
                 </button>
               ))}
             </div>
@@ -452,7 +548,11 @@ export function AvaliacoesPendentesPainel({
             <XicaraCarregando size="md" label="Carregando pendências…" />
           </div>
         ) : itensVisiveis.length === 0 ? (
-          <p className="text-sm text-green-700 text-center py-8">Nenhuma pendência neste filtro.</p>
+          <p className="text-sm text-green-700 text-center py-8">
+            {semanaSemDados
+              ? 'Selecione a semana passada (padrão) para ver pendências reais.'
+              : 'Nenhuma pendência neste filtro.'}
+          </p>
         ) : (
           <ul className="space-y-2 list-none m-0 p-0">
             {itensVisiveis.map((item) => (

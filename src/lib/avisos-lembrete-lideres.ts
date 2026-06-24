@@ -1,4 +1,5 @@
 import type { ItemPendenciaSemana, ResultadoPendenciasSemana } from '@/lib/avaliacao-pendentes-semana';
+import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana';
 
 export type LiderPendenteResumo = {
   lider_id: string;
@@ -7,24 +8,38 @@ export type LiderPendenteResumo = {
   colaboradores: Array<{ nome: string; setor: string | null; unidade: string | null }>;
 };
 
-/** Líderes com colaboradores ainda pendentes de avaliação na semana. */
+/** Líderes com colaboradores sem card de avaliação enviado na semana. */
 export function agregarLideresComPendencia(itens: ItemPendenciaSemana[]): LiderPendenteResumo[] {
-  const mapa = new Map<string, LiderPendenteResumo>();
-
+  const base = agregarLideresComPendenciaDeEnvio(itens);
+  const nomesPorId = new Map<string, string>();
   for (const item of itens) {
     for (const r of item.responsaveis_lider) {
+      nomesPorId.set(r.lider_id, r.lider_nome);
+    }
+  }
+
+  const mapa = new Map<string, LiderPendenteResumo>();
+  for (const row of base) {
+    mapa.set(row.lider_id, {
+      lider_id: row.lider_id,
+      lider_nome: row.lider_nome,
+      total: row.total,
+      colaboradores: [],
+    });
+  }
+
+  for (const item of itens) {
+    const semLider =
+      item.tipo === 'sem_lider' ||
+      item.tipo === 'sem_lider_e_rh' ||
+      item.tipo === 'critico_fora_plantao' ||
+      item.tipo === 'critico_sem_avaliacao';
+    if (!semLider) continue;
+    for (const r of item.responsaveis_lider) {
       if (r.status !== 'pendente') continue;
-      const lid = r.lider_id;
-      if (!mapa.has(lid)) {
-        mapa.set(lid, {
-          lider_id: lid,
-          lider_nome: r.lider_nome,
-          total: 0,
-          colaboradores: [],
-        });
-      }
-      const entry = mapa.get(lid)!;
-      entry.total++;
+      const entry = mapa.get(r.lider_id);
+      if (!entry) continue;
+      if (entry.colaboradores.some((c) => c.nome === item.colaborador_nome)) continue;
       entry.colaboradores.push({
         nome: item.colaborador_nome,
         setor: item.setor,

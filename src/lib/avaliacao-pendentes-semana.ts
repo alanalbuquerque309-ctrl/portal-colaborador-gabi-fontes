@@ -76,6 +76,12 @@ export type ResultadoPendenciasSemana = {
   meta: {
     eh_sexta: boolean;
     alerta_critico_sexta: boolean;
+    /** Segunda-feira da semana operacional habitual (semana passada em SP). */
+    semana_padrao: string;
+    /** Segunda selecionada ≠ semana passada (ex.: data antiga no filtro). */
+    fora_semana_operacional: boolean;
+    /** Linhas em `avaliacoes_diarias` na semana monitorada (qualquer avaliador). */
+    avaliacoes_registradas: number;
   };
   itens: ItemPendenciaSemana[];
 };
@@ -437,6 +443,56 @@ function statusResponsavel(
   return 'pendente';
 }
 
+function lideresCobrancaPorItem(
+  responsaveis: ResponsavelLider[],
+  semLider: boolean
+): ResponsavelLider[] {
+  if (!semLider) return [];
+  const ativos = responsaveis.filter((r) => r.status === 'pendente' || r.status === 'marcou_fora_plantao');
+  const pendentesGerente = ativos.filter(
+    (r) => r.status === 'pendente' && (r.papel === 'gerente_loja' || r.papel === 'avaliacao_direta')
+  );
+  if (pendentesGerente.length <= 1) {
+    return ativos.filter((r) => r.status === 'pendente');
+  }
+  const comParidade = pendentesGerente.filter((r) => r.paridade);
+  if (comParidade.length === 0) {
+    return [pendentesGerente[0]!];
+  }
+  return pendentesGerente.filter((r) => r.paridade);
+}
+
+export function agregarLideresComPendenciaDeEnvio(
+  itens: ItemPendenciaSemana[]
+): Array<{ lider_id: string; lider_nome: string; total: number }> {
+  const mapa = new Map<string, { lider_id: string; lider_nome: string; colabs: Set<string> }>();
+
+  for (const item of itens) {
+    const semLider =
+      item.tipo === 'sem_lider' ||
+      item.tipo === 'sem_lider_e_rh' ||
+      item.tipo === 'critico_fora_plantao' ||
+      item.tipo === 'critico_sem_avaliacao';
+    if (!semLider) continue;
+
+    for (const r of lideresCobrancaPorItem(item.responsaveis_lider, true)) {
+      if (r.status !== 'pendente') continue;
+      const cur = mapa.get(r.lider_id) ?? {
+        lider_id: r.lider_id,
+        lider_nome: r.lider_nome,
+        colabs: new Set<string>(),
+      };
+      cur.colabs.add(item.colaborador_id);
+      mapa.set(r.lider_id, cur);
+    }
+  }
+
+  return Array.from(mapa.values())
+    .map((e) => ({ lider_id: e.lider_id, lider_nome: e.lider_nome, total: e.colabs.size }))
+    .filter((e) => e.total > 0)
+    .sort((a, b) => b.total - a.total || a.lider_nome.localeCompare(b.lider_nome, 'pt-BR'));
+}
+
 function colaboradorSemAvaliacaoAlguma(
   semLider: boolean,
   semRhVisita: boolean,
@@ -527,6 +583,7 @@ export async function calcularPendenciasSemana(
   const filtro = opts.filtro ?? 'pendentes';
   const buscaNorm = opts.busca?.trim().toLowerCase() ?? '';
   const ehSexta = ehSextaSaoPaulo();
+  const semanaPadrao = semanaAnteriorSaoPaulo();
   const itens: ItemPendenciaSemana[] = [];
   const resumo = {
     sem_lider: 0,
@@ -634,6 +691,9 @@ export async function calcularPendenciasSemana(
     meta: {
       eh_sexta: ehSexta,
       alerta_critico_sexta: ehSexta && resumo.criticos_sem_avaliacao > 0,
+      semana_padrao: semanaPadrao,
+      fora_semana_operacional: dataRef !== semanaPadrao,
+      avaliacoes_registradas: avaliacoes.length,
     },
     itens,
   };
