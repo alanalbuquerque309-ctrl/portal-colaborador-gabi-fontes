@@ -6,9 +6,9 @@ export const GRAOS_PRIMEIRA_SEMANA_INICIO = '2026-06-15';
 
 
 
-/** Valor interno para complemento em dinheiro no caixa (1 grão = R$ 0,30).
+/** Valor interno para complemento em dinheiro no caixa (1 grão = R$ 0,20).
  *  Catálogo de resgate: preço R$ fixo em `graos_catalogo.preco_centavos`; grãos = ceil(preco / isto). */
-export const GRAOS_CENTAVOS_POR_GRAO = 30;
+export const GRAOS_CENTAVOS_POR_GRAO = 20;
 
 
 
