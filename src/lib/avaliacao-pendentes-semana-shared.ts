@@ -44,17 +44,23 @@ function lideresCobrancaPorItem(
   semLider: boolean
 ): ResponsavelLider[] {
   if (!semLider) return [];
-  const ativos = responsaveis.filter((r) => r.status === 'pendente' || r.status === 'marcou_fora_plantao');
-  const pendentesGerente = ativos.filter(
-    (r) => r.status === 'pendente' && (r.papel === 'gerente_loja' || r.papel === 'avaliacao_direta')
+  const pendentes = responsaveis.filter((r) => r.status === 'pendente');
+  const pendentesGerente = pendentes.filter(
+    (r) => r.papel === 'gerente_loja' || r.papel === 'avaliacao_direta'
   );
-  if (pendentesGerente.length <= 1) {
-    return ativos.filter((r) => r.status === 'pendente');
+
+  if (pendentesGerente.length === 0) {
+    return pendentes;
   }
-  const comParidade = pendentesGerente.filter((r) => r.paridade);
-  if (comParidade.length === 0) {
-    return [pendentesGerente[0]!];
+  if (pendentesGerente.length === 1) {
+    return pendentesGerente;
   }
+
+  const plantaoCadastrado = pendentesGerente.some((r) => r.paridade != null);
+  if (!plantaoCadastrado) {
+    return pendentesGerente;
+  }
+
   return pendentesGerente.filter((r) => r.paridade);
 }
 
