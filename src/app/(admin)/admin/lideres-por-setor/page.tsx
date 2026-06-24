@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO, SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
@@ -13,6 +13,8 @@ import {
   setoresExibicaoPorUnidade,
 } from '@/lib/lideranca-org';
 import { paridadeNoMes, rotuloParidade } from '@/lib/plantao-12x36';
+import { montarOrganogramaLideranca } from '@/lib/organograma-lideranca';
+import { OrganogramaLideranca } from '@/components/admin/OrganogramaLideranca';
 
 type Linha = {
   id: string;
@@ -36,9 +38,13 @@ type UnidadeResumo = {
 
 type Candidato = { id: string; nome: string; role: string; cargo: string | null; setor: string | null };
 
+type VisaoMapa = 'unidade' | 'rede' | 'organograma';
+
 export default function LideresPorSetorPage() {
+  const mapaRef = useRef<HTMLElement | null>(null);
   const [podeEditarMapa, setPodeEditarMapa] = useState(false);
   const [modoEditar, setModoEditar] = useState(false);
+  const [visaoMapa, setVisaoMapa] = useState<VisaoMapa>('rede');
   const [unidadeSlug, setUnidadeSlug] = useState(UNIDADES_CADASTRO[0]?.slug ?? '');
   const [unidadesResumo, setUnidadesResumo] = useState<UnidadeResumo[]>([]);
   const [todasLinhas, setTodasLinhas] = useState<Linha[]>([]);
@@ -295,9 +301,13 @@ export default function LideresPorSetorPage() {
         `Config: ${cfg.inseridos ?? 0} vínculos de setor; ${cfg.desativados_fora_mapa ?? 0} desativados fora do mapa. Colaboradores: ${vin.com_lider ?? 0} com líder(es) (${vin.processados ?? 0} processados).` +
           (nao.length ? ` Não encontrados: ${nao.join('; ')}` : '')
       );
+      setVisaoMapa('rede');
       setTabelaExiste(true);
       await carregarTodas();
       await verificarTabela();
+      requestAnimationFrame(() => {
+        mapaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
     } catch {
       setErro('Erro de conexão ao aplicar padrão.');
     } finally {
@@ -305,21 +315,46 @@ export default function LideresPorSetorPage() {
     }
   };
 
-  const lideresUnidadeToda = linhas.filter((l) => l.setor === SETOR_TODOS_NA_UNIDADE);
-  const porSetorMap = useMemo(
-    () => agruparLinhasPorSetorExibicao(linhas, unidadeSlug),
-    [linhas, unidadeSlug]
-  );
-  const setoresFormulario = useMemo(
-    () => setoresExibicaoPorUnidade(unidadeSlug),
-    [unidadeSlug]
-  );
-
   const editando = modoEditar && podeEditarMapa;
   const nomeUnidade =
     unidadeAtiva?.nome ??
     UNIDADES_CADASTRO.find((u) => u.slug === unidadeSlug)?.label ??
     unidadeSlug;
+
+  const unidadesLista = useMemo(
+    () =>
+      unidadesResumo.length > 0
+        ? unidadesResumo
+        : UNIDADES_CADASTRO.map((u) => ({
+            slug: u.slug,
+            nome: u.label,
+            unidade_id: null,
+            total_lideres: 0,
+          })),
+    [unidadesResumo]
+  );
+
+  const linhasPorSlug = useMemo(() => {
+    const map = new Map<string, Linha[]>();
+    for (const u of unidadesLista) {
+      map.set(
+        u.slug,
+        todasLinhas.filter((l) => l.unidade_slug === u.slug || (!l.unidade_slug && l.ativo))
+      );
+    }
+    return map;
+  }, [todasLinhas, unidadesLista]);
+
+  const totalVinculosAtivos = todasLinhas.length;
+
+  const organogramaRaiz = useMemo(
+    () =>
+      montarOrganogramaLideranca(
+        todasLinhas,
+        unidadesLista.map((u) => ({ slug: u.slug, nome: u.nome }))
+      ),
+    [todasLinhas, unidadesLista]
+  );
 
   const renderLinha = (l: Linha) => {
     const ehUnidadeToda = l.setor === SETOR_TODOS_NA_UNIDADE;
@@ -382,6 +417,120 @@ export default function LideresPorSetorPage() {
           </button>
         )}
       </li>
+    );
+  };
+
+  const renderMapaUnidade = (slug: string, nome: string, linhasUnidade: Linha[]) => {
+    const lideresUnidade = linhasUnidade.filter((l) => l.setor === SETOR_TODOS_NA_UNIDADE);
+    const porSetor = agruparLinhasPorSetorExibicao(linhasUnidade, slug);
+
+    return (
+      <div key={slug} className="space-y-4">
+        <div className="rounded-xl border border-dourado-300 bg-white p-4 shadow-sm">
+          <h2 className="font-display font-semibold text-lg text-coffee-base">{nome}</h2>
+          <p className="text-xs text-coffee-100 mt-0.5">
+            {linhasUnidade.length === 0
+              ? 'Nenhum líder configurado nesta unidade.'
+              : `${linhasUnidade.length} vínculo(s) ativo(s)`}
+          </p>
+          {editando && visaoMapa === 'unidade' && slug === unidadeSlug && (
+            <div className="mt-4 pt-4 border-t border-cream-200">
+              <p className="text-xs font-medium text-coffee-base mb-2">Adicionar líder ao setor</p>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label className="block text-xs text-coffee-100 mb-1">Setor</label>
+                  <select
+                    value={setorNovo}
+                    onChange={(e) => setSetorNovo(e.target.value)}
+                    className="rounded-lg border border-cream-300 px-3 py-2 text-sm"
+                  >
+                    <option value={SETOR_TODOS_NA_UNIDADE}>
+                      {rotuloGerenciaUnidade(slug)} (*)
+                    </option>
+                    {setoresExibicaoPorUnidade(slug).map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-coffee-100 mb-1">Líder</label>
+                  <select
+                    value={liderNovo}
+                    onChange={(e) => setLiderNovo(e.target.value)}
+                    className="rounded-lg border border-cream-300 px-3 py-2 text-sm min-w-[220px]"
+                  >
+                    <option value="">Selecione…</option>
+                    {candidatos.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                        {c.setor ? ` (${c.setor})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void adicionar()}
+                  disabled={salvando || !liderNovo}
+                  className="rounded-lg bg-dourado-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
+                >
+                  {salvando ? 'Salvando…' : 'Adicionar'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {lideresUnidade.length > 0 && !ehUnidadeFabrica(slug) && (
+          <section className="rounded-xl border border-dourado-300 bg-dourado-50/30 p-4 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-display font-semibold text-coffee-base">
+                {rotuloGerenciaUnidade(slug)}
+              </h3>
+              {editando && visaoMapa === 'unidade' && slug === unidadeSlug && (
+                <button
+                  type="button"
+                  onClick={() => void copiarSql042()}
+                  className="rounded-lg border border-dourado-400 text-coffee-base px-2.5 py-1 text-xs font-medium hover:bg-cream-50"
+                  title="Aplique no Supabase para guardar o plantão por função (migration 042)"
+                >
+                  {copiado042 ? 'SQL 042 copiado' : 'Copiar SQL plantão (042)'}
+                </button>
+              )}
+            </div>
+            {descricaoGerenciaUnidade(slug) && (
+              <p className="text-xs text-coffee-100 mt-1 leading-relaxed">
+                {descricaoGerenciaUnidade(slug)}
+              </p>
+            )}
+            {editando && visaoMapa === 'unidade' && slug === unidadeSlug && (
+              <p className="text-xs text-coffee-100 mt-1">
+                Plantão 12x36: marque a paridade da <strong>função</strong> (dias pares/ímpares) deste mês.
+                O sistema inverte sozinho a cada mês; ao trocar o líder, a configuração permanece.
+              </p>
+            )}
+            <ul className="mt-2 space-y-2">{lideresUnidade.map(renderLinha)}</ul>
+          </section>
+        )}
+
+        {Array.from(porSetor.entries()).map(([setor, lideres]) => {
+          if (lideres.length === 0) return null;
+          return (
+            <section
+              key={`${slug}-${setor}`}
+              className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm"
+            >
+              <h3 className="font-display font-semibold text-coffee-base">{setor}</h3>
+              {descricaoSetorAdmin(setor) && (
+                <p className="text-xs text-coffee-100 mt-1 leading-relaxed">{descricaoSetorAdmin(setor)}</p>
+              )}
+              <ul className="mt-2 space-y-2">{(lideres as Linha[]).map(renderLinha)}</ul>
+            </section>
+          );
+        })}
+      </div>
     );
   };
 
@@ -461,7 +610,17 @@ export default function LideresPorSetorPage() {
         )}
         {resultadoPadrao && (
           <p className="mt-2 text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 max-w-2xl">
-            {resultadoPadrao}
+            {resultadoPadrao}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setVisaoMapa('rede');
+                mapaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              className="underline font-medium hover:text-green-950"
+            >
+              Ver mapa completo abaixo
+            </button>
           </p>
         )}
       </div>
@@ -472,167 +631,122 @@ export default function LideresPorSetorPage() {
         </p>
       )}
 
-      <section className="mb-6">
-        <h2 className="text-sm font-medium text-coffee-base mb-3">Unidades</h2>
-        {carregando && unidadesResumo.length === 0 ? (
-          <p className="text-sm text-coffee-100">Carregando unidades…</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {(unidadesResumo.length > 0
-              ? unidadesResumo
-              : UNIDADES_CADASTRO.map((u) => ({
-                  slug: u.slug,
-                  nome: u.label,
-                  unidade_id: null,
-                  total_lideres: 0,
-                }))
-            ).map((u) => {
-              const ativa = u.slug === unidadeSlug;
-              return (
-                <button
-                  key={u.slug}
-                  type="button"
-                  onClick={() => setUnidadeSlug(u.slug)}
-                  className={`text-left rounded-xl border p-4 shadow-sm transition-colors ${
-                    ativa
-                      ? 'border-dourado-500 bg-dourado-50/40 ring-1 ring-dourado-400'
-                      : 'border-dourado-200 bg-white hover:bg-cream-50'
-                  }`}
-                >
-                  <p className="font-display font-semibold text-coffee-base">{u.nome}</p>
-                  <p className="text-xs text-coffee-100 mt-1">
-                    {u.total_lideres === 0
-                      ? 'Nenhum líder configurado'
-                      : `${u.total_lideres} vínculo(s) de liderança`}
-                  </p>
-                </button>
-              );
-            })}
+      <section ref={mapaRef} id="mapa-lideranca" className="mb-6 scroll-mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div>
+            <h2 className="text-sm font-medium text-coffee-base">Mapa e organograma</h2>
+            <p className="text-xs text-coffee-100 mt-0.5">
+              {carregando
+                ? 'Carregando…'
+                : totalVinculosAtivos > 0
+                  ? `${totalVinculosAtivos} vínculo(s) ativos na rede`
+                  : 'Ainda sem vínculos — aplique o mapa operacional acima'}
+            </p>
           </div>
+          <div className="flex rounded-lg border border-dourado-300 overflow-hidden text-sm">
+            <button
+              type="button"
+              onClick={() => setVisaoMapa('rede')}
+              className={`px-3 py-1.5 font-medium ${
+                visaoMapa === 'rede'
+                  ? 'bg-dourado-base text-cream-100'
+                  : 'bg-white text-coffee-base hover:bg-cream-50'
+              }`}
+            >
+              Rede completa
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisaoMapa('organograma')}
+              className={`px-3 py-1.5 font-medium border-l border-dourado-300 ${
+                visaoMapa === 'organograma'
+                  ? 'bg-dourado-base text-cream-100'
+                  : 'bg-white text-coffee-base hover:bg-cream-50'
+              }`}
+            >
+              Organograma
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisaoMapa('unidade')}
+              className={`px-3 py-1.5 font-medium border-l border-dourado-300 ${
+                visaoMapa === 'unidade'
+                  ? 'bg-dourado-base text-cream-100'
+                  : 'bg-white text-coffee-base hover:bg-cream-50'
+              }`}
+            >
+              Por unidade
+            </button>
+          </div>
+        </div>
+
+        {visaoMapa === 'unidade' && (
+          <>
+            <h3 className="text-xs font-medium text-coffee-100 mb-2">Selecione a filial</h3>
+            {carregando && unidadesResumo.length === 0 ? (
+              <p className="text-sm text-coffee-100">Carregando unidades…</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                {unidadesLista.map((u) => {
+                  const ativa = u.slug === unidadeSlug;
+                  return (
+                    <button
+                      key={u.slug}
+                      type="button"
+                      onClick={() => setUnidadeSlug(u.slug)}
+                      className={`text-left rounded-xl border p-4 shadow-sm transition-colors ${
+                        ativa
+                          ? 'border-dourado-500 bg-dourado-50/40 ring-1 ring-dourado-400'
+                          : 'border-dourado-200 bg-white hover:bg-cream-50'
+                      }`}
+                    >
+                      <p className="font-display font-semibold text-coffee-base">{u.nome}</p>
+                      <p className="text-xs text-coffee-100 mt-1">
+                        {u.total_lideres === 0
+                          ? 'Nenhum líder configurado'
+                          : `${u.total_lideres} vínculo(s) de liderança`}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        {editando && visaoMapa === 'unidade' && (
+          <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+            Modo edição: use «Por unidade» para trocar líderes, plantão 12x36 e adicionar vínculos.
+          </p>
+        )}
+
+        {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
+
+        {carregando ? (
+          <p className="text-coffee-100">Carregando mapa…</p>
+        ) : visaoMapa === 'organograma' ? (
+          <OrganogramaLideranca raiz={organogramaRaiz} vazio={totalVinculosAtivos === 0} />
+        ) : visaoMapa === 'rede' ? (
+          <div className="space-y-10">
+            {unidadesLista.map((u) => renderMapaUnidade(u.slug, u.nome, linhasPorSlug.get(u.slug) ?? []))}
+            {totalVinculosAtivos === 0 && (
+              <p className="text-sm text-coffee-100">
+                Nenhum vínculo ativo. Clique em «Aplicar mapa operacional e vincular todos» no topo da página.
+              </p>
+            )}
+          </div>
+        ) : (
+          <>
+            {renderMapaUnidade(unidadeSlug, nomeUnidade, linhas)}
+            {linhas.length === 0 && !carregando && (
+              <p className="text-sm text-coffee-100 mt-4">
+                Nenhum líder nesta unidade.
+                {editando ? ' Use o formulário acima para adicionar.' : ''}
+              </p>
+            )}
+          </>
         )}
       </section>
-
-      <div className="rounded-xl border border-dourado-300 bg-white p-4 shadow-sm mb-6">
-        <h2 className="font-display font-semibold text-lg text-coffee-base">{nomeUnidade}</h2>
-        <p className="text-xs text-coffee-100 mt-0.5">
-          {editando
-            ? 'Modo edição: troque o líder no select; a alteração grava e sincroniza os colaboradores.'
-            : 'Visualização do mapa desta unidade.'}
-        </p>
-
-        {editando && (
-          <div className="mt-4 pt-4 border-t border-cream-200">
-            <p className="text-xs font-medium text-coffee-base mb-2">Adicionar líder ao setor</p>
-            <div className="flex flex-wrap gap-3 items-end">
-              <div>
-                <label className="block text-xs text-coffee-100 mb-1">Setor</label>
-                <select
-                  value={setorNovo}
-                  onChange={(e) => setSetorNovo(e.target.value)}
-                  className="rounded-lg border border-cream-300 px-3 py-2 text-sm"
-                >
-                  <option value={SETOR_TODOS_NA_UNIDADE}>
-                    {rotuloGerenciaUnidade(unidadeSlug)} (*)
-                  </option>
-                  {setoresFormulario.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-coffee-100 mb-1">Líder</label>
-                <select
-                  value={liderNovo}
-                  onChange={(e) => setLiderNovo(e.target.value)}
-                  className="rounded-lg border border-cream-300 px-3 py-2 text-sm min-w-[220px]"
-                >
-                  <option value="">Selecione…</option>
-                  {candidatos.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.nome}
-                      {c.setor ? ` (${c.setor})` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                type="button"
-                onClick={() => void adicionar()}
-                disabled={salvando || !liderNovo}
-                className="rounded-lg bg-dourado-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-dourado-400 disabled:opacity-50"
-              >
-                {salvando ? 'Salvando…' : 'Adicionar'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
-
-      {carregando ? (
-        <p className="text-coffee-100">Carregando mapa…</p>
-      ) : (
-        <div className="space-y-4">
-          {lideresUnidadeToda.length > 0 && !ehUnidadeFabrica(unidadeSlug) && (
-            <section className="rounded-xl border border-dourado-300 bg-dourado-50/30 p-4 shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-display font-semibold text-coffee-base">
-                  {rotuloGerenciaUnidade(unidadeSlug)}
-                </h3>
-                {editando && (
-                  <button
-                    type="button"
-                    onClick={() => void copiarSql042()}
-                    className="rounded-lg border border-dourado-400 text-coffee-base px-2.5 py-1 text-xs font-medium hover:bg-cream-50"
-                    title="Aplique no Supabase para guardar o plantão por função (migration 042)"
-                  >
-                    {copiado042 ? 'SQL 042 copiado' : 'Copiar SQL plantão (042)'}
-                  </button>
-                )}
-              </div>
-              {descricaoGerenciaUnidade(unidadeSlug) && (
-                <p className="text-xs text-coffee-100 mt-1 leading-relaxed">
-                  {descricaoGerenciaUnidade(unidadeSlug)}
-                </p>
-              )}
-              {editando && (
-                <p className="text-xs text-coffee-100 mt-1">
-                  Plantão 12x36: marque a paridade da <strong>função</strong> (dias pares/ímpares) deste mês.
-                  O sistema inverte sozinho a cada mês; ao trocar o líder, a configuração permanece.
-                </p>
-              )}
-              <ul className="mt-2 space-y-2">{lideresUnidadeToda.map(renderLinha)}</ul>
-            </section>
-          )}
-          {Array.from(porSetorMap.entries()).map(([setor, lideres]) => (
-            <section
-              key={setor}
-              className="rounded-xl border border-dourado-200 bg-white p-4 shadow-sm"
-            >
-              <h3 className="font-display font-semibold text-coffee-base">{setor}</h3>
-              {descricaoSetorAdmin(setor) && (
-                <p className="text-xs text-coffee-100 mt-1 leading-relaxed">{descricaoSetorAdmin(setor)}</p>
-              )}
-              {lideres.length === 0 ? (
-                <p className="text-sm text-coffee-100 mt-2">Nenhum líder configurado.</p>
-              ) : (
-                <ul className="mt-2 space-y-2">
-                  {(lideres as Linha[]).map(renderLinha)}
-                </ul>
-              )}
-            </section>
-          ))}
-          {linhas.length === 0 && !carregando && (
-            <p className="text-sm text-coffee-100">
-              Nenhum líder nesta unidade.
-              {editando ? ' Use o formulário acima para adicionar.' : ''}
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
