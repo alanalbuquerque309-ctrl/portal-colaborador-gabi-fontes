@@ -53,9 +53,8 @@ function extrairLideres(linhas: LinhaOrganograma[], incluirParidade: boolean): L
 function mesmosLideres(a: LinhaOrganograma[], b: LinhaOrganograma[]): boolean {
   const sa = new Set(a.map((l) => l.lider_id).filter(Boolean));
   const sb = new Set(b.map((l) => l.lider_id).filter(Boolean));
-  if (sa.size !== sb.size) return false;
-  for (const id of sa) if (!sb.has(id)) return false;
-  return sa.size > 0;
+  if (sa.size !== sb.size || sa.size === 0) return false;
+  return Array.from(sa).every((id) => sb.has(id));
 }
 
 function montarNoUnidade(

@@ -179,16 +179,18 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
 | **UI** | `EvolucaoAdminPanel.tsx` — abas **Rede**, **Colaboradores**, **Unidades**, **Setores**, **Liderança (ILI)**; filtros unidade/setor; rankings «atual» vs «evolução» |
 | **Síntese executiva** | `EvolucaoPainelExecutivo.tsx` — unidade em evolução, top delta, link para aba liderança |
 | **Badges / sparkline** | `EvolucaoBadge.tsx`, `EvolucaoSparkline.tsx` |
-| **Libs métricas** | `src/lib/evolucao.ts` — tendência 4×4 semanas, limiar nota **±0,1**; ILI limiar **±2** pts |
+| **Libs métricas** | `src/lib/evolucao.ts` — janela **adaptativa** (`resolverJanelaEvolucao`, `rotuloComparacaoEvolucao`): com pouco histórico compara metade recente × metade anterior (ex.: 3 sem → 1×1); com 8+ semanas usa 4×4; limiar nota **±0,1**; ILI limiar **±2** pts |
 | **Agregação rede** | `evolucao-rede.ts`, `evolucao-agregacao.ts` — colaboradores, unidades, setores, resumo executivo |
 | **ILI liderança** | `evolucao-lideranca.ts` + `lider-inspirador.ts` — feedback, equipe, disciplina, engajamento |
 | **API rede** | `GET /api/admin/evolucao` — query `unidade_slug`, `setor`, `resumo=1`, `criterios=0`; acesso admin completo + RH |
 | **API ILI** | `GET /api/admin/evolucao/lideranca` |
 | **Fix produção** | `d9ef398` — removido `avaliador_role` do SELECT em `evolucao-rede.ts` (coluna **não existe** no Supabase; role vem de `colaboradores`) |
 
-**Situações (`SituacaoEvolucao`):** `evoluindo` | `estavel` | `regredindo` | `sem_historico` — rótulos e emojis em `evolucao.ts` (`rotuloSituacao`, `emojiSituacao`, `tomSituacao`).
+**Situações (`SituacaoEvolucao`):** `evoluindo` | `estavel` | `regredindo` | `sem_historico` — rótulos e emojis em `evolucao.ts` (`rotuloSituacao`, `emojiSituacao`, `tomSituacao`). Com **≥2 semanas** válidas já classifica tendência; rótulo Δ na UI deixa de ser fixo «4×4» (`rotuloComparacaoEvolucao`).
 
 **Fases entregues (A–C):** resumo rede + painel executivo; visão por colaborador/unidade/setor com sparkline e critérios; aba liderança com ILI, ranking e elegibilidade por semana.
+
+**Janela adaptativa (jun/2026, `84fa035`):** antes exigia 8 semanas (4×4) e zerava Evoluindo/Estável/Atenção com só 3 semanas de dados; `evolucao-rede.ts` e `EvolucaoAdminPanel.tsx` alinhados ao mesmo contrato.
 
 **Adiado (sem pedido explícito):** export PDF/WhatsApp, cache ILI pesado, alertas automáticos de queda (fase D).
 
@@ -208,14 +210,27 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
 
 - **Tabela:** `lideres_por_setor` (migration `032`); materialização em `colaboradores_lideres` via `sincronizarVinculosUnidadeSetor` / `sincronizarVinculosTodosColaboradores`.
 - **Plantão 12x36 (migration `042`):** colunas `plantao_paridade` (`par` | `impar`) e `plantao_paridade_mes_ref` (`YYYY-MM`); configurável por vínculo **Toda a unidade**; UI mostra paridade efetiva do mês corrente; API migration-safe (fallback se 042 ainda não aplicada). SQL copiável via `GET /api/admin/lideres-por-setor/migration-sql?arquivo=042_plantao_12x36_paridade.sql`.
-- **Exemplo operacional jun/2026:** Mesquita — Silvia dias ímpares, Joyce dias pares; Nova Iguaçu — Nathália dias pares; troca automática ao virar o mês. Colaboradores **6x1** ou **5x2** podem ter **dois líderes** na mesma semana (não forçar paridade única).
+- **Migration `059` (jun/2026):** `059_plantao_paridade_lojas_jun2026.sql` — paridade base Mesquita/Barra/Nova Iguaçu; script `npm run db:apply-059` (`scripts/aplicar-migration-059.mjs`, driver `postgres`).
+- **Exemplo operacional jun/2026:** Mesquita — Silvia dias ímpares, Joyce dias pares; Nova Iguaçu — Nathália dias pares (+ Vanessa gerente); troca automática ao virar o mês. Colaboradores **6x1** ou **5x2** podem ter **dois líderes** na mesma semana (não forçar paridade única).
 - **API:** `src/app/api/admin/lideres-por-setor/route.ts`
   - `GET ?todas=1` — todas as unidades (`UNIDADES_CADASTRO` + contagens) + linhas ativas.
   - `GET ?unidade_slug=` — detalhe de uma unidade.
   - `POST` / `PATCH` / `DELETE` — exigem `requireAdminLiderancaMapaApi`; após mutação, sync automático dos colaboradores do setor/unidade.
   - `POST .../aplicar-padrao` — mapa operacional (`config-lideranca-operacional.ts`) + sync geral + `sincronizarVinculosAvaliacaoDireta`.
-- **UI:** grid de cards por unidade; botão **Editar mapa** (canto superior) para quem tem `pode_editar_lideranca_mapa`; modo edição com select de líder (PATCH ao trocar), adicionar/remover vínculo.
+- **UI — visualização (jun/2026, `e58b836`):** secção **Mapa e organograma** com três modos:
+  - **Rede completa** (default) — todas as filiais e setores numa página;
+  - **Por unidade** — cards de filial + edição (adicionar/trocar líder, plantão 12x36);
+  - **Organograma** — árvore operacional (`organograma-lideranca.ts`, `OrganogramaLideranca.tsx`): Rede → filial → gerência → setores; setores com mesmos líderes da gerência aparecem como «mesma gerência» (evita repetir nomes). **Não** é organograma de cargos nem linha de reporte individual.
+- **UI — edição:** botão **Editar mapa** (canto superior) para quem tem `pode_editar_lideranca_mapa`; após **Aplicar mapa operacional**, scroll automático para o mapa.
 - **RH:** somente leitura (sem Editar mapa nem aplicar padrão).
+
+### Pendências da semana — admin (`/admin/avaliacoes-pendentes`)
+
+- **Rota:** menu **Avaliações → Pendências da semana**; badge no sidebar com total pendente.
+- **Semana monitorada (jun/2026, `bbd8c65`):** **sempre a semana corrente** (`segundaSemanaSaoPaulo()` em `resolverDataRefPendentes`); **sem** seletor de data na URL; substitui regra anterior que usava semana anterior (`bf14979`).
+- **Chips por líder:** `AvaliacoesPendentesPainel.tsx` + `avaliacao-pendentes-semana-shared.ts` — agregação `lideresCobrancaPorItem`; gerentes 12×36 **sem** `plantao_paridade` cadastrada creditam **todos** os gerentes da unidade (`c177052`, ex.: Vanessa em Nova Iguaçu).
+- **Libs:** `avaliacao-pendentes-semana.ts` (servidor); `avaliacao-pendentes-semana-shared.ts` (cliente + agregação, **sem** `next/headers` — evita quebrar build Vercel, `2acc122`).
+- **API:** `GET /api/admin/avaliacoes-pendentes` — filtros unidade, chip líder, tipo pendência.
 
 ### Escalas (admin + portal)
 
@@ -819,7 +834,7 @@ npm run db:apply-054                                      # preco_centavos catá
 
 - Modal deixava de listar a rede inteira por falta só de Visita RH ou por semana sem dados.
 - Filtro `pendentes`, exclusão de quem já tem líder+RH.
-- **Atualizado em `bf14979`:** semana fixa SP; removida heurística «semana com mais avaliações no banco» (ver secção **Pendências da semana — semana SP fixa**).
+- **Atualizado em `bf14979` → `bbd8c65`:** semana fixa SP; depois **semana corrente** (ver secção **Pendências da semana — semana corrente SP** e **Admin → Pendências da semana**).
 
 ### Comunicação no mobile (jun/2026, `f72c779`)
 
@@ -882,11 +897,23 @@ npm run db:apply-054                                      # preco_centavos catá
 - `DesdeUltimaVisitaHome`, `portal-resumo-desde-visita.ts`, `portal-ultima-visita.ts`, `GET /api/portal/resumo-desde-visita`.
 - Primeira evolução de **engajamento diário** (P6) entregue: novidades personalizadas sem push notification.
 
-### Pendências da semana — semana SP fixa (jun/2026, `bf14979`)
+### Pendências da semana — semana corrente SP (jun/2026, `bbd8c65`, `c177052`, `2acc122`)
 
-- **`resolverDataRefPendentes`:** remove heurística que trocava para semana corrente; usa **sempre** `semanaAnteriorSaoPaulo()`.
-- **`semanaAvaliacaoEquipePadraoISO()`** alinhada a America/Sao_Paulo (Vercel UTC não desvia mais a semana).
-- Corrige falsos «sem líder» quando líderes já avaliaram a semana passada.
+- **`resolverDataRefPendentes`:** usa **sempre** `segundaSemanaSaoPaulo()` (semana corrente, America/Sao_Paulo); ignora `data` na URL; removido seletor de semana no painel admin.
+- **Substitui** regra `bf14979` (semana anterior) — pendências passam a cobrar avaliações **desta** semana.
+- **Chips líderes:** módulo partilhado `avaliacao-pendentes-semana-shared.ts`; gerentes sem paridade 12×36 aparecem todos nos chips (Vanessa NI, etc.).
+- **Build:** lógica partilhada fora de `avaliacao-pendentes-semana.ts` para não importar `next/headers` em componentes client.
+
+### Saúde da equipe — janela adaptativa (jun/2026, `84fa035`)
+
+- `resolverJanelaEvolucao` + `rotuloComparacaoEvolucao` em `evolucao.ts`; critérios rede em `evolucao-rede.ts`.
+- Com 3 semanas de dados já mostra Evoluindo/Estável/Atenção (ex.: comparação 1 recente × 1 anterior); evita falsos «sem histórico» com média já calculada.
+
+### Liderança por setor — mapa, rede e organograma (jun/2026, `e58b836`)
+
+- `/admin/lideres-por-setor`: abas **Rede completa**, **Organograma**, **Por unidade**.
+- `src/lib/organograma-lideranca.ts`, `src/components/admin/OrganogramaLideranca.tsx` — árvore operacional (não hierarquia de cargos).
+- Script `db:apply-059` corrigido para `postgres`.
 
 ### Rankings semanal e mensal — home e mural (jun/2026, `bf14979`)
 
@@ -939,8 +966,8 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
-| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`**, **`046`**, **`047`**, **`054`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos; **054** preço R$ catálogo |
-| I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par); após migration 042 |
+| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`**, **`046`**, **`047`**, **`054`**, **`059`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos; **054** preço R$ catálogo; **059** paridade lojas jun/2026 |
+| I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par, Vanessa); após migrations **042** + **059** ou `npm run db:apply-059` |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
 
@@ -965,8 +992,9 @@ Ordem sugerida lá: hardening GitHub/Vercel/Supabase → rate limit + anti-enume
 ## Ficheiros-chave (referência rápida)
 
 ```text
-src/app/(admin)/admin/layout.tsx, lideres-por-setor/page.tsx, escalas/page.tsx
-src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts
+src/app/(admin)/admin/layout.tsx, lideres-por-setor/page.tsx, avaliacoes-pendentes/, escalas/page.tsx
+src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts, organograma-lideranca.ts
+src/components/admin/OrganogramaLideranca.tsx, AvaliacoesPendentesPainel.tsx
 src/lib/escala-portal.ts, escala-calendario.ts, aplicar-escalas-junho-2026.ts, mural-unidade-grupo.ts, manual-por-setor.ts
 src/app/api/admin/escalas/aplicar-junho-2026/
 src/components/layout/PortalLayout.tsx, Header.tsx
@@ -999,7 +1027,7 @@ src/app/(admin)/admin/avaliacao-entre-pares/page.tsx
 src/components/portal/DesdeUltimaVisitaHome.tsx
 src/lib/portal-resumo-desde-visita.ts, portal-ultima-visita.ts
 src/app/api/portal/resumo-desde-visita/
-src/lib/avaliacao-pendentes-semana.ts, plantao-12x36.ts
+src/lib/avaliacao-pendentes-semana.ts, avaliacao-pendentes-semana-shared.ts, plantao-12x36.ts
 src/lib/auditoria-lideranca-viewer.ts, avaliacoes-relatorio-access.ts, avaliacoes-lideranca-relatorio.ts
 src/components/admin/AvaliacoesPendentesModal.tsx
 src/components/portal/PortalPwaRefresh.tsx
@@ -1033,7 +1061,7 @@ src/app/api/admin/auth/, lideres-por-setor/, escalas/, colaboradores-para-escala
 src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
-supabase/migrations/041_aniversario_dia_acao.sql, 042_plantao_12x36_paridade.sql
+supabase/migrations/041_aniversario_dia_acao.sql, 042_plantao_12x36_paridade.sql, 059_plantao_paridade_lojas_jun2026.sql
 supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql, 046_sugestoes_tipo_elogio.sql, 047_sugestao_resposta_graos.sql, 054_graos_catalogo_preco_centavos.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
 scripts/backfill-graos-semanas.mjs, aplicar-graos-044.mjs
