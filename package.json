@@ -25,6 +25,7 @@
     "db:apply-055": "node scripts/aplicar-migration-055.mjs",
     "db:apply-056": "node scripts/aplicar-migration-056.mjs",
     "db:apply-057": "node scripts/aplicar-migration-057.mjs",
+    "lideranca:aplicar": "npx tsx scripts/aplicar-lideranca-operacional.ts",
     "db:ignorar-avaliacoes-vinculo": "node scripts/ignorar-avaliacoes-vinculo-incorreto.mjs --confirmar",
     "db:apply-migrations-avaliacao": "node scripts/aplicar-migrations-038-039.mjs",
     "db:avaliacao-direta": "node scripts/aplicar-vinculos-avaliacao-direta.mjs",

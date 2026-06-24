@@ -26,11 +26,11 @@ const LIDERES_MESQUITA = ['Joyce', 'Silvia'];
 const LIDERES_BARRA = ['Lucas Diniz', 'Matheus Morais'];
 const LIDERES_NOVA_IGUACU = [
   'Vanessa',
+  'Vanessa Barbosa',
+  'Vanessa Barbosa da Silva',
   'Nathalia Pereira Luna',
   'Nathalia',
   'Nathália',
-  'Cristina Batista',
-  'Cristina',
 ];
 const LIDERES_DOCES = ['Sabrina', 'Henrique', 'Luís Henrique', 'Luis Henrique'];
 const LIDERES_DANIEL = [
