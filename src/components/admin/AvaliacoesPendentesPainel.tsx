@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
-import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana';
-import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana';
+import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana-shared';
+import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana-shared';
 import {
   formatarIntervaloSemanaPtBR,
   semanaAvaliacaoEquipePadraoISO,

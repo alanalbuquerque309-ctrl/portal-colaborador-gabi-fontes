@@ -1,5 +1,5 @@
 import type { ItemPendenciaSemana, ResultadoPendenciasSemana } from '@/lib/avaliacao-pendentes-semana';
-import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana';
+import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana-shared';
 
 export type LiderPendenteResumo = {
   lider_id: string;
