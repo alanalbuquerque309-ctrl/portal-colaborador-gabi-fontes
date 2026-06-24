@@ -43,6 +43,34 @@ export function classificarTendencia(delta: number | null, limiar = EVOLUCAO_LIM
   return 'estavel';
 }
 
+/** Resolve janela de comparação: com pouco histórico usa metade recente × metade anterior (mín. 2 semanas). */
+export function resolverJanelaEvolucao(
+  semanasValidas: number,
+  janelaPadrao = EVOLUCAO_SEMANAS_JANELA,
+  minPorJanelaPadrao = EVOLUCAO_MIN_SEMANAS_POR_JANELA
+): { janela: number; minPorJanela: number; podeComparar: boolean } {
+  if (semanasValidas < 2) {
+    return { janela: 0, minPorJanela: minPorJanelaPadrao, podeComparar: false };
+  }
+
+  const totalIdeal = janelaPadrao * 2;
+  if (semanasValidas >= totalIdeal) {
+    return { janela: janelaPadrao, minPorJanela: minPorJanelaPadrao, podeComparar: true };
+  }
+
+  const janela = Math.max(1, Math.floor(semanasValidas / 2));
+  return { janela, minPorJanela: 1, podeComparar: true };
+}
+
+export function rotuloComparacaoEvolucao(semanasValidas: number): string {
+  const { janela, podeComparar } = resolverJanelaEvolucao(semanasValidas);
+  if (!podeComparar) return 'sem base comparável';
+  if (semanasValidas >= EVOLUCAO_SEMANAS_JANELA * 2) {
+    return `${janela}×${janela} semanas`;
+  }
+  return `${janela} recente × ${janela} anterior`;
+}
+
 export function rotuloSituacao(s: SituacaoEvolucao): string {
   switch (s) {
     case 'evoluindo':
@@ -98,13 +126,13 @@ export function formatarIli(n: number | null | undefined): string {
   return n.toFixed(1).replace('.', ',');
 }
 
-/** Janelas: últimas N semanas vs N anteriores (mínimo de semanas válidas por janela). */
+/** Janelas: últimas N semanas vs N anteriores; com histórico curto, N adapta (ex.: 3 sem → 1×1). */
 export function calcularMetricasEvolucao(
   semanas: SemanaMedia[],
   opts?: { janela?: number; minPorJanela?: number; historicoMax?: number; limiar?: number }
 ): MetricasEvolucao {
-  const janela = opts?.janela ?? EVOLUCAO_SEMANAS_JANELA;
-  const minPorJanela = opts?.minPorJanela ?? EVOLUCAO_MIN_SEMANAS_POR_JANELA;
+  const janelaPadrao = opts?.janela ?? EVOLUCAO_SEMANAS_JANELA;
+  const minPorJanelaPadrao = opts?.minPorJanela ?? EVOLUCAO_MIN_SEMANAS_POR_JANELA;
   const historicoMax = opts?.historicoMax ?? EVOLUCAO_HISTORICO_MAX;
   const limiar = opts?.limiar ?? EVOLUCAO_LIMIAR;
 
@@ -116,11 +144,17 @@ export function calcularMetricasEvolucao(
   const semanasValidas = ordenadas.length;
   const nota_atual = ordenadas.length > 0 ? ordenadas[ordenadas.length - 1]!.media : null;
 
-  if (semanasValidas < minPorJanela * 2) {
+  const { janela, minPorJanela, podeComparar } = resolverJanelaEvolucao(
+    semanasValidas,
+    janelaPadrao,
+    minPorJanelaPadrao
+  );
+
+  if (!podeComparar) {
     const mediaRecente =
-      ordenadas.length >= minPorJanela
-        ? mediaLista(ordenadas.slice(-Math.min(janela, ordenadas.length)).map((s) => s.media))
-        : mediaLista(ordenadas.map((s) => s.media));
+      ordenadas.length > 0
+        ? mediaLista(ordenadas.slice(-Math.min(janelaPadrao, ordenadas.length)).map((s) => s.media))
+        : null;
 
     return {
       situacao: 'sem_historico',

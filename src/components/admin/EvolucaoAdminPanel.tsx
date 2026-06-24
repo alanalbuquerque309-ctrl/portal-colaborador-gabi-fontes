@@ -16,6 +16,7 @@ import {
   formatarDelta,
   formatarIli,
   formatarNota,
+  rotuloComparacaoEvolucao,
   rotuloSituacao,
   tomSituacao,
   type SituacaoEvolucao,
@@ -167,7 +168,7 @@ function CardSetor({ s }: { s: SetorEvolucao }) {
           <p className="text-2xl font-display font-semibold tabular-nums">{formatarNota(s.media_atual)}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-cafeteria-500">Variação 4×4</p>
+          <p className="text-[10px] uppercase tracking-wide text-cafeteria-500">Variação</p>
           <p className="text-2xl font-display font-semibold tabular-nums">{formatarDelta(s.delta)}</p>
         </div>
       </div>
@@ -204,7 +205,7 @@ function CardUnidade({ u }: { u: UnidadeEvolucao }) {
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-cafeteria-500">Variação 4×4</p>
+          <p className="text-[10px] uppercase tracking-wide text-cafeteria-500">Variação</p>
           <p className="text-2xl font-display font-semibold tabular-nums text-coffee-base">
             {formatarDelta(u.delta)}
           </p>
@@ -317,7 +318,7 @@ function LinhaColaborador({
             <EvolucaoSparkline pontos={c.historico} altura={48} className="max-w-full" />
           </div>
           <p className="text-xs text-cafeteria-500 mt-3">
-            Tendência: média das últimas 4 semanas vs. 4 anteriores (±0,1). {rotuloSituacao(c.situacao)}.
+            Tendência: compara semanas recentes vs anteriores (±0,1). Com pouco histórico usa janela menor; a partir de 8 semanas, 4×4. {rotuloSituacao(c.situacao)}.
           </p>
         </div>
       )}
@@ -416,6 +417,14 @@ export function EvolucaoAdminPanel() {
   );
 
   const resumo = payload?.resumo;
+
+  const maxSemanasHistorico = useMemo(() => {
+    const cols = payload?.colaboradores ?? [];
+    if (cols.length === 0) return 0;
+    return Math.max(...cols.map((c) => c.semanas_validas));
+  }, [payload]);
+
+  const rotuloJanela = rotuloComparacaoEvolucao(maxSemanasHistorico);
 
   const tabs: { id: Aba; label: string }[] = [
     { id: 'rede', label: 'Visão rede' },
@@ -580,7 +589,7 @@ export function EvolucaoAdminPanel() {
             emoji="📊"
             label="Média da rede"
             valor={formatarNota(resumo.media_rede)}
-            sub={`Δ ${formatarDelta(resumo.delta_rede)} (4×4 semanas)`}
+            sub={`Δ ${formatarDelta(resumo.delta_rede)} (${rotuloJanela})`}
             tom={tomSituacao(resumo.situacao_rede)}
           />
           <AdminStatCard emoji="🟢" label="Evoluindo" valor={resumo.evoluindo} sub="Tendência positiva" tom="verde" />

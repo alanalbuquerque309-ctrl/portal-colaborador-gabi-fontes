@@ -16,6 +16,7 @@ import {
 import {
   calcularMetricasEvolucao,
   compararCriteriosEvolucao,
+  resolverJanelaEvolucao,
   type CriterioKey,
   type MetricasEvolucao,
   type SemanaMedia,
@@ -345,8 +346,9 @@ export async function montarPayloadEvolucaoRede(
 
     let melhor_criterio: string | null = null;
     let pior_criterio: string | null = null;
-    if (opts?.incluir_criterios !== false && semanas.length >= EVOLUCAO_SEMANAS_JANELA) {
-      const { recentes, anteriores } = criterioValoresPorJanela(raw, ctx, meta.id, EVOLUCAO_SEMANAS_JANELA);
+    if (opts?.incluir_criterios !== false && semanas.length >= 2) {
+      const { janela } = resolverJanelaEvolucao(semanas.length, EVOLUCAO_SEMANAS_JANELA);
+      const { recentes, anteriores } = criterioValoresPorJanela(raw, ctx, meta.id, janela);
       const cmp = compararCriteriosEvolucao(recentes, anteriores);
       melhor_criterio = labelCriterio(cmp.melhor);
       pior_criterio = labelCriterio(cmp.pior);
