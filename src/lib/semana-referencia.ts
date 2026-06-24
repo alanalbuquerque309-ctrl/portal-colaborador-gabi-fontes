@@ -79,7 +79,11 @@ export function semanaAvaliacaoEquipePadraoISO(): string {
   return semanaAnteriorSaoPaulo();
 }
 
-/** Segunda-feira da semana que contém `dataIso`, alinhada a America/Sao_Paulo. */
+/** Segunda-feira da semana corrente em SP (pendências admin/rede). */
+export function semanaPendenciasAtualISO(): string {
+  return segundaSemanaSaoPaulo();
+}
+
 export function inicioSemanaSegundaFeiraSaoPaulo(dataIso: string): string {
   const d = parseDataLocalISO(dataIso);
   if (Number.isNaN(d.getTime())) return dataIso;

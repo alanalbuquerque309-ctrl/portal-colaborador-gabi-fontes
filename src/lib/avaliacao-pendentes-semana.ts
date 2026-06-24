@@ -19,11 +19,10 @@ import {
 } from '@/lib/plantao-12x36';
 import {
   formatarIntervaloSemanaPtBR,
-  inicioSemanaSegundaFeiraSaoPaulo,
   isDateIsoAvaliacao,
 } from '@/lib/semana-referencia';
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
-import { ehSextaSaoPaulo, semanaAnteriorSaoPaulo } from '@/lib/semana-brasil';
+import { ehSextaSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
 import type {
   FiltroPendenciasSemana,
@@ -59,10 +58,8 @@ export type ResultadoPendenciasSemana = {
   meta: {
     eh_sexta: boolean;
     alerta_critico_sexta: boolean;
-    /** Segunda-feira da semana operacional habitual (semana passada em SP). */
-    semana_padrao: string;
-    /** Segunda selecionada ≠ semana passada (ex.: data antiga no filtro). */
-    fora_semana_operacional: boolean;
+    /** Segunda-feira da semana corrente monitorada (SP). */
+    semana_atual: string;
     /** Linhas em `avaliacoes_diarias` na semana monitorada (qualquer avaliador). */
     avaliacoes_registradas: number;
   };
@@ -437,15 +434,12 @@ function colaboradorSemAvaliacaoAlguma(
   return elegivelRh ? semRhVisita : true;
 }
 
+/** Semana monitorada nas pendências: sempre a semana corrente (America/Sao_Paulo). */
 export async function resolverDataRefPendentes(
   _supabase: SupabaseAdmin,
-  dataIso?: string
+  _dataIso?: string
 ): Promise<string> {
-  const informada = dataIso?.trim();
-  if (informada && isDateIsoAvaliacao(informada)) {
-    return inicioSemanaSegundaFeiraSaoPaulo(informada);
-  }
-  return semanaAnteriorSaoPaulo();
+  return segundaSemanaSaoPaulo();
 }
 
 export async function calcularPendenciasSemana(
@@ -506,7 +500,7 @@ export async function calcularPendenciasSemana(
   const filtro = opts.filtro ?? 'pendentes';
   const buscaNorm = opts.busca?.trim().toLowerCase() ?? '';
   const ehSexta = ehSextaSaoPaulo();
-  const semanaPadrao = semanaAnteriorSaoPaulo();
+  const semanaAtual = segundaSemanaSaoPaulo();
   const itens: ItemPendenciaSemana[] = [];
   const resumo = {
     sem_lider: 0,
@@ -614,8 +608,7 @@ export async function calcularPendenciasSemana(
     meta: {
       eh_sexta: ehSexta,
       alerta_critico_sexta: ehSexta && resumo.criticos_sem_avaliacao > 0,
-      semana_padrao: semanaPadrao,
-      fora_semana_operacional: dataRef !== semanaPadrao,
+      semana_atual: semanaAtual,
       avaliacoes_registradas: avaliacoes.length,
     },
     itens,

@@ -1,14 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana-shared';
 import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana-shared';
-import {
-  formatarIntervaloSemanaPtBR,
-  semanaAvaliacaoEquipePadraoISO,
-} from '@/lib/semana-referencia';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 type Props = {
@@ -55,15 +51,13 @@ export function AvaliacoesPendentesPainel({
   compacto = false,
   filtroInicial,
 }: Props) {
-  const semanaPadraoInicial = semanaAvaliacaoEquipePadraoISO();
-  const [dataRef, setDataRef] = useState(semanaPadraoInicial);
-  const dataRefEscolhidaPeloUsuario = useRef(false);
+  const [dataRef, setDataRef] = useState('');
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [filtro, setFiltro] = useState<FiltroPendenciasSemana>(filtroInicial ?? 'pendentes');
   const [busca, setBusca] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [intervalo, setIntervalo] = useState(formatarIntervaloSemanaPtBR(semanaPadraoInicial));
+  const [intervalo, setIntervalo] = useState('');
   const [atualizadoEm, setAtualizadoEm] = useState('');
   const [resumo, setResumo] = useState({
     sem_lider: 0,
@@ -75,8 +69,6 @@ export function AvaliacoesPendentesPainel({
   const [meta, setMeta] = useState({
     eh_sexta: false,
     alerta_critico_sexta: false,
-    semana_padrao: semanaPadraoInicial,
-    fora_semana_operacional: false,
     avaliacoes_registradas: 0,
   });
   const [itens, setItens] = useState<ItemPendenciaSemana[]>([]);
@@ -114,16 +106,6 @@ export function AvaliacoesPendentesPainel({
     return ids.size;
   }, [itens]);
 
-  const semanaSemDados =
-    meta.avaliacoes_registradas === 0 && (meta.fora_semana_operacional || colaboradoresUnicosSemGerente > 0);
-
-  const usarSemanaPadrao = () => {
-    const padrao = semanaAvaliacaoEquipePadraoISO();
-    dataRefEscolhidaPeloUsuario.current = false;
-    setDataRef(padrao);
-    setIntervalo(formatarIntervaloSemanaPtBR(padrao));
-  };
-
   const itensVisiveis = useMemo(() => {
     if (!filtroLider) return itens;
     return itens.filter((item) =>
@@ -138,7 +120,6 @@ export function AvaliacoesPendentesPainel({
     setErro(null);
     try {
       const q = new URLSearchParams({ filtro, _: String(Date.now()) });
-      if (dataRef) q.set('data', dataRef);
       if (unidadeSlug) q.set('unidade_slug', unidadeSlug);
       if (busca.trim()) q.set('q', busca.trim());
       const res = await fetch(`${apiBase}?${q}`, { credentials: 'include', cache: 'no-store' });
@@ -149,9 +130,7 @@ export function AvaliacoesPendentesPainel({
         return;
       }
       setIntervalo(String(data.intervalo ?? ''));
-      if (data.data_referencia && !dataRefEscolhidaPeloUsuario.current) {
-        setDataRef(String(data.data_referencia));
-      }
+      if (data.data_referencia) setDataRef(String(data.data_referencia));
       setResumo(
         data.resumo ?? {
           sem_lider: 0,
@@ -164,8 +143,6 @@ export function AvaliacoesPendentesPainel({
       setMeta({
         eh_sexta: data.meta?.eh_sexta === true,
         alerta_critico_sexta: data.meta?.alerta_critico_sexta === true,
-        semana_padrao: String(data.meta?.semana_padrao ?? semanaAvaliacaoEquipePadraoISO()),
-        fora_semana_operacional: data.meta?.fora_semana_operacional === true,
         avaliacoes_registradas: Number(data.meta?.avaliacoes_registradas ?? 0),
       });
       setItens(Array.isArray(data.itens) ? data.itens : []);
@@ -178,15 +155,13 @@ export function AvaliacoesPendentesPainel({
     } finally {
       setCarregando(false);
     }
-  }, [apiBase, busca, dataRef, filtro, unidadeSlug]);
+  }, [apiBase, busca, filtro, unidadeSlug]);
 
   const abrirPreviewAviso = async () => {
     setErroAviso(null);
     setGerandoAviso(true);
     try {
-      const q = new URLSearchParams();
-      if (dataRef) q.set('data', dataRef);
-      const res = await fetch(`/api/admin/avisos/lembrete-lideres?${q}`, { credentials: 'include' });
+      const res = await fetch('/api/admin/avisos/lembrete-lideres', { credentials: 'include' });
       const data = await res.json();
       if (!data.ok) {
         setErroAviso(data.erro || 'Erro ao preparar aviso.');
@@ -212,7 +187,6 @@ export function AvaliacoesPendentesPainel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           confirmar: true,
-          data: dataRef || undefined,
           titulo: previewAviso.titulo,
           conteudo: previewAviso.conteudo,
           exige_confirmacao: exigeConfirmacaoAviso,
@@ -264,7 +238,7 @@ export function AvaliacoesPendentesPainel({
 
   const handleMarcarFerias = async (id: string, nome: string) => {
     if (!dataRef) {
-      alert('Aguarde o carregamento da semana ou selecione a segunda-feira de referência.');
+      alert('Aguarde o carregamento da semana.');
       return;
     }
     if (
@@ -324,7 +298,7 @@ export function AvaliacoesPendentesPainel({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             {!compacto && (
-              <h2 className="text-lg font-display font-semibold text-coffee-base">Pendentes da semana</h2>
+              <h2 className="text-lg font-display font-semibold text-coffee-base">Semana corrente</h2>
             )}
             {intervalo && <p className="text-sm text-coffee-100 mt-0.5">{intervalo}</p>}
             {autoRefresh && atualizadoEm && (
@@ -364,37 +338,6 @@ export function AvaliacoesPendentesPainel({
           </div>
         )}
 
-        {(meta.fora_semana_operacional || semanaSemDados) && (
-          <div className="rounded-lg border border-orange-300 bg-orange-50 px-3 py-2.5 text-sm text-orange-950">
-            <p className="font-semibold">
-              {meta.fora_semana_operacional
-                ? 'Semana fora do padrão operacional'
-                : 'Nenhuma avaliação salva nesta semana'}
-            </p>
-            <p className="mt-1 text-orange-900">
-              {meta.fora_semana_operacional ? (
-                <>
-                  Você está vendo <strong>{intervalo || dataRef}</strong>, não a semana passada (
-                  {formatarIntervaloSemanaPtBR(meta.semana_padrao)}). Números altos e iguais (ex.: 58 em
-                  tudo) costumam ser data antiga sem avaliações no banco.
-                </>
-              ) : (
-                <>
-                  Zero registros em avaliações para esta segunda-feira. Confira se a data está correta antes
-                  de cobrar líderes.
-                </>
-              )}
-            </p>
-            <button
-              type="button"
-              onClick={usarSemanaPadrao}
-              className="mt-2 rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-700"
-            >
-              Usar semana passada (padrão)
-            </button>
-          </div>
-        )}
-
         {erroAviso && !modalAviso && <p className="text-sm text-red-600">{erroAviso}</p>}
 
         <div className="flex flex-wrap gap-2 text-xs">
@@ -430,7 +373,7 @@ export function AvaliacoesPendentesPainel({
               {resumo.criticos_sem_avaliacao} crítico{meta.eh_sexta ? ' · sexta' : ''}
             </span>
           )}
-          {!semanaSemDados && meta.avaliacoes_registradas > 0 && (
+          {meta.avaliacoes_registradas > 0 && (
             <span className="rounded-full bg-green-50 text-green-800 px-2.5 py-1">
               {meta.avaliacoes_registradas} avaliações salvas na semana
             </span>
@@ -438,29 +381,6 @@ export function AvaliacoesPendentesPainel({
         </div>
 
         <div className="flex flex-wrap gap-2 items-end">
-          <div>
-            <label className="block text-[10px] font-medium text-coffee-base mb-0.5">Semana (segunda)</label>
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <input
-                type="date"
-                value={dataRef}
-                onChange={(e) => {
-                  dataRefEscolhidaPeloUsuario.current = true;
-                  setDataRef(e.target.value);
-                }}
-                className="rounded-lg border border-cream-300 px-2 py-1.5 text-sm"
-              />
-              {dataRef !== meta.semana_padrao && (
-                <button
-                  type="button"
-                  onClick={usarSemanaPadrao}
-                  className="rounded-lg border border-dourado-base px-2 py-1.5 text-xs font-medium text-coffee-base hover:bg-dourado-50"
-                >
-                  Semana passada
-                </button>
-              )}
-            </div>
-          </div>
           <div>
             <label className="block text-[10px] font-medium text-coffee-base mb-0.5">Unidade</label>
             <select
@@ -503,13 +423,13 @@ export function AvaliacoesPendentesPainel({
           ))}
         </div>
 
-        {porLider.length > 0 && !semanaSemDados && (
+        {porLider.length > 0 && (
           <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
             <p className="text-xs font-semibold text-amber-900 mb-0.5">
               Líderes com cards pendentes de envio (toque para focar)
             </p>
             <p className="text-[11px] text-amber-800 mb-1.5">
-              Conta colaboradores sem nota de gerente na semana. Em loja 12×36 com dois gerentes, só quem
+              Conta colaboradores sem nota de gerente nesta semana. Em loja 12×36 com dois gerentes, só quem
               está no plantão precisa enviar; «fora do plantão» não conta como fechado.
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -548,11 +468,7 @@ export function AvaliacoesPendentesPainel({
             <XicaraCarregando size="md" label="Carregando pendências…" />
           </div>
         ) : itensVisiveis.length === 0 ? (
-          <p className="text-sm text-green-700 text-center py-8">
-            {semanaSemDados
-              ? 'Selecione a semana passada (padrão) para ver pendências reais.'
-              : 'Nenhuma pendência neste filtro.'}
-          </p>
+          <p className="text-sm text-green-700 text-center py-8">Nenhuma pendência nesta semana.</p>
         ) : (
           <ul className="space-y-2 list-none m-0 p-0">
             {itensVisiveis.map((item) => (
@@ -675,9 +591,10 @@ export function AvaliacoesPendentesPainel({
       )}
 
       <p className="text-[10px] text-coffee-100">
-        Responsável pelo mapa de liderança atual (admin → Liderança por setor).{' '}
-        <strong className="font-medium">Férias</strong> registra a semana sem nota e remove da lista. Erro de cadastro:{' '}
-        <strong className="font-medium">Editar perfil</strong>; quem saiu da empresa:{' '}
+        Sempre a semana corrente (segunda a domingo). Responsável pelo mapa de liderança: admin → Liderança por
+        setor.{' '}
+        <strong className="font-medium">Férias</strong> registra a semana sem nota e remove da lista. Erro de
+        cadastro: <strong className="font-medium">Editar perfil</strong>; quem saiu da empresa:{' '}
         <strong className="font-medium">Excluir perfil</strong> (só sócios e administrador).
         {autoRefresh
           ? ` Lista atualiza sozinha a cada ${Math.round(intervaloMs / 1000)}s quando você está nesta página.`
