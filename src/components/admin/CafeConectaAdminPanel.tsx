@@ -273,6 +273,16 @@ export function CafeConectaAdminPanel() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <AdminStatCard label="Colaboradores (base)" valor={data.elegibilidade.total_base} tom="neutro" />
         <AdminStatCard label="Elegíveis hoje" valor={data.elegibilidade.elegiveis} tom="verde" />
+        <AdminStatCard
+          label="Pool sorteio"
+          valor={data.elegibilidade.pool_sorteio ?? data.elegibilidade.elegiveis}
+          sub={
+            data.elegibilidade.elegiveis < 2 && (data.elegibilidade.pool_sorteio ?? 0) > data.elegibilidade.elegiveis
+              ? 'inclui sem login'
+              : 'disponíveis agora'
+          }
+          tom="neutro"
+        />
         <AdminStatCard label="Sem acesso portal" valor={data.elegibilidade.sem_acesso} tom="ambar" />
         <AdminStatCard
           label={`Ciclo ${data.ciclo?.numero ?? 1}`}
@@ -309,7 +319,7 @@ export function CafeConectaAdminPanel() {
 
       <AdminSection
         title="Elegíveis"
-        description="Quem pode ser sorteado nesta semana — entrou no portal (Grãos login_semana), sem férias, folga na quarta ou afastamento."
+        description="Com login no portal (Grãos) nesta semana. Se forem menos de 2, o sorteio admin inclui quem está ativo mas ainda não entrou (exceto férias, folga na quarta e afastados)."
       >
         <AdminTable>
           <AdminTableHead>

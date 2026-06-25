@@ -111,6 +111,8 @@ export type CafeConectaDashboardPayload = {
     afastados: number;
     folga: number;
     sem_acesso: number;
+    /** Disponíveis no sorteio admin (pode incluir quem não entrou no portal). */
+    pool_sorteio: number;
     lista: CafeConectaElegibilidadeLinha[];
   };
   sorteio_atual: CafeConectaSorteioRow | null;

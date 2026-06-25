@@ -53,6 +53,40 @@ function randomSeed(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+function melhorDuplaEntre(
+  trabalho: CandidatoSorteio[],
+  paresHistorico: Set<string>,
+  permitirRepeticaoCiclo: boolean,
+  seed: string
+): ResultadoSorteioCafeConecta | null {
+  if (trabalho.length < 2) return null;
+
+  const jitter = seed.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 97;
+  let melhor: ResultadoSorteioCafeConecta | null = null;
+
+  for (let i = 0; i < trabalho.length; i++) {
+    for (let j = i + 1; j < trabalho.length; j++) {
+      const a = trabalho[i];
+      const b = trabalho[j];
+      let score = scoreDupla(a, b, paresHistorico, permitirRepeticaoCiclo);
+      if (!Number.isFinite(score)) continue;
+      score += (i + j + jitter) % 13;
+      if (!melhor || score > melhor.score) {
+        melhor = {
+          a,
+          b,
+          score,
+          excecao_ciclo_impar: false,
+          mesma_area: a.area === b.area,
+          seed,
+        };
+      }
+    }
+  }
+
+  return melhor;
+}
+
 /** Escolhe a melhor dupla entre candidatos elegíveis. */
 export function sortearDuplaCafeConecta(opts: {
   candidatos: CandidatoSorteio[];
@@ -63,45 +97,35 @@ export function sortearDuplaCafeConecta(opts: {
   const pool = opts.candidatos.filter((c) => c.id);
   if (pool.length < 2) return null;
 
+  const seed = opts.seed ?? randomSeed();
   const nuncaNoCiclo = pool.filter((c) => opts.idsNuncaNoCiclo.has(c.id));
-  let permitirRepeticao = false;
-  let trabalho = pool;
+
+  const tentativas: { trabalho: CandidatoSorteio[]; permitirRepeticao: boolean; excecaoImpar: boolean }[] = [];
 
   if (nuncaNoCiclo.length >= 2) {
-    trabalho = nuncaNoCiclo;
-  } else if (nuncaNoCiclo.length === 1) {
-    permitirRepeticao = true;
-    trabalho = pool;
-  } else {
-    permitirRepeticao = true;
-    trabalho = pool;
+    tentativas.push({ trabalho: nuncaNoCiclo, permitirRepeticao: false, excecaoImpar: false });
   }
+  tentativas.push({
+    trabalho: pool,
+    permitirRepeticao: true,
+    excecaoImpar: nuncaNoCiclo.length === 1,
+  });
 
-  const seed = opts.seed ?? randomSeed();
-  let melhor: ResultadoSorteioCafeConecta | null = null;
-  const jitter = seed.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 97;
-
-  for (let i = 0; i < trabalho.length; i++) {
-    for (let j = i + 1; j < trabalho.length; j++) {
-      const a = trabalho[i];
-      const b = trabalho[j];
-      let score = scoreDupla(a, b, opts.paresHistorico, permitirRepeticao);
-      if (!Number.isFinite(score)) continue;
-      score += (i + j + jitter) % 13;
-      if (!melhor || score > melhor.score) {
-        melhor = {
-          a,
-          b,
-          score,
-          excecao_ciclo_impar: nuncaNoCiclo.length === 1 && permitirRepeticao,
-          mesma_area: a.area === b.area,
-          seed,
-        };
-      }
+  for (const t of tentativas) {
+    const melhor = melhorDuplaEntre(t.trabalho, opts.paresHistorico, t.permitirRepeticao, seed);
+    if (melhor) {
+      return { ...melhor, excecao_ciclo_impar: t.excecaoImpar };
     }
   }
 
-  return melhor;
+  return {
+    a: pool[0],
+    b: pool[1],
+    score: 0,
+    excecao_ciclo_impar: nuncaNoCiclo.length === 1,
+    mesma_area: pool[0].area === pool[1].area,
+    seed,
+  };
 }
 
 export function prepararCandidatosSorteio(

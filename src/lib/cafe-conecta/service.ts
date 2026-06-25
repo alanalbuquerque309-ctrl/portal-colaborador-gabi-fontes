@@ -10,6 +10,10 @@ import {
 } from '@/lib/cafe-conecta/elegibilidade';
 import { deveExibirAlertaCafeConectaQuinta, quartaReferenciaSemanaSaoPaulo } from '@/lib/cafe-conecta/quarta';
 import { chaveDupla, prepararCandidatosSorteio, sortearDuplaCafeConecta } from '@/lib/cafe-conecta/sorteio';
+import {
+  mensagemErroPoolSorteioAdmin,
+  poolSorteioAdminCafeConecta,
+} from '@/lib/cafe-conecta/sorteio-pool';
 import type {
   CafeConectaCicloResumo,
   CafeConectaDashboardPayload,
@@ -288,6 +292,7 @@ export async function montarDashboardCafeConecta(
     const base = await listarBaseOperacionalGrupo(supabase, grupo);
     const lista = await avaliarElegibilidadeSemanaCafeConecta(supabase, base, semanaInicio, dataReferencia);
     const contagem = contagemMotivosElegibilidade(lista);
+    const poolSorteio = poolSorteioAdminCafeConecta(lista);
 
     const ciclo = grupo.sorteio_liberado ? await obterOuCriarCicloAtivo(supabase, grupo.slug) : null;
     const cicloResumo = ciclo
@@ -326,6 +331,7 @@ export async function montarDashboardCafeConecta(
       elegibilidade: {
         total_base: base.length,
         ...contagem,
+        pool_sorteio: poolSorteio.pool.length,
         lista,
       },
       sorteio_atual: sorteioAtual,
@@ -378,30 +384,52 @@ export async function realizarSorteioCafeConecta(
 
   const base = await listarBaseOperacionalGrupo(supabase, grupo);
   const lista = await avaliarElegibilidadeSemanaCafeConecta(supabase, base, semanaInicio, dataReferencia);
-  const elegiveis = lista.filter((l) => l.elegivel);
-  if (elegiveis.length < 2) {
-    return { ok: false, erro: 'Menos de 2 colaboradores elegíveis para sortear.' };
+  const contagem = contagemMotivosElegibilidade(lista);
+  const { pool, relaxouPortal, elegiveisStrict } = poolSorteioAdminCafeConecta(lista);
+
+  if (pool.length < 2) {
+    return {
+      ok: false,
+      erro: `Menos de 2 colaboradores disponíveis para sortear. ${mensagemErroPoolSorteioAdmin({
+        elegiveisStrict,
+        pool: pool.length,
+        semAcesso: contagem.sem_acesso,
+        folga: contagem.folga,
+        ferias: contagem.ferias,
+        afastados: contagem.afastados,
+      })}`,
+    };
   }
 
   const ciclo = await obterOuCriarCicloAtivo(supabase, grupo.slug);
   const idsNoCiclo = await idsParticiparamCiclo(supabase, ciclo.id);
-  const baseIds = new Set(base.map((b) => b.id));
-  const idsNuncaNoCiclo = new Set(Array.from(baseIds).filter((id) => !idsNoCiclo.has(id)));
+  const poolIds = new Set(pool.map((b) => b.id));
+  const idsNuncaNoCiclo = new Set(Array.from(poolIds).filter((id) => !idsNoCiclo.has(id)));
 
   const { ciclo: partCiclo, total: partTotal, pares } = await mapParticipacoesHistorico(supabase, grupo.slug);
-  const candidatos = prepararCandidatosSorteio(elegiveis, partCiclo, partTotal);
+  const candidatos = prepararCandidatosSorteio(pool, partCiclo, partTotal);
   const resultado = sortearDuplaCafeConecta({ candidatos, idsNuncaNoCiclo, paresHistorico: pares });
   if (!resultado) {
-    return { ok: false, erro: 'Não foi possível formar dupla.' };
+    return {
+      ok: false,
+      erro: `Não foi possível formar dupla (${pool.length} no pool, ${elegiveisStrict} com login no portal). Tente novamente ou ajuste férias/folga.`,
+    };
   }
 
   await removerRascunhoSemana(supabase, grupo.slug, semanaInicio);
 
-  const observacao = resultado.mesma_area
-    ? 'Dupla do mesmo setor/área (sem alternativa melhor nesta semana).'
-    : resultado.excecao_ciclo_impar
-      ? 'Exceção: último colaborador do ciclo pareado com repetição.'
-      : null;
+  const observacoes: string[] = [];
+  if (relaxouPortal) {
+    observacoes.push(
+      'Incluídos colaboradores que ainda não entraram no portal esta semana (exceção operacional do RH).'
+    );
+  }
+  if (resultado.mesma_area) {
+    observacoes.push('Dupla do mesmo setor/área (sem alternativa melhor nesta semana).');
+  } else if (resultado.excecao_ciclo_impar) {
+    observacoes.push('Exceção: último colaborador do ciclo pareado com repetição.');
+  }
+  const observacao = observacoes.length > 0 ? observacoes.join(' ') : null;
 
   const { data: sorteio, error: errS } = await supabase
     .from('cafe_conecta_sorteios')

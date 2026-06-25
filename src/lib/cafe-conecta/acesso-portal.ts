@@ -17,7 +17,7 @@ export async function colaboradorAcessouPortalSemanaGraos(
 
   if (error) {
     if (/graos_movimentos/i.test(error.message) && /does not exist|schema cache/i.test(error.message)) {
-      return false;
+      return true;
     }
     throw new Error(error.message);
   }
@@ -43,7 +43,7 @@ export async function idsComAcessoPortalSemanaGraos(
 
   if (error) {
     if (/graos_movimentos/i.test(error.message) && /does not exist|schema cache/i.test(error.message)) {
-      return out;
+      return new Set(colaboradorIds);
     }
     throw new Error(error.message);
   }
