@@ -39,7 +39,8 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
   - `requireAdminLiderancaMapaApi` — editar mapa de liderança e aplicar padrão (sócios, `admin`, login por senha).
   - `GET /api/admin/auth` expõe `nivel`, `acesso_limitado_rh`, `menu_rh`, `pode_editar_lideranca_mapa`.
 - Mutações de avaliação portal, ajuda, upload, etc. no servidor com service role onde aplicável.
-- **PWA:** `@ducanh2912/next-pwa`; `cacheId` / `SW_VERSION` em `next.config.js` + `PortalPwaRefresh.tsx` (bump forçado após deploy relevante; atual **v6** `portal-gabi-fontes-v6-audit-cpf`); manuais HTML em `public/manuais/` (sync no `prebuild`).
+- **PWA:** `@ducanh2912/next-pwa`; `cacheId` / `SW_VERSION` em `next.config.js` + `PortalPwaRefresh.tsx` (bump forçado após deploy relevante; atual **v7** `portal-gabi-fontes-v7-treinamento`); manuais HTML em `public/manuais/` (sync no `prebuild`).
+- **Sessão assinada (jun/2026):** cookie `portal_sess` (HMAC) quando `PORTAL_SESSION_SECRET` está na Vercel; middleware valida até carência `2026-07-05`; `GET /api/portal/perfil` **renova** `portal_sess` (`refreshPortalSessCookie`); login admin faz bridge do colaborador por login env, `ADMIN_PORTAL_COLABORADOR_ID` ou CPF Alan (`admin-portal-bridge.ts`).
 
 ## Avaliações (contrato funcional)
 
@@ -222,6 +223,8 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
   - **Por unidade** — cards de filial + edição (adicionar/trocar líder, plantão 12x36);
   - **Organograma** — árvore operacional (`organograma-lideranca.ts`, `OrganogramaLideranca.tsx`): Rede → filial → gerência → setores; setores com mesmos líderes da gerência aparecem como «mesma gerência» (evita repetir nomes). **Não** é organograma de cargos nem linha de reporte individual.
 - **UI — edição:** botão **Editar mapa** (canto superior) para quem tem `pode_editar_lideranca_mapa`; após **Aplicar mapa operacional**, scroll automático para o mapa.
+- **Substituir líder (jun/2026, `6054f32`):** `POST /api/admin/lideres-por-setor/substituir` — troca titular de um vínculo unidade+setor preservando paridade plantão; botão na UI do mapa.
+- **Runtime só banco (jun/2026, `6054f32`):** flag `LIDERANCA_SO_BANCO` (env) — mapa operacional e fallback por **nome** desligados em produção; equipe/avaliação/pendências leem `lideres_por_setor` + `colaboradores_lideres` materializados. Plano: `.cursor/rules/portal-lideranca-por-funcao-plano.mdc` (monorepo ISA AI).
 - **RH:** somente leitura (sem Editar mapa nem aplicar padrão).
 
 ### Pendências da semana — admin (`/admin/avaliacoes-pendentes`)
@@ -260,6 +263,7 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
 - **API:** `GET /api/portal/emocional-alertas` (lista do dia, filtra já vistos); `POST` marca visto por alvo (`emocional_alertas_vistos`, migration **`037_emocional_alertas_vistos.sql`**).
 - **UI alerta:** uma linha por colaborador; botão **OK** individual (some só para quem clicou, só aquele nome).
 - **Privacidade copy:** resumo anônimo para o colaborador; lista com **nome** só para quem tem permissão de gestão.
+- **Admin (`/admin/termometro-emocoes`):** ver secção **Termômetro — admin** (carga automática do dia; outras datas com Buscar).
 
 ## Balão de aniversário (1.º acesso do dia)
 
@@ -398,6 +402,44 @@ Página única que agrupa os canais de feedback e contato. **Layout (jun/2026):*
 - **Gestão:** Inbox lista **tópicos** (não uma linha por mensagem); badge de pendentes conta **tópicos** (`contarTopicosPendentes`).
 - **Resposta única:** ao responder um tópico, `PATCH /api/admin/ajuda-chat/[id]` fecha **todas** as linhas pendentes do mesmo tópico via `idsPendentesDoTopico` (uma resposta encerra o lote).
 - **APIs afetadas:** `POST /api/portal/ajuda-chat` (append), `GET` admin/portal ajuda-chat e pendências.
+
+### Sugestões — supervisores sem Grãos (jun/2026, `295a63c`)
+
+- **Quem:** gerente, master, admin (e quem **não** participa do programa Grãos como colaborador da operação).
+- **Resposta admin:** botão único **«Obrigado, vamos analisar»** — **sem** escala 0 / +3 / +5 / +9; API bloqueia `graos_resposta_bonus` para autor não elegível (`autorElegivelGraosSugestao` em `sugestao-resposta-graos.ts`).
+- **Portal:** feed não mostra `(+N Grãos)` na resposta para quem não participa de Grãos.
+
+## Treinamento (Quinta do café + cadastro)
+
+**Rotas:** portal `/portal/treinamento`; admin cadastro `/admin/treinamento`; APIs `GET /api/portal/treinamentos`, `POST /api/portal/treinamento-lider/concluir`, `GET /api/portal/quinta-treino`.
+
+### Visibilidade por perfil (contrato jun/2026)
+
+| Perfil | Treino da **equipe** (`quinta-colaborador`) | Treino de **liderança** (`quinta-lider`) |
+|--------|---------------------------------------------|------------------------------------------|
+| **Colaborador** (operação) | Sim | **Não** |
+| **Gerente / master / admin** (avalia equipe) | Sim | Sim (+ confirmação «Assisti e entendi») |
+| **Sócio / admin** (gestão) | Sim | Sim |
+
+- **Regras em código:** `podeVerTodosTreinosQuinta`, `deveVerTreinoLiderancaPortal` (`roles.ts`); lista em `GET /api/portal/treinamentos` (extras além do cadastro DB).
+- **Grãos:** missão da quinta e +5 Grãos continuam só para **colaborador** da operação (`podeParticiparGraosCafe`); líderes assistem os dois vídeos em **Treinamento**, não ganham Grãos por isso.
+- **Vídeos padrão** (Vercel pode sobrescrever `NEXT_PUBLIC_QUINTA_YOUTUBE_URL*`): colaboradores `gaHdvTOwP_k`; liderança `vjsYKHS8SSY` (`quinta-treino.ts`).
+- **Pendência home:** «Assistir treinamento de liderança» para quem passa em `deveVerTreinoLiderancaPortal` (`portal-pendencias-home.ts` → `/portal/treinamento`).
+- **Conclusão liderança:** tabela `treino_lider_conclusoes` (migration **`060_treino_lider_conclusoes.sql`**); chave `(colaborador_id, video_youtube_id)` — troca de URL = nova pendência.
+- **Admin:** lista DB pode estar vazia; bloco **Treinos automáticos no portal** em `/admin/treinamento` mostra os dois vídeos Quinta + link «Abrir como colaborador»; cadastro manual só para materiais **extras**.
+- **UI portal:** `PortalPageHeader` + progresso + `QuintaTreinoEmbed`; erro de API visível (não empty state silencioso); carrega `/api/portal/perfil` antes de treinamentos (renova sessão).
+- **Nav:** item **Treinamento** no menu; sócio/admin com prioridade após **Início**; atalho em **Mais atalhos** na home (`portal-atalhos-perfil.ts`).
+
+## Avisos (comunicados)
+
+- **Portal:** home (`AvisosHome`) + hub Comunicação; confirmação de leitura quando exigido.
+- **Vigência (jun/2026, `295a63c`):** avisos visíveis **só na semana da publicação** (segunda a domingo, America/Sao_Paulo) — `avisos-vigencia.ts` + filtro em `GET /api/portal/avisos`; na semana seguinte somem do portal (permanecem no admin).
+- **Admin:** `/admin/avisos`; copy na UI explica regra de 1 semana.
+
+## Termômetro — admin (`/admin/termometro-emocoes`)
+
+- **Dia corrente (jun/2026, `295a63c`):** ao abrir a página, carrega **automaticamente** registros de **hoje**; mudar data exige **Buscar**; botão **Hoje**.
+- **Alertas negativos** (`EmocionalAlertasGestao` na home portal): inalterados — gestão vê cansado/frustrado/triste no topo do portal colaborador.
 
 ## Mural e ranking
 
@@ -647,8 +689,10 @@ npm run db:apply-054                                      # preco_centavos catá
 | **`046_sugestoes_tipo_elogio.sql`** | Tipo `elogio`; anonimato só em reclamação |
 | **`047_sugestao_resposta_graos.sql`** | Resposta gestão com Grãos 0/3/5/9 |
 | **`054_graos_catalogo_preco_centavos.sql`** | Preço R$ fixo no catálogo Grãos; grãos derivados no app |
+| **`048_aviso_visualizacoes_treinamentos.sql`** | Tabelas `treinamentos`, visualizações e confirmações (cadastro admin) |
+| **`060_treino_lider_conclusoes.sql`** | Conclusão treino liderança por `video_youtube_id` |
 
-**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`**. **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`**. **Portal Shell:** **`e088bb9`**. **Camada Evolução (Saúde da equipe + ILI):** commits do painel `/admin/evolucao`; fix **`d9ef398`**. **Performance portal (gate, home adiada, logo skeleton):** **`73d0d2c`**. **Pendências SP + spinner + rankings semanal:** **`bf14979`**. **Grãos login 1×/semana + catálogo preco_centavos:** **`ef748e0`**, **`6f22a9a`**.
+**Deploy:** push `main` → Vercel. Commits de referência escalas jun/2026: `735cf77`, `a502077`, `decd99f`, `1619dc6`, `b28292e`. Lote avaliações/plantão/anonimato jun/2026: **`198fe8c`**. Ranking/chat/troféus/Para você jun/2026: **`4883fb0`**, **`d3779f3`**, **`80cf893`**, **`c2549e6`**. **Grãos + sugestões jun/2026:** **`e6852d6`**, **`a7f61a9`**, **`5e929d3`**. **Home viva + pódio troféus + logo rodapé jun/2026:** **`4d9aea4`**, **`4baa15b`**, **`4d7523d`**, **`5cc1015`**. **Pendências sexta:** **`7659cd3`**. **Ambiente visual mobile (CSS):** **`72cc877`**. **Portal Shell:** **`e088bb9`**. **Camada Evolução (Saúde da equipe + ILI):** commits do painel `/admin/evolucao`; fix **`d9ef398`**. **Performance portal (gate, home adiada, logo skeleton):** **`73d0d2c`**. **Pendências SP + spinner + rankings semanal:** **`bf14979`**. **Grãos login 1×/semana + catálogo preco_centavos:** **`ef748e0`**, **`6f22a9a`**. **Liderança por função (substituir líder, só banco):** **`6054f32`**. **Sugestões líderes sem Grãos + termômetro admin dia + avisos 1 semana:** **`295a63c`**. **Treinamento Quinta (liderança, colaboradores, socio/admin, sessão):** **`bef1d92`**, **`691a3fc`**, **`82a1552`**, **`cc83136`**.
 
 ---
 
@@ -937,6 +981,27 @@ npm run db:apply-054                                      # preco_centavos catá
 - **`GRAOS_CENTAVOS_POR_GRAO = 30`**; catálogo com **`preco_centavos`** (migration **054**) + **`catalogo.ts`** — grãos do item recalculam quando muda valor do grão; R$ no caixa permanece.
 - **Badge Grãos** no header some na aba `/portal/graos`.
 
+### Liderança por função — substituir líder e runtime só banco (jun/2026, `6054f32`)
+
+- **Substituir líder:** API `POST /api/admin/lideres-por-setor/substituir`; UI no mapa de liderança; preserva `plantao_paridade` do vínculo.
+- **`LIDERANCA_SO_BANCO`:** com flag ativa, listas de equipe/pendências **não** usam fallback por nome do mapa hardcoded; fonte = `lideres_por_setor` + sync `colaboradores_lideres`.
+- **Daniel transversal:** regras por cargo mantidas em `config-avaliacao-direta` / avaliação direta onde aplicável.
+
+### Sugestões — líderes sem Grãos + termômetro admin + avisos 1 semana (jun/2026, `295a63c`)
+
+- **Sugestões:** supervisores (gerente/master/admin) recebem resposta única sem bônus Grãos; ver secção **Comunicação → Sugestões — supervisores sem Grãos**.
+- **Termômetro admin:** página carrega **hoje** ao abrir; histórico por data só com **Buscar**; botão **Hoje**.
+- **Avisos:** vigência de **1 semana** no portal (`avisos-vigencia.ts`); admin mantém histórico completo.
+
+### Treinamento — Quinta do café, liderança e sessão portal (jun/2026, `bef1d92` … `cc83136`)
+
+- **Vídeos:** colaboradores `gaHdvTOwP_k`; liderança `vjsYKHS8SSY` (defaults; env `NEXT_PUBLIC_QUINTA_YOUTUBE_URL*`).
+- **Visibilidade:** colaborador → só treino equipe; líder → **ambos**; sócio/admin → **ambos** (`deveVerTreinoLiderancaPortal`, `podeVerTodosTreinosQuinta`).
+- **Portal:** `/portal/treinamento` — progresso, embed, confirmação liderança; pendência na home; atalho em **Mais atalhos**.
+- **Admin:** `/admin/treinamento` — bloco **Treinos automáticos** (Quinta) mesmo com DB vazio; cadastro extra opcional.
+- **Migration `060`:** `treino_lider_conclusoes` — obrigatória para gravar «Assisti e entendi».
+- **Sessão:** `refreshPortalSessCookie` no `GET /api/portal/perfil`; bridge admin por CPF; PWA **v7** (`portal-gabi-fontes-v7-treinamento`); página treinamento chama perfil antes da lista.
+
 ### Segurança (pré-produção já feita)
 
 - Credenciais hardcoded removidas de `api/admin/auth`; ver lista em `SECURITY_ROADMAP.md` secção "Correções já aplicadas".
@@ -966,7 +1031,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
-| I4 | Aplicar migrations **`038`**, **`039`**, **`040`**, **`042`**, **`044`**, **`045`**, **`046`**, **`047`**, **`054`**, **`059`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos; **054** preço R$ catálogo; **059** paridade lojas jun/2026 |
+| I4 | Aplicar migrations **`038`–`047`**, **`048`**, **`054`**, **`059`**, **`060`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos; **048** treinamentos cadastro; **054** preço R$ catálogo; **059** paridade lojas jun/2026; **060** conclusão treino liderança |
 | I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par, Vanessa); após migrations **042** + **059** ou `npm run db:apply-059` |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
@@ -1016,7 +1081,14 @@ src/components/ajuda/CanalAjudaPainel.tsx, BotaoAjuda.tsx
 src/lib/ajuda-chat-threads.ts
 src/app/(portal)/portal/comunicacao/, sugestoes/, ajuda-inbox/, graos/
 src/lib/graos/constants.ts, catalogo.ts, elegibilidade.ts, movimentos.ts, missoes.ts, sugestao-destaque.ts, graos-access.ts, lider-quinta-bloqueio.ts
-src/lib/sugestoes-pendentes.ts, sugestoes-events.ts, sugestao-resposta-graos.ts
+src/lib/sugestoes-pendentes.ts, sugestoes-events.ts, sugestao-resposta-graos.ts, sugestoes-admin-lista.ts
+src/lib/avisos-vigencia.ts
+src/lib/graos/quinta-treino.ts, treino-lider-acompanhamento.ts
+src/app/api/portal/treinamentos/, treinamento-lider/concluir/, quinta-treino/
+src/app/(admin)/admin/treinamento/, termometro-emocoes/
+src/app/api/admin/treinamentos/
+src/components/portal/QuintaTreinoEmbed.tsx, QuintaTreinoLiderBanner.tsx
+src/lib/portal-session-cookies.ts, admin-portal-bridge.ts
 src/app/globals.css (`.portal-ambiente-fundo`, `.hero-xicara-*`)
 src/components/portal/GraosPageClient.tsx, GraosHomeBanner.tsx
 src/app/api/portal/graos/, api/admin/sugestoes/pendentes/
@@ -1062,7 +1134,7 @@ src/app/api/portal/emocional/, emocional-alertas/, escala/, perfil/
 supabase/migrations/036_tipo_escala_colaborador.sql, 037_emocional_alertas_vistos.sql
 supabase/migrations/038_avaliacao_edicao_unica.sql, 039_avaliacao_meio_ponto_proatividade.sql, 040_avaliacao_ignorada.sql
 supabase/migrations/041_aniversario_dia_acao.sql, 042_plantao_12x36_paridade.sql, 059_plantao_paridade_lojas_jun2026.sql
-supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql, 046_sugestoes_tipo_elogio.sql, 047_sugestao_resposta_graos.sql, 054_graos_catalogo_preco_centavos.sql
+supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql, 046_sugestoes_tipo_elogio.sql, 047_sugestao_resposta_graos.sql, 048_aviso_visualizacoes_treinamentos.sql, 054_graos_catalogo_preco_centavos.sql, 060_treino_lider_conclusoes.sql
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
 scripts/backfill-graos-semanas.mjs, aplicar-graos-044.mjs
 scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
