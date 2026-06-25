@@ -551,6 +551,9 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     [...navMobile, ...navDesktop].map((item) => [item.href, item.icon])
   );
 
+  const labelPendenciasNav = roleNav === 'socio' ? 'Pend. rede' : 'Pendências';
+  const socioMonitorRede = roleNav === 'socio';
+
   return (
     <>
       <header className="sticky top-0 z-50 bg-cream-100/95 backdrop-blur border-b border-cafeteria-200 shadow-sm">
@@ -595,16 +598,22 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                   navAtivo(pathname, '/portal/pendencias-semana') ? 'font-semibold text-cafeteria-800' : ''
                 }`}
               >
-                Pendências
+                {labelPendenciasNav}
                 {pendenciasSemana > 0 && (
                   <span
                     className={`ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full text-white text-xs font-bold items-center justify-center align-middle ${
-                      pendenciasSemanaCriticas ? 'bg-red-600 animate-pulse' : 'bg-orange-500'
+                      socioMonitorRede
+                        ? 'bg-slate-500'
+                        : pendenciasSemanaCriticas
+                          ? 'bg-red-600 animate-pulse'
+                          : 'bg-orange-500'
                     }`}
                     title={
-                      pendenciasSemanaCriticas
-                        ? `${pendenciasSemana} pendência(s) — alerta crítico de sexta`
-                        : `${pendenciasSemana} pendência(s) na semana`
+                      socioMonitorRede
+                        ? `${pendenciasSemana} pendência(s) na rede — monitoramento (não é tarefa sua)`
+                        : pendenciasSemanaCriticas
+                          ? `${pendenciasSemana} pendência(s) — alerta crítico de sexta`
+                          : `${pendenciasSemana} pendência(s) na semana`
                     }
                   >
                     {pendenciasSemana > 99 ? '99+' : pendenciasSemana}

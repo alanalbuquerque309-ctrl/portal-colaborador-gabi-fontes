@@ -51,7 +51,7 @@ export default function PendenciasSemanaPage() {
         <div>
           <h1 className="text-2xl font-display font-semibold text-coffee-base">Pendências da semana</h1>
           <p className="text-sm text-coffee-100 mt-1">
-            Quem ainda falta avaliar e qual líder não fechou a equipe. Só sócios e administrador veem esta página.
+            Quem ainda falta avaliar e qual líder não fechou a equipe. Sócios acompanham pelo Admin; administrador também vê aqui.
           </p>
         </div>
         <Link

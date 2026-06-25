@@ -13,6 +13,7 @@ import { TROFEUS_PARES_CREDITOS_SEMANA } from '@/lib/trofeus-pares';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { listarComunicadosPendenteConfirmacao } from '@/lib/avisos-pendencias';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
+import { socioIsentoObrigacoesOperacionaisPortal } from '@/lib/socios-negocio';
 
 function formatarNomes(nomes: string[], max = 3): string {
   if (nomes.length === 0) return '';
@@ -40,6 +41,10 @@ export async function montarPendenciasPortalHome(
 ): Promise<PortalHomeTarefa[]> {
   const lista: PortalHomeTarefa[] = [];
   const nr = normalizePortalRole(ctx.role);
+  const isentoOperacional = socioIsentoObrigacoesOperacionaisPortal({
+    role: ctx.role,
+    nome: ctx.nome,
+  });
   const podeEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, ctx.colaboradorId, ctx.role);
   const isColaborador = nr === 'colaborador';
   const lembreteLider = lembreteAvaliacaoSemanaPassada();
@@ -169,7 +174,7 @@ export async function montarPendenciasPortalHome(
     }
   }
 
-  if (deveVerTreinoLiderancaPortal(nr, podeEquipe)) {
+  if (deveVerTreinoLiderancaPortal(nr, podeEquipe) && !isentoOperacional) {
     let concluiuTreinoLider = false;
     try {
       concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, ctx.colaboradorId);
@@ -282,7 +287,7 @@ export async function montarPendenciasPortalHome(
     }
   }
 
-  if (podeVerPendenciasSemanaRede(nr)) {
+  if (podeVerPendenciasSemanaRede(nr) && !isentoOperacional) {
     try {
       const { calcularPendenciasSemana } = await import('@/lib/avaliacao-pendentes-semana');
       const pend = await calcularPendenciasSemana(supabase, {

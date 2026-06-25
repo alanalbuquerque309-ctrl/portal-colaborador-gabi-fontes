@@ -1,7 +1,7 @@
 import type { PortalHomeSituacao, PortalHomeTarefa } from '@/lib/portal-home-types';
 
 /** Tarefas opcionais que aparecem no Faça agora mas não devem acionar o semáforo. */
-const IDS_IGNORADOS_SITUACAO = new Set(['trofeus']);
+const IDS_IGNORADOS_SITUACAO = new Set(['trofeus', 'pendentes-rede']);
 
 /** Deriva semáforo a partir das mesmas tarefas do Faça agora. */
 export function derivarSituacaoHome(tarefas: PortalHomeTarefa[]): PortalHomeSituacao {

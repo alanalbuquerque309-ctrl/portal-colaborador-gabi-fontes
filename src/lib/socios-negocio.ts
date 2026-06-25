@@ -29,3 +29,14 @@ export function isSocioNegocioColaborador(col: {
   if (normalizePortalRole(col.role) === 'socio') return true;
   return isSocioNegocioPorNome(col.nome);
 }
+
+/**
+ * Sócios não entram no semáforo «Você tem pendências», painel de líder nem cobrança de
+ * avaliar equipe/treino. Monitoramento da rede continua em Admin e em «Pendências rede».
+ */
+export function socioIsentoObrigacoesOperacionaisPortal(col: {
+  nome?: string | null;
+  role?: string | null;
+}): boolean {
+  return isSocioNegocioColaborador(col);
+}

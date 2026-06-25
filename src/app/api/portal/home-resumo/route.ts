@@ -7,6 +7,7 @@ import { derivarSituacaoHome } from '@/lib/portal-situacao-home';
 import { montarPainelPessoalColaborador } from '@/lib/portal-painel-pessoal';
 import { montarPainelLiderInspirador } from '@/lib/lider-inspirador';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
+import { socioIsentoObrigacoesOperacionaisPortal } from '@/lib/socios-negocio';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 import { sincronizarMissoesSemanaGraos } from '@/lib/graos/missoes';
@@ -36,6 +37,8 @@ export async function GET() {
     }
 
     const role = normalizePortalRole((col as { role?: string }).role);
+    const nomeCol = String((col as { nome?: string }).nome ?? '');
+    const isentoOperacional = socioIsentoObrigacoesOperacionaisPortal({ role, nome: nomeCol });
     const unidadeEmbed = (col as { unidades?: { slug?: string } | { slug?: string }[] | null }).unidades;
     const unidadeSlug = Array.isArray(unidadeEmbed) ? unidadeEmbed[0]?.slug : unidadeEmbed?.slug;
 
@@ -64,13 +67,13 @@ export async function GET() {
     let painel_lider = null;
     if (role === 'colaborador') {
       painel = await montarPainelPessoalColaborador(supabase, colaboradorId);
-    } else {
+    } else if (!isentoOperacional) {
       const podeEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, colaboradorId, role);
       if (podeEquipe) {
         painel_lider = await montarPainelLiderInspirador(
           supabase,
           colaboradorId,
-          String((col as { nome?: string }).nome ?? ''),
+          nomeCol,
           role
         );
       }
