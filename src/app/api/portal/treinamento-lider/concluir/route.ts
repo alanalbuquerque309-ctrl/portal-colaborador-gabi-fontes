@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole } from '@/lib/roles';
+import { deveVerTreinoLiderancaPortal, normalizePortalRole } from '@/lib/roles';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { registrarConclusaoTreinoLider } from '@/lib/treino-lider-acompanhamento';
 
@@ -31,9 +31,9 @@ export async function POST() {
 
     const role = normalizePortalRole((colab as { role?: string }).role);
     const podeEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, colaboradorId, role);
-    if (!podeEquipe) {
+    if (!deveVerTreinoLiderancaPortal(role, podeEquipe)) {
       return NextResponse.json(
-        { ok: false, erro: 'Treino de liderança é para quem avalia a equipe.' },
+        { ok: false, erro: 'Treino de liderança não disponível para este perfil.' },
         { status: 403, headers: NO_STORE }
       );
     }

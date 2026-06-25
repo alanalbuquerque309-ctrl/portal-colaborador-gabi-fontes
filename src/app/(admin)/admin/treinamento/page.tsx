@@ -18,8 +18,17 @@ interface Treinamento {
   youtube_ok: boolean;
 }
 
+interface TreinoAutomatico {
+  id: string;
+  titulo: string;
+  descricao: string;
+  embed_url: string | null;
+  youtube_ok: boolean;
+}
+
 export default function TreinamentosAdminPage() {
   const [treinamentos, setTreinamentos] = useState<Treinamento[]>([]);
+  const [treinosAutomaticos, setTreinosAutomaticos] = useState<TreinoAutomatico[]>([]);
   const [loading, setLoading] = useState(true);
   const [migracaoPendente, setMigracaoPendente] = useState(false);
   const [excluindo, setExcluindo] = useState<string | null>(null);
@@ -35,6 +44,9 @@ export default function TreinamentosAdminPage() {
       .then((data) => {
         if (data.ok && Array.isArray(data.treinamentos)) {
           setTreinamentos(data.treinamentos);
+          setTreinosAutomaticos(
+            Array.isArray(data.treinos_automaticos) ? data.treinos_automaticos : []
+          );
           setMigracaoPendente(data.migracao_pendente === true);
         }
       })
@@ -115,9 +127,50 @@ export default function TreinamentosAdminPage() {
         </div>
       ) : null}
 
+      {treinosAutomaticos.length > 0 ? (
+        <div className="mb-6 rounded-xl border border-dourado-base/40 bg-dourado-50/40 p-5">
+          <h2 className="text-lg font-display font-semibold text-coffee-base mb-1">
+            Treinos automáticos no portal
+          </h2>
+          <p className="text-sm text-cafeteria-700 mb-4">
+            Estes vídeos já aparecem em <strong>/portal/treinamento</strong> (Quinta do café). Não precisam cadastro
+            manual. Sócios e admin veem os dois; colaboradores e líderes veem conforme o perfil.
+          </p>
+          <ul className="space-y-3 list-none m-0 p-0">
+            {treinosAutomaticos.map((t) => (
+              <li
+                key={t.id}
+                className="rounded-lg border border-cafeteria-200 bg-white px-4 py-3 flex flex-wrap items-start justify-between gap-2"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold text-cafeteria-900">{t.titulo}</p>
+                  <p className="text-sm text-cafeteria-600 mt-0.5">{t.descricao}</p>
+                </div>
+                <span
+                  className={`shrink-0 text-xs font-semibold px-2 py-1 rounded-full ${
+                    t.youtube_ok ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {t.youtube_ok ? 'YouTube OK' : 'URL inválida'}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link
+            href="/portal/treinamento"
+            className="inline-block mt-4 text-sm font-semibold text-dourado-base hover:underline"
+          >
+            Abrir como colaborador →
+          </Link>
+        </div>
+      ) : null}
+
       {treinamentos.length === 0 ? (
         <div className="rounded-xl border border-cream-300 bg-cream-50 p-8 text-center">
-          <p className="text-coffee-base mb-4">Nenhum treinamento cadastrado ainda.</p>
+          <p className="text-coffee-base mb-2">Nenhum treinamento extra cadastrado no banco.</p>
+          <p className="text-sm text-cafeteria-600 mb-4">
+            Os vídeos da Quinta do café (acima) já estão no portal. Use «Novo treinamento» só para materiais adicionais.
+          </p>
           <Link
             href="/admin/treinamento/novo"
             className="inline-block rounded-lg bg-dourado-base px-4 py-2 text-cream-100 font-medium hover:bg-dourado-400"

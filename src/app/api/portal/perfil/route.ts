@@ -12,7 +12,7 @@ import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 
 import { PORTAL_COOKIE_SESSAO_LONGA } from '@/lib/portal-login-persist';
 
-import { refreshPortalRoleCookie } from '@/lib/portal-session-cookies';
+import { refreshPortalRoleCookie, refreshPortalSessCookie } from '@/lib/portal-session-cookies';
 
 import { isPerfilPessoalCompleto, temFotoPerfil } from '@/lib/perfil-completo';
 
@@ -201,6 +201,24 @@ export async function GET() {
     const sessaoLonga = cookieStore.get(PORTAL_COOKIE_SESSAO_LONGA)?.value === '1';
 
     refreshPortalRoleCookie(response, roleNormalizado, sessaoLonga);
+
+    refreshPortalSessCookie(
+
+      response,
+
+      {
+
+        id: colaboradorId,
+
+        unidade_id: String((data as { unidade_id?: string }).unidade_id ?? ''),
+
+        role: roleNormalizado,
+
+      },
+
+      sessaoLonga
+
+    );
 
     response.headers.set('Cache-Control', 'no-store, max-age=0');
 

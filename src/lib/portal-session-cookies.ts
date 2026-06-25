@@ -184,4 +184,36 @@ export function refreshPortalRoleCookie(res: NextResponse, role: string, sessaoL
 
 }
 
+/** Reassina `portal_sess` quando o colaborador já tem cookie de id (middleware + APIs). */
+
+export function refreshPortalSessCookie(
+
+  res: NextResponse,
+
+  col: PortalSessionPayload,
+
+  sessaoLonga: boolean
+
+): void {
+
+  const role = normalizePortalRole(col.role);
+
+  const cookieOpts = portalCookieOpts(sessaoLonga);
+
+  const sessToken = signPortalSess({ id: col.id, unidade_id: col.unidade_id, role });
+
+  if (sessToken) {
+
+    res.cookies.set(PORTAL_COOKIE_SESS, sessToken, {
+
+      ...cookieOpts,
+
+      httpOnly: true,
+
+    });
+
+  }
+
+}
+
 

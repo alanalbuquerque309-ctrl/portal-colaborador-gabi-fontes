@@ -10,6 +10,7 @@ import {
   type PublicoAvisoKey,
 } from '@/lib/avisos-publico';
 import { extrairYoutubeVideoId } from '@/lib/graos/quinta-treino';
+import { resolverParTreinosQuinta } from '@/lib/graos/quinta-treino';
 
 const SELECT =
   'id, titulo, descricao, video_youtube_url, publico_alvo, exige_confirmacao, ativo, ordem, created_at, unidade_id, unidades(nome, slug)';
@@ -46,10 +47,33 @@ function mapRow(a: Record<string, unknown>) {
   };
 }
 
-export async function GET() {
+function mapTreinosAutomaticos(origin: string) {
+  const par = resolverParTreinosQuinta(origin);
+  return [
+    {
+      id: 'quinta-colaborador',
+      titulo: par.colaborador.titulo,
+      descricao: par.colaborador.resumo,
+      embed_url: par.colaborador.embed_url,
+      youtube_ok: Boolean(par.colaborador.youtube_video_id),
+    },
+    {
+      id: 'quinta-lider',
+      titulo: par.lider.titulo,
+      descricao: par.lider.resumo,
+      embed_url: par.lider.embed_url,
+      youtube_ok: Boolean(par.lider.youtube_video_id),
+    },
+  ];
+}
+
+export async function GET(req: Request) {
   if (!(await isAdminAuthorized())) {
     return NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 });
   }
+
+  const origin = new URL(req.url).origin;
+  const treinosAutomaticos = mapTreinosAutomaticos(origin);
 
   try {
     const supabase = createAdminClient();
@@ -61,12 +85,21 @@ export async function GET() {
 
     if (error) {
       if (/treinamentos|does not exist|schema cache/i.test(error.message)) {
-        return NextResponse.json({ ok: true, treinamentos: [], migracao_pendente: true });
+        return NextResponse.json({
+          ok: true,
+          treinamentos: [],
+          treinos_automaticos: treinosAutomaticos,
+          migracao_pendente: true,
+        });
       }
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, treinamentos: (data ?? []).map(mapRow) });
+    return NextResponse.json({
+      ok: true,
+      treinamentos: (data ?? []).map(mapRow),
+      treinos_automaticos: treinosAutomaticos,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

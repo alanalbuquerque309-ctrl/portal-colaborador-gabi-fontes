@@ -56,7 +56,11 @@ export default function PortalTreinamentoPage() {
 
   const carregar = useCallback(() => {
     setErroCarregar(null);
-    fetch('/api/portal/treinamentos', { credentials: 'include', cache: 'no-store' })
+    setLoading(true);
+    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
+      .then(() =>
+        fetch('/api/portal/treinamentos', { credentials: 'include', cache: 'no-store' })
+      )
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) {
@@ -65,7 +69,12 @@ export default function PortalTreinamentoPage() {
           setErroCarregar(null);
         } else {
           setItens([]);
-          setErroCarregar(String(d.erro ?? 'Não foi possível carregar os treinamentos.'));
+          const msg = String(d.erro ?? 'Não foi possível carregar os treinamentos.');
+          setErroCarregar(
+            /login|sessão inválida/i.test(msg)
+              ? `${msg} Saia e entre de novo pelo login do portal.`
+              : msg
+          );
         }
       })
       .catch(() => {

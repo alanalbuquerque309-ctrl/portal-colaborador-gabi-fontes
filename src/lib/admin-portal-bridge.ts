@@ -49,5 +49,21 @@ export async function resolveColaboradorForAdminBridge(
     }
   }
 
+  const cpfAlan = (process.env.ADMIN_ALAN_CPF ?? '05376259765').replace(/\D/g, '');
+  if (cpfAlan) {
+    const { data: col } = await supabase
+      .from('colaboradores')
+      .select('id, unidade_id, role')
+      .eq('cpf', cpfAlan)
+      .maybeSingle();
+    if (col?.id && col.unidade_id) {
+      return {
+        id: col.id,
+        unidade_id: col.unidade_id,
+        role: (col as { role?: string | null }).role,
+      };
+    }
+  }
+
   return null;
 }

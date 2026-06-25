@@ -6,6 +6,12 @@ export function montarAtalhosPerfil(role: string | null | undefined, podeVisitaR
   const nr = normalizePortalRole(role);
   const lista: AtalhoPerfil[] = [];
 
+  lista.push({
+    href: '/portal/treinamento',
+    titulo: 'Treinamento',
+    descricao: 'Vídeos da Quinta do café, liderança e boas-vindas.',
+  });
+
   if (nr === 'colaborador' || nr === 'socio' || nr === 'admin') {
     lista.push({
       href: '/portal/graos',

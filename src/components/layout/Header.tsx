@@ -480,8 +480,14 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
 
   const injetarTreinamento = (items: NavItem[]): NavItem[] => {
     if (items.some((i) => i.href === '/portal/treinamento')) return items;
-    const idx = items.findIndex((i) => i.href === '/portal/comunicacao');
-    const at = idx >= 0 ? idx + 1 : items.length;
+    const idxInicio = items.findIndex((i) => i.href === '/portal');
+    const idxComunicacao = items.findIndex((i) => i.href === '/portal/comunicacao');
+    const at =
+      isAdm && idxInicio >= 0
+        ? idxInicio + 1
+        : idxComunicacao >= 0
+          ? idxComunicacao + 1
+          : items.length;
     return [...items.slice(0, at), itemTreinamento, ...items.slice(at)];
   };
 
