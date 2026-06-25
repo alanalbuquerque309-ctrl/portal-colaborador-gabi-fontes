@@ -13,8 +13,8 @@ import {
   setoresExibicaoPorUnidade,
 } from '@/lib/lideranca-org';
 import { paridadeNoMes, rotuloParidade } from '@/lib/plantao-12x36';
-import { montarOrganogramaLideranca } from '@/lib/organograma-lideranca';
-import { OrganogramaLideranca } from '@/components/admin/OrganogramaLideranca';
+import { montarOrganogramaEmpresa, type ColaboradorOrganograma } from '@/lib/organograma-empresa';
+import { OrganogramaEmpresa } from '@/components/admin/OrganogramaEmpresa';
 
 type Linha = {
   id: string;
@@ -62,6 +62,16 @@ export default function LideresPorSetorPage() {
   const [copiadoSql, setCopiadoSql] = useState(false);
   const [copiado042, setCopiado042] = useState(false);
   const [linhaSalvando, setLinhaSalvando] = useState<string | null>(null);
+  const [colaboradoresOrg, setColaboradoresOrg] = useState<ColaboradorOrganograma[]>([]);
+  const [carregandoOrg, setCarregandoOrg] = useState(false);
+  const [substAntigo, setSubstAntigo] = useState('');
+  const [substNovo, setSubstNovo] = useState('');
+  const [substPreview, setSubstPreview] = useState<{
+    total_vagas: number;
+    vagas: Array<{ setor: string; unidade_nome: string; plantao_paridade?: string | null }>;
+  } | null>(null);
+  const [substituindo, setSubstituindo] = useState(false);
+  const [candidatosSubstituto, setCandidatosSubstituto] = useState<Candidato[]>([]);
 
   const copiarSql042 = async () => {
     setCopiado042(false);
@@ -347,13 +357,147 @@ export default function LideresPorSetorPage() {
 
   const totalVinculosAtivos = todasLinhas.length;
 
-  const organogramaRaiz = useMemo(
-    () =>
-      montarOrganogramaLideranca(
-        todasLinhas,
-        unidadesLista.map((u) => ({ slug: u.slug, nome: u.nome }))
-      ),
-    [todasLinhas, unidadesLista]
+  const lideresUnicosMapa = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const l of todasLinhas) {
+      if (l.lider_id && !map.has(l.lider_id)) map.set(l.lider_id, l.lider_nome || l.lider_id);
+    }
+    return Array.from(map.entries())
+      .map(([id, nome]) => ({ id, nome }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [todasLinhas]);
+
+  const carregarPreviewSubstituicao = useCallback(async (antigoId: string, novoId?: string) => {
+    if (!antigoId) {
+      setSubstPreview(null);
+      return;
+    }
+    try {
+      const q = new URLSearchParams({ lider_antigo_id: antigoId });
+      if (novoId) q.set('lider_novo_id', novoId);
+      const res = await fetch(`/api/admin/lideres-por-setor/substituir?${q}`, { credentials: 'include' });
+      const data = await res.json();
+      if (data.ok) {
+        setSubstPreview({
+          total_vagas: data.total_vagas ?? 0,
+          vagas: (data.vagas ?? []).map(
+            (v: { setor: string; unidade_nome: string; plantao_paridade?: string | null }) => ({
+              setor: v.setor,
+              unidade_nome: v.unidade_nome,
+              plantao_paridade: v.plantao_paridade,
+            })
+          ),
+        });
+        const slugs = Array.from(
+          new Set((data.vagas ?? []).map((v: { unidade_slug?: string }) => v.unidade_slug).filter(Boolean))
+        ) as string[];
+        const todos: Candidato[] = [];
+        const seen = new Set<string>();
+        for (const slug of slugs.length > 0 ? slugs : [unidadeSlug]) {
+          const cq = new URLSearchParams({ unidade_slug: slug });
+          const cr = await fetch(`/api/admin/lideres-por-setor/candidatos?${cq}`, { credentials: 'include' });
+          const cd = await cr.json();
+          if (cd.ok) {
+            for (const c of cd.candidatos ?? []) {
+              if (!seen.has(c.id)) {
+                seen.add(c.id);
+                todos.push(c);
+              }
+            }
+          }
+        }
+        todos.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+        setCandidatosSubstituto(todos);
+      } else {
+        setSubstPreview(null);
+      }
+    } catch {
+      setSubstPreview(null);
+    }
+  }, [unidadeSlug]);
+
+  useEffect(() => {
+    if (!substAntigo) {
+      setSubstPreview(null);
+      setCandidatosSubstituto([]);
+      return;
+    }
+    void carregarPreviewSubstituicao(substAntigo, substNovo || undefined);
+  }, [substAntigo, substNovo, carregarPreviewSubstituicao]);
+
+  const executarSubstituicaoLider = async () => {
+    if (!substAntigo || !substNovo || substAntigo === substNovo) return;
+    const antigoNome = lideresUnicosMapa.find((l) => l.id === substAntigo)?.nome ?? substAntigo;
+    const novoNome = candidatosSubstituto.find((c) => c.id === substNovo)?.nome ?? substNovo;
+    const n = substPreview?.total_vagas ?? 0;
+    if (
+      !window.confirm(
+        `Transferir ${n} função(ões) de «${antigoNome}» para «${novoNome}»?\n\nPlantão e setores permanecem nas vagas; só o ocupante muda. Colaboradores serão revinculados.`
+      )
+    ) {
+      return;
+    }
+    setSubstituindo(true);
+    setErro(null);
+    try {
+      const res = await fetch('/api/admin/lideres-por-setor/substituir', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lider_antigo_id: substAntigo, lider_novo_id: substNovo }),
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        setErro(data.erro || 'Não foi possível substituir o líder.');
+        return;
+      }
+      setSubstAntigo('');
+      setSubstNovo('');
+      setSubstPreview(null);
+      setResultadoPadrao(
+        `Substituição: ${data.vagas_transferidas ?? 0} vaga(s) transferida(s); ${data.colaboradores_sincronizados ?? 0} colaborador(es) revinculado(s).`
+      );
+      await carregarTodas();
+    } catch {
+      setErro('Erro de conexão ao substituir líder.');
+    } finally {
+      setSubstituindo(false);
+    }
+  };
+
+  useEffect(() => {
+    if (visaoMapa !== 'organograma') return;
+    let ativo = true;
+    setCarregandoOrg(true);
+    void (async () => {
+      try {
+        const res = await fetch('/api/admin/colaboradores', { credentials: 'include' });
+        const data = await res.json();
+        if (!ativo) return;
+        if (data.ok) {
+          setColaboradoresOrg(
+            (data.colaboradores ?? []).map((c: { id: string; nome: string; cargo?: string | null; setor?: string | null }) => ({
+              id: String(c.id),
+              nome: String(c.nome ?? ''),
+              cargo: c.cargo ?? null,
+              setor: c.setor ?? null,
+            }))
+          );
+        }
+      } catch {
+        /* mantém lista anterior */
+      } finally {
+        if (ativo) setCarregandoOrg(false);
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+  }, [visaoMapa]);
+
+  const organogramaPilares = useMemo(
+    () => montarOrganogramaEmpresa(colaboradoresOrg),
+    [colaboradoresOrg]
   );
 
   const renderLinha = (l: Linha) => {
@@ -608,6 +752,72 @@ export default function LideresPorSetorPage() {
             {aplicandoPadrao ? 'Aplicando mapa operacional…' : 'Aplicar mapa operacional e vincular todos'}
           </button>
         )}
+        {editando && podeEditarMapa && tabelaExiste !== false && (
+          <div className="mt-6 max-w-2xl rounded-xl border border-dourado-300 bg-cream-50/80 p-4">
+            <h2 className="text-sm font-semibold text-coffee-base">Substituir líder (herdar funções)</h2>
+            <p className="text-xs text-coffee-100 mt-1 leading-relaxed">
+              Transfere todas as vagas ativas de um líder para outro. Plantão 12x36 e setores ficam na função;
+              o novo ocupante herda tudo automaticamente (inclui Daniel com vários setores).
+            </p>
+            <div className="mt-3 flex flex-wrap gap-3 items-end">
+              <div>
+                <label className="block text-xs text-coffee-100 mb-1">Líder que sai</label>
+                <select
+                  value={substAntigo}
+                  onChange={(e) => {
+                    setSubstAntigo(e.target.value);
+                    setSubstNovo('');
+                  }}
+                  className="rounded-lg border border-cream-300 px-3 py-2 text-sm min-w-[200px]"
+                >
+                  <option value="">Selecione…</option>
+                  {lideresUnicosMapa.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-coffee-100 mb-1">Novo líder</label>
+                <select
+                  value={substNovo}
+                  onChange={(e) => setSubstNovo(e.target.value)}
+                  disabled={!substAntigo}
+                  className="rounded-lg border border-cream-300 px-3 py-2 text-sm min-w-[200px] disabled:opacity-50"
+                >
+                  <option value="">Selecione…</option>
+                  {candidatosSubstituto
+                    .filter((c) => c.id !== substAntigo)
+                    .map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nome}
+                        {c.setor ? ` (${c.setor})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => void executarSubstituicaoLider()}
+                disabled={substituindo || !substAntigo || !substNovo || substAntigo === substNovo}
+                className="rounded-lg bg-coffee-base text-cream-100 px-4 py-2 text-sm font-medium hover:bg-coffee-600 disabled:opacity-50"
+              >
+                {substituindo ? 'Transferindo…' : 'Substituir e herdar funções'}
+              </button>
+            </div>
+            {substPreview && substAntigo && (
+              <p className="mt-3 text-xs text-coffee-base">
+                <strong>{substPreview.total_vagas}</strong> vaga(s) serão afetadas:{' '}
+                {substPreview.vagas
+                  .slice(0, 8)
+                  .map((v) => `${v.unidade_nome} · ${v.setor}`)
+                  .join('; ')}
+                {substPreview.vagas.length > 8 ? ` … +${substPreview.vagas.length - 8}` : ''}
+              </p>
+            )}
+          </div>
+        )}
         {resultadoPadrao && (
           <p className="mt-2 text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2 max-w-2xl">
             {resultadoPadrao}{' '}
@@ -664,7 +874,7 @@ export default function LideresPorSetorPage() {
                   : 'bg-white text-coffee-base hover:bg-cream-50'
               }`}
             >
-              Organograma
+              Organograma (cargos)
             </button>
             <button
               type="button"
@@ -722,10 +932,10 @@ export default function LideresPorSetorPage() {
 
         {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
-        {carregando ? (
+        {carregando && visaoMapa !== 'organograma' ? (
           <p className="text-coffee-100">Carregando mapa…</p>
         ) : visaoMapa === 'organograma' ? (
-          <OrganogramaLideranca raiz={organogramaRaiz} vazio={totalVinculosAtivos === 0} />
+          <OrganogramaEmpresa pilares={organogramaPilares} carregando={carregandoOrg} />
         ) : visaoMapa === 'rede' ? (
           <div className="space-y-10">
             {unidadesLista.map((u) => renderMapaUnidade(u.slug, u.nome, linhasPorSlug.get(u.slug) ?? []))}

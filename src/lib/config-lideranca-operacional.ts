@@ -6,6 +6,7 @@
  * e nos setores Cozinha loja, Atendimento, Copa, Caixa e ASG da filial.
  * Fábrica de preparos (unidade fabrica): Joyce e Silvia. Fábrica de doces: Sabrina e Henrique.
  * Daniel: CD, Escritório, Motorista, Administração, RH (transversal) + unidade Administrativo (`*`).
+ * Ocupante transversal é resolvido por role/cargo `admin` em `aplicar-config-lideranca.ts` (não por nome).
  * CD e Estoque são a mesma função — usar só CD (Estoque é legado).
  */
 

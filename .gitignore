@@ -57,5 +57,6 @@ supabase/.temp/
 scripts/set_gabi_password_123456.mjs
 scripts/set_alan_phone_login.mjs
 scripts/set_senha_padrao.mjs
+scripts/_snapshots/
 
 .vercel

@@ -6,6 +6,8 @@ import {
   type RegraLiderancaOperacional,
 } from '@/lib/config-lideranca-operacional';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
+import { isLiderAdministradorTransversal } from '@/lib/lideranca-transversal';
+import { normalizePortalRole } from '@/lib/roles';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -81,6 +83,32 @@ async function resolverLiderId(
   return String(candidatos[0].id);
 }
 
+/** Ocupante da função «administrador da empresa» (role/cargo), com fallback legado por nome. */
+async function resolverLiderAdministradorEmpresa(supabase: SupabaseAdmin): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('colaboradores')
+    .select('id, nome, role, cargo')
+    .or('role.eq.admin,role.eq.administrador,role.ilike.%admin%');
+  if (error) throw new Error(error.message);
+
+  const porFuncao = (data ?? []).filter((c) =>
+    isLiderAdministradorTransversal(
+      (c as { role?: string }).role,
+      (c as { cargo?: string }).cargo
+    )
+  );
+  if (porFuncao.length === 1) return String(porFuncao[0].id);
+  if (porFuncao.length > 1) {
+    const exato = porFuncao.find(
+      (c) => normalizePortalRole((c as { role?: string }).role) === 'admin'
+    );
+    if (exato?.id) return String(exato.id);
+    return String(porFuncao[0].id);
+  }
+
+  return resolverLiderId(supabase, LIDER_TRANSVERSAL_CD_NOME, null);
+}
+
 async function upsertConfig(
   supabase: SupabaseAdmin,
   unidadeId: string,
@@ -112,7 +140,21 @@ async function aplicarRegra(
       resultado.erros.push(`Unidade não encontrada: ${regra.unidade_slug}`);
       return;
     }
-    for (const nome of regra.lideres_nomes) {
+    const nomesLider =
+      regra.unidade_slug === 'administrativo'
+        ? []
+        : regra.lideres_nomes;
+    if (regra.unidade_slug === 'administrativo') {
+      const lid = await resolverLiderAdministradorEmpresa(supabase);
+      if (!lid) {
+        resultado.lideres_nao_encontrados.push(`Administrador (${regra.unidade_slug})`);
+        return;
+      }
+      await upsertConfig(supabase, uid, SETOR_TODOS_NA_UNIDADE, lid);
+      resultado.inseridos += 1;
+      return;
+    }
+    for (const nome of nomesLider) {
       let lid = await resolverLiderId(supabase, nome, uid);
       if (!lid) lid = await resolverLiderId(supabase, nome, null);
       if (!lid) {
@@ -145,17 +187,14 @@ async function aplicarRegra(
   }
 
   if (regra.tipo === 'setor_todas_unidades') {
+    const lid = await resolverLiderAdministradorEmpresa(supabase);
+    if (!lid) {
+      resultado.lideres_nao_encontrados.push(`Administrador empresa (setor ${regra.setor})`);
+      return;
+    }
     for (const uid of unidadeIdsTodas) {
-      for (const nome of regra.lideres_nomes) {
-        let lid = await resolverLiderId(supabase, nome, uid);
-        if (!lid) lid = await resolverLiderId(supabase, nome, null);
-        if (!lid) {
-          resultado.lideres_nao_encontrados.push(`${nome} (setor ${regra.setor}, unidade ${uid})`);
-          continue;
-        }
-        await upsertConfig(supabase, uid, regra.setor, lid);
-        resultado.inseridos += 1;
-      }
+      await upsertConfig(supabase, uid, regra.setor, lid);
+      resultado.inseridos += 1;
     }
   }
 }

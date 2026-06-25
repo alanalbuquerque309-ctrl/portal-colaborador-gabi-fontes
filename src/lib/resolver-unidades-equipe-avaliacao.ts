@@ -7,6 +7,7 @@ import {
 import { REGRAS_UNIDADE_EXTRA_TEMPORARIA } from '@/lib/config-avaliacao-unidade-extra';
 import { nomeCoincide } from '@/lib/avaliacao-direta';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
+import { liderancaResolveSoBanco } from '@/lib/lideranca-transversal';
 import { listarSetoresLideradosPor } from '@/lib/lideres-por-setor';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -77,19 +78,21 @@ export async function resolverUnidadesListaCompletaEquipeAvaliacao(
     if (s.setor === SETOR_TODOS_NA_UNIDADE && s.unidade_id) ids.add(s.unidade_id);
   }
 
-  const { data: eu } = await supabase.from('colaboradores').select('nome').eq('id', liderId).maybeSingle();
-  const nomeLider = String(eu?.nome ?? '');
+  if (!liderancaResolveSoBanco()) {
+    const { data: eu } = await supabase.from('colaboradores').select('nome').eq('id', liderId).maybeSingle();
+    const nomeLider = String(eu?.nome ?? '');
 
-  if (nomeLider) {
-    const slugs = Array.from(
-      new Set([
-        ...slugsUnidadeCompletaOperacionalParaNome(nomeLider),
-        ...slugsExtraTemporariosParaNome(nomeLider),
-      ])
-    );
-    for (const slug of slugs) {
-      const uid = await resolverUnidadeIdPorSlug(supabase, slug);
-      if (uid) ids.add(uid);
+    if (nomeLider) {
+      const slugs = Array.from(
+        new Set([
+          ...slugsUnidadeCompletaOperacionalParaNome(nomeLider),
+          ...slugsExtraTemporariosParaNome(nomeLider),
+        ])
+      );
+      for (const slug of slugs) {
+        const uid = await resolverUnidadeIdPorSlug(supabase, slug);
+        if (uid) ids.add(uid);
+      }
     }
   }
 

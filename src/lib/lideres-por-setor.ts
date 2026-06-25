@@ -1,10 +1,8 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { isSetorValido, SETORES_AVALIACAO_EQUIPE_BACKOFFICE } from '@/lib/constants/colaborador-org';
-import {
-  LIDER_TRANSVERSAL_CD_NOME,
-  SETORES_LIDERANCA_DANIEL_TRANSVERSAL,
-} from '@/lib/config-lideranca-operacional';
+import { SETORES_LIDERANCA_DANIEL_TRANSVERSAL } from '@/lib/config-lideranca-operacional';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
+import { isLiderAdministradorTransversal } from '@/lib/lideranca-transversal';
 import { normalizePortalRole } from '@/lib/roles';
 import {
   deveExcluirSetorDaListaCompletaUnidade,
@@ -24,11 +22,7 @@ function normalizarTextoOrg(value: string | null | undefined): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-function normalizarNomeLider(nome: string): string {
-  return normalizarTextoOrg(nome);
-}
-
-/** Daniel (administrador da empresa) na avaliação de liderança: só estes setores. */
+/** Administrador da empresa na avaliação de liderança: só estes setores. */
 export function colaboradorDeveAvaliarAdministradorEmpresa(
   setor: string | null | undefined,
   _unidadeSlug?: string | null | undefined
@@ -40,16 +34,12 @@ export function colaboradorDeveAvaliarAdministradorEmpresa(
   );
 }
 
-function isLiderTransversalCd(nome: string): boolean {
-  const alvo = normalizarNomeLider(LIDER_TRANSVERSAL_CD_NOME);
-  const n = normalizarNomeLider(nome);
-  if (!n || !alvo) return false;
-  return n === alvo || n.includes('daniel');
-}
-
-/** Daniel só pode aparecer como chefe quando o setor do colaborador é CD, Escritório, Motorista, Administração ou RH. */
-function liderConfigPermitidoParaSetorColaborador(nomeLider: string, setorColaborador: string): boolean {
-  if (!isLiderTransversalCd(nomeLider)) return true;
+/** Só administrador transversal (cargo/role) aparece como chefe fora dos setores de backoffice. */
+function liderConfigPermitidoParaSetorColaborador(
+  lider: { role?: string | null; cargo?: string | null },
+  setorColaborador: string
+): boolean {
+  if (!isLiderAdministradorTransversal(lider.role, lider.cargo)) return true;
   const setorNorm = normalizarTextoOrg(normalizarSetorOrganizacional(setorColaborador));
   if (!setorNorm) return false;
   return SETORES_LIDERANCA_DANIEL_TRANSVERSAL.some((s) => normalizarTextoOrg(s) === setorNorm);
@@ -153,13 +143,21 @@ export async function listarLideresConfigPorUnidadeSetor(
 
   const { data: cols, error: errCols } = await supabase
     .from('colaboradores')
-    .select('id, nome, role')
+    .select('id, nome, role, cargo')
     .in('id', ids);
   if (errCols) throw new Error(errCols.message);
 
   const setorParaFiltro = setorEspecifico ? setorCanon || setorTrim : '';
   return (cols ?? [])
-    .filter((c) => liderConfigPermitidoParaSetorColaborador(String(c.nome ?? ''), setorParaFiltro))
+    .filter((c) =>
+      liderConfigPermitidoParaSetorColaborador(
+        {
+          role: (c as { role?: string }).role,
+          cargo: (c as { cargo?: string | null }).cargo,
+        },
+        setorParaFiltro
+      )
+    )
     .map((c) => ({
       id: String(c.id),
       nome: String(c.nome ?? ''),
