@@ -19,10 +19,12 @@ import {
 } from '@/lib/plantao-12x36';
 import {
   formatarIntervaloSemanaPtBR,
+  inicioSemanaSegundaFeiraLocal,
   isDateIsoAvaliacao,
+  semanaAvaliacaoEquipePadraoISO,
 } from '@/lib/semana-referencia';
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
-import { ehSextaSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { ehSextaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
 import type {
   FiltroPendenciasSemana,
@@ -58,7 +60,7 @@ export type ResultadoPendenciasSemana = {
   meta: {
     eh_sexta: boolean;
     alerta_critico_sexta: boolean;
-    /** Segunda-feira da semana corrente monitorada (SP). */
+    /** Segunda-feira da semana avaliada (semana passada operacional, SP). */
     semana_atual: string;
     /** Linhas em `avaliacoes_diarias` na semana monitorada (qualquer avaliador). */
     avaliacoes_registradas: number;
@@ -434,12 +436,16 @@ function colaboradorSemAvaliacaoAlguma(
   return elegivelRh ? semRhVisita : true;
 }
 
-/** Semana monitorada nas pendências: sempre a semana corrente (America/Sao_Paulo). */
+/** Semana monitorada nas pendências: semana passada (igual à tela do líder), salvo override explícito. */
 export async function resolverDataRefPendentes(
   _supabase: SupabaseAdmin,
-  _dataIso?: string
+  dataIso?: string
 ): Promise<string> {
-  return segundaSemanaSaoPaulo();
+  const raw = dataIso?.trim() ?? '';
+  if (raw && isDateIsoAvaliacao(raw)) {
+    return inicioSemanaSegundaFeiraLocal(raw);
+  }
+  return semanaAvaliacaoEquipePadraoISO();
 }
 
 export async function calcularPendenciasSemana(
@@ -500,7 +506,7 @@ export async function calcularPendenciasSemana(
   const filtro = opts.filtro ?? 'pendentes';
   const buscaNorm = opts.busca?.trim().toLowerCase() ?? '';
   const ehSexta = ehSextaSaoPaulo();
-  const semanaAtual = segundaSemanaSaoPaulo();
+  const semanaAtual = dataRef;
   const itens: ItemPendenciaSemana[] = [];
   const resumo = {
     sem_lider: 0,

@@ -10,7 +10,7 @@ export default function AdminPendenciasSemanaPage() {
         <div>
           <h1 className="text-2xl font-display font-semibold text-coffee-base">Pendências da semana</h1>
           <p className="text-sm text-coffee-100 mt-1">
-            Semana corrente — quem ainda não enviou avaliação de líder ou Visita RH.
+            Semana passada (avaliada nesta semana) — quem ainda não enviou nota de líder ou Visita RH.
           </p>
         </div>
         <Link href="/admin/lideres-por-setor" className="text-sm font-medium text-dourado-500 hover:underline">

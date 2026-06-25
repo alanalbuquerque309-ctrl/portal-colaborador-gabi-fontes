@@ -79,9 +79,9 @@ export function semanaAvaliacaoEquipePadraoISO(): string {
   return semanaAnteriorSaoPaulo();
 }
 
-/** Segunda-feira da semana corrente em SP (pendências admin/rede). */
+/** Semana que pendências admin/rede monitoram (mesma da tela «Avalie sua equipe»). */
 export function semanaPendenciasAtualISO(): string {
-  return segundaSemanaSaoPaulo();
+  return semanaAvaliacaoEquipePadraoISO();
 }
 
 export function inicioSemanaSegundaFeiraSaoPaulo(dataIso: string): string {
