@@ -134,6 +134,16 @@ export function podeVerTodosTreinosQuinta(role: string | null | undefined): bool
   return r === 'admin' || r === 'socio';
 }
 
+/** Treino de liderança na página Treinamento e pendência na home. */
+export function deveVerTreinoLiderancaPortal(
+  role: string | null | undefined,
+  podeAvaliacaoEquipe: boolean
+): boolean {
+  if (podeVerTodosTreinosQuinta(role)) return true;
+  const r = normalizePortalRole(role);
+  return podeAvaliacaoEquipe && (r === 'gerente' || r === 'master' || r === 'admin');
+}
+
 /** Abrir /portal/graos: colaboradores da operação + sócios + admin (Daniel) + UUID dedicado ajuda. */
 export function podeVerGraosCafePortal(
   role: string | null | undefined,

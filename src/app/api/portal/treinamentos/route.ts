@@ -10,9 +10,25 @@ import {
   resolverQuintaTreino,
   urlEmbedYoutubeTreino,
 } from '@/lib/graos/quinta-treino';
-import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
+import {
+  deveVerTreinoLiderancaPortal,
+  normalizePortalRole,
+  podeParticiparGraosCafe,
+  podeVerTodosTreinosQuinta,
+} from '@/lib/roles';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
+
+async function liderConcluiuTreinoSeguro(
+  supabase: ReturnType<typeof createAdminClient>,
+  colaboradorId: string
+): Promise<boolean> {
+  try {
+    return await liderConcluiuTreinoAtual(supabase, colaboradorId);
+  } catch {
+    return false;
+  }
+}
 
 /** Lista treinamentos do colaborador + Quinta do café (env) + link vídeo institucional. */
 export async function GET(req: Request) {
@@ -28,7 +44,7 @@ export async function GET(req: Request) {
       .from('colaboradores')
       .select('id, role, setor, unidades(slug)')
       .eq('id', colaboradorId)
-      .single();
+      .maybeSingle();
 
     if (errEu || !eu) {
       return NextResponse.json({ ok: false, erro: 'Perfil não encontrado' }, { status: 404 });
@@ -99,7 +115,14 @@ export async function GET(req: Request) {
     const extras: typeof treinamentos = [];
 
     const role = normalizePortalRole((eu as { role?: string }).role);
-    const ehLiderEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, colaboradorId, role);
+    let podeAvaliacaoEquipe = false;
+    try {
+      podeAvaliacaoEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, colaboradorId, role);
+    } catch {
+      podeAvaliacaoEquipe = false;
+    }
+    const verTreinoLider = deveVerTreinoLiderancaPortal(role, podeAvaliacaoEquipe);
+    const verTodosTreinos = podeVerTodosTreinosQuinta(role);
     const participaGraos = podeParticiparGraosCafe(role);
 
     const quintaColaborador = resolverQuintaTreino(origin, 'colaborador');
@@ -110,16 +133,16 @@ export async function GET(req: Request) {
         titulo: quintaColaborador.titulo,
         descricao: quintaColaborador.resumo,
         exige_confirmacao: false,
-        visualizado: true,
+        visualizado: verTodosTreinos ? false : true,
         confirmado: false,
         embed_url: quintaColaborador.embed_url,
         created_at: null,
       });
     }
 
-    if (ehLiderEquipe) {
+    if (verTreinoLider) {
       const quintaLider = resolverQuintaTreino(origin, 'lider');
-      const concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, colaboradorId);
+      const concluiuTreinoLider = await liderConcluiuTreinoSeguro(supabase, colaboradorId);
       if (quintaLider.embed_url) {
         extras.push({
           id: 'quinta-lider',

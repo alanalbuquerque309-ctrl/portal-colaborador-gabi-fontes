@@ -50,17 +50,27 @@ export default function PortalTreinamentoPage() {
   const [loading, setLoading] = useState(true);
   const [itens, setItens] = useState<TreinamentoItem[]>([]);
   const [links, setLinks] = useState<Record<string, string | null>>({});
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [abertoId, setAbertoId] = useState<string | null>(null);
 
   const carregar = useCallback(() => {
+    setErroCarregar(null);
     fetch('/api/portal/treinamentos', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) {
           setItens(d.treinamentos ?? []);
           setLinks(d.links ?? {});
+          setErroCarregar(null);
+        } else {
+          setItens([]);
+          setErroCarregar(String(d.erro ?? 'Não foi possível carregar os treinamentos.'));
         }
+      })
+      .catch(() => {
+        setItens([]);
+        setErroCarregar('Falha de conexão ao carregar treinamentos. Tente de novo.');
       })
       .finally(() => setLoading(false));
   }, []);
@@ -165,7 +175,21 @@ export default function PortalTreinamentoPage() {
         </div>
       )}
 
-      {itens.length === 0 ? (
+      {erroCarregar ? (
+        <div className="space-y-3">
+          <PortalEmptyState message={erroCarregar} />
+          <button
+            type="button"
+            onClick={() => {
+              setLoading(true);
+              carregar();
+            }}
+            className="rounded-lg bg-dourado-base px-4 py-2.5 text-sm font-medium text-cream-100 hover:bg-dourado-400 transition-colors min-h-[44px]"
+          >
+            Tentar de novo
+          </button>
+        </div>
+      ) : itens.length === 0 ? (
         <PortalEmptyState message="Nenhum treinamento disponível para você no momento." />
       ) : (
         <div className="space-y-4">

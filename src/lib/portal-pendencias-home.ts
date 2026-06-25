@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { PortalHomeTarefa } from '@/lib/portal-home-types';
 import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
-import { normalizePortalRole } from '@/lib/roles';
+import { deveVerTreinoLiderancaPortal, normalizePortalRole } from '@/lib/roles';
 import { podeAvaliarRhVisitaGeral } from '@/lib/avaliacao-rh-visita-access';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
@@ -169,8 +169,13 @@ export async function montarPendenciasPortalHome(
     }
   }
 
-  if (podeEquipe && (nr === 'gerente' || nr === 'master' || nr === 'admin')) {
-    const concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, ctx.colaboradorId);
+  if (deveVerTreinoLiderancaPortal(nr, podeEquipe)) {
+    let concluiuTreinoLider = false;
+    try {
+      concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, ctx.colaboradorId);
+    } catch {
+      concluiuTreinoLider = false;
+    }
     if (!concluiuTreinoLider) {
       lista.push({
         id: 'treino-lideranca',
