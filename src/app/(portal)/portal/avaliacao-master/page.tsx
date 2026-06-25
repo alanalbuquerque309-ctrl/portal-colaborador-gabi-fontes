@@ -7,6 +7,7 @@ import { ColaboradorAvaliacaoCard, type AvaliacaoServidor } from '@/components/p
 import { normalizePortalRole } from '@/lib/roles';
 import { colaboradorPermiteMarcarForaPlantao } from '@/lib/escala-portal';
 import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
+import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 import { QuintaTreinoLiderBanner } from '@/components/portal/QuintaTreinoLiderBanner';
 import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
@@ -48,6 +49,8 @@ export default function AvaliacaoMasterPage() {
   const pendentesNaSemana = Math.max(0, equipe.length - avaliadosNaSemana);
   const naoAtivaramPortal = equipe.filter((m) => m.onboarding_completo === false);
   const intervaloSemana = formatarIntervaloSemanaPtBR(dataRef);
+  const semanaPadrao = semanaAvaliacaoEquipePadraoISO();
+  const dataRefEhSemanaCorrente = dataRef === segundaSemanaSaoPaulo() && dataRef !== semanaPadrao;
 
   useEffect(() => {
     const s = getPortalSession();
@@ -115,6 +118,17 @@ export default function AvaliacaoMasterPage() {
         icon="📋"
         accent="verde"
       />
+
+      {dataRefEhSemanaCorrente && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert">
+          <p className="font-semibold">Data da semana incorreta para a cobrança do RH</p>
+          <p className="mt-1">
+            Você está na semana que <strong>acabou de começar</strong>. O admin e as pendências consideram a{' '}
+            <strong>semana passada</strong> ({formatarIntervaloSemanaPtBR(semanaPadrao)}). Ajuste a data abaixo para
+            essa segunda-feira antes de salvar, ou reenvie se já salvou na data errada.
+          </p>
+        </div>
+      )}
 
       <section className="rounded-2xl border border-mel-200 bg-gradient-to-br from-mel-50/70 via-white to-cream-50 overflow-hidden shadow-sm">
         <details className="group">

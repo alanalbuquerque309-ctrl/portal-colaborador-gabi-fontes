@@ -5,6 +5,7 @@ import { normalizePortalRole } from '@/lib/roles';
 import { podeAvaliarRhVisitaGeral } from '@/lib/avaliacao-rh-visita-access';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
+import { semanasReferenciaCobrancaAvaliacaoLider } from '@/lib/avaliacao-semana-cobranca';
 import { listarEquipeParaAvaliacaoSemanal, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
 import { colaboradorDeFeriasNaSemana, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
@@ -171,6 +172,7 @@ export async function montarPendenciasPortalHome(
     const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, ctx.colaboradorId, ctx.unidadeId);
     const ids = equipe.map((c) => c.id);
     const dataRef = inicioSemanaSegundaFeiraLocal(semanaRef);
+    const semanasCobranca = semanasReferenciaCobrancaAvaliacaoLider();
 
     const avaliacoesPorColab: Record<string, unknown> = {};
     const feriasIds =
@@ -181,7 +183,7 @@ export async function montarPendenciasPortalHome(
         .from('avaliacoes_diarias')
         .select('colaborador_id')
         .eq('avaliador_id', ctx.colaboradorId)
-        .eq('data_referencia', dataRef)
+        .in('data_referencia', semanasCobranca)
         .in('colaborador_id', ids);
 
       for (const r of avalRows ?? []) {

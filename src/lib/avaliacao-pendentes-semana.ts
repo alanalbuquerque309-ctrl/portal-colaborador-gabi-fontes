@@ -24,8 +24,9 @@ import {
   semanaAvaliacaoEquipePadraoISO,
 } from '@/lib/semana-referencia';
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
-import { ehSextaSaoPaulo } from '@/lib/semana-brasil';
+import { ehSextaSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
+import { semanasReferenciaCobrancaAvaliacaoLider } from '@/lib/avaliacao-semana-cobranca';
 import type {
   FiltroPendenciasSemana,
   ItemPendenciaSemana,
@@ -364,6 +365,38 @@ async function carregarAvaliacoesSemana(
   }));
 }
 
+/** Carrega avaliações da semana de cobrança + semana corrente (envio na segunda). */
+async function carregarAvaliacoesCobrancaLider(
+  supabase: SupabaseAdmin,
+  dataRefPrincipal: string,
+  colaboradorIds: string[]
+): Promise<AvaliacaoRow[]> {
+  const semanas = semanasReferenciaCobrancaAvaliacaoLider();
+  if (semanas.length === 1) {
+    return carregarAvaliacoesSemana(supabase, dataRefPrincipal, colaboradorIds);
+  }
+
+  const porChave = new Map<string, AvaliacaoRow>();
+  const chave = (r: AvaliacaoRow) => `${r.colaborador_id}:${r.avaliador_id}`;
+
+  for (const sem of semanas) {
+    const rows = await carregarAvaliacoesSemana(supabase, sem, colaboradorIds);
+    for (const r of rows) {
+      const k = chave(r);
+      const existente = porChave.get(k);
+      if (!existente) {
+        porChave.set(k, r);
+        continue;
+      }
+      if (sem === dataRefPrincipal) {
+        porChave.set(k, r);
+      }
+    }
+  }
+
+  return Array.from(porChave.values());
+}
+
 async function carregarColaboradoresInfo(
   supabase: SupabaseAdmin,
   ids: string[],
@@ -489,7 +522,7 @@ export async function calcularPendenciasSemana(
     return c && normalizePortalRole(c.role) === 'colaborador';
   });
 
-  const avaliacoes = await carregarAvaliacoesSemana(supabase, dataRef, colaboradorIds);
+  const avaliacoes = await carregarAvaliacoesCobrancaLider(supabase, dataRef, colaboradorIds);
 
   const { data: todosAvaliadores } = await supabase
     .from('colaboradores')
