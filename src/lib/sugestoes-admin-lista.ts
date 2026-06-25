@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { normalizePortalRole } from '@/lib/roles';
+import { autorElegivelGraosSugestao } from '@/lib/sugestao-resposta-graos';
 
 export type SugestaoAdminItem = {
   id: string;
@@ -15,6 +17,7 @@ export type SugestaoAdminItem = {
   autor: string;
   autor_setor: string | null;
   colaborador_id: string | null;
+  autor_participa_graos: boolean;
   unidade: string;
 };
 
@@ -71,14 +74,16 @@ async function enriquecerNomes(
 
   const nomesColab = new Map<string, string>();
   const setoresColab = new Map<string, string>();
+  const rolesColab = new Map<string, string>();
   const nomesUnidade = new Map<string, string>();
 
   if (colabIds.length > 0) {
-    const { data } = await supabase.from('colaboradores').select('id, nome, setor').in('id', colabIds);
+    const { data } = await supabase.from('colaboradores').select('id, nome, setor, role').in('id', colabIds);
     for (const c of data ?? []) {
-      const row = c as { id: string; nome?: string; setor?: string | null };
+      const row = c as { id: string; nome?: string; setor?: string | null; role?: string | null };
       nomesColab.set(String(row.id), String(row.nome ?? ''));
       if (row.setor) setoresColab.set(String(row.id), String(row.setor));
+      rolesColab.set(String(row.id), normalizePortalRole(row.role));
     }
   }
 
@@ -109,6 +114,9 @@ async function enriquecerNomes(
       autor: nomeAutorAdmin(r, nomesColab),
       autor_setor: col?.setor ? String(col.setor) : setoresColab.get(String(cid ?? '')) ?? null,
       colaborador_id: cid,
+      autor_participa_graos: autorElegivelGraosSugestao(
+        cid ? rolesColab.get(cid) : undefined
+      ),
       unidade:
         (un?.nome ? String(un.nome) : null) ??
         nomesUnidade.get(String(r.unidade_id ?? '')) ??

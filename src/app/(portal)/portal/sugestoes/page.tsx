@@ -8,7 +8,7 @@ import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
 import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
-import { mensagemRespostaColaborador } from '@/lib/sugestao-resposta-graos';
+import { mensagemRespostaColaborador, MENSAGEM_SUGESTAO_SEM_GRAOS } from '@/lib/sugestao-resposta-graos';
 
 interface MinhaMsg {
   id: string;
@@ -45,13 +45,15 @@ function rotuloTipo(tipo: string): string {
   return 'Sugestão';
 }
 
-function mensagemAcolhimento(m: MinhaMsg): string | null {
+function mensagemAcolhimento(m: MinhaMsg, participaGraos: boolean): string | null {
   if (m.tipo === 'sugestao' && m.graos_destaque_em) {
-    return mensagemRespostaColaborador(m.graos_resposta_bonus, true);
+    return mensagemRespostaColaborador(m.graos_resposta_bonus, true, {
+      autorParticipaGraos: participaGraos,
+    });
   }
   if (!m.visualizado_em) return null;
   if (m.tipo === 'sugestao') {
-    return 'Obrigado pela ideia. Já vimos sua sugestão e estamos em análise.';
+    return MENSAGEM_SUGESTAO_SEM_GRAOS;
   }
   if (m.tipo === 'elogio') {
     return 'Obrigado pelo carinho. Sua mensagem foi registrada.';
@@ -76,6 +78,7 @@ export default function SugestoesPage() {
   const [feedReclamacoes, setFeedReclamacoes] = useState<ReclamacaoFeedItem[]>([]);
   const [carregandoMural, setCarregandoMural] = useState(true);
   const [curtindo, setCurtindo] = useState<string | null>(null);
+  const [participaGraos, setParticipaGraos] = useState(true);
 
   const carregarMural = () => {
     setCarregandoMural(true);
@@ -89,6 +92,8 @@ export default function SugestoesPage() {
           else setFeedReclamacoes([]);
           const gestao = data.pode_enviar_reclamacao === true;
           setPodeReclamacao(gestao);
+          if (data.participa_graos === false) setParticipaGraos(false);
+          else setParticipaGraos(true);
           if (!gestao) setTipo('sugestao');
           else if (modoReclamacaoUrl) setTipo('reclamacao');
         }
@@ -334,7 +339,7 @@ export default function SugestoesPage() {
           ) : (
             <ul className="space-y-3">
               {minhas.map((m) => {
-                const extra = mensagemAcolhimento(m);
+                const extra = mensagemAcolhimento(m, participaGraos);
                 return (
                   <li
                     key={m.id}

@@ -13,6 +13,7 @@ import {
   refKeySugestaoDestaqueGraos,
   semanaInicioDeCreatedAt,
 } from '@/lib/graos/sugestao-destaque';
+import { autorElegivelGraosSugestao } from '@/lib/sugestao-resposta-graos';
 
 /** Marca sugestão/reclamação como vista ou responde sugestão (0–7 Grãos). */
 export async function PATCH(
@@ -102,6 +103,21 @@ export async function PATCH(
       if (!colaboradorId) {
         return NextResponse.json(
           { ok: false, erro: 'Sugestão sem autor identificado — não é possível responder.' },
+          { status: 400 }
+        );
+      }
+
+      const { data: perfilAutor } = await supabase
+        .from('colaboradores')
+        .select('role')
+        .eq('id', colaboradorId)
+        .maybeSingle();
+      if (!autorElegivelGraosSugestao((perfilAutor as { role?: string } | null)?.role)) {
+        return NextResponse.json(
+          {
+            ok: false,
+            erro: 'Sugestões de supervisores e gestão não usam Grãos — marque como «Obrigado, vamos analisar».',
+          },
           { status: 400 }
         );
       }

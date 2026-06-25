@@ -6,7 +6,8 @@ import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
 import { aguardandoAnaliseAdmin } from '@/lib/sugestoes-pendentes';
 import {
   OPCOES_RESPOSTA_SUGESTAO,
-  rotuloRespostaAdmin,
+  LABEL_ADMIN_SUGESTAO_SEM_GRAOS,
+  rotuloRespostaAdminItem,
   type GraosRespostaSugestao,
 } from '@/lib/sugestao-resposta-graos';
 
@@ -23,6 +24,7 @@ interface Item {
   curtidas: number;
   autor: string;
   autor_setor?: string | null;
+  autor_participa_graos?: boolean;
   unidade: string;
 }
 
@@ -311,10 +313,16 @@ export default function SugestoesPage() {
                   )}
                   {i.tipo === 'sugestao' && i.graos_destaque_em ? (
                     <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">
-                      {rotuloRespostaAdmin(i.graos_resposta_bonus ?? 7)}
+                      {rotuloRespostaAdminItem(
+                        i.graos_resposta_bonus ?? 7,
+                        i.autor_participa_graos !== false
+                      )}
                     </span>
                   ) : null}
-                  {i.tipo === 'sugestao' && podeDestacarGraos && !i.graos_destaque_em ? (
+                  {i.tipo === 'sugestao' &&
+                  podeDestacarGraos &&
+                  i.autor_participa_graos !== false &&
+                  !i.graos_destaque_em ? (
                     <div className="flex flex-wrap justify-end gap-1.5 max-w-md">
                       {OPCOES_RESPOSTA_SUGESTAO.map((op) => {
                         const busy = respondendo === `${i.id}:${op.graos}`;
@@ -327,7 +335,7 @@ export default function SugestoesPage() {
                             className={`text-xs rounded-lg border px-2.5 py-1.5 font-medium min-h-[36px] disabled:opacity-50 ${
                               op.graos === 0
                                 ? 'border-cream-400 bg-white text-coffee-base hover:bg-cream-50'
-                                :                               op.graos === 9
+                                : op.graos === 9
                                   ? 'border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
                                   : 'border-dourado-base bg-dourado-50 text-coffee-base hover:bg-dourado-100'
                             }`}
@@ -338,22 +346,42 @@ export default function SugestoesPage() {
                       })}
                     </div>
                   ) : null}
-                  {i.tipo !== 'sugestao' || !podeDestacarGraos ? (
-                    !i.visualizado_em ? (
-                      <button
-                        type="button"
-                        onClick={() => marcarVisto(i.id)}
-                        disabled={marcando === i.id}
-                        className="text-xs rounded-lg border border-dourado-base px-3 py-1 text-dourado-base hover:bg-dourado-50 disabled:opacity-50"
-                      >
-                        {marcando === i.id ? '…' : 'Marcar como visto'}
-                      </button>
-                    ) : (
-                      <span className="text-xs text-green-700">
-                        Visto em {new Date(i.visualizado_em).toLocaleString('pt-BR')}
-                      </span>
-                    )
-                  ) : i.graos_destaque_em ? (
+                  {!(
+                    i.tipo === 'sugestao' &&
+                    podeDestacarGraos &&
+                    i.autor_participa_graos !== false &&
+                    !i.graos_destaque_em
+                  ) &&
+                  !i.visualizado_em &&
+                  !(i.tipo === 'sugestao' && i.graos_destaque_em) ? (
+                    <button
+                      type="button"
+                      onClick={() => marcarVisto(i.id)}
+                      disabled={marcando === i.id}
+                      className={`text-xs rounded-lg border px-3 py-1.5 disabled:opacity-50 min-h-[36px] font-medium ${
+                        i.tipo === 'sugestao'
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'
+                          : 'border-dourado-base text-dourado-base hover:bg-dourado-50'
+                      }`}
+                    >
+                      {marcando === i.id
+                        ? '…'
+                        : i.tipo === 'sugestao'
+                          ? LABEL_ADMIN_SUGESTAO_SEM_GRAOS
+                          : 'Marcar como visto'}
+                    </button>
+                  ) : null}
+                  {i.tipo === 'sugestao' && i.visualizado_em && !i.graos_destaque_em ? (
+                    <span className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">
+                      {LABEL_ADMIN_SUGESTAO_SEM_GRAOS}
+                    </span>
+                  ) : null}
+                  {i.tipo !== 'sugestao' && i.visualizado_em ? (
+                    <span className="text-xs text-green-700">
+                      Visto em {new Date(i.visualizado_em).toLocaleString('pt-BR')}
+                    </span>
+                  ) : null}
+                  {i.tipo === 'sugestao' && i.graos_destaque_em ? (
                     <span className="text-xs text-green-700">
                       Respondido em {new Date(i.graos_destaque_em).toLocaleString('pt-BR')}
                     </span>

@@ -106,7 +106,7 @@ export default function AvisosPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-display font-semibold text-coffee-base">Avisos</h1>
         <Link
           href="/admin/avisos/novo"
@@ -115,6 +115,10 @@ export default function AvisosPage() {
           Novo aviso
         </Link>
       </div>
+      <p className="text-sm text-coffee-100 mb-6">
+        No portal, cada aviso fica visível só na semana da publicação (segunda a domingo). Na semana
+        seguinte some automaticamente para os colaboradores.
+      </p>
 
       {avisos.length === 0 ? (
         <div className="rounded-xl border border-cream-300 bg-cream-50 p-8 text-center">

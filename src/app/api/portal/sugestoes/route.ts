@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizePortalRole } from '@/lib/roles';
+import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { podeEnviarReclamacaoPortal } from '@/lib/bonificacao-access';
 
 const TIPOS = ['sugestao', 'reclamacao', 'elogio'] as const;
@@ -169,7 +169,14 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json({ ok: true, minhas, feed, feed_reclamacoes, pode_enviar_reclamacao: gestaoVeReclamacoes });
+    return NextResponse.json({
+      ok: true,
+      minhas,
+      feed,
+      feed_reclamacoes,
+      pode_enviar_reclamacao: gestaoVeReclamacoes,
+      participa_graos: podeParticiparGraosCafe(meuRole),
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

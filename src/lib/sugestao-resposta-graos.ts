@@ -1,5 +1,16 @@
+import { podeParticiparGraosCafe } from '@/lib/roles';
+
 /** Bônus da gestão além do 1 Grão do envio. */
 export const GRAOS_RESPOSTA_SUGESTAO = [0, 3, 5, 9] as const;
+
+/** Sugestões de quem não participa do programa Grãos (líderes, sócios, etc.). */
+export const LABEL_ADMIN_SUGESTAO_SEM_GRAOS = 'Obrigado, vamos analisar';
+export const MENSAGEM_SUGESTAO_SEM_GRAOS =
+  'Obrigado pela ideia. Vamos analisar.';
+
+export function autorElegivelGraosSugestao(role: string | null | undefined): boolean {
+  return podeParticiparGraosCafe(role);
+}
 
 export const GRAOS_ENVIO_SUGESTAO = 1;
 
@@ -68,14 +79,24 @@ export function rotuloRespostaAdmin(graos: number | null | undefined): string {
 
 export function mensagemRespostaColaborador(
   graosRespostaBonus: number | null | undefined,
-  respondido: boolean
+  respondido: boolean,
+  opts?: { autorParticipaGraos?: boolean }
 ): string | null {
   if (!respondido) return null;
+  if (opts?.autorParticipaGraos === false) return MENSAGEM_SUGESTAO_SEM_GRAOS;
   const op = opcaoRespostaSugestao(graosRespostaBonus ?? 0);
   if (!op) return 'Recebemos sua sugestão — obrigado!';
   const bonus = graosRespostaBonus ?? 0;
   const extra = bonus > 0 ? ` (+${bonus} Grãos de bônus)` : '';
   return `${op.labelColaborador}${extra}`;
+}
+
+export function rotuloRespostaAdminItem(
+  graosRespostaBonus: number | null | undefined,
+  autorParticipaGraos: boolean
+): string {
+  if (!autorParticipaGraos) return LABEL_ADMIN_SUGESTAO_SEM_GRAOS;
+  return rotuloRespostaAdmin(graosRespostaBonus);
 }
 
 export function graosTotaisSugestao(bonus: number | null | undefined): number {
