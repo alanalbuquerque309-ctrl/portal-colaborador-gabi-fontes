@@ -49,7 +49,7 @@ function StatusChip({ item }: { item: TreinamentoItem }) {
 export default function PortalTreinamentoPage() {
   const [loading, setLoading] = useState(true);
   const [itens, setItens] = useState<TreinamentoItem[]>([]);
-  const [links, setLinks] = useState<Record<string, string>>({});
+  const [links, setLinks] = useState<Record<string, string | null>>({});
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [abertoId, setAbertoId] = useState<string | null>(null);
 
@@ -172,7 +172,8 @@ export default function PortalTreinamentoPage() {
           {itens.map((t) => {
             const aberto = abertoId === t.id;
             const linkInstitucional = t.id === 'video-institutional' ? links.video_boas_vindas : null;
-            const linkQuinta = t.id.startsWith('quinta-') ? links.graos_quinta : null;
+            const linkQuinta =
+              t.id.startsWith('quinta-') && links.graos_quinta ? links.graos_quinta : null;
 
             return (
               <PortalSection

@@ -10,7 +10,7 @@ import {
   resolverQuintaTreino,
   urlEmbedYoutubeTreino,
 } from '@/lib/graos/quinta-treino';
-import { normalizePortalRole } from '@/lib/roles';
+import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 
@@ -99,24 +99,40 @@ export async function GET(req: Request) {
     const extras: typeof treinamentos = [];
 
     const role = normalizePortalRole((eu as { role?: string }).role);
-    const perfilQuinta = (await podeUsarAvaliacaoEquipeSemanal(supabase, colaboradorId, role))
-      ? 'lider'
-      : 'colaborador';
-    const quinta = resolverQuintaTreino(origin, perfilQuinta);
-    const concluiuTreinoLider =
-      perfilQuinta === 'lider' ? await liderConcluiuTreinoAtual(supabase, colaboradorId) : false;
-    if (quinta.embed_url) {
+    const ehLiderEquipe = await podeUsarAvaliacaoEquipeSemanal(supabase, colaboradorId, role);
+    const participaGraos = podeParticiparGraosCafe(role);
+
+    const quintaColaborador = resolverQuintaTreino(origin, 'colaborador');
+    if (quintaColaborador.embed_url) {
       extras.push({
-        id: `quinta-${perfilQuinta}`,
+        id: 'quinta-colaborador',
         tipo: 'cadastro' as const,
-        titulo: quinta.titulo,
-        descricao: quinta.resumo,
-        exige_confirmacao: perfilQuinta === 'lider',
-        visualizado: perfilQuinta === 'lider' ? concluiuTreinoLider : true,
-        confirmado: concluiuTreinoLider,
-        embed_url: quinta.embed_url,
+        titulo: quintaColaborador.titulo,
+        descricao: quintaColaborador.resumo,
+        exige_confirmacao: false,
+        visualizado: true,
+        confirmado: false,
+        embed_url: quintaColaborador.embed_url,
         created_at: null,
       });
+    }
+
+    if (ehLiderEquipe) {
+      const quintaLider = resolverQuintaTreino(origin, 'lider');
+      const concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, colaboradorId);
+      if (quintaLider.embed_url) {
+        extras.push({
+          id: 'quinta-lider',
+          tipo: 'cadastro' as const,
+          titulo: quintaLider.titulo,
+          descricao: quintaLider.resumo,
+          exige_confirmacao: true,
+          visualizado: concluiuTreinoLider,
+          confirmado: concluiuTreinoLider,
+          embed_url: quintaLider.embed_url,
+          created_at: null,
+        });
+      }
     }
 
     extras.push({
@@ -137,7 +153,7 @@ export async function GET(req: Request) {
       links: {
         video_boas_vindas: '/portal/video-boas-vindas',
         manuais: '/portal/manuais',
-        graos_quinta: '/portal/graos',
+        graos_quinta: participaGraos ? '/portal/graos' : null,
       },
     });
   } catch (e) {

@@ -75,6 +75,36 @@ export function QuintaTreinoLiderBanner() {
     );
   }
 
+  if (data.perfil_treino === 'lider' && data.treinos_quinta) {
+    return (
+      <div className="space-y-3 mb-6">
+        <QuintaTreinosPanel
+          ehQuinta
+          treinoColaborador={data.treinos_quinta.colaborador}
+          treinoLider={data.treinos_quinta.lider}
+          intro="Treino da equipe e treino de liderança — assista dentro do portal."
+        />
+        {concluido ? (
+          <p className="text-sm text-emerald-700 font-medium px-1">Treinamento de liderança concluído ✓</p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 px-1">
+            <button
+              type="button"
+              disabled={concluindo}
+              onClick={() => void marcarConcluido()}
+              className="rounded-lg border border-dourado-base bg-dourado-50 px-4 py-2 text-sm font-semibold text-coffee-base disabled:opacity-50 min-h-[44px]"
+            >
+              {concluindo ? 'Salvando…' : 'Concluir treino de liderança'}
+            </button>
+            <Link href="/portal/treinamento" className="text-sm text-dourado-base underline">
+              Abrir em Treinamento
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (data.perfil_treino !== 'lider') return null;
 
   const treino = data.quinta_treino;

@@ -62,9 +62,26 @@ export async function GET(req: Request) {
     }
 
     const perfil: QuintaTreinoPerfil = ehLider && !ehColaboradorOperacao ? 'lider' : 'colaborador';
-    const quintaTreino = resolverQuintaTreino(origin, perfil);
     const treinoLiderConcluido =
       perfil === 'lider' ? await liderConcluiuTreinoAtual(supabase, viewerId) : undefined;
+
+    if (ehLider && !ehColaboradorOperacao) {
+      const par = resolverParTreinosQuinta(origin);
+      return NextResponse.json(
+        {
+          ok: true,
+          eh_quinta: ehQuinta,
+          perfil_treino: perfil,
+          quinta_treino: par.lider,
+          treinos_quinta: par,
+          treino_lider_concluido: treinoLiderConcluido,
+          pode_concluir_graos: false,
+        },
+        { headers: NO_STORE }
+      );
+    }
+
+    const quintaTreino = resolverQuintaTreino(origin, perfil);
 
     return NextResponse.json(
       {
