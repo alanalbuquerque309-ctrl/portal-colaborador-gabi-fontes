@@ -8,6 +8,7 @@ import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
 import { PortalSection } from '@/components/portal/shell/PortalSection';
 import { PortalEmptyState } from '@/components/portal/shell/PortalEmptyState';
 import { PortalActionCard } from '@/components/portal/shell/PortalActionCard';
+import { emitPortalHomeAtualizado } from '@/lib/portal-home-events';
 
 type TreinamentoItem = {
   id: string;
@@ -86,6 +87,27 @@ export default function PortalTreinamentoPage() {
   };
 
   const confirmar = async (id: string) => {
+    if (id === 'quinta-lider') {
+      setConfirmando(id);
+      try {
+        const res = await fetch('/api/portal/treinamento-lider/concluir', {
+          method: 'POST',
+          credentials: 'include',
+        });
+        const data = await res.json();
+        if (data.ok) {
+          setItens((prev) =>
+            prev.map((t) =>
+              t.id === id ? { ...t, confirmado: true, visualizado: true } : t
+            )
+          );
+          emitPortalHomeAtualizado();
+        }
+      } finally {
+        setConfirmando(null);
+      }
+      return;
+    }
     if (!ehUuid(id)) return;
     setConfirmando(id);
     try {
@@ -170,6 +192,18 @@ export default function PortalTreinamentoPage() {
                 ) : t.id.startsWith('quinta-') && t.embed_url ? (
                   <div>
                     <QuintaTreinoEmbed embedUrl={t.embed_url} titulo={t.titulo} resumo={t.descricao ?? ''} />
+                    {t.id === 'quinta-lider' && t.exige_confirmacao && !t.confirmado ? (
+                      <button
+                        type="button"
+                        disabled={confirmando === t.id}
+                        onClick={() => void confirmar(t.id)}
+                        className="mt-3 rounded-lg border border-dourado-base bg-dourado-50 px-4 py-2.5 text-sm font-semibold text-coffee-base disabled:opacity-50 min-h-[44px]"
+                      >
+                        {confirmando === t.id ? 'Salvando…' : 'Assisti e entendi'}
+                      </button>
+                    ) : t.id === 'quinta-lider' && t.confirmado ? (
+                      <p className="mt-3 text-sm text-emerald-700 font-medium">Concluído ✓</p>
+                    ) : null}
                     {linkQuinta ? (
                       <Link href={linkQuinta} className="inline-block mt-2 text-xs text-dourado-base underline">
                         Abrir também em Grãos de café

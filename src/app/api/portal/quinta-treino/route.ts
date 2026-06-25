@@ -5,6 +5,7 @@ import { normalizePortalRole, podeParticiparGraosCafe, podeVerTodosTreinosQuinta
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { ehQuintaSaoPaulo } from '@/lib/semana-brasil';
 import { resolverQuintaTreino, resolverParTreinosQuinta, type QuintaTreinoPerfil } from '@/lib/graos/quinta-treino';
+import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,8 @@ export async function GET(req: Request) {
 
     const perfil: QuintaTreinoPerfil = ehLider && !ehColaboradorOperacao ? 'lider' : 'colaborador';
     const quintaTreino = resolverQuintaTreino(origin, perfil);
+    const treinoLiderConcluido =
+      perfil === 'lider' ? await liderConcluiuTreinoAtual(supabase, viewerId) : undefined;
 
     return NextResponse.json(
       {
@@ -69,6 +72,7 @@ export async function GET(req: Request) {
         eh_quinta: ehQuinta,
         perfil_treino: perfil,
         quinta_treino: quintaTreino,
+        treino_lider_concluido: treinoLiderConcluido,
         pode_concluir_graos: perfil === 'colaborador' && ehColaboradorOperacao,
       },
       { headers: NO_STORE }

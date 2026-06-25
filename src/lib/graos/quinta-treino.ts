@@ -101,7 +101,7 @@ function resolverApresentador(perfil: QuintaTreinoPerfil): QuintaTreinoApresenta
 
 /** URLs padrão (Vercel pode sobrescrever via NEXT_PUBLIC_QUINTA_YOUTUBE_URL*). */
 export const QUINTA_VIDEO_COLABORADOR_PADRAO = 'https://youtu.be/dd1bsHYYqjg';
-export const QUINTA_VIDEO_LIDERES_PADRAO = 'https://youtube.com/shorts/0XYHQQ3RuTY';
+export const QUINTA_VIDEO_LIDERES_PADRAO = 'https://youtu.be/vjsYKHS8SSY';
 
 export type QuintaTreinoPar = {
   colaborador: QuintaTreinoConfig;

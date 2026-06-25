@@ -12,6 +12,7 @@ import {
 } from '@/lib/graos/quinta-treino';
 import { normalizePortalRole } from '@/lib/roles';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
+import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 
 /** Lista treinamentos do colaborador + Quinta do café (env) + link vídeo institucional. */
 export async function GET(req: Request) {
@@ -102,15 +103,17 @@ export async function GET(req: Request) {
       ? 'lider'
       : 'colaborador';
     const quinta = resolverQuintaTreino(origin, perfilQuinta);
+    const concluiuTreinoLider =
+      perfilQuinta === 'lider' ? await liderConcluiuTreinoAtual(supabase, colaboradorId) : false;
     if (quinta.embed_url) {
       extras.push({
         id: `quinta-${perfilQuinta}`,
         tipo: 'cadastro' as const,
         titulo: quinta.titulo,
         descricao: quinta.resumo,
-        exige_confirmacao: false,
-        visualizado: true,
-        confirmado: false,
+        exige_confirmacao: perfilQuinta === 'lider',
+        visualizado: perfilQuinta === 'lider' ? concluiuTreinoLider : true,
+        confirmado: concluiuTreinoLider,
         embed_url: quinta.embed_url,
         created_at: null,
       });

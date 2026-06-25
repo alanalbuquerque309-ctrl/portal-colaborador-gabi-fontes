@@ -12,6 +12,7 @@ import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { TROFEUS_PARES_CREDITOS_SEMANA } from '@/lib/trofeus-pares';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { listarComunicadosPendenteConfirmacao } from '@/lib/avisos-pendencias';
+import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 
 function formatarNomes(nomes: string[], max = 3): string {
   if (nomes.length === 0) return '';
@@ -169,6 +170,18 @@ export async function montarPendenciasPortalHome(
   }
 
   if (podeEquipe && (nr === 'gerente' || nr === 'master' || nr === 'admin')) {
+    const concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, ctx.colaboradorId);
+    if (!concluiuTreinoLider) {
+      lista.push({
+        id: 'treino-lideranca',
+        titulo: 'Assistir treinamento de liderança',
+        detalhe: 'Vídeo exclusivo para quem avalia a equipe. Assista e confirme em Treinamento.',
+        href: '/portal/treinamento',
+        urgente: false,
+        acaoLabel: 'Assistir agora →',
+      });
+    }
+
     const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, ctx.colaboradorId, ctx.unidadeId);
     const ids = equipe.map((c) => c.id);
     const dataRef = inicioSemanaSegundaFeiraLocal(semanaRef);
