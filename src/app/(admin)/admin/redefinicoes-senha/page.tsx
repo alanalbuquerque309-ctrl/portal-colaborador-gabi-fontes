@@ -39,18 +39,21 @@ export default function RedefinicoesSenhaPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [acaoEm, setAcaoEm] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
+  const [migrationPendente, setMigrationPendente] = useState(false);
 
   const recarregar = useCallback(() => {
     setLoading(true);
     setErro(null);
     fetch('/api/admin/redefinicoes-senha', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((d: { ok?: boolean; erro?: string; solicitacoes?: Solicitacao[] }) => {
+      .then((d: { ok?: boolean; erro?: string; solicitacoes?: Solicitacao[]; migration_pendente?: boolean }) => {
         if (!d.ok) {
           setErro(d.erro || 'Não foi possível carregar as solicitações.');
           setSolicitacoes([]);
+          setMigrationPendente(false);
           return;
         }
+        setMigrationPendente(d.migration_pendente === true);
         setSolicitacoes(Array.isArray(d.solicitacoes) ? d.solicitacoes : []);
       })
       .catch(() => {
@@ -109,6 +112,13 @@ export default function RedefinicoesSenhaPage() {
       {erro && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{erro}</div>
       )}
+      {migrationPendente && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          A fila de pedidos ainda não está ativa neste banco (migration 050). Colaboradores que usam «Esqueci minha
+          senha» não aparecem aqui até aplicar a migration no Supabase. Enquanto isso, use «Resetar senha» em
+          Colaboradores ou redefina direto nesta tela após confirmar a identidade.
+        </div>
+      )}
 
       <AdminSection
         title="Solicitações pendentes"
@@ -129,7 +139,8 @@ export default function RedefinicoesSenhaPage() {
           </div>
         ) : solicitacoes.length === 0 ? (
           <p className="text-sm text-emerald-800 bg-emerald-50 rounded-xl px-4 py-3 border border-emerald-200">
-            Nenhuma solicitação pendente.
+            Nenhuma solicitação pendente. Quando alguém usar «Esqueci minha senha» no login com celular e e-mail
+            iguais ao cadastro, o pedido aparece aqui para o RH atender.
           </p>
         ) : (
           <AdminTable>

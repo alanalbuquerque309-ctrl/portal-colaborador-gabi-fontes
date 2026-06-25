@@ -36,8 +36,8 @@ export const UNIDADES_RELATORIO_FILIAIS = UNIDADES_CADASTRO.filter(
   (u) => u.slug !== SLUG_UNIDADE_ADMINISTRATIVO
 );
 
-/** Perfis cadastráveis via fluxo principal: colaborador, gerente (líder / avaliação da equipe), admin. */
-export const ROLES_CADASTRO = ['colaborador', 'gerente', 'admin'] as const;
+/** Perfis cadastráveis via fluxo principal. */
+export const ROLES_CADASTRO = ['colaborador', 'gerente', 'rh', 'admin', 'socio'] as const;
 
 export function isSetorValido(s: string | null | undefined): boolean {
   if (!s || !s.trim()) return false;

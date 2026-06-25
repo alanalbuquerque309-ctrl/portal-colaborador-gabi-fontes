@@ -25,6 +25,7 @@ const OPCOES_ACESSO = [
   { value: 'admin', label: 'Administrador' },
   { value: 'gerente', label: 'Gerente' },
   { value: 'master', label: 'Gerente' },
+  { value: 'rh', label: 'RH' },
   { value: 'colaborador', label: 'Colaborador' },
 ];
 
@@ -35,8 +36,9 @@ export default function ColaboradoresPage() {
   const [filtroCargo, setFiltroCargo] = useState('');
   const [filtroAcesso, setFiltroAcesso] = useState('');
   const [filtroUnidade, setFiltroUnidade] = useState('');
+  const [podeEditarCadastro, setPodeEditarCadastro] = useState<boolean | null>(null);
   const [excluindo, setExcluindo] = useState<string | null>(null);
-  const [resetando, setResetando] = useState<string | null>(null);
+  const [resetandoSenha, setResetandoSenha] = useState<string | null>(null);
   const [concluindo, setConcluindo] = useState<string | null>(null);
   const [erroLista, setErroLista] = useState<string | null>(null);
   /** Total de linhas no Supabase (mesma consulta da API), para conferir ambiente. */
@@ -120,6 +122,13 @@ export default function ColaboradoresPage() {
     recarregar();
   }, []);
 
+  useEffect(() => {
+    fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setPodeEditarCadastro(d?.pode_editar_cadastro === true))
+      .catch(() => setPodeEditarCadastro(false));
+  }, []);
+
   const { opcoesUnidadeDados, colaboradoresFiltrados } = useMemo(() => {
     const nomesExtras = Array.from(
       new Set(colaboradores.map((c) => c.unidade?.nome?.trim()).filter((v): v is string => !!v))
@@ -162,31 +171,31 @@ export default function ColaboradoresPage() {
     }
   };
 
-  const handleResetCadastro = async (id: string, nome: string) => {
+  const handleResetSenha = async (id: string, nome: string) => {
     if (
       !confirm(
-        `Resetar cadastro de "${nome}"?\n\nApaga senha, onboarding e dados pessoais (endereço, data de nascimento, foto). Mantém CPF, nome, e-mail, telefone e acesso.\n\nA pessoa refaz o fluxo de primeiro acesso no próximo login.`
+        `Resetar senha de "${nome}"?\n\nA senha volta para 123456 e a pessoa será obrigada a trocar no próximo acesso. O perfil e o onboarding permanecem intactos.\n\nAvise o colaborador por um canal confiável.`
       )
     ) {
       return;
     }
 
-    setResetando(id);
+    setResetandoSenha(id);
     try {
-      const res = await fetch(`/api/admin/colaboradores/reset-cadastro?id=${id}`, {
+      const res = await fetch(`/api/admin/colaboradores/${id}/redefinir-senha-padrao`, {
         method: 'POST',
         credentials: 'include',
       });
       const data = await res.json();
       if (data.ok) {
-        recarregar();
+        alert(data.mensagem || 'Senha redefinida para 123456.');
       } else {
-        alert(data.erro || 'Erro ao resetar cadastro.');
+        alert(data.erro || 'Erro ao resetar senha.');
       }
     } catch {
-      alert('Erro ao resetar cadastro.');
+      alert('Erro ao resetar senha.');
     } finally {
-      setResetando(null);
+      setResetandoSenha(null);
     }
   };
 
@@ -372,25 +381,27 @@ export default function ColaboradoresPage() {
                           Editar perfil
                         </Link>
                       </div>
-                      <div className="flex flex-col items-end gap-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleResetCadastro(c.id, c.nome)}
-                          disabled={resetando === c.id || excluindo === c.id}
-                          className="text-amber-700 hover:text-amber-900 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
-                          title="Zera senha, onboarding e perfil pessoal para primeiro acesso"
-                        >
-                          {resetando === c.id ? 'Resetando…' : 'Resetar cadastro'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleExcluir(c.id, c.nome)}
-                          disabled={excluindo === c.id || resetando === c.id}
-                          className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
-                        >
-                          {excluindo === c.id ? 'Excluindo…' : 'Excluir'}
-                        </button>
-                      </div>
+                      {podeEditarCadastro && (
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleResetSenha(c.id, c.nome)}
+                            disabled={resetandoSenha === c.id || excluindo === c.id}
+                            className="text-amber-700 hover:text-amber-900 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+                            title="Senha padrão 123456; troca obrigatória no próximo login"
+                          >
+                            {resetandoSenha === c.id ? 'Resetando…' : 'Resetar senha'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleExcluir(c.id, c.nome)}
+                            disabled={excluindo === c.id || resetandoSenha === c.id}
+                            className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
+                          >
+                            {excluindo === c.id ? 'Excluindo…' : 'Excluir'}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-3 text-coffee-100 align-top break-words">{c.setor || '-'}</td>
@@ -425,7 +436,12 @@ export default function ColaboradoresPage() {
       )}
 
       <p className="mt-4 text-xs text-coffee-100">
-        Resetar cadastro e excluir: apenas sócios e administradores. Reset apaga senha e refaz onboarding; mantém CPF e dados de cadastro RH.
+        Cadastrar, editar, resetar senha e excluir: admin, RH e sócios. Resetar senha volta para 123456 e exige troca no próximo acesso, sem apagar perfil nem onboarding.
+        Pedidos feitos em «Esqueci minha senha» aparecem em{' '}
+        <Link href="/admin/redefinicoes-senha" className="text-dourado-base font-medium hover:underline">
+          Redefinições de senha
+        </Link>
+        .
       </p>
     </div>
   );

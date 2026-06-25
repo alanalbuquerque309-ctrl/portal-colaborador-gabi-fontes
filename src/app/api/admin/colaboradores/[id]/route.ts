@@ -10,7 +10,7 @@ import { podeSerLider } from '@/lib/pode-ser-lider';
 import { sincronizarVinculosLiderancaColaborador } from '@/lib/sincronizar-vinculos-lideranca';
 
 /** Inclui `master` (tratado como gerente no app) para não quebrar cadastros antigos. */
-const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente', 'master'] as const;
+const ROLES_EDITAVEIS = ['colaborador', 'admin', 'socio', 'gerente', 'master', 'rh'] as const;
 
 const UNIDADES_PADRAO: { nome: string; slug: string }[] = [
   { nome: 'Mesquita', slug: 'mesquita' },
@@ -263,12 +263,12 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         payload.onboarding_completo = true;
         payload.termo_aceite_em = new Date().toISOString();
       }
-      if (role === 'gerente' || role === 'master' || role === 'admin' || role === 'socio') {
+      if (role === 'gerente' || role === 'master' || role === 'admin' || role === 'socio' || role === 'rh') {
         payload.lider_id = null;
       }
     }
 
-    const perfilSemLiderDireto = ['gerente', 'master', 'admin', 'socio'];
+    const perfilSemLiderDireto = ['gerente', 'master', 'admin', 'socio', 'rh'];
     const lideresRecebidos = body.lideres_ids !== undefined
       ? normalizarLideresIds(body.lideres_ids)
       : body.lider_id !== undefined

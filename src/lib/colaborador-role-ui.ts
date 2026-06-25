@@ -10,6 +10,8 @@ export function labelAcessoPortal(role: string | null | undefined): string {
       return 'Gerente';
     case 'master':
       return 'Gerente';
+    case 'rh':
+      return 'RH';
     case 'colaborador':
     default:
       return 'Colaborador';

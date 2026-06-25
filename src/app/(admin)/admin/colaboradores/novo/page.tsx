@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 
 const OPCOES_ROLE = [
-  { value: 'admin', label: 'Administrador', desc: 'Portal + painel (sócios costumam usar este perfil)' },
-  { value: 'gerente', label: 'Gerente (líder)', desc: 'Portal + avaliação da equipe' },
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — apenas portal' },
+  { value: 'gerente', label: 'Gerente (líder)', desc: 'Portal + avaliação da equipe' },
+  { value: 'rh', label: 'RH', desc: 'Portal + cadastros e redefinições de senha' },
+  { value: 'admin', label: 'Administrador', desc: 'Portal + painel (sócios costumam usar este perfil)' },
 ];
 
 function isUuid(s: string): boolean {

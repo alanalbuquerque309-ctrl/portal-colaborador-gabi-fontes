@@ -12,6 +12,7 @@ import { formatCpf, validateCpf } from '@/lib/utils/cpf';
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — portal' },
   { value: 'gerente', label: 'Gerente (líder)', desc: 'Portal + avaliação da equipe' },
+  { value: 'rh', label: 'RH', desc: 'Portal + cadastros e redefinições de senha' },
   { value: 'admin', label: 'Administrador', desc: 'Portal + painel admin' },
   { value: 'socio', label: 'Sócio', desc: 'Perfil legado — acesso total' },
 ];
@@ -70,23 +71,16 @@ export default function EditarColaboradorPage() {
     fetch('/api/admin/auth', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
+        const pode = d?.pode_editar_cadastro === true;
         setPodeEditarCpf(d?.pode_editar_cpf === true);
-        setPodeEditarCadastro(d?.pode_editar_cadastro === true);
+        setPodeEditarCadastro(pode);
+        setPodeRedefinirSenhaPadrao(pode);
       })
       .catch(() => {
         setPodeEditarCpf(false);
         setPodeEditarCadastro(false);
+        setPodeRedefinirSenhaPadrao(false);
       });
-  }, []);
-
-  useEffect(() => {
-    fetch('/api/portal/perfil', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((d) => {
-        const r0 = String(d?.colaborador?.role ?? '').toLowerCase();
-        setPodeRedefinirSenhaPadrao(r0 === 'master');
-      })
-      .catch(() => setPodeRedefinirSenhaPadrao(false));
   }, []);
 
   useEffect(() => {
@@ -225,6 +219,13 @@ export default function EditarColaboradorPage() {
 
   const handleRedefinirSenhaPadrao = async () => {
     if (!podeRedefinirSenhaPadrao || !id) return;
+    if (
+      !confirm(
+        'Redefinir a senha para 123456?\n\nO colaborador deverá criar uma nova senha no próximo acesso. Avise a pessoa por um canal confiável.'
+      )
+    ) {
+      return;
+    }
     setMsgRedefinir('');
     setRedefinindoSenha(true);
     try {
@@ -522,7 +523,7 @@ export default function EditarColaboradorPage() {
 
         {podeRedefinirSenhaPadrao && (
           <div className="rounded-lg border border-cream-300 bg-cream-50 p-4 space-y-2">
-            <p className="text-sm text-coffee-base font-medium">Redefinir senha (master)</p>
+            <p className="text-sm text-coffee-base font-medium">Redefinir senha</p>
             <p className="text-xs text-coffee-100">
               Volta a senha para o padrão <strong>123456</strong> e exige troca no próximo acesso ao portal.
             </p>

@@ -209,6 +209,9 @@ export function LoginForm({
                 Esqueci minha senha
               </Link>
             </p>
+            <p className="text-xs text-cafeteria-500 leading-snug">
+              O RH redefine a senha após você enviar o pedido; não há recuperação automática por e-mail.
+            </p>
           </>
         )}
 

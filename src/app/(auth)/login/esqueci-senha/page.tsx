@@ -61,8 +61,9 @@ export default function EsqueciSenhaPage() {
           Solicitar redefinição
         </h1>
         <p className="mb-6 text-sm text-cafeteria-600">
-          Informe o celular (com DDD) e o e-mail cadastrados no RH. Seu pedido vai para a equipe do RH,
-          que redefine a senha e avisa você. Por segurança, a redefinição não é automática.
+          Informe o celular (com DDD) e o e-mail <strong>exatamente como estão no cadastro do RH</strong>. Se
+          conferirem, seu pedido entra na fila do RH, que redefine a senha e avisa você. Por segurança, a redefinição
+          não é automática: ninguém recebe nova senha por e-mail ou SMS sozinho.
         </p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
