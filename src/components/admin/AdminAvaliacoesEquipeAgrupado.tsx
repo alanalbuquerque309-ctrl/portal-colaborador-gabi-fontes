@@ -5,6 +5,7 @@ import {
   agruparLinhasAdminPorColaboradorSemana,
   filtrarLinhasAdminBusca,
   formatarSemanaAdmin,
+  ordenarGruposSemana,
   type LinhaAdminAvaliacaoEquipe,
 } from '@/lib/admin-avaliacoes-equipe-agrupar';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
@@ -21,6 +22,8 @@ type Props = {
   onAbrirGaveta: (id: string) => void;
   onRecarregar: () => void;
   tendencias?: Record<string, { situacao: SituacaoEvolucao; delta: number | null }>;
+  /** Ordenação dos blocos semana+colaborador (padrão: data recente). */
+  ordenacaoSemana?: 'data' | 'nota';
 };
 
 function ChipNotaAvaliacao({
@@ -147,9 +150,13 @@ export function AdminAvaliacoesEquipeAgrupado({
   onAbrirGaveta,
   onRecarregar,
   tendencias,
+  ordenacaoSemana = 'data',
 }: Props) {
   const filtradas = filtrarLinhasAdminBusca(linhas, busca);
-  const grupos = agruparLinhasAdminPorColaboradorSemana(filtradas);
+  const grupos =
+    ordenacaoSemana === 'nota'
+      ? ordenarGruposSemana(agruparLinhasAdminPorColaboradorSemana(filtradas), 'nota', 'desc')
+      : agruparLinhasAdminPorColaboradorSemana(filtradas);
 
   if (grupos.length === 0) {
     return (

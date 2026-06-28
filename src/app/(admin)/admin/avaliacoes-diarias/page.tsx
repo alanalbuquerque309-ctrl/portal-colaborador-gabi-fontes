@@ -1,18 +1,21 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { formatarExibicaoAvaliacaoAdmin } from '@/lib/avaliacao-diaria';
 import {
   filtrarLinhasAdminBusca,
+  ordenarLinhasAdminPorMedia,
   type LinhaAdminAvaliacaoEquipe,
+  type OrdemRankingAdmin,
 } from '@/lib/admin-avaliacoes-equipe-agrupar';
 import {
   AvaliacaoNotasGaveta,
   type LinhaAvaliacaoGaveta,
 } from '@/components/admin/AvaliacaoNotasGaveta';
 import { AdminAvaliacoesEquipeAgrupado } from '@/components/admin/AdminAvaliacoesEquipeAgrupado';
+import { AdminAvaliacoesEquipeRanking } from '@/components/admin/AdminAvaliacoesEquipeRanking';
 import { AdminAvaliacaoAdminAcao } from '@/components/admin/AdminAvaliacaoAdminAcao';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
 import { AvaliacoesPendentesModal } from '@/components/admin/AvaliacoesPendentesModal';
@@ -20,7 +23,7 @@ import type { SituacaoEvolucao } from '@/lib/evolucao';
 
 type Linha = LinhaAdminAvaliacaoEquipe;
 
-type ModoVisualizacao = 'agrupado' | 'detalhada';
+type ModoVisualizacao = 'ranking' | 'agrupado' | 'detalhada';
 
 function hojeISO(): string {
   const d = new Date();
@@ -55,7 +58,8 @@ export default function AdminAvaliacoesDiariasPage() {
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [busca, setBusca] = useState('');
   const [somenteAtencao, setSomenteAtencao] = useState(false);
-  const [modo, setModo] = useState<ModoVisualizacao>('agrupado');
+  const [modo, setModo] = useState<ModoVisualizacao>('ranking');
+  const [ordemRanking, setOrdemRanking] = useState<OrdemRankingAdmin>('desc');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [linhas, setLinhas] = useState<Linha[]>([]);
@@ -133,6 +137,35 @@ export default function AdminAvaliacoesDiariasPage() {
   const linhasExibidas = filtrarLinhasAdminBusca(linhas, busca).filter(
     (l) => !somenteAtencao || linhaPrecisaAtencao(l, tendencias)
   );
+
+  const linhasDetalhadaRankeadas = useMemo(
+    () => ordenarLinhasAdminPorMedia(linhasExibidas, ordemRanking),
+    [linhasExibidas, ordemRanking]
+  );
+
+  const posicaoPorLinhaId = useMemo(() => {
+    const map = new Map<string, number>();
+    let pos = 0;
+    let ultimaMedia: number | null | undefined;
+    for (let i = 0; i < linhasDetalhadaRankeadas.length; i++) {
+      const l = linhasDetalhadaRankeadas[i];
+      const exib = formatarExibicaoAvaliacaoAdmin(l);
+      const media =
+        exib.foraPlantao || exib.legado || exib.isenta || l.media_dia == null
+          ? null
+          : Number(l.media_dia);
+      if (media == null) {
+        map.set(l.id, 0);
+        continue;
+      }
+      if (ultimaMedia !== media) {
+        pos = i + 1;
+        ultimaMedia = media;
+      }
+      map.set(l.id, pos);
+    }
+    return map;
+  }, [linhasDetalhadaRankeadas]);
 
   return (
     <div>
@@ -292,6 +325,17 @@ export default function AdminAvaliacoesDiariasPage() {
           <span className="text-sm font-medium text-coffee-base mr-1">Visualização:</span>
           <button
             type="button"
+            onClick={() => setModo('ranking')}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+              modo === 'ranking'
+                ? 'bg-dourado-base text-cream-100'
+                : 'bg-cream-100 text-coffee-base hover:bg-cream-200'
+            }`}
+          >
+            Ranking
+          </button>
+          <button
+            type="button"
             onClick={() => setModo('agrupado')}
             className={`rounded-full px-4 py-1.5 text-sm font-medium ${
               modo === 'agrupado'
@@ -312,6 +356,16 @@ export default function AdminAvaliacoesDiariasPage() {
           >
             Lista detalhada
           </button>
+          {(modo === 'ranking' || modo === 'detalhada') && (
+            <button
+              type="button"
+              onClick={() => setOrdemRanking((o) => (o === 'desc' ? 'asc' : 'desc'))}
+              className="rounded-full px-4 py-1.5 text-sm font-medium bg-cream-100 text-coffee-base hover:bg-cream-200 border border-cream-300"
+              title={ordemRanking === 'desc' ? 'Melhor nota primeiro' : 'Pior nota primeiro'}
+            >
+              {ordemRanking === 'desc' ? '↓ Melhor primeiro' : '↑ Pior primeiro'}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setSomenteAtencao((v) => !v)}
@@ -331,6 +385,7 @@ export default function AdminAvaliacoesDiariasPage() {
           <p className="text-xs text-coffee-100">
             {linhasExibidas.length} de {linhas.length} registro{linhas.length === 1 ? '' : 's'} exibido
             {linhasExibidas.length === 1 ? '' : 's'} no período.
+            {modo === 'ranking' && ' Posição pela média no período filtrado.'}
             {modo === 'agrupado' && ' Mesma pessoa na mesma semana aparece uma vez, com todas as notas dos avaliadores.'}
             {somenteAtencao && ' Filtro ativo: nota baixa, falta injustificada ou queda na tendência.'}
           </p>
@@ -351,7 +406,23 @@ export default function AdminAvaliacoesDiariasPage() {
       </div>
 
       <div className="rounded-xl border border-dourado-200 bg-white overflow-hidden shadow-sm">
-        {modo === 'agrupado' ? (
+        {modo === 'ranking' ? (
+          carregando && linhas.length === 0 ? (
+            <p className="text-sm text-coffee-100 px-4 py-10 text-center">Carregando…</p>
+          ) : (
+            <AdminAvaliacoesEquipeRanking
+              linhas={linhasExibidas}
+              busca=""
+              ordem={ordemRanking}
+              podeVerDetalhe={podeVerDetalhe}
+              podeIgnorar={podeVerDetalhe}
+              gavetaId={gavetaId}
+              onAbrirGaveta={abrirGaveta}
+              onRecarregar={() => void buscar()}
+              tendencias={tendencias}
+            />
+          )
+        ) : modo === 'agrupado' ? (
           carregando && linhas.length === 0 ? (
             <p className="text-sm text-coffee-100 px-4 py-10 text-center">Carregando…</p>
           ) : (
@@ -371,6 +442,7 @@ export default function AdminAvaliacoesDiariasPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-cream-100 text-coffee-base border-b border-cream-300">
                 <tr>
+                  <th className="px-3 py-2 font-semibold w-12">#</th>
                   <th className="px-3 py-2 font-semibold">Semana (segunda)</th>
                   <th className="px-3 py-2 font-semibold">Colaborador</th>
                   <th className="px-3 py-2 font-semibold">Setor · Função</th>
@@ -381,17 +453,20 @@ export default function AdminAvaliacoesDiariasPage() {
                 </tr>
               </thead>
               <tbody>
-                {linhasExibidas.length === 0 ? (
+                {linhasDetalhadaRankeadas.length === 0 ? (
                   <tr>
-                    <td colSpan={podeVerDetalhe ? 7 : 6} className="px-3 py-8 text-center text-coffee-100">
+                    <td colSpan={podeVerDetalhe ? 8 : 7} className="px-3 py-8 text-center text-coffee-100">
                       {carregando ? '…' : 'Nenhum registro. Ajuste o período e busque.'}
                     </td>
                   </tr>
                 ) : (
-                  linhasExibidas.map((l) => {
+                  linhasDetalhadaRankeadas.map((l) => {
                     const exib = formatarExibicaoAvaliacaoAdmin(l);
                     const gavetaAberta = gavetaId === l.id;
                     const ignorada = avaliacaoEstaIgnorada(l);
+                    const pos = posicaoPorLinhaId.get(l.id) ?? 0;
+                    const posLabel =
+                      pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : pos > 0 ? `${pos}º` : '—';
                     return (
                       <tr
                         key={l.id}
@@ -405,6 +480,9 @@ export default function AdminAvaliacoesDiariasPage() {
                                 : ''
                         }`}
                       >
+                        <td className="px-3 py-2 text-center font-semibold tabular-nums text-coffee-base">
+                          {posLabel}
+                        </td>
                         <td className="px-3 py-2 whitespace-nowrap text-coffee-base">{l.data_referencia}</td>
                         <td className="px-3 py-2 text-coffee-base">{l.colaborador_nome ?? l.colaborador_id}</td>
                         <td className="px-3 py-2 text-coffee-100 text-xs">
