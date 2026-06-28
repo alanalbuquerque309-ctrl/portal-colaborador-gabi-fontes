@@ -86,8 +86,10 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 
 ### RH
 
-- **Visita RH:** `/portal/avaliacao-rh-visita` (rede; independente da nota do gerente local).
+- **Visita RH:** `/portal/avaliacao-rh-visita` (rede; **complementar** à nota do gerente local — **não** substitui pendência de líder na cobrança admin).
 - Keila também avalia **Thaís e Lucas** pela equipe direta (ver tabela acima); visita RH continua válida para o resto da rede.
+- **GET multi-semana (jun/2026, `7207b99`):** `semanasBuscaAvaliacaoRhVisita` em `avaliacao-semana-cobranca.ts` — mesma janela de cobrança que pendências/líder; evita «já avaliei» na UI com `data_referencia` numa segunda adjacente.
+- **Home Keila:** `listarRedeParaVisitaRh` (inclui recém-cadastrados, não só `onboarding_completo`); contagem de visitas pendentes usa `.in('data_referencia', semanasReferenciaCobrancaAvaliacaoLider())`.
 
 ### Sócio / relatórios
 
@@ -99,12 +101,14 @@ Regras em **`src/lib/config-avaliacao-direta.ts`**; lógica em **`src/lib/avalia
 - **Resumo por líder (jun/2026):** chips clicáveis agrupam pendências por **líder responsável** (ex.: «Silvia · 5») para filtrar a lista; Daniel/sócios identificam quem não avaliou a equipe sem procurar nome a nome.
 - **API:** `GET /api/admin/avaliacoes-pendentes`, `GET /api/portal/avaliacoes-pendentes` → `calcularPendenciasSemana` em `src/lib/avaliacao-pendentes-semana.ts`.
 - **Plantão 12x36 (jun/2026):** rótulo do responsável inclui paridade efetiva do mês (ex.: «Silvia (dias ímpares)») via `src/lib/plantao-12x36.ts` + colunas `plantao_paridade` / `plantao_paridade_mes_ref` em `lideres_por_setor` (migration **042**). Paridade vinculada à **função de liderança**, não à pessoa; inversão automática mês a mês.
-- **Regra de lista (jun/2026, `260559a`):** incluir **somente** quem falta avaliação de **pelo menos um líder** e/ou **Visita RH** (elegível); **excluir** quem já tem líder **e** RH na semana.
+- **Regra de lista (jun/2026, `260559a`, `7207b99`):** pendente se falta **gerente** **ou** **Visita RH** (elegível) — **são cobranças separadas**; quem tem os dois na semana monitorada **sai** da lista. **Não confundir com Grãos** (secção abaixo): Grãos liberam com **gerente OU RH**; pendências admin **não** usam essa regra OR.
 - **Filtro padrão:** `pendentes` (*Pendentes (líder ou RH)*); filtros secundários: `gerente`, `rh_complemento`, `rh_rede`.
-- **Semana de referência:** `resolverDataRefPendentes` — **sempre** `semanaAnteriorSaoPaulo()` (semana passada em **America/Sao_Paulo**); **não** alterna para a semana corrente por contagem no banco (`6f22a9a`). Liderança no mapa só muda quando o mês vira; quem o líder já fechou na semana passada **não** aparece como «sem líder».
+- **Semana monitorada:** `resolverDataRefPendentes` → **`semanaAvaliacaoEquipePadraoISO()`** (semana **operacional passada**, America/Sao_Paulo — a que a liderança deve avaliar); override só com `data` explícita válida na API.
+- **Janela de cobrança:** `carregarAvaliacoesCobrancaLider` aceita também notas na segunda **corrente** quando ainda difere da operacional (`semanasReferenciaCobrancaAvaliacaoLider` em `avaliacao-semana-cobranca.ts`) — líder/RH que grava na segunda «errada» na virada dom→seg ainda conta.
+- **Recém-cadastrados (`7207b99`):** colaboradores `role=colaborador` entram no radar de pendências (união com mapa de líderes); **sem líder no mapa** (`esperados.length === 0`) **não** gera falso «sem gerente» — só falta RH se elegível.
 - **`semanaAvaliacaoEquipePadraoISO()`** e avaliação operacional alinhadas a SP (`semana-referencia.ts` + `semana-brasil.ts`) — evita desvio UTC no Vercel.
-- **Labels na lista:** líder só se falta líder; RH só se falta Visita RH.
-- **Diagnóstico:** `node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]`.
+- **Labels na lista:** líder só se falta líder; RH só se falta Visita RH; quando RH ok e falta gerente → «RH ok — falta gerente».
+- **Diagnóstico:** `node scripts/diagnostico-pendentes-semana.mjs [YYYY-MM-DD]`; `node scripts/diag-joyce-bianca-graos.mjs`; `node scripts/diag-vanessa-ni-detalhe.mjs`.
 
 ### Admin — tabela de avaliações (gestão completa)
 
@@ -230,9 +234,9 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
 ### Pendências da semana — admin (`/admin/avaliacoes-pendentes`)
 
 - **Rota:** menu **Avaliações → Pendências da semana**; badge no sidebar com total pendente.
-- **Semana monitorada (jun/2026, `bbd8c65`):** **sempre a semana corrente** (`segundaSemanaSaoPaulo()` em `resolverDataRefPendentes`); **sem** seletor de data na URL; substitui regra anterior que usava semana anterior (`bf14979`).
-- **Chips por líder:** `AvaliacoesPendentesPainel.tsx` + `avaliacao-pendentes-semana-shared.ts` — agregação `lideresCobrancaPorItem`; gerentes 12×36 **sem** `plantao_paridade` cadastrada creditam **todos** os gerentes da unidade (`c177052`, ex.: Vanessa em Nova Iguaçu).
-- **Libs:** `avaliacao-pendentes-semana.ts` (servidor); `avaliacao-pendentes-semana-shared.ts` (cliente + agregação, **sem** `next/headers` — evita quebrar build Vercel, `2acc122`).
+- **Semana monitorada:** **`semanaAvaliacaoEquipePadraoISO()`** (semana operacional passada, SP) em `resolverDataRefPendentes`; **sem** seletor de data na URL. Avaliações lidas também na janela `semanasReferenciaCobrancaAvaliacaoLider()`.
+- **Chips por líder:** `AvaliacoesPendentesPainel.tsx` + `avaliacao-pendentes-semana-shared.ts` — agregação `lideresCobrancaPorItem`; gerentes 12×36 **sem** `plantao_paridade` cadastrada creditam **todos** os gerentes da unidade (`c177052`, ex.: Vanessa em Nova Iguaçu — **aplicar migration 059** para paridade ímpar/par).
+- **Libs:** `avaliacao-pendentes-semana.ts` (servidor); `avaliacao-pendentes-semana-shared.ts` (cliente + agregação, **sem** `next/headers` — evita quebrar build Vercel, `2acc122`); `avaliacao-semana-cobranca.ts` (janela dom→seg).
 - **API:** `GET /api/admin/avaliacoes-pendentes` — filtros unidade, chip líder, tipo pendência.
 
 ### Escalas (admin + portal)
@@ -280,7 +284,9 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
 
 ## Grãos de café (nossa moeda) — jun/2026 (`e6852d6`, `a7f61a9`, `ef748e0`, `6f22a9a`)
 
-Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por participação e **resgatam** itens do catálogo (docinhos, café, etc.). **Não é automático:** missões geram movimentos **`pendente`**; só **`confirmado`** após **elegibilidade da semana** (avaliação do líder + regras de assiduidade/notas).
+Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por participação e **resgatam** itens do catálogo (docinhos, café, etc.). **Não é automático:** missões geram movimentos **`pendente`**; só **`confirmado`** após **elegibilidade da semana** (avaliação que fecha a semana + regras de assiduidade/notas).
+
+**⚠️ Grãos ≠ pendências de avaliação:** elegibilidade Grãos aceita **gerente OU Visita RH** na semana operacional; painel de pendências admin cobra **gerente e RH em separado** (ver secção Pendentes).
 
 ### Valores e missões (`src/lib/graos/constants.ts`)
 
@@ -297,14 +303,26 @@ Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por 
 - **Teto sugestão/semana:** 1 + 9 = **10** (`GRAOS_SUGESTAO_MAX_SEMANA`).
 - **Valor do grão (caixa):** `GRAOS_CENTAVOS_POR_GRAO = 30` (R$ 0,30/grão) — complemento em dinheiro no resgate.
 - **Catálogo de resgate (`6f22a9a`):** preço **fixo em R$** em `graos_catalogo.preco_centavos` (migration **054**); grãos cobrados = `ceil(preco_centavos / GRAOS_CENTAVOS_POR_GRAO)` via `src/lib/graos/catalogo.ts`. Ao mudar o valor do grão, **itens do catálogo recalculam** sem alterar o que o caixa cobra. Fallback legado: `grãos_seed × 35` centavos se coluna ainda não existir.
-- **Líder não avaliou:** colaborador só recebe os **5 Grãos de login** na semana (`ef748e0`); restante fica pendente até avaliação.
+- **Líder/RH ainda não avaliou (semana operacional):** colaborador só recebe os **5 Grãos de login** na semana civil (`ef748e0`); restante fica pendente até **qualquer** avaliação que feche a semana (gerente **ou** RH).
 
-### Elegibilidade semanal (`src/lib/graos/elegibilidade.ts`, `movimentos.ts`)
+### Elegibilidade semanal (`src/lib/graos/elegibilidade.ts`, `movimentos.ts`, `avaliacao-semana-cobranca.ts`)
+
+**Semana civil dos Grãos vs semana da avaliação (jun/2026, `7207b99`):**
+
+| Conceito | Origem | Exemplo (qui–dom após virada) |
+|----------|--------|-------------------------------|
+| **Semana civil Grãos** | `segundaSemanaSaoPaulo()` — missões/login desta semana | `2026-06-22` |
+| **Semana operacional avaliada** | `semanaAvaliacaoEquipePadraoISO()` / anterior à civil | `2026-06-15` |
+| **Busca no banco** | `semanasAvaliacaoOperacionalParaGraos(semanaInicioGraos)` | inclui operacional + janela `semanasReferenciaCobrancaAvaliacaoLider()` |
+
+- **`buscarAvaliacaoSemanaColaborador`:** `.in('data_referencia', semanasBusca)` + `escolherAvaliacaoParaGraos` (prefere linha que **não** seja só «fora do plantão»; aceita **qualquer avaliador** — gerente ou RH).
+- **Sintoma corrigido:** colaborador com Joyce/Keila ok em `2026-06-15` deixava de ver «líder não avaliou» na UI Grãos da semana `2026-06-22`.
+- **Reprocessamento:** ao abrir `/portal/graos` ou sync (`reprocessarGraosAposAvaliacaoEquipe`, `processarElegibilidadeTodasSemanasPendentesGraos`); após deploy, pedir **abrir tela Grãos** uma vez se saldo pendente antigo.
 
 | Situação | Grãos da semana | Nota / desempenho |
 |----------|-----------------|-------------------|
-| Líder ainda não avaliou | pendente, não confirma | — |
-| **Presente** + critérios OK | confirma | normal |
+| **Ninguém** fechou a semana (gerente nem RH) | pendente, não confirma (só login 5 grãos) | — |
+| **Gerente ou RH** fechou (`presente` + critérios OK) | confirma | normal |
 | **Falta justificada** | **sem Grãos** | **nota do líder vale** |
 | **Falta injustificada** | **sem Grãos** | **média zera**; **zera todo saldo acumulado** (`aplicarZeragemFaltaInjustificadaGraos`, `6f22a9a`) |
 | **Férias** | sem Grãos | isenta da média |
@@ -941,12 +959,21 @@ npm run db:apply-054                                      # preco_centavos catá
 - `DesdeUltimaVisitaHome`, `portal-resumo-desde-visita.ts`, `portal-ultima-visita.ts`, `GET /api/portal/resumo-desde-visita`.
 - Primeira evolução de **engajamento diário** (P6) entregue: novidades personalizadas sem push notification.
 
-### Pendências da semana — semana corrente SP (jun/2026, `bbd8c65`, `c177052`, `2acc122`)
+### Pendências + Grãos — semana operacional e janela cobrança (jun/2026, `bbd8c65`, `c177052`, `2acc122`, **`7207b99`**)
 
-- **`resolverDataRefPendentes`:** usa **sempre** `segundaSemanaSaoPaulo()` (semana corrente, America/Sao_Paulo); ignora `data` na URL; removido seletor de semana no painel admin.
-- **Substitui** regra `bf14979` (semana anterior) — pendências passam a cobrar avaliações **desta** semana.
-- **Chips líderes:** módulo partilhado `avaliacao-pendentes-semana-shared.ts`; gerentes sem paridade 12×36 aparecem todos nos chips (Vanessa NI, etc.).
-- **Build:** lógica partilhada fora de `avaliacao-pendentes-semana.ts` para não importar `next/headers` em componentes client.
+- **Pendências:** `resolverDataRefPendentes` → **`semanaAvaliacaoEquipePadraoISO()`** (semana operacional **passada**, SP); `carregarAvaliacoesCobrancaLider` + `semanasReferenciaCobrancaAvaliacaoLider()` (virada dom→seg).
+- **Grãos:** `semanasAvaliacaoOperacionalParaGraos(semanaCivilGrãos)` — corrige aviso falso «líder não avaliou»; elegibilidade com **gerente OU RH** (pendências admin continuam **E** separado).
+- **Visita RH GET:** `semanasBuscaAvaliacaoRhVisita`, `preferirAvaliacaoRhVisitaExibicao`; home Keila alinhada.
+- **Chips líderes:** `avaliacao-pendentes-semana-shared.ts`; gerentes sem paridade 12×36 nos chips (Vanessa NI — aplicar **059**).
+- **Build:** lógica partilhada fora de `avaliacao-pendentes-semana.ts` (sem `next/headers` no client).
+
+### RH — cadastro, reset senha e recuperação (jun/2026, `cabfa94`)
+
+- RH: editar cadastro, **Resetar senha** (`123456` + troca obrigatória); fila esqueci-senha (migration **050**); copy login.
+
+### Sócios — home sem pendências operacionais (jun/2026, `c9c16b6`)
+
+- `socioIsentoObrigacoesOperacionaisPortal` — sem «Faça agora» operacional; «Pend. rede» só monitoramento.
 
 ### Saúde da equipe — janela adaptativa (jun/2026, `84fa035`)
 
@@ -1099,7 +1126,8 @@ src/app/(admin)/admin/avaliacao-entre-pares/page.tsx
 src/components/portal/DesdeUltimaVisitaHome.tsx
 src/lib/portal-resumo-desde-visita.ts, portal-ultima-visita.ts
 src/app/api/portal/resumo-desde-visita/
-src/lib/avaliacao-pendentes-semana.ts, avaliacao-pendentes-semana-shared.ts, plantao-12x36.ts
+src/lib/avaliacao-pendentes-semana.ts, avaliacao-pendentes-semana-shared.ts, avaliacao-semana-cobranca.ts, plantao-12x36.ts
+src/app/api/portal/avaliacao-rh-visita/route.ts
 src/lib/auditoria-lideranca-viewer.ts, avaliacoes-relatorio-access.ts, avaliacoes-lideranca-relatorio.ts
 src/components/admin/AvaliacoesPendentesModal.tsx
 src/components/portal/PortalPwaRefresh.tsx
@@ -1138,6 +1166,7 @@ supabase/migrations/044_graos_cafe.sql, 045_sugestao_graos_destaque.sql, 046_sug
 scripts/zerar-avaliacoes-trofeus.mjs, reabrir-onboarding-todos.mjs, upload-video-boas-vindas.mjs
 scripts/backfill-graos-semanas.mjs, aplicar-graos-044.mjs
 scripts/diagnostico-pendentes-semana.mjs, diagnostico-avaliacoes-semana.mjs
+scripts/diag-joyce-bianca-graos.mjs, diag-vanessa-ni-detalhe.mjs, diag-vanessa-pendencias.mjs
 scripts/aplicar-vinculos-avaliacao-direta.mjs, aplicar-escalas-junho-2026.mjs, aplicar-migration-036.mjs
 scripts/aplicar-migrations-038-039.mjs, aplicar-migration-040.mjs, aplicar-migration-054.mjs, ignorar-avaliacoes-vinculo-incorreto.mjs
 APLIQUE_040_SQL_EDITOR.sql
