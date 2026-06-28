@@ -6,6 +6,7 @@ import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
 import {
   colaboradorElegivelVisitaRh,
   isAvaliacaoDeVisitaRh,
+  nomeEhDanielTransversal,
 } from '@/lib/avaliacao-rh-visita-access';
 import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
 import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
@@ -510,6 +511,18 @@ export async function calcularPendenciasSemana(
   const mapaEsperados = await buildMapaAvaliadoresEsperados(supabase);
   let colaboradorIds = Array.from(mapaEsperados.keys());
 
+  let queryRede = supabase.from('colaboradores').select('id, nome, role');
+  if (unidadeId) queryRede = queryRede.eq('unidade_id', unidadeId);
+  const { data: colsRede } = await queryRede;
+  const idsRede = (colsRede ?? [])
+    .filter((c) => {
+      const role = normalizePortalRole((c as { role?: string | null }).role);
+      if (role !== 'colaborador') return false;
+      return !nomeEhDanielTransversal((c as { nome?: string | null }).nome);
+    })
+    .map((c) => String(c.id));
+  colaboradorIds = Array.from(new Set([...colaboradorIds, ...idsRede]));
+
   if (unidadeId) {
     const { data: colsUn } = await supabase.from('colaboradores').select('id').eq('unidade_id', unidadeId);
     const idsUn = new Set((colsUn ?? []).map((c) => String(c.id)));
@@ -581,7 +594,7 @@ export async function calcularPendenciasSemana(
     }));
 
     const { label: responsavel_lider_label, critico } = montarLabelResponsavel(responsaveis);
-    const semLider = !temNotaGerente;
+    const semLider = esperados.length > 0 && !temNotaGerente;
     const semRhVisita = elegivelRh && !temRh;
     const semRhComplemento = temNotaGerente && semRhVisita;
     const pendente = semLider || semRhVisita;
@@ -625,7 +638,11 @@ export async function calcularPendenciasSemana(
       tipo,
       responsaveis_lider: semLider ? responsaveis.filter((r) => r.status !== 'ja_avaliou') : [],
       responsavel_lider_label: semLider ? responsavel_lider_label : '—',
-      responsavel_rh_label: semRhVisita ? 'Keila (Visita RH)' : null,
+      responsavel_rh_label: semRhVisita
+        ? 'Keila (Visita RH)'
+        : temRh && semLider
+          ? 'RH ok — falta gerente'
+          : null,
       detalhe:
         semLider && responsaveis.filter((r) => r.status === 'pendente').length > 1
           ? 'Mapa de liderança atual.'

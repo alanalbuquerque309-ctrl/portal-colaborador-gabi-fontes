@@ -240,14 +240,13 @@ export async function montarPendenciasPortalHome(
   }
 
   if (podeVisitaRh) {
-    const { data: rhEquipe } = await supabase
-      .from('colaboradores')
-      .select('id, nome')
-      .eq('role', 'colaborador')
-      .eq('onboarding_completo', true);
-
-    const idsRh = (rhEquipe ?? []).map((c) => String(c.id));
+    const { listarRedeParaVisitaRh } = await import('@/lib/avaliacao-rh-visita');
+    const redeRh = await listarRedeParaVisitaRh(supabase, ctx.colaboradorId, {});
+    const idsRh = redeRh
+      .filter((m) => normalizePortalRole(m.role) === 'colaborador')
+      .map((m) => m.id);
     const dataRef = inicioSemanaSegundaFeiraLocal(semanaRef);
+    const semanasRh = semanasReferenciaCobrancaAvaliacaoLider();
     const feriasRhIds =
       idsRh.length > 0 ? await idsColaboradoresDeFeriasNaSemana(supabase, idsRh, dataRef) : new Set<string>();
 
@@ -257,20 +256,23 @@ export async function montarPendenciasPortalHome(
         .from('avaliacoes_diarias')
         .select('colaborador_id')
         .eq('avaliador_id', ctx.colaboradorId)
-        .eq('data_referencia', dataRef)
+        .in('data_referencia', semanasRh)
         .in('colaborador_id', idsRh);
 
       avaliadosRh = new Set((avalRh ?? []).map((r) => String(r.colaborador_id)));
     }
 
-    const pendentesMembros = (rhEquipe ?? []).filter(
-      (m) => !avaliadosRh.has(String(m.id)) && !feriasRhIds.has(String(m.id))
+    const pendentesMembros = redeRh.filter(
+      (m) =>
+        normalizePortalRole(m.role) === 'colaborador' &&
+        !avaliadosRh.has(m.id) &&
+        !feriasRhIds.has(m.id)
     );
     const pendentes = pendentesMembros.length;
 
     if (pendentes > 0) {
       const nomesPreview = pendentesMembros
-        .map((m) => String(m.nome ?? ''))
+        .map((m) => m.nome ?? '')
         .filter(Boolean)
         .slice(0, 3);
       const preview =

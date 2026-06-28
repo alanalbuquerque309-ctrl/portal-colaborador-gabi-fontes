@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 import type { AssiduidadeTipo } from '@/lib/avaliacao-diaria';
+import { semanasAvaliacaoOperacionalParaGraos } from '@/lib/avaliacao-semana-cobranca';
 
 export type GraosEstadoSemana =
   | 'aguardando_lider'
@@ -48,7 +49,7 @@ export function avaliarElegibilidadeDeLinha(row: AvaliacaoRow | null): GraosEleg
   if (!row) {
     return {
       estado: 'aguardando_lider',
-      motivo: 'Seu líder ainda não te avaliou esta semana. Você pode cobrar a avaliação.',
+      motivo: 'Aguardando avaliação da equipe (gerente ou RH). Você pode cobrar a avaliação.',
       elegivel: false,
       avaliacao_id: null,
     };
@@ -120,7 +121,7 @@ export function avaliarElegibilidadeDeLinha(row: AvaliacaoRow | null): GraosEleg
 }
 
 /** Preferir avaliação que fecha a semana (presente/falta) em vez de «fora do plantão». */
-function escolherAvaliacaoParaGraos(rows: AvaliacaoRow[]): AvaliacaoRow | null {
+export function escolherAvaliacaoParaGraos(rows: AvaliacaoRow[]): AvaliacaoRow | null {
   const ativos = rows.filter((r) => !(r as { ignorada?: boolean }).ignorada);
   if (!ativos.length) return null;
 
@@ -138,41 +139,46 @@ function escolherAvaliacaoParaGraos(rows: AvaliacaoRow[]): AvaliacaoRow | null {
   return pool[0] ?? null;
 }
 
-/** Avaliação mais recente do colaborador na semana (qualquer avaliador). */
+/** Avaliação que libera Grãos na semana civil (gerente ou Visita RH). */
 export async function buscarAvaliacaoSemanaColaborador(
   supabase: SupabaseClient,
   colaboradorId: string,
   semanaInicio: string
 ): Promise<AvaliacaoRow | null> {
-  let rows: Record<string, unknown>[] = [];
-  const prim = await supabase
-    .from('avaliacoes_diarias')
-    .select(
-      'id, assiduidade, justificativa_nota_baixa, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, updated_at, ignorada'
-    )
-    .eq('colaborador_id', colaboradorId)
-    .eq('data_referencia', semanaInicio)
-    .order('updated_at', { ascending: false });
+  const semanasBusca = semanasAvaliacaoOperacionalParaGraos(semanaInicio);
+  const selectComIgnorada =
+    'id, assiduidade, justificativa_nota_baixa, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, updated_at, ignorada';
+  const selectSemIgnorada =
+    'id, assiduidade, justificativa_nota_baixa, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, updated_at';
 
-  if (prim.error && /ignorada/i.test(prim.error.message)) {
-    const retry = await supabase
+  let rawRows: Record<string, unknown>[] = [];
+  for (const sel of [selectComIgnorada, selectSemIgnorada]) {
+    const res = await supabase
       .from('avaliacoes_diarias')
-      .select(
-        'id, assiduidade, justificativa_nota_baixa, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, updated_at'
-      )
+      .select(sel)
       .eq('colaborador_id', colaboradorId)
-      .eq('data_referencia', semanaInicio)
+      .in('data_referencia', semanasBusca)
       .order('updated_at', { ascending: false });
-    if (retry.error) throw new Error(retry.error.message);
-    rows = (retry.data ?? []) as Record<string, unknown>[];
-  } else {
-    if (prim.error) throw new Error(prim.error.message);
-    rows = (prim.data ?? []) as Record<string, unknown>[];
+    if (!res.error) {
+      rawRows = (res.data ?? []) as unknown as Record<string, unknown>[];
+      break;
+    }
+    if (!/ignorada/i.test(res.error.message)) {
+      throw new Error(res.error.message);
+    }
   }
 
-  const row = escolherAvaliacaoParaGraos(rows as AvaliacaoRow[]);
+  const row = escolherAvaliacaoParaGraos(rawRows as AvaliacaoRow[]);
   if (!row) return null;
   return row as AvaliacaoRow;
+}
+
+/** Gerente ou RH já registrou avaliação que conta para a semana (libera Grãos / tira pendência). */
+export function colaboradorRecebeuAvaliacaoFechamentoSemana(rows: AvaliacaoRow[]): boolean {
+  const row = escolherAvaliacaoParaGraos(rows);
+  if (!row) return false;
+  const e = avaliarElegibilidadeDeLinha(row);
+  return e.estado !== 'aguardando_lider' && e.estado !== 'aguardando_outro_lider';
 }
 
 export async function calcularElegibilidadeSemana(

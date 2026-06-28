@@ -5,6 +5,10 @@ import { listarRedeParaVisitaRh } from '@/lib/avaliacao-rh-visita';
 import { colaboradorElegivelVisitaRh } from '@/lib/avaliacao-rh-visita-access';
 import { insertAvaliacaoDiariaCompat } from '@/lib/avaliacoes-justificativa-compat';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
+import {
+  preferirAvaliacaoRhVisitaExibicao,
+  semanasBuscaAvaliacaoRhVisita,
+} from '@/lib/avaliacao-semana-cobranca';
 import { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
 import { aplicarEfeitosFeriasSemanaColaborador } from '@/lib/avaliacao-ferias-semana';
@@ -38,9 +42,10 @@ export async function GET(req: Request) {
     const outrasCount: Record<string, number> = {};
 
     if (ids.length > 0) {
+      const semanasBusca = semanasBuscaAvaliacaoRhVisita(dataRef);
       const selectsVisita = [
-        'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa',
-        'colaborador_id, avaliador_id, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa',
+        'colaborador_id, avaliador_id, data_referencia, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, media_dia, justificativa_nota_baixa',
+        'colaborador_id, avaliador_id, data_referencia, assiduidade, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, media_dia, justificativa_nota_baixa',
       ];
       let rows: Record<string, unknown>[] | null = null;
       let lastErr: string | null = null;
@@ -48,7 +53,7 @@ export async function GET(req: Request) {
         const res = await supabase
           .from('avaliacoes_diarias')
           .select(sel)
-          .eq('data_referencia', dataRef)
+          .in('data_referencia', semanasBusca)
           .in('colaborador_id', ids);
         if (!res.error) {
           rows = (res.data ?? []) as unknown as Record<string, unknown>[];
@@ -69,7 +74,17 @@ export async function GET(req: Request) {
         const cid = String(row.colaborador_id);
         const aid = String(row.avaliador_id);
         if (aid === colaboradorId) {
-          avalRh[cid] = row as Record<string, unknown>;
+          const atual = avalRh[cid] as Record<string, unknown> | undefined;
+          if (
+            !atual ||
+            preferirAvaliacaoRhVisitaExibicao(
+              row as { data_referencia?: string | null },
+              atual as { data_referencia?: string | null },
+              dataRef
+            )
+          ) {
+            avalRh[cid] = row as Record<string, unknown>;
+          }
         } else {
           outrasCount[cid] = (outrasCount[cid] ?? 0) + 1;
         }
