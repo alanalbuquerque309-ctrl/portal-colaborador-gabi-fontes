@@ -32,11 +32,29 @@ function inicioMesISO(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
+function seisMesesAtrasISO(): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 6);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function linhaPrecisaAtencao(
+  l: Linha,
+  tendencias: Record<string, { situacao: SituacaoEvolucao; delta: number | null }>
+): boolean {
+  if (l.assiduidade === 'falta_injustificada') return true;
+  const media = l.media_dia;
+  if (typeof media === 'number' && media < 3) return true;
+  const sit = tendencias[l.colaborador_id]?.situacao;
+  return sit === 'regredindo';
+}
+
 export default function AdminAvaliacoesDiariasPage() {
   const [inicio, setInicio] = useState(inicioMesISO);
   const [fim, setFim] = useState(hojeISO);
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [busca, setBusca] = useState('');
+  const [somenteAtencao, setSomenteAtencao] = useState(false);
   const [modo, setModo] = useState<ModoVisualizacao>('agrupado');
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -67,7 +85,7 @@ export default function AdminAvaliacoesDiariasPage() {
     setErro(null);
     setGavetaId(null);
     try {
-      const q = new URLSearchParams({ inicio, fim, limite: '800' });
+      const q = new URLSearchParams({ inicio, fim, limite: '2000' });
       if (unidadeSlug) q.set('unidade_slug', unidadeSlug);
       const evoQ = new URLSearchParams({ resumo: '1', criterios: '0' });
       if (unidadeSlug) evoQ.set('unidade_slug', unidadeSlug);
@@ -95,12 +113,26 @@ export default function AdminAvaliacoesDiariasPage() {
     }
   }, [inicio, fim, unidadeSlug]);
 
+  useEffect(() => {
+    void buscar();
+  }, [buscar]);
+
+  const verTodos = () => {
+    setInicio(seisMesesAtrasISO());
+    setFim(hojeISO());
+    setUnidadeSlug('');
+    setBusca('');
+    setSomenteAtencao(false);
+  };
+
   const abrirGaveta = (id: string) => {
     if (!podeVerDetalhe) return;
     setGavetaId((atual) => (atual === id ? null : id));
   };
 
-  const linhasExibidas = filtrarLinhasAdminBusca(linhas, busca);
+  const linhasExibidas = filtrarLinhasAdminBusca(linhas, busca).filter(
+    (l) => !somenteAtencao || linhaPrecisaAtencao(l, tendencias)
+  );
 
   return (
     <div>
@@ -111,6 +143,17 @@ export default function AdminAvaliacoesDiariasPage() {
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">
           Avaliação de Equipe (semanal)
         </h1>
+        <p className="text-sm text-coffee-100 mt-2 max-w-3xl">
+          Lista todas as notas que os líderes enviaram. Para ver quem está em queda de desempenho, use{' '}
+          <Link href="/admin/evolucao?aba=colaboradores" className="text-dourado-500 hover:underline font-medium">
+            Saúde da equipe
+          </Link>
+          . Relatório completo por filial:{' '}
+          <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline font-medium">
+            Relatórios de avaliações
+          </Link>
+          .
+        </p>
         <button
           type="button"
           onClick={() => setInfoAberta((v) => !v)}
@@ -211,7 +254,7 @@ export default function AdminAvaliacoesDiariasPage() {
               className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base text-sm"
             />
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0">
+          <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 sm:flex-wrap">
             <button
               type="button"
               onClick={() => void buscar()}
@@ -222,6 +265,15 @@ export default function AdminAvaliacoesDiariasPage() {
             </button>
             <button
               type="button"
+              onClick={verTodos}
+              disabled={carregando}
+              className="w-full sm:w-auto rounded-lg border border-dourado-300 bg-cream-50 text-coffee-base px-5 py-2.5 text-sm font-medium hover:bg-cream-100 disabled:opacity-50"
+              title="Últimos 6 meses, todas as unidades"
+            >
+              Ver todos (6 meses)
+            </button>
+            <button
+              type="button"
               onClick={() => setPendentesAberto(true)}
               className="w-full sm:w-auto rounded-lg border-2 border-amber-500 bg-amber-50 text-amber-950 px-5 py-2.5 text-sm font-semibold hover:bg-amber-100"
             >
@@ -229,6 +281,12 @@ export default function AdminAvaliacoesDiariasPage() {
             </button>
           </div>
         </div>
+
+        <p className="text-xs text-coffee-100">
+          O filtro de data usa a <strong className="font-medium text-coffee-base">segunda-feira da semana</strong>{' '}
+          avaliada (não o dia em que o líder enviou). Se filtrar só o mês atual e a unidade estiver vazia, amplie o
+          período ou use «Ver todos».
+        </p>
 
         <div className="flex flex-wrap gap-2 items-center pt-3 border-t border-cream-200">
           <span className="text-sm font-medium text-coffee-base mr-1">Visualização:</span>
@@ -254,13 +312,40 @@ export default function AdminAvaliacoesDiariasPage() {
           >
             Lista detalhada
           </button>
+          <button
+            type="button"
+            onClick={() => setSomenteAtencao((v) => !v)}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+              somenteAtencao
+                ? 'bg-red-700 text-white'
+                : 'bg-cream-100 text-coffee-base hover:bg-cream-200'
+            }`}
+            title="Média abaixo de 3, falta injustificada ou tendência em queda"
+          >
+            Só quem precisa atenção
+          </button>
         </div>
 
         {erro && <p className="text-sm text-red-600">{erro}</p>}
         {linhas.length > 0 && (
           <p className="text-xs text-coffee-100">
-            {linhas.length} registro{linhas.length === 1 ? '' : 's'} no período.
+            {linhasExibidas.length} de {linhas.length} registro{linhas.length === 1 ? '' : 's'} exibido
+            {linhasExibidas.length === 1 ? '' : 's'} no período.
             {modo === 'agrupado' && ' Mesma pessoa na mesma semana aparece uma vez, com todas as notas dos avaliadores.'}
+            {somenteAtencao && ' Filtro ativo: nota baixa, falta injustificada ou queda na tendência.'}
+          </p>
+        )}
+        {!carregando && linhas.length === 0 && !erro && (
+          <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            Nenhuma avaliação neste período{unidadeSlug ? ' para esta unidade' : ''}. Tente{' '}
+            <button type="button" onClick={verTodos} className="font-semibold underline hover:no-underline">
+              Ver todos (6 meses)
+            </button>{' '}
+            ou confira{' '}
+            <Link href="/admin/pendencias-semana" className="font-semibold underline hover:no-underline">
+              pendências da semana
+            </Link>{' '}
+            se os líderes ainda não enviaram.
           </p>
         )}
       </div>
