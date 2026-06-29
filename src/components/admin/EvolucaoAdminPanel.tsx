@@ -11,7 +11,8 @@ import { EvolucaoPainelExecutivo } from '@/components/admin/EvolucaoPainelExecut
 import { EvolucaoNotaLiderGuiaGaveta } from '@/components/admin/EvolucaoNotaLiderGuiaGaveta';
 import { EvolucaoSparkline } from '@/components/admin/EvolucaoSparkline';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { listarUnidadesCadastro, listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import {
   formatarDelta,
   formatarIli,
@@ -327,6 +328,7 @@ function LinhaColaborador({
 }
 
 export function EvolucaoAdminPanel() {
+  const unidadesCadastro = useUnidadesCadastro();
   const searchParams = useSearchParams();
   const abaInicial = (searchParams.get('aba') ?? 'rede') as Aba;
   const abaValida: Aba[] = ['rede', 'colaboradores', 'unidades', 'setores', 'lideranca'];
@@ -498,7 +500,7 @@ export function EvolucaoAdminPanel() {
             className="w-full rounded-xl border border-cafeteria-200 bg-white px-3 py-2.5 text-sm min-h-[44px]"
           >
             <option value="">Toda a rede</option>
-            {listarUnidadesCadastro().map((u) => (
+            {unidadesCadastro.map((u) => (
               <option key={u.slug} value={u.slug}>
                 {u.label}
               </option>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { formatarExibicaoAvaliacaoAdmin } from '@/lib/avaliacao-diaria';
 import {
   filtrarLinhasAdminBusca,
@@ -53,6 +53,7 @@ function linhaPrecisaAtencao(
 }
 
 export default function AdminAvaliacoesDiariasPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const [inicio, setInicio] = useState(inicioMesISO);
   const [fim, setFim] = useState(hojeISO);
   const [unidadeSlug, setUnidadeSlug] = useState('');
@@ -267,7 +268,7 @@ export default function AdminAvaliacoesDiariasPage() {
               className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base text-sm"
             >
               <option value="">Todas</option>
-              {listarUnidadesCadastro().map((u) => (
+              {unidadesCadastro.map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

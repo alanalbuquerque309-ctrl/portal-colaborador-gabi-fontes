@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import {
   agruparLinhasPorSetorExibicao,
@@ -41,11 +42,12 @@ type Candidato = { id: string; nome: string; role: string; cargo: string | null;
 type VisaoMapa = 'unidade' | 'rede' | 'organograma';
 
 export default function LideresPorSetorPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const mapaRef = useRef<HTMLElement | null>(null);
   const [podeEditarMapa, setPodeEditarMapa] = useState(false);
   const [modoEditar, setModoEditar] = useState(false);
   const [visaoMapa, setVisaoMapa] = useState<VisaoMapa>('rede');
-  const [unidadeSlug, setUnidadeSlug] = useState(listarUnidadesCadastro()[0]?.slug ?? '');
+  const [unidadeSlug, setUnidadeSlug] = useState('');
   const [unidadesResumo, setUnidadesResumo] = useState<UnidadeResumo[]>([]);
   const [todasLinhas, setTodasLinhas] = useState<Linha[]>([]);
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
@@ -72,6 +74,12 @@ export default function LideresPorSetorPage() {
   } | null>(null);
   const [substituindo, setSubstituindo] = useState(false);
   const [candidatosSubstituto, setCandidatosSubstituto] = useState<Candidato[]>([]);
+
+  useEffect(() => {
+    if (!unidadeSlug && unidadesCadastro[0]?.slug) {
+      setUnidadeSlug(unidadesCadastro[0].slug);
+    }
+  }, [unidadeSlug, unidadesCadastro]);
 
   const copiarSql042 = async () => {
     setCopiado042(false);
@@ -328,20 +336,20 @@ export default function LideresPorSetorPage() {
   const editando = modoEditar && podeEditarMapa;
   const nomeUnidade =
     unidadeAtiva?.nome ??
-    listarUnidadesCadastro().find((u) => u.slug === unidadeSlug)?.label ??
+    unidadesCadastro.find((u) => u.slug === unidadeSlug)?.label ??
     unidadeSlug;
 
   const unidadesLista = useMemo(
     () =>
       unidadesResumo.length > 0
         ? unidadesResumo
-        : listarUnidadesCadastro().map((u) => ({
+        : unidadesCadastro.map((u) => ({
             slug: u.slug,
             nome: u.label,
             unidade_id: null,
             total_lideres: 0,
           })),
-    [unidadesResumo]
+    [unidadesResumo, unidadesCadastro]
   );
 
   const linhasPorSlug = useMemo(() => {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
@@ -21,6 +21,7 @@ type Linha = {
 };
 
 export default function RelatoriosPresencaPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const router = useRouter();
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
   const [dias, setDias] = useState(7);
@@ -107,7 +108,7 @@ export default function RelatoriosPresencaPage() {
             className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[160px]"
           >
             <option value="">Todas</option>
-            {listarUnidadesCadastro().map((u) => (
+            {unidadesCadastro.map((u) => (
               <option key={u.slug} value={u.slug}>
                 {u.label}
               </option>

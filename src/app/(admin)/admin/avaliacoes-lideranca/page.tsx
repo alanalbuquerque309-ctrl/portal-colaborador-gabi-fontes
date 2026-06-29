@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { AdminFeedbackLiderancaSemanal } from '@/components/admin/AdminFeedbackLiderancaSemanal';
 import type { LinhaLiderRelatorio } from '@/components/portal/RelatorioAvaliacoesPorSetor';
@@ -14,6 +14,7 @@ function inicioMesISO(): string {
 }
 
 export default function AdminAvaliacoesLiderancaPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const semanaAtualInicio = segundaSemanaSaoPaulo();
   const semanaAtualFim = domingoSemanaSaoPaulo();
   const [inicio, setInicio] = useState(inicioMesISO);
@@ -129,7 +130,7 @@ export default function AdminAvaliacoesLiderancaPage() {
               className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm min-w-[180px]"
             >
               <option value="">Todas</option>
-              {listarUnidadesCadastro().map((u) => (
+              {unidadesCadastro.map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

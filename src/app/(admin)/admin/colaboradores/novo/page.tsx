@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — apenas portal' },
@@ -23,6 +24,7 @@ function formatDateForInput(d: string): string {
 
 export default function NovoColaboradorPage() {
   const router = useRouter();
+  const unidadesCadastro = useUnidadesCadastro();
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
   const [podeEditarCadastro, setPodeEditarCadastro] = useState<boolean | null>(null);
@@ -258,7 +260,7 @@ export default function NovoColaboradorPage() {
         <div>
           <span className="block text-sm font-medium text-coffee-base mb-2">Unidade *</span>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Selecione a unidade">
-            {listarUnidadesCadastro().map((opt) => (
+            {unidadesCadastro.map((opt) => (
               <label
                 key={opt.slug}
                 className={`flex items-center min-h-[48px] rounded-lg border-2 px-4 py-3 text-left text-sm font-medium transition-colors cursor-pointer touch-manipulation ${

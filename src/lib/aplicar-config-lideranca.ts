@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { listarUnidadesCadastroServer } from '@/lib/tenant/settings-server';
 import {
   LIDER_TRANSVERSAL_CD_NOME,
   REGRAS_LIDERANCA_OPERACIONAL,
@@ -42,11 +42,12 @@ function nomeCoincide(cadastro: string, busca: string): boolean {
 
 async function resolverUnidadeId(
   supabase: SupabaseAdmin,
-  slug: string
+  slug: string,
+  catalogo: { slug: string; label: string }[]
 ): Promise<string | null> {
   const { data } = await supabase.from('unidades').select('id').eq('slug', slug).maybeSingle();
   if (data?.id) return String(data.id);
-  const def = listarUnidadesCadastro().find((u) => u.slug === slug);
+  const def = catalogo.find((u) => u.slug === slug);
   if (!def) return null;
   const { data: ins } = await supabase
     .from('unidades')
@@ -132,10 +133,11 @@ async function aplicarRegra(
   supabase: SupabaseAdmin,
   regra: RegraLiderancaOperacional,
   resultado: ResultadoAplicarConfig,
-  unidadeIdsTodas: string[]
+  unidadeIdsTodas: string[],
+  catalogoUnidades: { slug: string; label: string }[]
 ): Promise<void> {
   if (regra.tipo === 'unidade_todos') {
-    const uid = await resolverUnidadeId(supabase, regra.unidade_slug);
+    const uid = await resolverUnidadeId(supabase, regra.unidade_slug, catalogoUnidades);
     if (!uid) {
       resultado.erros.push(`Unidade não encontrada: ${regra.unidade_slug}`);
       return;
@@ -168,7 +170,7 @@ async function aplicarRegra(
   }
 
   if (regra.tipo === 'unidade_setor') {
-    const uid = await resolverUnidadeId(supabase, regra.unidade_slug);
+    const uid = await resolverUnidadeId(supabase, regra.unidade_slug, catalogoUnidades);
     if (!uid) {
       resultado.erros.push(`Unidade não encontrada: ${regra.unidade_slug}`);
       return;
@@ -204,19 +206,20 @@ async function paresPermitidosParaLider(
   supabase: SupabaseAdmin,
   nomeLider: string,
   regras: RegraLiderancaOperacional[],
-  unidadeIdsTodas: string[]
+  unidadeIdsTodas: string[],
+  catalogoUnidades: { slug: string; label: string }[]
 ): Promise<Set<string>> {
   const allowed = new Set<string>();
   for (const regra of regras) {
     if (!regra.lideres_nomes.some((n) => nomeCoincide(n, nomeLider))) continue;
 
     if (regra.tipo === 'unidade_todos') {
-      const uid = await resolverUnidadeId(supabase, regra.unidade_slug);
+      const uid = await resolverUnidadeId(supabase, regra.unidade_slug, catalogoUnidades);
       if (uid) allowed.add(`${uid}|${SETOR_TODOS_NA_UNIDADE}`);
       continue;
     }
     if (regra.tipo === 'unidade_setor') {
-      const uid = await resolverUnidadeId(supabase, regra.unidade_slug);
+      const uid = await resolverUnidadeId(supabase, regra.unidade_slug, catalogoUnidades);
       if (uid) allowed.add(`${uid}|${regra.setor}`);
       continue;
     }
@@ -236,9 +239,10 @@ export async function desativarLideresForaDoMapaOperacional(
   supabase: SupabaseAdmin,
   regras: RegraLiderancaOperacional[] = REGRAS_LIDERANCA_OPERACIONAL
 ): Promise<number> {
+  const catalogoUnidades = await listarUnidadesCadastroServer();
   const unidadeIdsTodas: string[] = [];
-  for (const u of listarUnidadesCadastro()) {
-    const id = await resolverUnidadeId(supabase, u.slug);
+  for (const u of catalogoUnidades) {
+    const id = await resolverUnidadeId(supabase, u.slug, catalogoUnidades);
     if (id) unidadeIdsTodas.push(id);
   }
 
@@ -250,7 +254,7 @@ export async function desativarLideresForaDoMapaOperacional(
   for (const nome of nomesUnicos) {
     const liderId = await resolverLiderId(supabase, nome, null);
     if (!liderId) continue;
-    const allowed = await paresPermitidosParaLider(supabase, nome, regras, unidadeIdsTodas);
+    const allowed = await paresPermitidosParaLider(supabase, nome, regras, unidadeIdsTodas, catalogoUnidades);
     const { data, error } = await supabase
       .from('lideres_por_setor')
       .select('id, unidade_id, setor')
@@ -287,15 +291,16 @@ export async function aplicarConfigLiderancaOperacional(
     desativados_fora_mapa: 0,
   };
 
+  const catalogoUnidades = await listarUnidadesCadastroServer();
   const unidadeIdsTodas: string[] = [];
-  for (const u of listarUnidadesCadastro()) {
-    const id = await resolverUnidadeId(supabase, u.slug);
+  for (const u of catalogoUnidades) {
+    const id = await resolverUnidadeId(supabase, u.slug, catalogoUnidades);
     if (id) unidadeIdsTodas.push(id);
   }
 
   for (const regra of regras) {
     try {
-      await aplicarRegra(supabase, regra, resultado, unidadeIdsTodas);
+      await aplicarRegra(supabase, regra, resultado, unidadeIdsTodas, catalogoUnidades);
     } catch (e) {
       resultado.erros.push(e instanceof Error ? e.message : String(e));
     }

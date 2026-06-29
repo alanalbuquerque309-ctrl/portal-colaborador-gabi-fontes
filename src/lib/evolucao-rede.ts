@@ -5,7 +5,7 @@ import {
 } from '@/lib/avaliacao-semanal-agregacao';
 import { AVALIACAO_RANKING_EPOCA_INICIO } from '@/lib/avaliacao-ranking';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
-import { listarUnidadesCadastro, listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastroServer, listarUnidadesCadastroServer } from '@/lib/tenant/settings-server';
 import {
   agregarResumoSetor,
   agregarResumoUnidadeFromItems,
@@ -226,6 +226,11 @@ export async function montarPayloadEvolucaoRede(
   supabase: SupabaseAdmin,
   opts?: { unidade_slug?: string; setor?: string; incluir_criterios?: boolean }
 ): Promise<PayloadEvolucaoRede> {
+  const [unidadesCadastro, setoresCadastro] = await Promise.all([
+    listarUnidadesCadastroServer(),
+    listarSetoresCadastroServer(),
+  ]);
+
   let qColab = supabase
     .from('colaboradores')
     .select('id, nome, setor, cargo, role, onboarding_completo, unidades(slug, nome)')
@@ -267,7 +272,7 @@ export async function montarPayloadEvolucaoRede(
 
   const ids = colabs.map((c) => c.id);
   if (ids.length === 0) {
-    const vazioUnidades = listarUnidadesCadastro().map((u) => ({
+    const vazioUnidades = unidadesCadastro.map((u) => ({
       slug: u.slug,
       nome: u.label,
       media_atual: null,
@@ -279,7 +284,7 @@ export async function montarPayloadEvolucaoRede(
       regredindo: 0,
       sem_historico: 0,
     }));
-    const vazioSetores = listarSetoresCadastro().map((s) => ({
+    const vazioSetores = setoresCadastro.map((s) => ({
       setor: s,
       media_atual: null,
       delta: null,
@@ -402,8 +407,8 @@ export async function montarPayloadEvolucaoRede(
       posicao: i + 1,
     }));
 
-  const unidades = agregarResumoUnidadeFromItems(colaboradores, listarUnidadesCadastro());
-  const setores = agregarResumoSetor(colaboradores, listarSetoresCadastro());
+  const unidades = agregarResumoUnidadeFromItems(colaboradores, unidadesCadastro);
+  const setores = agregarResumoSetor(colaboradores, setoresCadastro);
   const resumo = montarResumoRede(colaboradores);
   const executivo = montarResumoExecutivo(colaboradores, unidades, setores);
 

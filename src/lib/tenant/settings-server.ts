@@ -3,7 +3,8 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTenantBranding, type TenantBranding } from '@/lib/tenant/branding';
 import { DEFAULT_TENANT_SLUG } from '@/lib/tenant/defaults';
-import { SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
+import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import type { UnidadeCadastro } from '@/lib/tenant/org-catalog';
 import { getTermosTenant, type TenantTermoId } from '@/lib/tenant/terminology';
 import type { TenantMirrorDb, TenantModulos } from '@/lib/tenant/types';
 import { getModulosTenant } from '@/lib/tenant/modulos';
@@ -117,6 +118,43 @@ export async function listarSetoresCadastroServer(): Promise<string[]> {
   const mirror = await carregarTenantMirrorDb();
   if (mirror?.setores?.length) return mirror.setores;
   return [...SETORES_PREDEFINIDOS];
+}
+
+const SLUG_UNIDADE_MATRIZ_LEGADO = 'matriz';
+
+function unidadesCadastroFallback(): UnidadeCadastro[] {
+  return UNIDADES_CADASTRO.map((u) => ({ slug: u.slug, label: u.label }));
+}
+
+/** Unidades operacionais no Supabase; fallback à constante legada se vazio ou erro. */
+export async function listarUnidadesCadastroServer(): Promise<UnidadeCadastro[]> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.from('unidades').select('nome, slug').order('nome');
+
+    if (error || !data?.length) return unidadesCadastroFallback();
+
+    const mapped = data
+      .filter((u) => u.slug && String(u.slug) !== SLUG_UNIDADE_MATRIZ_LEGADO)
+      .map((u) => ({
+        slug: String(u.slug),
+        label: String(u.nome ?? u.slug),
+      }));
+
+    return mapped.length > 0 ? mapped : unidadesCadastroFallback();
+  } catch {
+    return unidadesCadastroFallback();
+  }
+}
+
+export async function listarUnidadesRelatorioFiliaisServer(): Promise<UnidadeCadastro[]> {
+  const todas = await listarUnidadesCadastroServer();
+  return todas.filter((u) => u.slug !== 'administrativo');
+}
+
+export async function isUnidadeSlugCadastroValidoServer(slug: string): Promise<boolean> {
+  const unidades = await listarUnidadesCadastroServer();
+  return unidades.some((u) => u.slug === slug);
 }
 
 export async function getModulosTenantServer(): Promise<TenantModulos> {

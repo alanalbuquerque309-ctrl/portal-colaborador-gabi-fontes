@@ -10,7 +10,11 @@ import {
   SLUG_UNIDADE_ADMINISTRATIVO,
   UNIDADES_CADASTRO,
 } from '@/lib/constants/colaborador-org';
-import { listarSetoresCadastroServer } from '@/lib/tenant/settings-server';
+import {
+  listarSetoresCadastroServer,
+  listarUnidadesCadastroServer,
+  listarUnidadesRelatorioFiliaisServer,
+} from '@/lib/tenant/settings-server';
 
 export type UnidadeCadastro = { slug: string; label: string };
 
@@ -52,4 +56,14 @@ export function isUnidadeSlugCadastroValido(slug: string): boolean {
 /** Servidor: setores do espelho DB quando USE_TENANT_DB=true, senão constantes. */
 export async function listarSetoresCadastroResolvido(): Promise<string[]> {
   return listarSetoresCadastroServer();
+}
+
+/** Servidor: unidades da tabela `unidades` (Supabase), com fallback à constante. */
+export async function listarUnidadesCadastroResolvido(): Promise<UnidadeCadastro[]> {
+  return listarUnidadesCadastroServer();
+}
+
+/** Servidor: unidades de relatório por filial (sem Administrativo). */
+export async function listarUnidadesRelatorioFiliaisResolvido(): Promise<UnidadeCadastro[]> {
+  return listarUnidadesRelatorioFiliaisServer();
 }

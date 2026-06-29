@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { listarUnidadesCadastroServer } from '@/lib/tenant/settings-server';
 import {
   REGRAS_LIDERANCA_OPERACIONAL,
   type RegraLiderancaOperacional,
@@ -14,11 +14,12 @@ type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
 async function resolverUnidadeIdPorSlug(
   supabase: SupabaseAdmin,
-  slug: string
+  slug: string,
+  catalogo: { slug: string; label: string }[]
 ): Promise<string | null> {
   const { data } = await supabase.from('unidades').select('id').eq('slug', slug).maybeSingle();
   if (data?.id) return String(data.id);
-  const def = listarUnidadesCadastro().find((u) => u.slug === slug);
+  const def = catalogo.find((u) => u.slug === slug);
   if (!def) return null;
   const { data: ins } = await supabase
     .from('unidades')
@@ -66,6 +67,7 @@ export async function resolverUnidadesListaCompletaEquipeAvaliacao(
   unidadeIdCadastro: string
 ): Promise<string[]> {
   const ids = new Set<string>();
+  const catalogoUnidades = await listarUnidadesCadastroServer();
 
   let setoresLiderados: Array<{ unidade_id: string; setor: string }> = [];
   try {
@@ -90,7 +92,7 @@ export async function resolverUnidadesListaCompletaEquipeAvaliacao(
         ])
       );
       for (const slug of slugs) {
-        const uid = await resolverUnidadeIdPorSlug(supabase, slug);
+        const uid = await resolverUnidadeIdPorSlug(supabase, slug, catalogoUnidades);
         if (uid) ids.add(uid);
       }
     }

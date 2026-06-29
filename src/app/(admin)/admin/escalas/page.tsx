@@ -3,7 +3,8 @@
 import { useCallback, useMemo, useState, useEffect } from 'react';
 import { primeiroUltimoDiaMes } from '@/lib/escala-calendario-grade';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { slugsDoGrupoMural } from '@/lib/mural-unidade-grupo';
 import { EscalasCalendarioFolgas } from '@/components/admin/EscalasCalendarioFolgas';
 
@@ -38,6 +39,7 @@ function labelMes(mes: string): string {
 }
 
 export default function EscalasPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [escalas, setEscalas] = useState<EscalaLinha[]>([]);
   const [form, setForm] = useState({
@@ -423,7 +425,7 @@ export default function EscalasPage() {
               className="w-full rounded-lg border border-cream-300 px-3 py-2 text-sm"
             >
               <option value="">Todos</option>
-              {listarUnidadesCadastro().map((u) => (
+              {unidadesCadastro.map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

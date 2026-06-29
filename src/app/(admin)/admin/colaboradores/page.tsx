@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { listarUnidadesCadastro, listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { labelAcessoPortal } from '@/lib/colaborador-role-ui';
 
 interface Colaborador {
@@ -30,6 +31,7 @@ const OPCOES_ACESSO = [
 ];
 
 export default function ColaboradoresPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroSetor, setFiltroSetor] = useState('');
@@ -143,10 +145,10 @@ export default function ColaboradoresPage() {
       if (filtroUnidade && (c.unidade?.nome?.trim() || '') !== filtroUnidade) return false;
       return true;
     });
-    const rotulos = [...listarUnidadesCadastro().map((u) => u.label), ...nomesExtras.filter((n) => !listarUnidadesCadastro().some((u) => u.label === n))];
+    const rotulos = [...unidadesCadastro.map((u) => u.label), ...nomesExtras.filter((n) => !unidadesCadastro.some((u) => u.label === n))];
     const opcoesUnidadeDados = Array.from(new Set(rotulos)).sort();
     return { opcoesUnidadeDados, colaboradoresFiltrados: filtrados };
-  }, [colaboradores, filtroSetor, filtroCargo, filtroAcesso, filtroUnidade]);
+  }, [colaboradores, filtroSetor, filtroCargo, filtroAcesso, filtroUnidade, unidadesCadastro]);
 
   const handleExcluir = async (id: string, nome: string) => {
     if (!confirm(`Excluir colaborador "${nome}"? Esta ação não pode ser desfeita.`)) return;

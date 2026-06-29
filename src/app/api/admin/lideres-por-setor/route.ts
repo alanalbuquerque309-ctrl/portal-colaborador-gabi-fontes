@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized, requireAdminLiderancaMapaApi } from '@/lib/admin-auth';
-import { isSetorCadastroValido, listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { isSetorCadastroValido, listarSetoresCadastro, listarUnidadesCadastroResolvido } from '@/lib/tenant/org-catalog';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { sincronizarVinculosUnidadeSetor } from '@/lib/sincronizar-vinculos-lideranca';
@@ -87,6 +87,7 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
 
     if (todas) {
+      const unidadesCadastro = await listarUnidadesCadastroResolvido();
       const { data, error } = await fetchLideres((sel) =>
         supabase.from('lideres_por_setor').select(sel).eq('ativo', true)
       );
@@ -95,7 +96,7 @@ export async function GET(req: Request) {
         if (/lideres_por_setor|does not exist/i.test(error.message)) {
           return NextResponse.json({
             ok: true,
-            unidades: listarUnidadesCadastro().map((u) => ({
+            unidades: unidadesCadastro.map((u) => ({
               slug: u.slug,
               nome: u.label,
               unidade_id: null,
@@ -115,7 +116,7 @@ export async function GET(req: Request) {
       const linhas = mapLinhas(data ?? [], nomePorId);
 
       const porSlug = new Map<string, { slug: string; nome: string; unidade_id: string | null; total: number }>();
-      for (const u of listarUnidadesCadastro()) {
+      for (const u of unidadesCadastro) {
         porSlug.set(u.slug, { slug: u.slug, nome: u.label, unidade_id: null, total: 0 });
       }
       for (const l of linhas) {

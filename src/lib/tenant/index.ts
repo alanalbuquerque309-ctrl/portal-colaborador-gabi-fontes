@@ -7,6 +7,8 @@ export {
   listarSetoresCadastro,
   listarSetoresAvaliacaoEquipeBackoffice,
   listarSetoresCadastroResolvido,
+  listarUnidadesCadastroResolvido,
+  listarUnidadesRelatorioFiliaisResolvido,
   slugUnidadeAdministrativo,
   setorEstoqueLegado,
   isSetorCadastroValido,

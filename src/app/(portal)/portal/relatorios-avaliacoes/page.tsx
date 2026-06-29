@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import {
   podeVerRelatoriosAvaliacoesCompletos,
 } from '@/lib/avaliacoes-relatorio-access';
@@ -36,6 +36,7 @@ type AbaRelatorio = 'equipe' | 'lideranca';
 type ModoEquipe = 'pessoa' | 'semana';
 
 export default function RelatoriosAvaliacoesPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const router = useRouter();
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
   const [aba, setAba] = useState<AbaRelatorio>('equipe');
@@ -281,7 +282,7 @@ export default function RelatoriosAvaliacoesPage() {
               className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[140px]"
             >
               <option value="">Todas filiais</option>
-              {listarUnidadesCadastro().map((u) => (
+              {unidadesCadastro.map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

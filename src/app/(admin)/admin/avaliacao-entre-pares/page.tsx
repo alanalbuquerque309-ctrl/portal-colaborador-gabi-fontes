@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AdminTrofeusRanking } from '@/components/admin/AdminTrofeusRanking';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { agregarRankingTrofeusPares } from '@/lib/trofeus-pares-ranking';
 import { TROFEU_PAR_LABELS, TROFEUS_PARES_TIPOS } from '@/lib/trofeus-pares';
 
@@ -47,6 +47,7 @@ function formatarDataHora(iso: string): string {
 }
 
 export default function AdminAvaliacaoEntreParesPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const [inicio, setInicio] = useState(inicioMesISO);
   const [fim, setFim] = useState(hojeISO);
   const [unidadeSlug, setUnidadeSlug] = useState('');
@@ -139,7 +140,7 @@ export default function AdminAvaliacaoEntreParesPage() {
               className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm min-w-[160px]"
             >
               <option value="">Todas</option>
-              {listarUnidadesCadastro().map((u) => (
+              {unidadesCadastro.map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

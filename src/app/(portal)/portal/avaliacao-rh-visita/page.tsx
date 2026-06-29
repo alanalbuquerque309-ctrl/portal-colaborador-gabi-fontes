@@ -7,7 +7,8 @@ import {
   ColaboradorAvaliacaoCard,
   type AvaliacaoServidor,
 } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
-import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 
@@ -25,6 +26,7 @@ type MembroRede = {
 };
 
 export default function AvaliacaoRhVisitaPage() {
+  const unidadesCadastro = useUnidadesCadastro();
   const router = useRouter();
   const [autorizado, setAutorizado] = useState<boolean | null>(null);
   const [dataRef, setDataRef] = useState(semanaAvaliacaoEquipePadraoISO);
@@ -143,7 +145,7 @@ export default function AvaliacaoRhVisitaPage() {
             className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[140px]"
           >
             <option value="">Todas</option>
-            {listarUnidadesCadastro().map((u) => (
+            {unidadesCadastro.map((u) => (
               <option key={u.slug} value={u.slug}>
                 {u.label}
               </option>

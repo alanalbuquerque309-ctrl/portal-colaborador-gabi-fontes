@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana-shared';
 import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana-shared';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
@@ -51,6 +51,7 @@ export function AvaliacoesPendentesPainel({
   compacto = false,
   filtroInicial,
 }: Props) {
+  const unidadesCadastro = useUnidadesCadastro();
   const [dataRef, setDataRef] = useState('');
   const [unidadeSlug, setUnidadeSlug] = useState('');
   const [filtro, setFiltro] = useState<FiltroPendenciasSemana>(filtroInicial ?? 'pendentes');
@@ -389,7 +390,7 @@ export function AvaliacoesPendentesPainel({
               className="rounded-lg border border-cream-300 px-2 py-1.5 text-sm min-w-[140px]"
             >
               <option value="">Todas</option>
-              {listarUnidadesCadastro().map((u) => (
+              {unidadesCadastro.map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

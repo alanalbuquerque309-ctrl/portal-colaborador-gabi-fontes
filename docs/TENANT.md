@@ -20,8 +20,9 @@ Constantes em src/lib/constants/colaborador-org.ts (unidades/setores)
 |-------------|--------|
 | Logo, nome, título | `getTenantBranding()` de `@/lib/tenant` |
 | «Grãos», Café Conecta, etc. | `getTermo('reconhecimento')` etc. |
-| Unidades / setores na UI | `listarUnidadesCadastro()`, `listarSetoresCadastro()` |
+| Unidades / setores na UI | `listarUnidadesCadastro()`, `listarSetoresCadastro()` ou hook `useUnidadesCadastro()` |
 | Servidor com espelho DB | `getTenantBrandingServer()`, `listarSetoresCadastroServer()` |
+| Servidor unidades Supabase | `listarUnidadesCadastroServer()`, `GET /api/tenant/org` |
 
 ## Variáveis de ambiente (opcionais)
 
@@ -47,7 +48,7 @@ Aplicar: `npm run db:apply-061` (requer `DATABASE_URL`).
 - `src/lib/config-avaliacao-direta.ts` — avaliadores por nome
 - `public/manuais/` — conteúdo de cultura Gabi Fontes
 - Repo / domínio / PWA `manifest.json` estático
-- Tabela `unidades` no Supabase já é dado, mas UI ainda valida contra constante
+- Termos de cultura na UI («Grãos», etc.) ainda fixos em vários componentes
 
 ## Critério de sucesso Fase 1
 
@@ -65,6 +66,13 @@ Todo o `src/` (exceto `colaborador-org.ts` e `tenant/org-catalog.ts`) usa:
 - `isSetorCadastroValido()` / `slugUnidadeAdministrativo()` / `setorEstoqueLegado()`
 
 `ROLES_CADASTRO` permanece em `colaborador-org` (perfis, não estrutura org).
+
+## Fase 2.2 — unidades do Supabase (concluída)
+
+- `listarUnidadesCadastroServer()` lê tabela `unidades` (exclui `matriz`); fallback à constante
+- `GET /api/tenant/org` expõe unidades + setores para o cliente
+- Hook `useUnidadesCadastro()` nos selects (constante imediata → atualiza do Supabase)
+- APIs e libs servidor usam lista resolvida (`listarUnidadesCadastroResolvido`)
 
 ## Fases seguintes (não implementadas)
 

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { normalizePortalRole } from '@/lib/roles';
 import { formatCpf, validateCpf } from '@/lib/utils/cpf';
@@ -30,6 +31,7 @@ function formatDateForInput(d: string | null | undefined): string {
 export default function EditarColaboradorPage() {
   const params = useParams();
   const router = useRouter();
+  const unidadesCadastro = useUnidadesCadastro();
   const id = typeof params?.id === 'string' ? params.id : '';
 
   const [carregando, setCarregando] = useState(true);
@@ -60,12 +62,12 @@ export default function EditarColaboradorPage() {
   const [msgRedefinir, setMsgRedefinir] = useState('');
 
   const opcoesUnidade = useMemo(() => {
-    const base = [...listarUnidadesCadastro()];
+    const base = [...unidadesCadastro];
     if (unidadeLegado && !base.some((u) => u.slug === unidadeLegado.slug)) {
       base.push({ slug: unidadeLegado.slug, label: unidadeLegado.label });
     }
     return base;
-  }, [unidadeLegado]);
+  }, [unidadeLegado, unidadesCadastro]);
 
   useEffect(() => {
     fetch('/api/admin/auth', { credentials: 'include' })
@@ -118,7 +120,7 @@ export default function EditarColaboradorPage() {
         const rawUn = c.unidades as { slug?: string; nome?: string } | { slug?: string; nome?: string }[] | null;
         const un = Array.isArray(rawUn) ? rawUn[0] : rawUn;
         const slug = un?.slug ?? '';
-        if (slug && !listarUnidadesCadastro().some((u) => u.slug === slug)) {
+        if (slug && !unidadesCadastro.some((u) => u.slug === slug)) {
           setUnidadeLegado({
             slug,
             label: `${un?.nome?.trim() || slug} (legado — troque pela unidade correta)`,
