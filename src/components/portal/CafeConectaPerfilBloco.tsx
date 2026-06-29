@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import type { CafeConectaResumoPerfil } from '@/lib/cafe-conecta/types';
+import { getTermo } from '@/lib/tenant/terminology';
 
 export function CafeConectaPerfilBloco() {
   const [resumo, setResumo] = useState<CafeConectaResumoPerfil | null>(null);
@@ -28,7 +29,7 @@ export function CafeConectaPerfilBloco() {
   return (
     <section className="mt-8 rounded-2xl border border-cafeteria-200 bg-cream-50/80 p-5">
       <h2 className="text-lg font-display font-semibold text-coffee-base flex items-center gap-2">
-        <span aria-hidden>☕</span> Café Conecta
+        <span aria-hidden>☕</span> {getTermo('cafe_conecta')}
       </h2>
       <p className="text-sm text-cafeteria-600 mt-1">
         {resumo.total_participacoes} participação(ões)

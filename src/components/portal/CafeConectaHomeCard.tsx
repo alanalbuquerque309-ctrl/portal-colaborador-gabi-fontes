@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { CAFE_CONECTA_REACOES } from '@/lib/cafe-conecta/feedback';
+import { getTermo } from '@/lib/tenant/terminology';
 
 type Participante = {
   ordem: number;
@@ -85,7 +86,7 @@ export function CafeConectaHomeCard() {
   return (
     <section className="rounded-2xl border border-dourado-200 bg-gradient-to-br from-cream-50 to-white p-5 shadow-sm">
       <h2 className="text-lg font-display font-semibold text-cafeteria-900 flex items-center gap-2">
-        <span aria-hidden>☕</span> Café Conecta da Semana
+        <span aria-hidden>☕</span> {getTermo('cafe_conecta')} da Semana
       </h2>
       <div className="mt-4 space-y-2 text-coffee-base">
         <p className="text-base font-semibold">

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import type { PortalHomePainel, PortalHomeRankingEscopo } from '@/lib/portal-home-types';
 import { PainelStatCard } from '@/components/portal/home/PainelStatCard';
+import { getTermoCurto } from '@/lib/tenant/terminology';
 
 function formatarMedia(n: number | null): string {
   if (n == null || Number.isNaN(n)) return '—';
@@ -85,6 +86,7 @@ function GavetaMedia({ painel }: { painel: PortalHomePainel }) {
 }
 
 function GavetaGraos({ painel }: { painel: PortalHomePainel }) {
+  const graosCurto = getTermoCurto('reconhecimento');
   const g = painel.graos;
   return (
     <div className="space-y-2">
@@ -98,7 +100,7 @@ function GavetaGraos({ painel }: { painel: PortalHomePainel }) {
         {g.nivel_emoji} Nível {g.nivel_label}
       </p>
       <Link href="/portal/graos" className="inline-block text-sm font-medium text-portal-action hover:underline">
-        Abrir Grãos →
+        Abrir {graosCurto} →
       </Link>
     </div>
   );
@@ -133,6 +135,7 @@ type Props = {
 };
 
 export function MeuPainelHome({ painel }: Props) {
+  const graosCurto = getTermoCurto('reconhecimento');
   const [abaRanking, setAbaRanking] = useState<'unidade' | 'geral'>('unidade');
   const [gavetaAberta, setGavetaAberta] = useState<string | null>(null);
 
@@ -203,7 +206,7 @@ export function MeuPainelHome({ painel }: Props) {
 
           <PainelStatCard
             emoji="⭐"
-            label="Grãos"
+            label={graosCurto}
             valor={String(painel.graos.saldo_confirmado)}
             sub={
               painel.graos.saldo_pendente > 0

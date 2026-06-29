@@ -10,6 +10,7 @@ import {
   rotuloRespostaAdminItem,
   type GraosRespostaSugestao,
 } from '@/lib/sugestao-resposta-graos';
+import { getTermoCurto } from '@/lib/tenant/terminology';
 
 interface Item {
   id: string;
@@ -41,6 +42,7 @@ function classesCard(tipo: string): string {
 }
 
 export default function SugestoesPage() {
+  const graosCurto = getTermoCurto('reconhecimento');
   const [itens, setItens] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<string>('aguardando');
@@ -172,7 +174,7 @@ export default function SugestoesPage() {
     const op = OPCOES_RESPOSTA_SUGESTAO.find((o) => o.graos === graos);
     if (
       !window.confirm(
-        `Responder esta sugestão?\n\n«${op?.labelAdmin ?? 'Resposta'}» — bônus +${graos} Grãos (+1 já creditado no envio).`
+        `Responder esta sugestão?\n\n«${op?.labelAdmin ?? 'Resposta'}» — bônus +${graos} ${graosCurto} (+1 já creditado no envio).`
       )
     ) {
       return;
@@ -224,7 +226,7 @@ export default function SugestoesPage() {
           )}
           {podeDestacarGraos && (
             <p className="text-sm text-coffee-100 mt-1 max-w-xl">
-              Sugestões: +1 Grão no envio. Responda com bônus de 0, 3, 5 ou 9 Grãos conforme a qualidade da ideia
+              Sugestões: +1 {graosCurto} no envio. Responda com bônus de 0, 3, 5 ou 9 {graosCurto} conforme a qualidade da ideia
               (reprovada = +0 de bônus).
             </p>
           )}
@@ -246,7 +248,7 @@ export default function SugestoesPage() {
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <strong>{pendentesAnalise}</strong>{' '}
           {pendentesAnalise === 1 ? 'mensagem aguardando' : 'mensagens aguardando'} análise.
-          Responda sugestões com Grãos ou marque elogios/reclamações como visto.
+          Responda sugestões com {graosCurto} ou marque elogios/reclamações como visto.
         </div>
       )}
 

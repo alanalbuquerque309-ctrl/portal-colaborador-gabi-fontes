@@ -1,4 +1,5 @@
 import { normalizePortalRole } from '@/lib/roles';
+import { getTermo } from '@/lib/tenant/terminology';
 
 export type AtalhoPerfil = { href: string; titulo: string; descricao: string };
 
@@ -9,13 +10,13 @@ export function montarAtalhosPerfil(role: string | null | undefined, podeVisitaR
   lista.push({
     href: '/portal/treinamento',
     titulo: 'Treinamento',
-    descricao: 'Vídeos da Quinta do café, liderança e boas-vindas.',
+    descricao: `Vídeos da ${getTermo('quinta_treino')}, liderança e boas-vindas.`,
   });
 
   if (nr === 'colaborador' || nr === 'socio' || nr === 'admin') {
     lista.push({
       href: '/portal/graos',
-      titulo: 'Grãos de café',
+      titulo: getTermo('reconhecimento'),
       descricao:
         nr === 'colaborador'
           ? 'Missões da semana, saldo e resgate na cafeteria.'

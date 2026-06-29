@@ -9,6 +9,7 @@ import {
   type AssiduidadeTipo,
 } from '@/lib/avaliacao-diaria';
 import { DICA_CRITERIO_PROATIVIDADE, notaCriterioValida } from '@/lib/avaliacao-notas';
+import { getTermoCurto } from '@/lib/tenant/terminology';
 
 export type AvaliacaoServidor = {
   id?: string;
@@ -98,6 +99,7 @@ export function ColaboradorAvaliacaoCard({
   mostrarForaPlantao = true,
   mostrarFerias = true,
 }: Props) {
+  const graosCurto = getTermoCurto('reconhecimento');
   const [modoEdicao, setModoEdicao] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
   const edicaoUtilizada = avaliacaoInicial?.edicao_utilizada === true;
@@ -332,7 +334,7 @@ export function ColaboradorAvaliacaoCard({
     if (somenteLeitura) return;
     if (
       !window.confirm(
-        `${nome} faltou sem aviso na semana ${semanaLabel ?? 'selecionada'}?\n\nRegistra média 0 e sem Grãos na semana.`
+        `${nome} faltou sem aviso na semana ${semanaLabel ?? 'selecionada'}?\n\nRegistra média 0 e sem ${graosCurto} na semana.`
       )
     ) {
       return;
@@ -455,7 +457,7 @@ export function ColaboradorAvaliacaoCard({
     ) {
       setErro(
         assiduidade === 'falta_justificada'
-          ? 'Com falta justificada, informe os cinco critérios (a nota vale; sem Grãos na semana).'
+          ? `Com falta justificada, informe os cinco critérios (a nota vale; sem ${graosCurto} na semana).`
           : 'Informe os cinco critérios de 1 a 5.'
       );
       return;
@@ -642,7 +644,7 @@ export function ColaboradorAvaliacaoCard({
               >
                 <span className="block text-sm font-semibold">Falta injustificada</span>
                 <span className="block text-xs mt-0.5 text-red-900">
-                  Faltou sem aviso; média 0 e sem Grãos na semana
+                  Faltou sem aviso; média 0 e sem {graosCurto} na semana
                 </span>
               </button>
             </div>
@@ -748,7 +750,7 @@ export function ColaboradorAvaliacaoCard({
 
             {justificada && !somenteLeitura && (
               <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Falta justificada: <strong>sem Grãos</strong> nesta semana, mas informe a nota dos cinco critérios
+                Falta justificada: <strong>sem {graosCurto}</strong> nesta semana, mas informe a nota dos cinco critérios
                 normalmente.
               </p>
             )}
@@ -769,7 +771,7 @@ export function ColaboradorAvaliacaoCard({
 
             {injustificada && (
               <p className="text-sm text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-                Falta injustificada: critérios zerados, média <strong>0</strong> e sem Grãos na semana.
+                Falta injustificada: critérios zerados, média <strong>0</strong> e sem {graosCurto} na semana.
               </p>
             )}
 
@@ -883,7 +885,7 @@ export function ColaboradorAvaliacaoCard({
 
         {justificada && somenteLeitura && (
           <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <strong>Falta justificada</strong> nesta semana — sem Grãos, mas a nota do líder vale para
+            <strong>Falta justificada</strong> nesta semana — sem {graosCurto}, mas a nota do líder vale para
             desempenho.
             {avaliacaoInicial?.justificativa_nota_baixa ? (
               <>

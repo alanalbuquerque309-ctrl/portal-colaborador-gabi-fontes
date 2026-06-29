@@ -8,6 +8,7 @@ import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasG
 import { AdminTopbar } from '@/components/admin/shell/AdminTopbar';
 import { adminPathPermitidoRh } from '@/lib/admin-access';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
+import { getTermo } from '@/lib/tenant/terminology';
 
 export default function AdminLayout({
   children,
@@ -58,7 +59,7 @@ export default function AdminLayout({
       titulo: 'Comunicação',
       itens: [
         { href: '/admin/avisos', label: 'Avisos' },
-        { href: '/admin/cafe-conecta', label: 'Café Conecta' },
+        { href: '/admin/cafe-conecta', label: getTermo('cafe_conecta') },
         { href: '/admin/treinamento', label: 'Treinamento' },
         { href: '/admin/sugestoes', label: 'Sugestões' },
         { href: '/admin/manual-eventos', label: 'Eventos de manuais' },

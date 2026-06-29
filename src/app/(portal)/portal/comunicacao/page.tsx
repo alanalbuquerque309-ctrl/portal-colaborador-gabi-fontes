@@ -13,6 +13,7 @@ import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
 import { PortalSection } from '@/components/portal/shell/PortalSection';
 import { PortalActionCard } from '@/components/portal/shell/PortalActionCard';
+import { getTermoCurto } from '@/lib/tenant/terminology';
 
 const IconBalao = () => (
   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -48,6 +49,7 @@ const IconInbox = () => (
 );
 
 export default function ComunicacaoPage() {
+  const graosCurto = getTermoCurto('reconhecimento');
   const router = useRouter();
   const [podeInboxAjuda, setPodeInboxAjuda] = useState(false);
   const [pendenciasInbox, setPendenciasInbox] = useState(0);
@@ -136,7 +138,7 @@ export default function ComunicacaoPage() {
           <PortalActionCard
             href="/admin/sugestoes"
             title="Analisar sugestões da equipe"
-            description="Ideias enviadas pelos colaboradores. Responda com bônus de 0, 3, 5 ou 9 Grãos (+1 no envio)."
+            description={`Ideias enviadas pelos colaboradores. Responda com bônus de 0, 3, 5 ou 9 ${graosCurto} (+1 no envio).`}
             cta="Abrir gestão →"
             icon={<IconClipboard />}
             tom="ambar"

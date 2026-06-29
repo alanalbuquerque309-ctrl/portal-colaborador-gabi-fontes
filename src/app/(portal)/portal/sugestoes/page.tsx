@@ -9,6 +9,7 @@ import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
 import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
 import { mensagemRespostaColaborador, MENSAGEM_SUGESTAO_SEM_GRAOS } from '@/lib/sugestao-resposta-graos';
+import { getTermoCurto } from '@/lib/tenant/terminology';
 
 interface MinhaMsg {
   id: string;
@@ -62,6 +63,7 @@ function mensagemAcolhimento(m: MinhaMsg, participaGraos: boolean): string | nul
 }
 
 export default function SugestoesPage() {
+  const graosCurto = getTermoCurto('reconhecimento');
   const router = useRouter();
   const [modoReclamacaoUrl, setModoReclamacaoUrl] = useState(false);
 
@@ -278,7 +280,7 @@ export default function SugestoesPage() {
 
             {tipo === 'sugestao' && (
               <p className="text-sm text-coffee-100">
-                Envio vale 1 Grão. A gestão pode dar bônus de 0 a 9 Grãos após analisar.
+                Envio vale 1 {graosCurto}. A gestão pode dar bônus de 0 a 9 {graosCurto} após analisar.
               </p>
             )}
 

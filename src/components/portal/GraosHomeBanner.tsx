@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
+import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 
 type Missao = {
   id: string;
@@ -33,6 +34,8 @@ function iconeMissao(status: string): string {
 
 /** Saldo + missões da semana (colaborador operação), logo abaixo do Faça agora. */
 export function GraosHomeBanner() {
+  const termoReconhecimento = getTermo('reconhecimento');
+  const graosCurto = getTermoCurto('reconhecimento');
   const [visivel, setVisivel] = useState(false);
   const [resumo, setResumo] = useState<GraosResumo | null>(null);
 
@@ -87,10 +90,10 @@ export function GraosHomeBanner() {
     <section className="rounded-2xl border border-orange-200/80 bg-gradient-to-br from-orange-50 via-amber-50/80 to-dourado-50/40 p-5 shadow-sm overflow-hidden">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-orange-800">☕ Grãos de café — nossa moeda</p>
+          <p className="text-sm font-medium text-orange-800">☕ {termoReconhecimento} — nossa moeda</p>
           <p className="text-3xl font-display font-bold text-cafeteria-900 mt-0.5 tabular-nums">
             {resumo.saldo_confirmado}
-            <span className="text-lg font-normal text-cafeteria-700 ml-1">Grãos</span>
+            <span className="text-lg font-normal text-cafeteria-700 ml-1">{graosCurto}</span>
           </p>
           {resumo.nivel ? (
             <p className="text-sm text-cafeteria-600 mt-0.5">
@@ -122,7 +125,7 @@ export function GraosHomeBanner() {
 
       {missoesAbertas.length > 0 && (
         <div className="mb-3">
-          <p className="text-sm font-semibold text-cafeteria-900 mb-2">Como ganhar mais Grãos</p>
+          <p className="text-sm font-semibold text-cafeteria-900 mb-2">Como ganhar mais {graosCurto}</p>
           <ul className="space-y-1.5">
             {missoesAbertas.slice(0, 5).map((m) => (
               <li key={m.id} className="flex items-center gap-2 text-sm">

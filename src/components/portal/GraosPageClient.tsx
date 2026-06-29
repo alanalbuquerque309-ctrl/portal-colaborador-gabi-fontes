@@ -8,6 +8,7 @@ import { IlustracaoGraos } from '@/components/portal/vivo/PortalIlustracao';
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
 import { QuintaTreinosPanel } from '@/components/portal/QuintaTreinosPanel';
+import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 
 type Missao = {
   id: string;
@@ -87,6 +88,9 @@ type ResumoGraos = {
 type CarrinhoLinha = { catalogo_id: string; nome: string; graos: number; qtd: number };
 
 export function GraosPageClient() {
+  const termoReconhecimento = getTermo('reconhecimento');
+  const graosCurto = getTermoCurto('reconhecimento');
+  const termoQuinta = getTermo('quinta_treino');
   const [data, setData] = useState<ResumoGraos | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [modo, setModo] = useState<'home' | 'usar' | 'extrato' | 'codigo'>('home');
@@ -175,13 +179,13 @@ export function GraosPageClient() {
   };
 
   if (carregando && !data) {
-    return <PortalPaginaCarregando label="Carregando Grãos…" />;
+    return <PortalPaginaCarregando label={`Carregando ${graosCurto}…`} />;
   }
 
   if (!data?.ok) {
     return (
       <div className="p-6 max-w-lg mx-auto">
-        <p className="text-red-800">{data?.erro || 'Grãos indisponível.'}</p>
+        <p className="text-red-800">{data?.erro || `${graosCurto} indisponível.`}</p>
       </div>
     );
   }
@@ -212,7 +216,7 @@ export function GraosPageClient() {
         <header className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-cream-50 to-white p-5 overflow-hidden">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm font-medium text-amber-900">☕ Grãos de café · gestão</p>
+              <p className="text-sm font-medium text-amber-900">☕ {termoReconhecimento} · gestão</p>
               <h1 className="font-display text-2xl text-cafeteria-900 mt-1">Equipe da operação</h1>
               <p className="text-sm text-cafeteria-600 mt-1">
                 Visão interna (sócio/admin). Colaboradores veem apenas o próprio saldo.
@@ -318,7 +322,7 @@ export function GraosPageClient() {
         <div className="flex justify-center mb-1 opacity-80">
           <IlustracaoGraos className="w-28 h-18" />
         </div>
-        <p className="text-sm text-cafeteria-600">☕ Grãos de café — nossa moeda</p>
+        <p className="text-sm text-cafeteria-600">☕ {termoReconhecimento} — nossa moeda</p>
         <p className="font-display text-5xl text-cafeteria-900 tabular-nums">{saldoConfirmado}</p>
         {(data.saldo_pendente ?? 0) > 0 && (
           <p className="text-sm text-amber-800">+{data.saldo_pendente} pendentes (aguardam avaliação ok)</p>
@@ -371,7 +375,7 @@ export function GraosPageClient() {
 
       {data.elegibilidade?.elegivel && (
         <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm text-emerald-900">
-          ✅ Semana liberada — Grãos confirmados quando elegível
+          ✅ Semana liberada — {graosCurto} confirmados quando elegível
         </div>
       )}
 
@@ -385,7 +389,7 @@ export function GraosPageClient() {
 
           {data.eh_quinta && !modoVisualizacao && (
             <div className="rounded-xl border-2 border-dourado-400 bg-white p-4 space-y-3">
-              <p className="font-semibold text-cafeteria-900">⭐ Quinta do café</p>
+              <p className="font-semibold text-cafeteria-900">⭐ {termoQuinta}</p>
 
               {data.quinta_treino?.embed_url ? (
                 <QuintaTreinoEmbed
@@ -422,7 +426,7 @@ export function GraosPageClient() {
                     onClick={() => void concluirQuinta()}
                     className="w-full rounded-xl bg-cafeteria-800 text-cream-50 py-3 font-semibold min-h-[48px] disabled:opacity-50"
                   >
-                    {quintaLoading ? 'Salvando…' : 'Concluir treino (+5 Grãos)'}
+                    {quintaLoading ? 'Salvando…' : `Concluir treino (+5 ${graosCurto})`}
                   </button>
                 </>
               )}
@@ -511,7 +515,7 @@ export function GraosPageClient() {
             ← Voltar
           </button>
           <p className="font-semibold text-cafeteria-900">Escolha os itens</p>
-          <p className="text-sm text-cafeteria-600">Saldo confirmado: {saldoConfirmado} Grãos</p>
+          <p className="text-sm text-cafeteria-600">Saldo confirmado: {saldoConfirmado} {graosCurto}</p>
           <ul className="space-y-2">
             {(data.catalogo ?? []).map((item) => {
               const sel = carrinho.some((c) => c.catalogo_id === item.id);
@@ -552,11 +556,11 @@ export function GraosPageClient() {
           {carrinho.length > 0 && (
             <div className="rounded-xl bg-cafeteria-50 p-4 space-y-2 text-sm">
               <p>
-                Total: <strong>{totalCarrinho}</strong> Grãos
+                Total: <strong>{totalCarrinho}</strong> {graosCurto}
               </p>
               {complementoGraos > 0 && (
                 <p className="text-amber-900">
-                  Faltam {complementoGraos} Grãos — complemento no caixa: R${' '}
+                  Faltam {complementoGraos} {graosCurto} — complemento no caixa: R${' '}
                   {(complementoCentavos / 100).toFixed(2).replace('.', ',')}.
                 </p>
               )}
@@ -590,7 +594,7 @@ export function GraosPageClient() {
             }}
             className="text-sm underline text-emerald-800"
           >
-            Voltar aos Grãos
+            Voltar aos {graosCurto}
           </button>
         </div>
       )}

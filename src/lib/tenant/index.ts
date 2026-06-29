@@ -1,5 +1,5 @@
 export { getTenantBranding, tituloPaginaTenant, type TenantBranding } from '@/lib/tenant/branding';
-export { getTermo, getTermosTenant, type TenantTermoId } from '@/lib/tenant/terminology';
+export { getTermo, getTermoCurto, getTermosTenant, type TenantTermoId } from '@/lib/tenant/terminology';
 export { getModulosTenant, moduloTenantAtivo } from '@/lib/tenant/modulos';
 export {
   listarUnidadesCadastro,

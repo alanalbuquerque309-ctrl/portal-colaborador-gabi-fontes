@@ -2,6 +2,7 @@
 
 import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
 import type { QuintaTreinoApresentador } from '@/lib/graos/quinta-treino';
+import { getTermo } from '@/lib/tenant/terminology';
 
 export type QuintaTreinoEmbedData = {
   titulo: string;
@@ -67,7 +68,7 @@ export function QuintaTreinosPanel({
   return (
     <div className={`rounded-xl border-2 border-dourado-400 bg-white p-4 space-y-4 ${className}`}>
       <div>
-        <p className="font-semibold text-cafeteria-900">⭐ Quinta do café</p>
+        <p className="font-semibold text-cafeteria-900">⭐ {getTermo('quinta_treino')}</p>
         {intro ? <p className="text-sm text-cafeteria-600 mt-1 leading-relaxed">{intro}</p> : null}
       </div>
       {temColab && treinoColaborador ? (

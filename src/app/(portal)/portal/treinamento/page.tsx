@@ -9,6 +9,7 @@ import { PortalSection } from '@/components/portal/shell/PortalSection';
 import { PortalEmptyState } from '@/components/portal/shell/PortalEmptyState';
 import { PortalActionCard } from '@/components/portal/shell/PortalActionCard';
 import { emitPortalHomeAtualizado } from '@/lib/portal-home-events';
+import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 
 type TreinamentoItem = {
   id: string;
@@ -47,6 +48,9 @@ function StatusChip({ item }: { item: TreinamentoItem }) {
 }
 
 export default function PortalTreinamentoPage() {
+  const termoQuinta = getTermo('quinta_treino');
+  const termoReconhecimento = getTermo('reconhecimento');
+  const graosCurto = getTermoCurto('reconhecimento');
   const [loading, setLoading] = useState(true);
   const [itens, setItens] = useState<TreinamentoItem[]>([]);
   const [links, setLinks] = useState<Record<string, string | null>>({});
@@ -240,7 +244,7 @@ export default function PortalTreinamentoPage() {
                     ) : null}
                     {linkQuinta ? (
                       <Link href={linkQuinta} className="inline-block mt-2 text-xs text-dourado-base underline">
-                        Abrir também em Grãos de café
+                        Abrir também em {termoReconhecimento}
                       </Link>
                     ) : null}
                   </div>
@@ -249,7 +253,7 @@ export default function PortalTreinamentoPage() {
                     href={linkQuinta}
                     className="inline-flex rounded-lg bg-dourado-base px-4 py-2.5 text-sm font-medium text-cream-100 min-h-[44px] items-center"
                   >
-                    Ir para Quinta do café (Grãos)
+                    Ir para {termoQuinta} ({graosCurto})
                   </Link>
                 ) : (
                   <>

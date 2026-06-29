@@ -14,6 +14,7 @@ import {
 } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
 import { podeVerBonificacaoInterna, podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
+import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 
@@ -466,8 +467,8 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
 
   const itemGraos: NavItem = {
     href: '/portal/graos',
-    label: 'Grãos de café',
-    short: 'Grãos',
+    label: getTermo('reconhecimento'),
+    short: getTermoCurto('reconhecimento'),
     icon: 'graos',
   };
 

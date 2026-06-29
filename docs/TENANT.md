@@ -48,7 +48,16 @@ Aplicar: `npm run db:apply-061` (requer `DATABASE_URL`).
 - `src/lib/config-avaliacao-direta.ts` — avaliadores por nome
 - `public/manuais/` — conteúdo de cultura Gabi Fontes
 - Repo / domínio / PWA `manifest.json` estático
-- Termos de cultura na UI («Grãos», etc.) ainda fixos em vários componentes
+
+## Fase 2.3 — termos na UI (concluída)
+
+Rótulos visíveis usam `getTermo()` / `getTermoCurto()`:
+
+- `reconhecimento` — gamificação (nav, páginas, contagem)
+- `cafe_conecta` — sorteio semanal
+- `quinta_treino` — treinos de quinta
+
+Override via `NEXT_PUBLIC_TERMO_*` (ver `.env.local.example`). Lógica de missões/pendências **não** alterada.
 
 ## Critério de sucesso Fase 1
 

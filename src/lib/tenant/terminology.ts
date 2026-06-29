@@ -23,3 +23,10 @@ export function getTermosTenant(): Record<TenantTermoId, string> {
     quinta_treino: getTermo('quinta_treino'),
   };
 }
+
+/** Nav compacta / unidade de contagem (primeira palavra do termo). */
+export function getTermoCurto(id: TenantTermoId): string {
+  const full = getTermo(id);
+  const first = full.split(/\s+/)[0];
+  return first || full;
+}

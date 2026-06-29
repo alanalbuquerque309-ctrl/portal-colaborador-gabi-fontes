@@ -20,10 +20,13 @@ import {
   descricaoMotivoInelegibilidadeCafeConecta,
   rotuloMotivoInelegibilidadeCafeConecta,
 } from '@/lib/cafe-conecta/motivos';
+import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 
 type GrupoTab = { slug: string; label: string; sorteio_liberado: boolean };
 
 export function CafeConectaAdminPanel() {
+  const termoCafeConecta = getTermo('cafe_conecta');
+  const graosCurto = getTermoCurto('reconhecimento');
   const [loading, setLoading] = useState(true);
   const [acao, setAcao] = useState<'sorteio' | 'publicar' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -153,7 +156,7 @@ export function CafeConectaAdminPanel() {
   if (loading) {
     return (
       <div className="py-16 flex justify-center">
-        <XicaraCarregando size="lg" label="Carregando Café Conecta…" />
+        <XicaraCarregando size="lg" label={`Carregando ${termoCafeConecta}…`} />
       </div>
     );
   }
@@ -162,7 +165,7 @@ export function CafeConectaAdminPanel() {
     return (
       <div className="space-y-4">
         <AdminPageHeader
-          title="Café Conecta"
+          title={termoCafeConecta}
           description="Sorteio semanal de integração entre equipes."
         />
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-950">
@@ -210,7 +213,7 @@ export function CafeConectaAdminPanel() {
       )}
 
       <AdminPageHeader
-        title="Café Conecta"
+        title={termoCafeConecta}
         description={`${data.grupo.label} · semana ${data.semana_inicio} · quarta ${data.data_referencia}`}
         actions={
           sorteioLiberado ? (
@@ -250,7 +253,7 @@ export function CafeConectaAdminPanel() {
 
       {data.alerta_quinta && sorteioLiberado && !isPublicado && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950" role="alert">
-          ☕ Café Conecta ainda não sorteado/publicado nesta quarta.
+          ☕ {termoCafeConecta} ainda não sorteado/publicado nesta quarta.
         </div>
       )}
 
@@ -319,7 +322,7 @@ export function CafeConectaAdminPanel() {
 
       <AdminSection
         title="Elegíveis"
-        description="Com login no portal (Grãos) nesta semana. Se forem menos de 2, o sorteio admin inclui quem está ativo mas ainda não entrou (exceto férias, folga na quarta e afastados)."
+        description={`Com login no portal (${graosCurto}) nesta semana. Se forem menos de 2, o sorteio admin inclui quem está ativo mas ainda não entrou (exceto férias, folga na quarta e afastados).`}
       >
         <AdminTable>
           <AdminTableHead>
@@ -412,7 +415,7 @@ export function CafeConectaAdminPanel() {
       {semAcessoLista.length > 0 && (
         <AdminSection
           title="Sem acesso ao portal"
-          description="Precisam dos 5 Grãos login_semana (segunda a quarta) para serem sorteados."
+          description={`Precisam dos 5 ${graosCurto} login_semana (segunda a quarta) para serem sorteados.`}
         >
           <AdminTable>
             <AdminTableHead>
@@ -489,7 +492,7 @@ export function CafeConectaAdminPanel() {
       )}
 
       {data.metricas && (
-        <AdminSection title="Engajamento" description="Reações rápidas dos colaboradores ao Café Conecta publicado.">
+        <AdminSection title="Engajamento" description={`Reações rápidas dos colaboradores ao ${termoCafeConecta} publicado.`}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <AdminStatCard label="Sorteios publicados" valor={data.metricas.sorteios_publicados} tom="neutro" />
             <AdminStatCard label="Feedback (total)" valor={data.metricas.feedback_total} tom="dourado" />

@@ -15,6 +15,7 @@ import {
 } from '@/components/admin/shell/AdminTable';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { gruposCafeConectaComSorteio } from '@/lib/cafe-conecta/config';
+import { getTermo } from '@/lib/tenant/terminology';
 
 type Colaborador = { id: string; nome: string; onboarding_completo: boolean };
 type Aviso = { id: string; titulo: string; ativo?: boolean };
@@ -34,6 +35,7 @@ type PendenciasResumo = {
 };
 
 export function AdminDashboardCockpit() {
+  const termoCafeConecta = getTermo('cafe_conecta');
   const [loading, setLoading] = useState(true);
   const [acessoRh, setAcessoRh] = useState(false);
   const [gestaoCompleta, setGestaoCompleta] = useState(false);
@@ -199,12 +201,12 @@ export function AdminDashboardCockpit() {
 
       {alertaCafeConecta && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950 flex flex-wrap items-center justify-between gap-3" role="alert">
-          <span>☕ Café Conecta ainda não sorteado/publicado nesta quarta.</span>
+          <span>☕ {termoCafeConecta} ainda não sorteado/publicado nesta quarta.</span>
           <Link
             href="/admin/cafe-conecta"
             className="inline-flex min-h-[40px] items-center rounded-lg bg-dourado-base px-3 py-1.5 text-sm font-semibold text-cream-100 hover:bg-dourado-400"
           >
-            Abrir Café Conecta
+            Abrir {termoCafeConecta}
           </Link>
         </div>
       )}

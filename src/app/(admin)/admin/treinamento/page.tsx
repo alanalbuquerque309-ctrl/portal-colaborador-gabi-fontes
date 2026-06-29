@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { ComunicacaoAudienciaGaveta } from '@/components/admin/ComunicacaoAudienciaGaveta';
 import type { ResumoAudienciaComunicacao } from '@/lib/audiencia-comunicacao';
+import { getTermo } from '@/lib/tenant/terminology';
 
 interface Treinamento {
   id: string;
@@ -27,6 +28,7 @@ interface TreinoAutomatico {
 }
 
 export default function TreinamentosAdminPage() {
+  const termoQuinta = getTermo('quinta_treino');
   const [treinamentos, setTreinamentos] = useState<Treinamento[]>([]);
   const [treinosAutomaticos, setTreinosAutomaticos] = useState<TreinoAutomatico[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +110,7 @@ export default function TreinamentosAdminPage() {
         <div>
           <h1 className="text-2xl font-display font-semibold text-coffee-base">Treinamento</h1>
           <p className="text-sm text-coffee-100 mt-1">
-            Vídeos e materiais publicados para a equipe. A «Quinta do café» continua configurada por variáveis de ambiente e
+            Vídeos e materiais publicados para a equipe. A «{termoQuinta}» continua configurada por variáveis de ambiente e
             aparece no portal junto com estes itens.
           </p>
         </div>
@@ -133,7 +135,7 @@ export default function TreinamentosAdminPage() {
             Treinos automáticos no portal
           </h2>
           <p className="text-sm text-cafeteria-700 mb-4">
-            Estes vídeos já aparecem em <strong>/portal/treinamento</strong> (Quinta do café). Não precisam cadastro
+            Estes vídeos já aparecem em <strong>/portal/treinamento</strong> ({termoQuinta}). Não precisam cadastro
             manual. Sócios e admin veem os dois; colaboradores e líderes veem conforme o perfil.
           </p>
           <ul className="space-y-3 list-none m-0 p-0">
@@ -169,7 +171,7 @@ export default function TreinamentosAdminPage() {
         <div className="rounded-xl border border-cream-300 bg-cream-50 p-8 text-center">
           <p className="text-coffee-base mb-2">Nenhum treinamento extra cadastrado no banco.</p>
           <p className="text-sm text-cafeteria-600 mb-4">
-            Os vídeos da Quinta do café (acima) já estão no portal. Use «Novo treinamento» só para materiais adicionais.
+            Os vídeos da {termoQuinta} (acima) já estão no portal. Use «Novo treinamento» só para materiais adicionais.
           </p>
           <Link
             href="/admin/treinamento/novo"
