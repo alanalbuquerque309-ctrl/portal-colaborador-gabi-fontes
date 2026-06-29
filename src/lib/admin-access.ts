@@ -11,6 +11,7 @@ export const ADMIN_NAV_RH: readonly { href: string; label: string }[] = [
   { href: '/admin/termometro-emocoes', label: 'Termômetro de emoções' },
   { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
   { href: '/admin/avisos', label: 'Avisos' },
+  { href: '/admin/sugestoes', label: 'Sugestões' },
   { href: '/admin/cafe-conecta', label: 'Café Conecta' },
   { href: '/admin/treinamento', label: 'Treinamento' },
   { href: '/admin/escalas', label: 'Escalas' },

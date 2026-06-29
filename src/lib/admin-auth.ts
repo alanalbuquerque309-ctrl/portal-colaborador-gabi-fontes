@@ -13,6 +13,7 @@ import {
 } from '@/lib/admin-access';
 import { normalizePortalRole } from '@/lib/roles';
 import { isValidAdminToken } from '@/lib/portal-session-token';
+import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 
 const ADMIN_COOKIE = 'admin_session';
 const PORTAL_COLABORADOR = 'portal_colaborador_id';
@@ -192,9 +193,33 @@ export async function isMasterPortalSession(): Promise<boolean> {
   return normalizePortalRole(role) === 'master';
 }
 
-/** Reclamações no admin: sócios (portal) ou login por senha. Role `admin` não vê. */
+/** Sugestões/reclamações no admin: administração, RH e sócios (ou login por senha). */
 export function canViewReclamacoesAdmin(ctx: AdminViewerContext | null): boolean {
   if (!ctx) return false;
   if (ctx.kind === 'password_session') return true;
-  return ctx.role === 'socio';
+  return podeGerirSugestoesReclamacoes(ctx.role);
+}
+
+/** APIs de gestão de sugestões/reclamações/elogios (inclui RH; exclui gerente). */
+export async function requireAdminSugestoesGestaoApi(): Promise<
+  { ok: true; ctx: AdminViewerContext } | { ok: false; response: NextResponse }
+> {
+  const ctx = await getAdminViewerContext();
+  if (!ctx) {
+    return {
+      ok: false,
+      response: NextResponse.json({ ok: false, erro: 'Não autorizado' }, { status: 401 }),
+    };
+  }
+  if (ctx.kind === 'password_session') return { ok: true, ctx };
+  if (ctx.kind === 'portal' && podeGerirSugestoesReclamacoes(ctx.role)) {
+    return { ok: true, ctx };
+  }
+  return {
+    ok: false,
+    response: NextResponse.json(
+      { ok: false, erro: 'Acesso restrito à administração, RH e sócios.' },
+      { status: 403 }
+    ),
+  };
 }

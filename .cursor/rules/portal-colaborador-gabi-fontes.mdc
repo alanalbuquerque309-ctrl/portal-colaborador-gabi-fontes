@@ -20,6 +20,7 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 | Git remoto | **`portal-colaborador-gabi-fontes`** (repo **nesta pasta**, não na raiz `ISA AI/`), branch `main` → deploy Vercel |
 | Banco | Supabase; schema em `supabase/migrations/*.sql` (canônico até `047_` e seguintes) |
 | Docs operacionais | `BACKUP_RESTORE.md`, `SECURITY_ROADMAP.md` (backlog segurança, não duplicar aqui em detalhe) |
+| **Tenant / SaaS** | `docs/TENANT.md` — white-label sem risco; **`USE_TENANT_DB` desligado** em produção Gabi |
 
 ## Vocabulário e tom
 
@@ -41,6 +42,76 @@ Norma **fonte única** para agentes que trabalham neste repositório. Não mistu
 - Mutações de avaliação portal, ajuda, upload, etc. no servidor com service role onde aplicável.
 - **PWA:** `@ducanh2912/next-pwa`; `cacheId` / `SW_VERSION` em `next.config.js` + `PortalPwaRefresh.tsx` (bump forçado após deploy relevante; atual **v7** `portal-gabi-fontes-v7-treinamento`); manuais HTML em `public/manuais/` (sync no `prebuild`).
 - **Sessão assinada (jun/2026):** cookie `portal_sess` (HMAC) quando `PORTAL_SESSION_SECRET` está na Vercel; middleware valida até carência `2026-07-05`; `GET /api/portal/perfil` **renova** `portal_sess` (`refreshPortalSessCookie`); login admin faz bridge do colaborador por login env, `ADMIN_PORTAL_COLABORADOR_ID` ou CPF Alan (`admin-portal-bridge.ts`).
+
+## Tenant / caminho SaaS (Fase 1 + 2.1–2.3 — jun/2026)
+
+Preparação **white-label / multi-tenant** sem alterar a operação Gabi Fontes em produção. Detalhe técnico: **`docs/TENANT.md`**.
+
+### Princípio (não quebrar produção)
+
+- **`USE_TENANT_DB=false`** (padrão Vercel): app **ignora** tabelas `tenants` / `tenant_settings` / `tenant_setores` na leitura.
+- **Fallback em cascata:** env `NEXT_PUBLIC_TENANT_*` / `NEXT_PUBLIC_TERMO_*` → defaults em `src/lib/tenant/defaults.ts` → constantes legado em `src/lib/constants/colaborador-org.ts`.
+- **Rotas e slugs internos inalterados:** `/portal/graos`, APIs `graos/*`, tabelas `graos_*`, missões e elegibilidade **não** foram renomeados na Fase 2.3 (só **rótulos visíveis** na UI).
+
+### Onde importar (porta única)
+
+| Necessidade | Import / API |
+|-------------|----------------|
+| Logo, nome, título | `getTenantBranding()` de `@/lib/tenant` |
+| «Grãos», Café Conecta, Quinta treino (UI) | `getTermo(id)` / `getTermoCurto(id)` |
+| Unidades / setores (cliente) | `listarUnidadesCadastro()`, `listarSetoresCadastro()` ou hook `useUnidadesCadastro()` |
+| Unidades / setores (servidor) | `listarUnidadesCadastroResolvido()`, `listarSetoresCadastroResolvido()` |
+| Catálogo org para selects no browser | `GET /api/tenant/org` |
+| Branding público | `GET /api/tenant/branding` |
+
+**Não** importar `UNIDADES_CADASTRO` / `SETORES_PREDEFINIDOS` direto em telas ou APIs novas; usar `@/lib/tenant` (exceção: `colaborador-org.ts` e `tenant/org-catalog.ts`).
+
+### Fase 1 — fundação (entregue)
+
+- Pacote `src/lib/tenant/` (`branding`, `terminology`, `modulos`, `org-catalog`, `settings-server`, `defaults`).
+- Migration **`061_tenant_saas_foundation.sql`**: `tenants`, `tenant_settings`, `tenant_setores` (seed `gabi-fontes`). Aplicar: `npm run db:apply-061` (requer `DATABASE_URL`). **Runtime inalterado** até `USE_TENANT_DB=true`.
+
+### Fase 2.1 — centralização org (`9ced663`)
+
+- ~22 ficheiros: leituras de unidades/setores passam por `org-catalog` em vez de constantes diretas.
+- Funções: `listarUnidadesCadastro()`, `listarUnidadesRelatorioFiliais()`, `listarSetoresCadastro()`, `listarSetoresAvaliacaoEquipeBackoffice()`, `isSetorCadastroValido()`, `slugUnidadeAdministrativo()`, `setorEstoqueLegado()`.
+- `ROLES_CADASTRO` permanece em `colaborador-org` (perfis, não estrutura org).
+
+### Fase 2.2 — unidades do Supabase (`be985e9`)
+
+- **`listarUnidadesCadastroServer()`** lê tabela `unidades` (exclui slug `matriz`); fallback à constante se vazio/erro.
+- **`GET /api/tenant/org`**: unidades + setores; metadados `unidades_fonte` / `setores_fonte` (`constante` \| `supabase` \| `tenant_db`).
+- **Hook `useUnidadesCadastro()`**: render imediato com constante → atualiza do Supabase em background.
+- Libs/APIs servidor migradas: `evolucao-rede`, `aplicar-config-lideranca`, `resolver-unidades-equipe-avaliacao`, `lideres-por-setor/route`, selects admin/portal (colaboradores, escalas, liderança, relatórios, pendências, evolução).
+
+### Fase 2.3 — termos na UI (`b9184de`)
+
+- **`getTermo()` / `getTermoCurto()`** em menus, títulos, banners e copy (~24 ficheiros): Header, Grãos*, Café Conecta*, treinamento, sugestões, admin layout, `QuintaTreinoLiderBanner`, etc.
+- IDs de termo: `reconhecimento` (ex.: Grãos de café), `cafe_conecta`, `quinta_treino`.
+- Override env: `NEXT_PUBLIC_TERMO_RECONHECIMENTO`, `NEXT_PUBLIC_TERMO_CAFE_CONECTA`, `NEXT_PUBLIC_TERMO_QUINTA_TREINO` (ver `.env.local.example`).
+- **Lógica de negócio inalterada:** missões Grãos, pendências, rotas e slugs internos.
+
+### Variáveis de ambiente (tenant — opcionais)
+
+Secção **Tenant / white-label** em `.env.local.example`. Com tudo vazio, produção = Gabi Fontes atual.
+
+### Ainda hardcoded (próximas fases — não implementar sem pedido)
+
+| Fase | Escopo |
+|------|--------|
+| **2.4** | Wrappers `carregarRegrasLiderancaLegado()` / `carregarRegrasAvaliacaoDireta()` |
+| **2.5** | Espelho operacional (migration **062**, script `tenant:sync-mirror`) |
+| **2.6** | Admin read-only tenant (branding/termos/módulos) |
+| **2.7** | Manifest PWA dinâmico por tenant |
+| **2.8** | Staging com `USE_TENANT_DB=true` + tenant fake |
+| — | `config-lideranca-operacional.ts`, `config-avaliacao-direta.ts` (nomes de pessoas); `public/manuais/`; domínio/repo |
+
+### Critério ao tocar tenant
+
+1. Preservar fallback legado (Gabi idêntica com envs vazios).
+2. Não ligar `USE_TENANT_DB` em produção sem pedido explícito do Alan.
+3. UI: `getTermo`; org: `@/lib/tenant`; servidor: `*Resolvido()` / `*Server()`.
+4. Ao fechar fase: atualizar **`docs/TENANT.md`** e **esta regra**.
 
 ## Avaliações (contrato funcional)
 
@@ -285,6 +356,8 @@ Painel executivo de **tendência semanal** (colaboradores, unidades, setores) e 
 ## Grãos de café (nossa moeda) — jun/2026 (`e6852d6`, `a7f61a9`, `ef748e0`, `6f22a9a`)
 
 Programa de **reconhecimento** no portal: colaboradores acumulam **Grãos** por participação e **resgatam** itens do catálogo (docinhos, café, etc.). **Não é automático:** missões geram movimentos **`pendente`**; só **`confirmado`** após **elegibilidade da semana** (avaliação que fecha a semana + regras de assiduidade/notas).
+
+**SaaS Fase 2.3 (`b9184de`):** rótulos visíveis («Grãos», «Grãos de café») usam `getTermo('reconhecimento')` / `getTermoCurto()`; **rotas** (`/portal/graos`), **APIs**, tabelas `graos_*` e **missões** (`login_semana`, `quinta`, etc.) **não** foram renomeados.
 
 **⚠️ Grãos ≠ pendências de avaliação:** elegibilidade Grãos aceita **gerente OU Visita RH** na semana operacional; painel de pendências admin cobra **gerente e RH em separado** (ver secção Pendentes).
 
@@ -716,6 +789,15 @@ npm run db:apply-054                                      # preco_centavos catá
 
 ## Evoluções entregues (registro — 2026)
 
+### Tenant SaaS — Fases 2.1, 2.2 e 2.3 (jun/2026, `9ced663`, `be985e9`, `b9184de`)
+
+- **Objetivo:** caminho white-label sem risco; produção Gabi inalterada (`USE_TENANT_DB` desligado).
+- **2.1:** leituras org centralizadas em `@/lib/tenant/org-catalog` (~22 ficheiros); sem import direto a `UNIDADES_CADASTRO` fora do legado.
+- **2.2:** `listarUnidadesCadastroServer()` + `GET /api/tenant/org` + hook `useUnidadesCadastro()`; selects admin/portal e libs servidor (`evolucao-rede`, liderança, pendências) com fallback à constante.
+- **2.3:** termos de cultura na UI via `getTermo()` / `getTermoCurto()` (~24 ficheiros); env `NEXT_PUBLIC_TERMO_*`; lógica Grãos/pendências inalterada.
+- **Docs:** `docs/TENANT.md`; migration **061** (espelho DB; aplicar com `npm run db:apply-061` quando conveniente).
+- **Próximo bloco planeado:** 2.4 regras liderança legado → 2.8 staging multi-tenant (ver secção **Tenant / caminho SaaS**).
+
 ### Performance portal — navegação, home adiada, logo carregando (jun/2026, `73d0d2c`)
 
 - **`PortalLayout`:** perfil 1× por aba; abertura otimista; skeleton `LogoCarregando` com `revelarCor` (cinza → cor).
@@ -1050,6 +1132,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | P5 | **Avaliação identificada visível ao líder?** | Hoje só sócios veem autor; confirmar se líder deve ver nome quando colaborador desmarca anônimo |
 | P6 | **Engajamento diário** (além do card *Para você*) | Card «desde última visita» entregue (`c2549e6`); home consolidada em `PortalHomeEntrada` + `home-resumo`; outras ideias (streak, push) só com pedido explícito |
 | P7 | **Camada Evolução fase D** | Export PDF/WhatsApp, cache ILI pesado, alertas automáticos de queda — **adiado** |
+| P8 | **Tenant SaaS fases 2.4–2.8** | Regras liderança legado, espelho 062, admin tenant, PWA dinâmico, staging `USE_TENANT_DB` — ver `docs/TENANT.md` e secção **Tenant / caminho SaaS**; **não** abrir sem pedido explícito |
 
 ### Infra / produção
 
@@ -1058,7 +1141,7 @@ Priorizar na ordem que o Alan pedir; detalhe técnico de segurança está em **`
 | I1 | Remover env **`NEXT_PUBLIC_VIDEO_BOAS_VINDAS`** na Vercel se ainda existir com valor inválido | Opcional; código já tolera |
 | I2 | Validar **CORS/range** no bucket `portal-onboarding` se vídeo falhar em algum dispositivo | Após deploy `ebf83e1` não houve reporte |
 | I3 | Confirmar **backups Supabase** | Ver `BACKUP_RESTORE.md` |
-| I4 | Aplicar migrations **`038`–`047`**, **`048`**, **`054`**, **`059`**, **`060`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos; **048** treinamentos cadastro; **054** preço R$ catálogo; **059** paridade lojas jun/2026; **060** conclusão treino liderança |
+| I4 | Aplicar migrations **`038`–`047`**, **`048`**, **`054`**, **`059`**, **`060`**, **`061`** no Supabase produção | SQL Editor ou scripts `db:apply-*`; **042** plantão 12x36; **044** Grãos; **045–047** sugestões/elogio/resposta Grãos; **048** treinamentos cadastro; **054** preço R$ catálogo; **059** paridade lojas jun/2026; **060** conclusão treino liderança; **061** espelho tenant SaaS (runtime inalterado até `USE_TENANT_DB`) |
 | I5 | Configurar **paridade plantão jun/2026** no Admin → Liderança por setor | Mesquita (Silvia ímpar, Joyce par); Nova Iguaçu (Nathália par, Vanessa); após migrations **042** + **059** ou `npm run db:apply-059` |
 
 ### Segurança (backlog — ver SECURITY_ROADMAP.md)
@@ -1084,6 +1167,9 @@ Ordem sugerida lá: hardening GitHub/Vercel/Supabase → rate limit + anti-enume
 ## Ficheiros-chave (referência rápida)
 
 ```text
+docs/TENANT.md
+src/lib/tenant/index.ts, branding.ts, terminology.ts, org-catalog.ts, settings-server.ts, defaults.ts, modulos.ts, use-unidades-cadastro.ts
+src/app/api/tenant/org/route.ts, api/tenant/branding/
 src/app/(admin)/admin/layout.tsx, lideres-por-setor/page.tsx, avaliacoes-pendentes/, escalas/page.tsx
 src/lib/admin-access.ts, admin-auth.ts, sincronizar-vinculos-lideranca.ts, organograma-lideranca.ts
 src/components/admin/OrganogramaLideranca.tsx, AvaliacoesPendentesPainel.tsx

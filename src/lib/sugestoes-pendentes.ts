@@ -5,6 +5,7 @@ export type SugestaoCamposAnalise = {
   tipo: string;
   visualizado_em?: string | null;
   graos_destaque_em?: string | null;
+  resposta_texto?: string | null;
   /** Quando false, basta marcar como visto (líderes fora do programa Grãos). */
   autor_participa_graos?: boolean;
 };
@@ -14,6 +15,7 @@ export function aguardandoAnaliseAdmin(
   item: SugestaoCamposAnalise,
   opts?: { respostaComGraos?: boolean }
 ): boolean {
+  if (item.resposta_texto?.trim()) return false;
   const tipo = String(item.tipo ?? 'sugestao');
   const respostaComGraos = opts?.respostaComGraos !== false;
   const autorGrãos = item.autor_participa_graos !== false;
@@ -38,9 +40,15 @@ async function mapaRolesColaboradores(
 }
 
 function sugestaoPendenteAnalise(
-  row: { colaborador_id?: string | null; visualizado_em?: string | null; graos_destaque_em?: string | null },
+  row: {
+    colaborador_id?: string | null;
+    visualizado_em?: string | null;
+    graos_destaque_em?: string | null;
+    resposta_texto?: string | null;
+  },
   roles: Map<string, string>
 ): boolean {
+  if (row.resposta_texto?.trim()) return false;
   if (row.graos_destaque_em != null) return false;
   const cid = row.colaborador_id ? String(row.colaborador_id) : '';
   const role = cid ? roles.get(cid) : undefined;
@@ -59,7 +67,7 @@ export async function contarSugestoesPendentesAnalise(
       const [sugestoesRaw, elogiosReclamacoes] = await Promise.all([
         supabase
           .from('sugestoes_reclamacoes')
-          .select('id, colaborador_id, visualizado_em, graos_destaque_em')
+          .select('id, colaborador_id, visualizado_em, graos_destaque_em, resposta_texto')
           .eq('tipo', 'sugestao')
           .is('graos_destaque_em', null)
           .limit(500),
@@ -67,7 +75,8 @@ export async function contarSugestoesPendentesAnalise(
           .from('sugestoes_reclamacoes')
           .select('id', { count: 'exact', head: true })
           .in('tipo', ['elogio', 'reclamacao'])
-          .is('visualizado_em', null),
+          .is('visualizado_em', null)
+          .is('resposta_texto', null),
       ]);
 
       if (sugestoesRaw.error) throw sugestoesRaw.error;
@@ -77,6 +86,7 @@ export async function contarSugestoesPendentesAnalise(
         colaborador_id?: string | null;
         visualizado_em?: string | null;
         graos_destaque_em?: string | null;
+        resposta_texto?: string | null;
       }>;
       const roles = await mapaRolesColaboradores(
         supabase,
@@ -111,7 +121,7 @@ export async function contarSugestoesPendentesAnalise(
       return await run();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      if (/visualizado_em|graos_destaque|does not exist|schema cache/i.test(msg)) continue;
+      if (/visualizado_em|graos_destaque|resposta_texto|does not exist|schema cache/i.test(msg)) continue;
       throw e instanceof Error ? e : new Error(msg);
     }
   }

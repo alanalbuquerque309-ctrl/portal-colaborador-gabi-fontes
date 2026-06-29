@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { canViewReclamacoesAdmin, getAdminViewerContext, requireAdminFullApi } from '@/lib/admin-auth';
+import { canViewReclamacoesAdmin, requireAdminSugestoesGestaoApi } from '@/lib/admin-auth';
 import { podeDestacarSugestaoGraos } from '@/lib/graos/sugestao-destaque';
 import { listarSugestoesAdmin } from '@/lib/sugestoes-admin-lista';
 
@@ -8,12 +8,11 @@ export const dynamic = 'force-dynamic';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
-/** Lista sugestões e reclamações. Role administrativo (`admin`) não vê reclamações. */
+/** Lista sugestões, elogios e reclamações (administração, RH e sócios). */
 export async function GET(req: Request) {
-  const auth = await requireAdminFullApi();
+  const auth = await requireAdminSugestoesGestaoApi();
   if (!auth.ok) return auth.response;
-
-  const ctx = await getAdminViewerContext();
+  const ctx = auth.ctx;
   const podeReclamacoes = canViewReclamacoesAdmin(ctx);
   const podeDestacarGraos = podeDestacarSugestaoGraos(ctx);
 

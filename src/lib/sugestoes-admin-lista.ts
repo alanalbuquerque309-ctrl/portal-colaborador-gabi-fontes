@@ -13,6 +13,8 @@ export type SugestaoAdminItem = {
   visualizado_em: string | null;
   graos_destaque_em: string | null;
   graos_resposta_bonus: number | null;
+  resposta_texto: string | null;
+  resposta_em: string | null;
   curtidas: number;
   autor: string;
   autor_setor: string | null;
@@ -27,7 +29,7 @@ function embedOne<T>(v: T | T[] | null | undefined): T | null {
 }
 
 function colunaAusente(msg: string): boolean {
-  return /does not exist|schema cache|graos_destaque|graos_resposta|visualizado_em|curtidas|could not embed|more than one relationship/i.test(
+  return /does not exist|schema cache|graos_destaque|graos_resposta|resposta_texto|resposta_em|visualizado_em|curtidas|could not embed|more than one relationship/i.test(
     msg
   );
 }
@@ -41,6 +43,8 @@ type RowBase = {
   visualizado_em?: string | null;
   graos_destaque_em?: string | null;
   graos_resposta_bonus?: number | null;
+  resposta_texto?: string | null;
+  resposta_em?: string | null;
   curtidas?: number | null;
   colaborador_id?: string | null;
   unidade_id?: string | null;
@@ -110,6 +114,8 @@ async function enriquecerNomes(
       graos_destaque_em: r.graos_destaque_em ?? null,
       graos_resposta_bonus:
         typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
+      resposta_texto: typeof r.resposta_texto === 'string' ? r.resposta_texto : null,
+      resposta_em: r.resposta_em ? String(r.resposta_em) : null,
       curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
       autor: nomeAutorAdmin(r, nomesColab),
       autor_setor: col?.setor ? String(col.setor) : setoresColab.get(String(cid ?? '')) ?? null,
@@ -136,6 +142,7 @@ export async function listarSugestoesAdmin(
 ): Promise<{ itens: SugestaoAdminItem[]; aviso?: string }> {
   const limite = opts.limite ?? 100;
   const selects = [
+    'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, resposta_texto, resposta_em, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas, colaborador_id, unidade_id',
     'id, tipo, texto, anonimo, created_at, colaborador_id, unidade_id',

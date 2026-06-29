@@ -1,4 +1,5 @@
 import { normalizePortalRole } from '@/lib/roles';
+import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 
 /** Fechamento de gorjeta: apenas sócios e administrador (Daniel). */
 export function podeVerBonificacaoInterna(role: string | null | undefined): boolean {
@@ -6,9 +7,9 @@ export function podeVerBonificacaoInterna(role: string | null | undefined): bool
   return r === 'socio' || r === 'admin';
 }
 
-/** Reclamações no portal: só sócios e administrador (Daniel). */
+/** Reclamações no portal: administração, RH e sócios. */
 export function podeEnviarReclamacaoPortal(role: string | null | undefined): boolean {
-  return podeVerBonificacaoInterna(role);
+  return podeGerirSugestoesReclamacoes(role);
 }
 
 /** Pendências da semana (rede inteira): só sócios e administrador (Daniel). */

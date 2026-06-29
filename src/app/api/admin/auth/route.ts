@@ -128,6 +128,7 @@ export async function GET() {
   );
 
   const { podeVerBonificacaoInterna } = await import('@/lib/bonificacao-access');
+  const { podeGerirSugestoesReclamacoes } = await import('@/lib/sugestoes-acesso');
 
 
 
@@ -150,6 +151,10 @@ export async function GET() {
   const podeGorjeta =
 
     ctx?.kind === 'password_session' || (role != null && podeVerBonificacaoInterna(role));
+
+  const podeGerirSugestoes =
+
+    ctx?.kind === 'password_session' || (role != null && podeGerirSugestoesReclamacoes(role));
 
 
 
@@ -176,6 +181,8 @@ export async function GET() {
     pode_editar_cpf: podeEditarCpfColaboradorAdmin(role, senhaAdmin),
 
     podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
+
+    podeGerirSugestoes,
 
     podeVerGorjeta: podeGorjeta,
 

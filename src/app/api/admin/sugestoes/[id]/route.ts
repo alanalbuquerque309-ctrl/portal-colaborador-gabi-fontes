@@ -3,8 +3,8 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   canViewReclamacoesAdmin,
-  getAdminViewerContext,
   requireAdminFullApi,
+  requireAdminSugestoesGestaoApi,
 } from '@/lib/admin-auth';
 import {
   aplicarRespostaSugestaoGraos,
@@ -15,12 +15,12 @@ import {
 } from '@/lib/graos/sugestao-destaque';
 import { autorElegivelGraosSugestao } from '@/lib/sugestao-resposta-graos';
 
-/** Marca sugestão/reclamação como vista ou responde sugestão (0–7 Grãos). */
+/** Marca como vista, responde com texto ou com Grãos (sugestões). */
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdminFullApi();
+  const auth = await requireAdminSugestoesGestaoApi();
   if (!auth.ok) return auth.response;
   const ctx = auth.ctx;
   const { id } = await params;
@@ -28,7 +28,12 @@ export async function PATCH(
     return NextResponse.json({ ok: false, erro: 'ID inválido' }, { status: 400 });
   }
 
-  let body: { visualizado?: boolean; destaque_graos?: boolean; resposta_graos?: number };
+  let body: {
+    visualizado?: boolean;
+    destaque_graos?: boolean;
+    resposta_graos?: number;
+    resposta_texto?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -45,6 +50,7 @@ export async function PATCH(
   try {
     const supabase = createAdminClient();
     const selectsRow = [
+      'id, tipo, colaborador_id, created_at, graos_destaque_em, graos_resposta_bonus, resposta_texto',
       'id, tipo, colaborador_id, created_at, graos_destaque_em, graos_resposta_bonus',
       'id, tipo, colaborador_id, created_at, graos_destaque_em',
       'id, tipo, colaborador_id, created_at',
@@ -65,7 +71,7 @@ export async function PATCH(
         break;
       }
       errRowMsg = errRow?.message ?? 'Registro não encontrado';
-      if (!errRow || !/graos_destaque|graos_resposta|does not exist|schema cache/i.test(errRow.message)) {
+      if (!errRow || !/graos_destaque|graos_resposta|resposta_texto|does not exist|schema cache/i.test(errRow.message)) {
         break;
       }
     }
@@ -77,6 +83,54 @@ export async function PATCH(
     const tipo = String((row as { tipo?: string }).tipo ?? '');
     if (tipo === 'reclamacao' && !canViewReclamacoesAdmin(ctx)) {
       return NextResponse.json({ ok: false, erro: 'Sem permissão para reclamações' }, { status: 403 });
+    }
+
+    if (body.resposta_texto !== undefined) {
+      const textoResposta = String(body.resposta_texto ?? '').trim();
+      if (textoResposta.length < 3) {
+        return NextResponse.json(
+          { ok: false, erro: 'Escreva pelo menos 3 caracteres na resposta.' },
+          { status: 400 }
+        );
+      }
+      if (textoResposta.length > 2000) {
+        return NextResponse.json(
+          { ok: false, erro: 'Resposta muito longa (máximo 2000 caracteres).' },
+          { status: 400 }
+        );
+      }
+
+      const cookieStore = await cookies();
+      const respondidoPorId =
+        ctx.kind === 'portal' ? cookieStore.get('portal_colaborador_id')?.value ?? null : null;
+      const agora = new Date().toISOString();
+
+      const patch: Record<string, unknown> = {
+        resposta_texto: textoResposta,
+        resposta_em: agora,
+        respondido_por_id: respondidoPorId,
+        visualizado_em: agora,
+      };
+
+      const { error: errResposta } = await supabase
+        .from('sugestoes_reclamacoes')
+        .update(patch)
+        .eq('id', id);
+
+      if (errResposta) {
+        if (/resposta_texto|resposta_em|respondido_por|does not exist|schema cache/i.test(errResposta.message)) {
+          return NextResponse.json(
+            {
+              ok: false,
+              erro: 'Colunas de resposta ainda não existem no banco — aplique a migration 063.',
+            },
+            { status: 500 }
+          );
+        }
+        return NextResponse.json({ ok: false, erro: errResposta.message }, { status: 500 });
+      }
+
+      return NextResponse.json({ ok: true, resposta_texto: textoResposta, resposta_em: agora });
     }
 
     if (graosResposta !== undefined) {

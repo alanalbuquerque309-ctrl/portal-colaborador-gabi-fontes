@@ -39,6 +39,7 @@ export function AdminDashboardCockpit() {
   const [loading, setLoading] = useState(true);
   const [acessoRh, setAcessoRh] = useState(false);
   const [gestaoCompleta, setGestaoCompleta] = useState(false);
+  const [podeGerirSugestoes, setPodeGerirSugestoes] = useState(false);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
   const [pendencias, setPendencias] = useState<PendenciasResumo | null>(null);
@@ -63,13 +64,16 @@ export function AdminDashboardCockpit() {
           acesso_limitado_rh?: boolean;
           podeVerGorjeta?: boolean;
           podeVerBonificacao?: boolean;
+          podeGerirSugestoes?: boolean;
         };
 
         if (cancel) return;
         const rh = auth.acesso_limitado_rh === true;
         const full = auth.podeVerGorjeta === true || auth.podeVerBonificacao === true;
+        const gerirSug = auth.podeGerirSugestoes === true;
         setAcessoRh(rh);
         setGestaoCompleta(full && !rh);
+        setPodeGerirSugestoes(gerirSug);
 
         const tarefas: Promise<void>[] = [
           fetch('/api/admin/colaboradores', { credentials: 'include', cache: 'no-store' })
@@ -125,6 +129,17 @@ export function AdminDashboardCockpit() {
             .catch(() => {}),
         ];
 
+        if (gerirSug) {
+          tarefas.push(
+            fetch('/api/admin/sugestoes/pendentes', { credentials: 'include', cache: 'no-store' })
+              .then((r) => r.json())
+              .then((sug) => {
+                if (cancel || !sug.ok) return;
+                setSugestoesPendentes(Math.max(0, Number(sug.pendentes ?? 0)));
+              })
+          );
+        }
+
         if (full && !rh) {
           tarefas.push(
             fetch('/api/admin/avaliacoes-pendentes', { credentials: 'include', cache: 'no-store' })
@@ -132,12 +147,6 @@ export function AdminDashboardCockpit() {
               .then((pend) => {
                 if (cancel) return;
                 if (pend.ok) setPendencias(pend as PendenciasResumo);
-              }),
-            fetch('/api/admin/sugestoes/pendentes', { credentials: 'include', cache: 'no-store' })
-              .then((r) => r.json())
-              .then((sug) => {
-                if (cancel || !sug.ok) return;
-                setSugestoesPendentes(Math.max(0, Number(sug.pendentes ?? 0)));
               })
           );
         }
@@ -250,7 +259,7 @@ export function AdminDashboardCockpit() {
           />
         )}
 
-        {gestaoCompleta ? (
+        {podeGerirSugestoes ? (
           <AdminStatCard
             emoji="💡"
             label="Sugestões"

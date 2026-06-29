@@ -1,18 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminViewerContext } from '@/lib/admin-auth';
-import { podeDestacarSugestaoGraos } from '@/lib/graos/sugestao-destaque';
 import { contarSugestoesPendentesAnalise } from '@/lib/sugestoes-pendentes';
+import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 
 export const dynamic = 'force-dynamic';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
-/** Quantas sugestões aguardam análise (só sócio/admin ou sessão por senha). */
+/** Quantas mensagens aguardam análise (administração, RH e sócios). */
 export async function GET() {
   try {
     const ctx = await getAdminViewerContext();
-    if (!ctx || !podeDestacarSugestaoGraos(ctx)) {
+    const pode =
+      ctx?.kind === 'password_session' ||
+      (ctx?.kind === 'portal' && podeGerirSugestoesReclamacoes(ctx.role));
+    if (!ctx || !pode) {
       return NextResponse.json({ ok: true, pendentes: 0 }, { headers: NO_STORE });
     }
 

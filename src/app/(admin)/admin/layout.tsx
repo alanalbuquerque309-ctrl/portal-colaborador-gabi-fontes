@@ -22,11 +22,18 @@ export default function AdminLayout({
   const [nivelLabel, setNivelLabel] = useState('');
   const [menuNav, setMenuNav] = useState<{ href: string; label: string }[]>([]);
   const [podeVerGorjeta, setPodeVerGorjeta] = useState(false);
+  const [podeGerirSugestoes, setPodeGerirSugestoes] = useState(false);
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [pendenciasSemana, setPendenciasSemana] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  type NavItemAdmin = { href: string; label: string; gorjeta?: boolean; auditoria?: boolean };
+  type NavItemAdmin = {
+    href: string;
+    label: string;
+    gorjeta?: boolean;
+    auditoria?: boolean;
+    sugestoesGestao?: boolean;
+  };
 
   const navGrupos: { titulo: string; itens: NavItemAdmin[] }[] = [
     {
@@ -61,7 +68,7 @@ export default function AdminLayout({
         { href: '/admin/avisos', label: 'Avisos' },
         { href: '/admin/cafe-conecta', label: getTermo('cafe_conecta') },
         { href: '/admin/treinamento', label: 'Treinamento' },
-        { href: '/admin/sugestoes', label: 'Sugestões' },
+        { href: '/admin/sugestoes', label: 'Sugestões', sugestoesGestao: true },
         { href: '/admin/manual-eventos', label: 'Eventos de manuais' },
       ],
     },
@@ -98,6 +105,7 @@ export default function AdminLayout({
           podeVerGorjeta?: boolean;
           podeVerBonificacao?: boolean;
           podeVerAuditoria?: boolean;
+          podeGerirSugestoes?: boolean;
         };
         setAuthorized(d.ok === true);
         const rh = d.acesso_limitado_rh === true;
@@ -107,23 +115,27 @@ export default function AdminLayout({
           setMenuNav(d.menu_rh);
         } else {
           const podeGorjeta = d.podeVerGorjeta === true || d.podeVerBonificacao === true;
+          const podeSugestoes = d.podeGerirSugestoes === true;
           const podeAud = d.podeVerAuditoria === true;
+          setPodeGerirSugestoes(podeSugestoes);
           setMenuNav(
             navCompleto.filter((i) => {
               if (i.gorjeta && !podeGorjeta) return false;
               if (i.auditoria && !podeAud) return false;
+              if (i.sugestoesGestao && !podeSugestoes) return false;
               return true;
             })
           );
         }
         setPodeVerGorjeta(d.podeVerGorjeta === true || d.podeVerBonificacao === true);
+        setPodeGerirSugestoes((prev) => d.podeGerirSugestoes === true || prev);
       })
       .catch(() => setAuthorized(false))
       .finally(() => window.clearTimeout(timer));
   }, []);
 
   useEffect(() => {
-    if (authorized !== true || !podeVerGorjeta) {
+    if (authorized !== true || !podeGerirSugestoes) {
       setSugestoesPendentes(0);
       return;
     }
@@ -155,7 +167,7 @@ export default function AdminLayout({
       window.removeEventListener(SUGESTOES_ATUALIZADO, carregar);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [authorized, podeVerGorjeta]);
+  }, [authorized, podeGerirSugestoes]);
 
   useEffect(() => {
     if (authorized !== true || !podeVerGorjeta) {
@@ -447,7 +459,7 @@ export default function AdminLayout({
             <AdminTopbar
               nivelLabel={nivelLabel}
               pendenciasSemana={podeVerGorjeta ? pendenciasSemana : 0}
-              sugestoesPendentes={podeVerGorjeta ? sugestoesPendentes : 0}
+              sugestoesPendentes={podeGerirSugestoes ? sugestoesPendentes : 0}
             />
             <EmocionalAlertasGestao />
             {children}

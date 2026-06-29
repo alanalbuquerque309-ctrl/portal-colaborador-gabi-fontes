@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CanalAjudaPainel, NOME_ATENDIMENTO_AJUDA } from '@/components/ajuda/CanalAjudaPainel';
 import { getPortalSession } from '@/lib/utils/session';
 import { canVisualizarAjuda, normalizePortalRole } from '@/lib/roles';
-import { podeVerBonificacaoInterna } from '@/lib/bonificacao-access';
+import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 import { AJUDA_CHAT_ATUALIZADO, emitAjudaChatAtualizado } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
@@ -99,7 +99,7 @@ export default function ComunicacaoPage() {
         const cid = String(data.colaborador.id ?? '');
         const pode = canVisualizarAjuda(role, cid);
         setPodeInboxAjuda(pode);
-        const gestaoSug = podeVerBonificacaoInterna(role);
+        const gestaoSug = podeGerirSugestoesReclamacoes(role);
         setPodeGestaoSugestoes(gestaoSug);
         if (pode) carregarPendencias();
         if (gestaoSug) carregarSugestoesPendentes();
@@ -137,8 +137,8 @@ export default function ComunicacaoPage() {
         {podeGestaoSugestoes && (
           <PortalActionCard
             href="/admin/sugestoes"
-            title="Analisar sugestões da equipe"
-            description={`Ideias enviadas pelos colaboradores. Responda com bônus de 0, 3, 5 ou 9 ${graosCurto} (+1 no envio).`}
+            title="Analisar sugestões e reclamações"
+            description={`Canal reservado à gestão (administração, RH e sócios). Responda com texto ou bônus de ${graosCurto} nas sugestões.`}
             cta="Abrir gestão →"
             icon={<IconClipboard />}
             tom="ambar"

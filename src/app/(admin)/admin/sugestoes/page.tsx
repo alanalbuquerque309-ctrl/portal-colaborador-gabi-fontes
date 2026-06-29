@@ -22,6 +22,8 @@ interface Item {
   visualizado_em: string | null;
   graos_destaque_em: string | null;
   graos_resposta_bonus: number | null;
+  resposta_texto: string | null;
+  resposta_em: string | null;
   curtidas: number;
   autor: string;
   autor_setor?: string | null;
@@ -49,6 +51,8 @@ export default function SugestoesPage() {
   const [marcando, setMarcando] = useState<string | null>(null);
   const [respondendo, setRespondendo] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState<string | null>(null);
+  const [rascunhoResposta, setRascunhoResposta] = useState<Record<string, string>>({});
+  const [enviandoResposta, setEnviandoResposta] = useState<string | null>(null);
   const [podeReclamacoes, setPodeReclamacoes] = useState(true);
   const [podeDestacarGraos, setPodeDestacarGraos] = useState(false);
   const [pendentesAnalise, setPendentesAnalise] = useState(0);
@@ -71,7 +75,6 @@ export default function SugestoesPage() {
   }, []);
 
   const carregarPendentes = () => {
-    if (!podeDestacarGraos) return;
     fetch('/api/admin/sugestoes/pendentes', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((d: { ok?: boolean; pendentes?: number }) => {
@@ -108,7 +111,7 @@ export default function SugestoesPage() {
 
   useEffect(() => {
     carregarPendentes();
-  }, [podeDestacarGraos]);
+  }, []);
 
   useEffect(() => {
     carregar();
@@ -170,6 +173,50 @@ export default function SugestoesPage() {
     }
   };
 
+  const responderTexto = async (id: string) => {
+    const texto = (rascunhoResposta[id] ?? '').trim();
+    if (texto.length < 3) {
+      alert('Escreva pelo menos 3 caracteres na resposta.');
+      return;
+    }
+    setEnviandoResposta(id);
+    try {
+      const res = await fetch(`/api/admin/sugestoes/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ resposta_texto: texto }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const agora = String(data.resposta_em ?? new Date().toISOString());
+        setItens((prev) =>
+          prev.map((i) =>
+            i.id === id
+              ? {
+                  ...i,
+                  resposta_texto: texto,
+                  resposta_em: agora,
+                  visualizado_em: i.visualizado_em ?? agora,
+                }
+              : i
+          )
+        );
+        setRascunhoResposta((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+        emitSugestoesAtualizado();
+        carregarPendentes();
+      } else {
+        alert(data.erro || 'Não foi possível enviar a resposta.');
+      }
+    } finally {
+      setEnviandoResposta(null);
+    }
+  };
+
   const responderSugestao = async (id: string, graos: GraosRespostaSugestao) => {
     const op = OPCOES_RESPOSTA_SUGESTAO.find((o) => o.graos === graos);
     if (
@@ -220,8 +267,7 @@ export default function SugestoesPage() {
           </h1>
           {!podeReclamacoes && (
             <p className="text-sm text-coffee-100 mt-1 max-w-xl">
-              Reclamações ficam visíveis apenas para sócios (evita conflito quando a mensagem envolve a própria
-              equipe administrativa).
+              Reclamações ficam visíveis apenas para administração, RH e sócios.
             </p>
           )}
           {podeDestacarGraos && (
@@ -248,7 +294,15 @@ export default function SugestoesPage() {
         <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <strong>{pendentesAnalise}</strong>{' '}
           {pendentesAnalise === 1 ? 'mensagem aguardando' : 'mensagens aguardando'} análise.
-          Responda sugestões com {graosCurto} ou marque elogios/reclamações como visto.
+          Responda com texto, {graosCurto} (sugestões) ou marque como visto.
+        </div>
+      )}
+
+      {!podeDestacarGraos && pendentesAnalise > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          <strong>{pendentesAnalise}</strong>{' '}
+          {pendentesAnalise === 1 ? 'mensagem aguardando' : 'mensagens aguardando'} análise.
+          Responda com texto ou marque como visto.
         </div>
       )}
 
@@ -293,6 +347,41 @@ export default function SugestoesPage() {
                 </span>
               </div>
               <p className="text-coffee-base whitespace-pre-wrap">{i.texto}</p>
+              {i.resposta_texto ? (
+                <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50/80 px-3 py-2 text-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-sky-900 mb-1">
+                    Resposta enviada
+                  </p>
+                  <p className="text-coffee-base whitespace-pre-wrap break-words">{i.resposta_texto}</p>
+                  {i.resposta_em ? (
+                    <p className="text-xs text-coffee-100 mt-1">
+                      {new Date(i.resposta_em).toLocaleString('pt-BR')}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              <div className="mt-3 rounded-lg border border-cream-300 bg-white/80 p-3">
+                <label className="block text-xs font-medium text-coffee-100 mb-1">
+                  Resposta personalizada (visível ao autor)
+                </label>
+                <textarea
+                  rows={2}
+                  value={rascunhoResposta[i.id] ?? ''}
+                  onChange={(e) =>
+                    setRascunhoResposta((prev) => ({ ...prev, [i.id]: e.target.value }))
+                  }
+                  placeholder="Escreva uma mensagem de retorno…"
+                  className="w-full rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base focus:border-dourado-base focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => void responderTexto(i.id)}
+                  disabled={enviandoResposta === i.id}
+                  className="mt-2 text-xs rounded-lg border border-sky-600 bg-sky-50 px-3 py-1.5 font-medium text-sky-900 hover:bg-sky-100 disabled:opacity-50 min-h-[36px]"
+                >
+                  {enviandoResposta === i.id ? 'Enviando…' : 'Enviar resposta'}
+                </button>
+              </div>
               <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-3 border-t border-cafeteria-200/60">
                 <div className="min-w-0">
                   <p className="text-coffee-base text-sm font-semibold">
@@ -354,6 +443,7 @@ export default function SugestoesPage() {
                     i.autor_participa_graos !== false &&
                     !i.graos_destaque_em
                   ) &&
+                  !i.resposta_texto &&
                   !i.visualizado_em &&
                   !(i.tipo === 'sugestao' && i.graos_destaque_em) ? (
                     <button

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
-import { podeEnviarReclamacaoPortal } from '@/lib/bonificacao-access';
+import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 
 const TIPOS = ['sugestao', 'reclamacao', 'elogio'] as const;
 
@@ -33,6 +33,7 @@ export async function GET() {
     const supabase = createAdminClient();
 
     const selectsMinhas = [
+      'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, resposta_texto, resposta_em',
       'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas',
       'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas',
       'id, tipo, texto, anonimo, created_at',
@@ -54,7 +55,7 @@ export async function GET() {
         break;
       }
       errMinhas = error.message;
-      if (!/graos_destaque|graos_resposta|visualizado_em|curtidas|does not exist|schema cache/i.test(error.message)) {
+      if (!/graos_destaque|graos_resposta|visualizado_em|curtidas|resposta_texto|resposta_em|does not exist|schema cache/i.test(error.message)) {
         return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
       }
     }
@@ -74,6 +75,8 @@ export async function GET() {
       graos_resposta_bonus:
         typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
       curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
+      resposta_texto: typeof r.resposta_texto === 'string' ? r.resposta_texto : null,
+      resposta_em: r.resposta_em ? String(r.resposta_em) : null,
     }));
 
     let feed: Array<{
@@ -84,6 +87,15 @@ export async function GET() {
       autor: string;
       curtiu: boolean;
       tipo: string;
+    }> = [];
+
+    let feed_sugestoes: Array<{
+      id: string;
+      texto: string;
+      created_at: string;
+      curtidas: number;
+      autor: string;
+      curtiu: boolean;
     }> = [];
 
     let feed_reclamacoes: Array<{
@@ -99,14 +111,14 @@ export async function GET() {
       .eq('id', colaboradorId)
       .single();
     const meuRole = normalizePortalRole((perfil as { role?: string } | null)?.role);
-    const gestaoVeReclamacoes = podeEnviarReclamacaoPortal(meuRole);
+    const gestaoVeSugestoesReclamacoes = podeGerirSugestoesReclamacoes(meuRole);
 
     if (unidadeId) {
       const { data: feedRaw, error: errFeed } = await supabase
         .from('sugestoes_reclamacoes')
         .select('id, texto, created_at, curtidas, colaborador_id, anonimo, tipo')
         .eq('unidade_id', unidadeId)
-        .in('tipo', ['sugestao', 'elogio'])
+        .eq('tipo', 'elogio')
         .order('created_at', { ascending: false })
         .limit(30);
 
@@ -140,7 +152,42 @@ export async function GET() {
         });
       }
 
-      if (gestaoVeReclamacoes) {
+      if (gestaoVeSugestoesReclamacoes) {
+        const { data: sugRaw } = await supabase
+          .from('sugestoes_reclamacoes')
+          .select('id, texto, created_at, curtidas, colaborador_id, anonimo')
+          .eq('unidade_id', unidadeId)
+          .eq('tipo', 'sugestao')
+          .order('created_at', { ascending: false })
+          .limit(40);
+
+        if (sugRaw?.length) {
+          const ids = sugRaw.map((r: { id: string }) => r.id);
+          const nomesSug = await mapaNomesColaboradores(
+            supabase,
+            sugRaw.map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
+          );
+          const { data: minhasCurtidasSug } = await supabase
+            .from('sugestao_curtidas')
+            .select('sugestao_id')
+            .eq('colaborador_id', colaboradorId)
+            .in('sugestao_id', ids);
+          const curtiuSugSet = new Set((minhasCurtidasSug ?? []).map((c) => c.sugestao_id));
+
+          feed_sugestoes = sugRaw.map((r: Record<string, unknown>) => {
+            const cid = r.colaborador_id ? String(r.colaborador_id) : '';
+            const nome = cid ? nomesSug.get(cid) : undefined;
+            return {
+              id: String(r.id ?? ''),
+              texto: String(r.texto ?? ''),
+              created_at: String(r.created_at ?? ''),
+              curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
+              autor: nome?.trim() || 'Colega',
+              curtiu: curtiuSugSet.has(String(r.id)),
+            };
+          });
+        }
+
         const { data: reclRaw } = await supabase
           .from('sugestoes_reclamacoes')
           .select('id, texto, created_at, anonimo, colaborador_id')
@@ -173,8 +220,10 @@ export async function GET() {
       ok: true,
       minhas,
       feed,
+      feed_sugestoes,
       feed_reclamacoes,
-      pode_enviar_reclamacao: gestaoVeReclamacoes,
+      pode_gerir_sugestoes_reclamacoes: gestaoVeSugestoesReclamacoes,
+      pode_enviar_reclamacao: gestaoVeSugestoesReclamacoes,
       participa_graos: podeParticiparGraosCafe(meuRole),
     });
   } catch (e) {
@@ -223,9 +272,9 @@ export async function POST(req: Request) {
         .eq('id', colaboradorId)
         .maybeSingle();
       const role = normalizePortalRole((perfil as { role?: string } | null)?.role);
-      if (!podeEnviarReclamacaoPortal(role)) {
+      if (!podeGerirSugestoesReclamacoes(role)) {
         return NextResponse.json(
-          { ok: false, erro: 'Reclamações são registradas apenas pela gestão (sócios e ADM).' },
+          { ok: false, erro: 'Reclamações são registradas apenas pela gestão (administração, RH e sócios).' },
           { status: 403 }
         );
       }

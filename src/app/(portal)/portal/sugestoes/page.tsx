@@ -20,6 +20,8 @@ interface MinhaMsg {
   visualizado_em: string | null;
   graos_destaque_em: string | null;
   graos_resposta_bonus: number | null;
+  resposta_texto: string | null;
+  resposta_em: string | null;
   curtidas: number;
 }
 
@@ -31,6 +33,15 @@ interface FeedItem {
   autor: string;
   curtiu: boolean;
   tipo?: string;
+}
+
+interface SugestaoFeedItem {
+  id: string;
+  texto: string;
+  created_at: string;
+  curtidas: number;
+  autor: string;
+  curtiu: boolean;
 }
 
 interface ReclamacaoFeedItem {
@@ -47,6 +58,9 @@ function rotuloTipo(tipo: string): string {
 }
 
 function mensagemAcolhimento(m: MinhaMsg, participaGraos: boolean): string | null {
+  if (m.resposta_texto?.trim()) {
+    return `Resposta da gestão: ${m.resposta_texto.trim()}`;
+  }
   if (m.tipo === 'sugestao' && m.graos_destaque_em) {
     return mensagemRespostaColaborador(m.graos_resposta_bonus, true, {
       autorParticipaGraos: participaGraos,
@@ -68,6 +82,7 @@ export default function SugestoesPage() {
   const [modoReclamacaoUrl, setModoReclamacaoUrl] = useState(false);
 
   const [session, setSession] = useState<ReturnType<typeof getPortalSession>>(null);
+  const [podeGerir, setPodeGerir] = useState(false);
   const [podeReclamacao, setPodeReclamacao] = useState(false);
   const [tipo, setTipo] = useState<'sugestao' | 'reclamacao' | 'elogio'>('sugestao');
   const [texto, setTexto] = useState('');
@@ -77,6 +92,7 @@ export default function SugestoesPage() {
   const [erro, setErro] = useState('');
   const [minhas, setMinhas] = useState<MinhaMsg[]>([]);
   const [feed, setFeed] = useState<FeedItem[]>([]);
+  const [feedSugestoes, setFeedSugestoes] = useState<SugestaoFeedItem[]>([]);
   const [feedReclamacoes, setFeedReclamacoes] = useState<ReclamacaoFeedItem[]>([]);
   const [carregandoMural, setCarregandoMural] = useState(true);
   const [curtindo, setCurtindo] = useState<string | null>(null);
@@ -90,14 +106,18 @@ export default function SugestoesPage() {
         if (data.ok) {
           if (Array.isArray(data.minhas)) setMinhas(data.minhas);
           if (Array.isArray(data.feed)) setFeed(data.feed);
+          if (Array.isArray(data.feed_sugestoes)) setFeedSugestoes(data.feed_sugestoes);
+          else setFeedSugestoes([]);
           if (Array.isArray(data.feed_reclamacoes)) setFeedReclamacoes(data.feed_reclamacoes);
           else setFeedReclamacoes([]);
-          const gestao = data.pode_enviar_reclamacao === true;
+          const gestao =
+            data.pode_gerir_sugestoes_reclamacoes === true || data.pode_enviar_reclamacao === true;
+          setPodeGerir(gestao);
           setPodeReclamacao(gestao);
           if (data.participa_graos === false) setParticipaGraos(false);
           else setParticipaGraos(true);
-          if (!gestao) setTipo('sugestao');
-          else if (modoReclamacaoUrl) setTipo('reclamacao');
+          if (!gestao && tipo === 'reclamacao') setTipo('sugestao');
+          else if (gestao && modoReclamacaoUrl) setTipo('reclamacao');
         }
       })
       .finally(() => setCarregandoMural(false));
@@ -157,7 +177,7 @@ export default function SugestoesPage() {
     }
   };
 
-  const curtir = async (id: string) => {
+  const curtir = async (id: string, alvo: 'feed' | 'sugestoes' = 'feed') => {
     setCurtindo(id);
     try {
       const res = await fetch(`/api/portal/sugestoes/${id}/curtir`, {
@@ -166,13 +186,15 @@ export default function SugestoesPage() {
       });
       const data = await res.json();
       if (data.ok) {
-        setFeed((prev) =>
-          prev.map((f) =>
-            f.id === id
-              ? { ...f, curtiu: data.curtiu === true, curtidas: data.curtidas ?? f.curtidas }
-              : f
-          )
-        );
+        const atualizar = (f: FeedItem | SugestaoFeedItem) =>
+          f.id === id
+            ? { ...f, curtiu: data.curtiu === true, curtidas: data.curtidas ?? f.curtidas }
+            : f;
+        if (alvo === 'sugestoes') {
+          setFeedSugestoes((prev) => prev.map(atualizar));
+        } else {
+          setFeed((prev) => prev.map(atualizar));
+        }
       }
     } finally {
       setCurtindo(null);
@@ -205,10 +227,10 @@ export default function SugestoesPage() {
               <h1 className="text-2xl font-display font-semibold text-cafeteria-800">{tituloPagina}</h1>
               <p className="text-sm text-cafeteria-600 mt-1 leading-relaxed">
                 {podeReclamacao && tipo === 'reclamacao'
-                  ? 'Canal confidencial para sócios e administração. Reclamações podem ser anônimas.'
+                  ? 'Canal confidencial para administração, RH e sócios. Reclamações podem ser anônimas.'
                   : tipo === 'elogio'
-                    ? 'Reconheça colegas, líderes ou a operação. Seu nome aparece na mensagem.'
-                    : 'Compartilhe ideias para melhorar a operação. Sugestões são sempre identificadas.'}
+                    ? 'Reconheça colegas, líderes ou a operação. Elogios são visíveis para toda a unidade.'
+                    : 'Compartilhe ideias para melhorar a operação. Sugestões de colegas são visíveis só para a gestão.'}
               </p>
             </div>
             <IlustracaoMegafone className="w-24 h-20 shrink-0 opacity-95" />
@@ -365,11 +387,48 @@ export default function SugestoesPage() {
           )}
         </section>
 
-        {podeReclamacao && feedReclamacoes.length > 0 && (
+        {podeGerir && feedSugestoes.length > 0 && (
+          <section className="max-w-xl">
+            <h2 className="text-lg font-semibold text-cafeteria-800 mb-3">Sugestões da unidade</h2>
+            <p className="text-sm text-coffee-100 mb-3">
+              Visível apenas para administração, RH e sócios.
+            </p>
+            <ul className="space-y-3">
+              {feedSugestoes.map((s) => (
+                <li
+                  key={s.id}
+                  className="rounded-lg border border-dourado-200 bg-cream-50/80 p-3 text-sm"
+                >
+                  <p className="text-coffee-base whitespace-pre-wrap break-words">{s.texto}</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-coffee-100">
+                    <span>— {s.autor}</span>
+                    <span>{new Date(s.created_at).toLocaleString('pt-BR')}</span>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <button
+                      type="button"
+                      onClick={() => curtir(s.id, 'sugestoes')}
+                      disabled={curtindo === s.id}
+                      className={`text-xs rounded-lg px-3 py-1.5 border min-h-[36px] ${
+                        s.curtiu
+                          ? 'border-dourado-base bg-dourado-50 text-dourado-800'
+                          : 'border-cream-300 text-coffee-base hover:bg-cream-100'
+                      } disabled:opacity-50`}
+                    >
+                      {curtindo === s.id ? '…' : s.curtiu ? 'Curtiu' : 'Curtir'} · {s.curtidas}
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {podeGerir && feedReclamacoes.length > 0 && (
           <section className="max-w-xl">
             <h2 className="text-lg font-semibold text-cafeteria-800 mb-3">Reclamações da unidade</h2>
             <p className="text-sm text-coffee-100 mb-3">
-              Visível apenas para sócios e administração. Tratamento interno e confidencial.
+              Visível apenas para administração, RH e sócios. Tratamento interno e confidencial.
             </p>
             <ul className="space-y-3">
               {feedReclamacoes.map((r) => (
@@ -389,49 +448,30 @@ export default function SugestoesPage() {
         )}
 
         <PortalBalaoCard tom="creme" ramoCanto="direita" className="max-w-xl p-5">
-          <h2 className="text-lg font-semibold text-cafeteria-800 mb-2">Feed da unidade</h2>
+          <h2 className="text-lg font-semibold text-cafeteria-800 mb-2">Elogios da unidade</h2>
           <p className="text-sm text-coffee-100 mb-3">
-            Sugestões e elogios da mesma unidade. Curta as ideias dos colegas.
+            Reconhecimentos públicos da mesma unidade. Sugestões e reclamações ficam restritas à gestão.
           </p>
           {carregandoMural ? (
             <div className="flex justify-center py-6">
               <XicaraCarregando size="sm" label="Carregando…" />
             </div>
           ) : feed.length === 0 ? (
-            <p className="text-sm text-coffee-100">Nenhuma sugestão ou elogio para exibir aqui.</p>
+            <p className="text-sm text-coffee-100">Nenhum elogio para exibir aqui.</p>
           ) : (
             <ul className="space-y-3">
               {feed.map((f) => (
                 <li
                   key={f.id}
-                  className="rounded-lg border border-dourado-200 bg-white/90 p-3 flex flex-col gap-2"
+                  className="rounded-lg border border-emerald-200 bg-white/90 p-3 flex flex-col gap-2"
                 >
                   <p className="text-coffee-base text-sm whitespace-pre-wrap break-words">{f.texto}</p>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-coffee-100">
                     <span>
-                      {f.tipo === 'elogio' ? (
-                        <span className="text-emerald-800 font-medium">Elogio · </span>
-                      ) : null}
-                      — {f.autor}
+                      <span className="text-emerald-800 font-medium">Elogio · </span>— {f.autor}
                     </span>
                     <span>{new Date(f.created_at).toLocaleString('pt-BR')}</span>
                   </div>
-                  {(f.tipo ?? 'sugestao') === 'sugestao' && (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => curtir(f.id)}
-                        disabled={curtindo === f.id}
-                        className={`text-xs rounded-lg px-3 py-1.5 border min-h-[36px] ${
-                          f.curtiu
-                            ? 'border-dourado-base bg-dourado-50 text-dourado-800'
-                            : 'border-cream-300 text-coffee-base hover:bg-cream-100'
-                        } disabled:opacity-50`}
-                      >
-                        {curtindo === f.id ? '…' : f.curtiu ? 'Curtiu' : 'Curtir'} · {f.curtidas}
-                      </button>
-                    </div>
-                  )}
                 </li>
               ))}
             </ul>

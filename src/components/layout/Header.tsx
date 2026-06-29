@@ -14,6 +14,7 @@ import {
 } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
 import { podeVerBonificacaoInterna, podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
+import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
@@ -203,7 +204,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const colaboradorIdEfetivo =
     colaboradorIdNav ?? getPortalSession()?.colaboradorId ?? null;
 
-  const podeContadorSugestoes = podeVerBonificacaoInterna(roleNav);
+  const podeContadorSugestoes = podeGerirSugestoesReclamacoes(roleNav);
 
   useEffect(() => {
     if (!perfilCarregado || !podeContadorSugestoes) {
