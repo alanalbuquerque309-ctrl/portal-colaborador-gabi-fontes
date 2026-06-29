@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { formatarExibicaoAvaliacaoAdmin } from '@/lib/avaliacao-diaria';
 import {
   filtrarLinhasAdminBusca,
@@ -267,7 +267,7 @@ export default function AdminAvaliacoesDiariasPage() {
               className="w-full rounded-lg border border-cream-300 px-3 py-2.5 text-coffee-base text-sm"
             >
               <option value="">Todas</option>
-              {UNIDADES_CADASTRO.map((u) => (
+              {listarUnidadesCadastro().map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

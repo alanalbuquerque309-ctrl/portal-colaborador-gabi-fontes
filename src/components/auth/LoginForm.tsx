@@ -8,6 +8,7 @@ import {
   lerPreferenciaManterLogado,
   lerUltimoLoginSalvo,
 } from '@/lib/portal-remember-login';
+import { getTenantBranding } from '@/lib/tenant/branding';
 
 interface LoginFormProps {
   onSubmit: (
@@ -39,6 +40,7 @@ export function LoginForm({
   mode = 'login',
   loginBloqueado = '',
 }: LoginFormProps) {
+  const branding = getTenantBranding();
   const [login, setLogin] = useState('');
   const [senha, setSenha] = useState('');
   const [senha2, setSenha2] = useState('');
@@ -87,8 +89,8 @@ export function LoginForm({
     <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl border border-cream-200">
       <div className="mb-6 flex justify-center">
         <Image
-          src="/logo-gabi-fontes.png"
-          alt="Gabi Fontes — Cafeteria & Doceria"
+          src={branding.logoUrl}
+          alt={branding.logoAlt}
           width={220}
           height={158}
           className="h-auto w-full max-w-[220px] object-contain"
@@ -100,14 +102,14 @@ export function LoginForm({
           ? 'Defina sua nova senha'
           : primeiraSenha
             ? 'Crie sua senha'
-            : 'Portal do Colaborador'}
+            : branding.portalTitle}
       </h1>
       <p className="mb-6 text-sm text-cafeteria-600 text-center">
         {trocarObrigatoria
           ? 'Por segurança, troque a senha padrão (123456) por uma senha só sua: 6 números.'
           : primeiraSenha
             ? 'É seu primeiro acesso. Defina uma senha de 6 números para continuar.'
-            : 'Cafeteria Gabi Fontes'}
+            : branding.tagline}
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block text-sm font-medium text-cafeteria-700">Celular (com DDD) ou e-mail</label>

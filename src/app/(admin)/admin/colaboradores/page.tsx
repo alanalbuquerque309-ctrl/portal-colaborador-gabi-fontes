@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro, listarSetoresCadastro } from '@/lib/tenant/org-catalog';
 import { labelAcessoPortal } from '@/lib/colaborador-role-ui';
 
 interface Colaborador {
@@ -143,7 +143,7 @@ export default function ColaboradoresPage() {
       if (filtroUnidade && (c.unidade?.nome?.trim() || '') !== filtroUnidade) return false;
       return true;
     });
-    const rotulos = [...UNIDADES_CADASTRO.map((u) => u.label), ...nomesExtras.filter((n) => !UNIDADES_CADASTRO.some((u) => u.label === n))];
+    const rotulos = [...listarUnidadesCadastro().map((u) => u.label), ...nomesExtras.filter((n) => !listarUnidadesCadastro().some((u) => u.label === n))];
     const opcoesUnidadeDados = Array.from(new Set(rotulos)).sort();
     return { opcoesUnidadeDados, colaboradoresFiltrados: filtrados };
   }, [colaboradores, filtroSetor, filtroCargo, filtroAcesso, filtroUnidade]);
@@ -276,7 +276,7 @@ export default function ColaboradoresPage() {
                 className="rounded-lg border border-cream-300 px-3 py-2 text-sm text-coffee-base bg-white min-w-[160px]"
               >
                 <option value="">Todos os setores</option>
-                {SETORES_PREDEFINIDOS.map((s) => (
+                {listarSetoresCadastro().map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>

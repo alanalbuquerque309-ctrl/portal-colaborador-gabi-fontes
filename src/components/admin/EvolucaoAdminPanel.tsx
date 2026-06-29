@@ -11,7 +11,7 @@ import { EvolucaoPainelExecutivo } from '@/components/admin/EvolucaoPainelExecut
 import { EvolucaoNotaLiderGuiaGaveta } from '@/components/admin/EvolucaoNotaLiderGuiaGaveta';
 import { EvolucaoSparkline } from '@/components/admin/EvolucaoSparkline';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro, listarSetoresCadastro } from '@/lib/tenant/org-catalog';
 import {
   formatarDelta,
   formatarIli,
@@ -498,7 +498,7 @@ export function EvolucaoAdminPanel() {
             className="w-full rounded-xl border border-cafeteria-200 bg-white px-3 py-2.5 text-sm min-h-[44px]"
           >
             <option value="">Toda a rede</option>
-            {UNIDADES_CADASTRO.map((u) => (
+            {listarUnidadesCadastro().map((u) => (
               <option key={u.slug} value={u.slug}>
                 {u.label}
               </option>
@@ -513,7 +513,7 @@ export function EvolucaoAdminPanel() {
             className="w-full rounded-xl border border-cafeteria-200 bg-white px-3 py-2.5 text-sm min-h-[44px]"
           >
             <option value="">Todos</option>
-            {SETORES_PREDEFINIDOS.map((s) => (
+            {listarSetoresCadastro().map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

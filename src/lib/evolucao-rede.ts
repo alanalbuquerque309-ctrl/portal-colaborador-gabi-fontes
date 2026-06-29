@@ -5,7 +5,7 @@ import {
 } from '@/lib/avaliacao-semanal-agregacao';
 import { AVALIACAO_RANKING_EPOCA_INICIO } from '@/lib/avaliacao-ranking';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
-import { UNIDADES_CADASTRO, SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro, listarSetoresCadastro } from '@/lib/tenant/org-catalog';
 import {
   agregarResumoSetor,
   agregarResumoUnidadeFromItems,
@@ -267,7 +267,7 @@ export async function montarPayloadEvolucaoRede(
 
   const ids = colabs.map((c) => c.id);
   if (ids.length === 0) {
-    const vazioUnidades = UNIDADES_CADASTRO.map((u) => ({
+    const vazioUnidades = listarUnidadesCadastro().map((u) => ({
       slug: u.slug,
       nome: u.label,
       media_atual: null,
@@ -279,7 +279,7 @@ export async function montarPayloadEvolucaoRede(
       regredindo: 0,
       sem_historico: 0,
     }));
-    const vazioSetores = SETORES_PREDEFINIDOS.map((s) => ({
+    const vazioSetores = listarSetoresCadastro().map((s) => ({
       setor: s,
       media_atual: null,
       delta: null,
@@ -402,8 +402,8 @@ export async function montarPayloadEvolucaoRede(
       posicao: i + 1,
     }));
 
-  const unidades = agregarResumoUnidadeFromItems(colaboradores, UNIDADES_CADASTRO);
-  const setores = agregarResumoSetor(colaboradores, SETORES_PREDEFINIDOS);
+  const unidades = agregarResumoUnidadeFromItems(colaboradores, listarUnidadesCadastro());
+  const setores = agregarResumoSetor(colaboradores, listarSetoresCadastro());
   const resumo = montarResumoRede(colaboradores);
   const executivo = montarResumoExecutivo(colaboradores, unidades, setores);
 

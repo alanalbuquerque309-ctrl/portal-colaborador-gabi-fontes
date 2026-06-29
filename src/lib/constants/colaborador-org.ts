@@ -1,4 +1,5 @@
 /** Setores fixos (local de trabalho). CD substitui o legado «Estoque». */
+/** @see listarSetoresCadastro() em @/lib/tenant — porta única para leitura SaaS */
 export const SETORES_PREDEFINIDOS = [
   'Cozinha loja',
   'Atendimento',
@@ -20,6 +21,7 @@ export const SETORES_PREDEFINIDOS = [
 export const SETOR_ESTOQUE_LEGADO = 'Estoque';
 
 /** Unidades (slug usado no cadastro e na API). Sem Matriz. */
+/** @see listarUnidadesCadastro() em @/lib/tenant — porta única para leitura SaaS */
 export const UNIDADES_CADASTRO: { slug: string; label: string }[] = [
   { slug: 'mesquita', label: 'Mesquita' },
   { slug: 'barra', label: 'Barra' },

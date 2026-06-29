@@ -1,15 +1,18 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { getTenantBranding } from '@/lib/tenant/branding';
 
 export default function HomePage() {
+  const branding = getTenantBranding();
+
   return (
     <div className="min-h-screen bg-portal-bg font-portal text-portal-ink antialiased">
       <header className="border-b border-black/[0.06] bg-portal-bg/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl flex-col items-center px-4 py-8 sm:py-10">
           <div className="relative h-16 w-auto sm:h-20">
             <Image
-              src="/manuais/assets/logo-gabi-fontes-transparent.png"
-              alt="Gabi Fontes — Cafeteria e Doceria"
+              src={branding.logoUrlHome}
+              alt={branding.logoAlt}
               width={320}
               height={120}
               className="h-full w-auto object-contain"
@@ -17,7 +20,7 @@ export default function HomePage() {
             />
           </div>
           <p className="mt-4 max-w-xl text-center font-display text-xl text-portal-ink sm:text-2xl">
-            Portal do Colaborador
+            {branding.portalTitle}
           </p>
           <p className="mt-2 max-w-md text-center text-sm font-medium leading-relaxed text-portal-inkMuted sm:text-base">
             Entre com seu celular (DDD) ou e-mail para acessar o vídeo de boas-vindas, manuais e demais conteúdos do portal.

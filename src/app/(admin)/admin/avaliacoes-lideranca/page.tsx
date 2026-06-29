@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { AdminFeedbackLiderancaSemanal } from '@/components/admin/AdminFeedbackLiderancaSemanal';
 import type { LinhaLiderRelatorio } from '@/components/portal/RelatorioAvaliacoesPorSetor';
@@ -129,7 +129,7 @@ export default function AdminAvaliacoesLiderancaPage() {
               className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm min-w-[180px]"
             >
               <option value="">Todas</option>
-              {UNIDADES_CADASTRO.map((u) => (
+              {listarUnidadesCadastro().map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>
