@@ -6,15 +6,17 @@ export {
   listarUnidadesRelatorioFiliais,
   listarSetoresCadastro,
   listarSetoresAvaliacaoEquipeBackoffice,
-  listarSetoresCadastroResolvido,
-  listarUnidadesCadastroResolvido,
-  listarUnidadesRelatorioFiliaisResolvido,
   slugUnidadeAdministrativo,
   setorEstoqueLegado,
   isSetorCadastroValido,
   isUnidadeSlugCadastroValido,
   type UnidadeCadastro,
 } from '@/lib/tenant/org-catalog';
+export {
+  listarSetoresCadastroResolvido,
+  listarUnidadesCadastroResolvido,
+  listarUnidadesRelatorioFiliaisResolvido,
+} from '@/lib/tenant/org-catalog-server';
 export {
   DEFAULT_TENANT_SLUG,
   DEFAULT_BRANDING,

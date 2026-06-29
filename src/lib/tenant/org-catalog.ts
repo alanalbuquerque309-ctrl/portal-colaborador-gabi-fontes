@@ -1,6 +1,6 @@
 /**
- * Catálogo organizacional (unidades, setores): porta única de leitura.
- * Hoje delega às constantes legadas; servidor pode ler espelho DB com USE_TENANT_DB=true.
+ * Catálogo organizacional (unidades, setores): porta única de leitura no cliente e servidor.
+ * Funções *Resolvido* (servidor + DB) ficam em org-catalog-server.ts.
  */
 
 import {
@@ -10,11 +10,6 @@ import {
   SLUG_UNIDADE_ADMINISTRATIVO,
   UNIDADES_CADASTRO,
 } from '@/lib/constants/colaborador-org';
-import {
-  listarSetoresCadastroServer,
-  listarUnidadesCadastroServer,
-  listarUnidadesRelatorioFiliaisServer,
-} from '@/lib/tenant/settings-server';
 
 export type UnidadeCadastro = { slug: string; label: string };
 
@@ -51,19 +46,4 @@ export function isSetorCadastroValido(s: string | null | undefined): boolean {
 
 export function isUnidadeSlugCadastroValido(slug: string): boolean {
   return listarUnidadesCadastro().some((u) => u.slug === slug);
-}
-
-/** Servidor: setores do espelho DB quando USE_TENANT_DB=true, senão constantes. */
-export async function listarSetoresCadastroResolvido(): Promise<string[]> {
-  return listarSetoresCadastroServer();
-}
-
-/** Servidor: unidades da tabela `unidades` (Supabase), com fallback à constante. */
-export async function listarUnidadesCadastroResolvido(): Promise<UnidadeCadastro[]> {
-  return listarUnidadesCadastroServer();
-}
-
-/** Servidor: unidades de relatório por filial (sem Administrativo). */
-export async function listarUnidadesRelatorioFiliaisResolvido(): Promise<UnidadeCadastro[]> {
-  return listarUnidadesRelatorioFiliaisServer();
 }

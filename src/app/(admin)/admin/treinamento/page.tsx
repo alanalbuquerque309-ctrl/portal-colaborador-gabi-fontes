@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { ComunicacaoAudienciaGaveta } from '@/components/admin/ComunicacaoAudienciaGaveta';
+import { TreinamentoAcompanhamentoGestao } from '@/components/portal/TreinamentoAcompanhamentoGestao';
 import type { ResumoAudienciaComunicacao } from '@/lib/audiencia-comunicacao';
 import { getTermo } from '@/lib/tenant/terminology';
 
@@ -232,6 +233,10 @@ export default function TreinamentosAdminPage() {
           </table>
         </div>
       )}
+
+      <div className="mt-10">
+        <TreinamentoAcompanhamentoGestao />
+      </div>
 
       {gaveta ? (
         <ComunicacaoAudienciaGaveta

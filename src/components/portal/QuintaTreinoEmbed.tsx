@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import type { QuintaTreinoApresentador } from '@/lib/graos/quinta-treino';
 
 type Props = {
@@ -8,6 +9,8 @@ type Props = {
   resumo: string;
   apresentador?: QuintaTreinoApresentador | null;
   formato?: 'horizontal' | 'shorts';
+  /** Dispara uma vez quando o player é exibido (rastreamento de audiência). */
+  onExibir?: () => void;
 };
 
 function BlocoApresentador({ apresentador }: { apresentador: QuintaTreinoApresentador }) {
@@ -38,8 +41,19 @@ function BlocoApresentador({ apresentador }: { apresentador: QuintaTreinoApresen
 }
 
 /** Player YouTube embedado (sem abrir app externo). Suporta vídeo normal e Shorts. */
-export function QuintaTreinoEmbed({ embedUrl, titulo, resumo, apresentador, formato = 'horizontal' }: Props) {
+export function QuintaTreinoEmbed({
+  embedUrl,
+  titulo,
+  resumo,
+  apresentador,
+  formato = 'horizontal',
+  onExibir,
+}: Props) {
   const vertical = formato === 'shorts';
+
+  useEffect(() => {
+    onExibir?.();
+  }, [onExibir]);
 
   return (
     <div className="space-y-3">

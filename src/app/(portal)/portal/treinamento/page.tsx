@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { TreinamentoAcompanhamentoGestao } from '@/components/portal/TreinamentoAcompanhamentoGestao';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { QuintaTreinoEmbed } from '@/components/portal/QuintaTreinoEmbed';
 import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
@@ -108,6 +109,15 @@ export default function PortalTreinamentoPage() {
     setAbertoId((atual) => (atual === id ? null : id));
     void registrarVisualizacao(id);
   };
+
+  const registrarTreinoAutomatico = useCallback((treinoId: string) => {
+    void fetch('/api/portal/treinamentos/automatico/visualizar', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ treino_id: treinoId }),
+    }).catch(() => undefined);
+  }, []);
 
   const confirmar = async (id: string) => {
     if (id === 'quinta-lider') {
@@ -229,7 +239,16 @@ export default function PortalTreinamentoPage() {
                   </Link>
                 ) : t.id.startsWith('quinta-') && t.embed_url ? (
                   <div>
-                    <QuintaTreinoEmbed embedUrl={t.embed_url} titulo={t.titulo} resumo={t.descricao ?? ''} />
+                    <QuintaTreinoEmbed
+                      embedUrl={t.embed_url}
+                      titulo={t.titulo}
+                      resumo={t.descricao ?? ''}
+                      onExibir={
+                        t.id === 'quinta-colaborador'
+                          ? () => registrarTreinoAutomatico('quinta-colaborador')
+                          : undefined
+                      }
+                    />
                     {t.id === 'quinta-lider' && t.exige_confirmacao && !t.confirmado ? (
                       <button
                         type="button"
@@ -299,6 +318,8 @@ export default function PortalTreinamentoPage() {
           })}
         </div>
       )}
+
+      <TreinamentoAcompanhamentoGestao />
 
       <PortalActionCard
         href={links.manuais ?? '/portal/manuais'}

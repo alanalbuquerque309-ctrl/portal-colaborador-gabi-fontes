@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized, requireAdminLiderancaMapaApi } from '@/lib/admin-auth';
-import { isSetorCadastroValido, listarSetoresCadastro, listarUnidadesCadastroResolvido } from '@/lib/tenant/org-catalog';
+import { isSetorCadastroValido, listarSetoresCadastro } from '@/lib/tenant/org-catalog';
+import { listarUnidadesCadastroResolvido } from '@/lib/tenant/org-catalog-server';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { sincronizarVinculosUnidadeSetor } from '@/lib/sincronizar-vinculos-lideranca';
