@@ -1,4 +1,4 @@
-import { SETOR_ESTOQUE_LEGADO } from '@/lib/constants/colaborador-org';
+import { setorEstoqueLegado } from '@/lib/tenant/org-catalog';
 
 /** Área operacional para priorizar setores diferentes no sorteio. */
 export type CafeConectaArea =
@@ -22,7 +22,7 @@ function norm(s: string): string {
 export function areaCafeConectaDeSetor(setor: string | null | undefined): CafeConectaArea {
   const s = norm(String(setor ?? ''));
   if (!s) return 'outro';
-  if (s === norm(SETOR_ESTOQUE_LEGADO) || s === 'cd') return 'cd';
+  if (s === norm(setorEstoqueLegado()) || s === 'cd') return 'cd';
   if (s.includes('fabrica de doces') || s.includes('doces')) return 'fabrica_doces';
   if (s.includes('fabrica de prepar') || s.includes('preparos') || s.includes('prep')) return 'fabrica_prep';
   if (s.includes('motorista')) return 'motorista';

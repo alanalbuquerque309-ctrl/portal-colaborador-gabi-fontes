@@ -7,7 +7,7 @@ import {
   ColaboradorAvaliacaoCard,
   type AvaliacaoServidor,
 } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
-import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 
@@ -143,7 +143,7 @@ export default function AvaliacaoRhVisitaPage() {
             className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[140px]"
           >
             <option value="">Todas</option>
-            {UNIDADES_CADASTRO.map((u) => (
+            {listarUnidadesCadastro().map((u) => (
               <option key={u.slug} value={u.slug}>
                 {u.label}
               </option>
@@ -161,7 +161,7 @@ export default function AvaliacaoRhVisitaPage() {
             className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[160px]"
           >
             <option value="">Todos</option>
-            {SETORES_PREDEFINIDOS.map((s) => (
+            {listarSetoresCadastro().map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>

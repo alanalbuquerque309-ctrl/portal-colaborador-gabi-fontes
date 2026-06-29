@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import {
   REGRAS_LIDERANCA_OPERACIONAL,
   type RegraLiderancaOperacional,
@@ -18,7 +18,7 @@ async function resolverUnidadeIdPorSlug(
 ): Promise<string | null> {
   const { data } = await supabase.from('unidades').select('id').eq('slug', slug).maybeSingle();
   if (data?.id) return String(data.id);
-  const def = UNIDADES_CADASTRO.find((u) => u.slug === slug);
+  const def = listarUnidadesCadastro().find((u) => u.slug === slug);
   if (!def) return null;
   const { data: ins } = await supabase
     .from('unidades')

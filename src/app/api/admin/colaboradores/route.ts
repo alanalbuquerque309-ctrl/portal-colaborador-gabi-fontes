@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized, requireAdminCadastroEditApi } from '@/lib/admin-auth';
-import { isSetorValido, ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { isSetorCadastroValido } from '@/lib/tenant/org-catalog';
+import { ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
 import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
@@ -103,7 +104,7 @@ export async function POST(req: Request) {
   const { nome, cpf, email, telefone, endereco, data_admissao, data_nascimento, cargo, setor, unidade_id, unidade_slug, role } = body;
   const roleFinal =
     role && (ROLES_CADASTRO as readonly string[]).includes(role) ? role : 'colaborador';
-  if (setor !== undefined && setor !== null && String(setor).trim() && !isSetorValido(String(setor))) {
+  if (setor !== undefined && setor !== null && String(setor).trim() && !isSetorCadastroValido(String(setor))) {
     return NextResponse.json({ ok: false, erro: 'Setor inválido' }, { status: 400 });
   }
   if (!nome?.trim() || (!unidade_id && !unidade_slug)) {

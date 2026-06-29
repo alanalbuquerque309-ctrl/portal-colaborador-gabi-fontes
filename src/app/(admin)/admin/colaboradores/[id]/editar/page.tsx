@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { normalizePortalRole } from '@/lib/roles';
 import { formatCpf, validateCpf } from '@/lib/utils/cpf';
@@ -60,7 +60,7 @@ export default function EditarColaboradorPage() {
   const [msgRedefinir, setMsgRedefinir] = useState('');
 
   const opcoesUnidade = useMemo(() => {
-    const base = [...UNIDADES_CADASTRO];
+    const base = [...listarUnidadesCadastro()];
     if (unidadeLegado && !base.some((u) => u.slug === unidadeLegado.slug)) {
       base.push({ slug: unidadeLegado.slug, label: unidadeLegado.label });
     }
@@ -118,7 +118,7 @@ export default function EditarColaboradorPage() {
         const rawUn = c.unidades as { slug?: string; nome?: string } | { slug?: string; nome?: string }[] | null;
         const un = Array.isArray(rawUn) ? rawUn[0] : rawUn;
         const slug = un?.slug ?? '';
-        if (slug && !UNIDADES_CADASTRO.some((u) => u.slug === slug)) {
+        if (slug && !listarUnidadesCadastro().some((u) => u.slug === slug)) {
           setUnidadeLegado({
             slug,
             label: `${un?.nome?.trim() || slug} (legado — troque pela unidade correta)`,
@@ -401,7 +401,7 @@ export default function EditarColaboradorPage() {
             className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
           >
             <option value="">Nenhum / definir depois</option>
-            {SETORES_PREDEFINIDOS.map((s) => (
+            {listarSetoresCadastro().map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>

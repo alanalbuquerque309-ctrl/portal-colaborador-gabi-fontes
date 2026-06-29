@@ -51,10 +51,20 @@ Aplicar: `npm run db:apply-061` (requer `DATABASE_URL`).
 
 ## Critério de sucesso Fase 1
 
-- [ ] Novo branding só com env, sem editar TS
-- [ ] Nenhum import novo direto a `UNIDADES_CADASTRO` em telas novas (usar `@/lib/tenant`)
+- [x] Novo branding só com env, sem editar TS
+- [x] Nenhum import novo direto a `UNIDADES_CADASTRO` em telas novas (usar `@/lib/tenant`)
 - [ ] Migration 061 aplicada em staging/prod (espelho; runtime inalterado)
-- [ ] `GET /api/tenant/branding` retorna defaults em produção atual
+- [x] `GET /api/tenant/branding` retorna defaults em produção atual
+
+## Fase 2.1 — centralização org (concluída)
+
+Todo o `src/` (exceto `colaborador-org.ts` e `tenant/org-catalog.ts`) usa:
+
+- `listarUnidadesCadastro()` / `listarUnidadesRelatorioFiliais()`
+- `listarSetoresCadastro()` / `listarSetoresAvaliacaoEquipeBackoffice()`
+- `isSetorCadastroValido()` / `slugUnidadeAdministrativo()` / `setorEstoqueLegado()`
+
+`ROLES_CADASTRO` permanece em `colaborador-org` (perfis, não estrutura org).
 
 ## Fases seguintes (não implementadas)
 

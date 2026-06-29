@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { UNIDADES_CADASTRO, SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
+import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import {
   agruparLinhasPorSetorExibicao,
@@ -45,11 +45,11 @@ export default function LideresPorSetorPage() {
   const [podeEditarMapa, setPodeEditarMapa] = useState(false);
   const [modoEditar, setModoEditar] = useState(false);
   const [visaoMapa, setVisaoMapa] = useState<VisaoMapa>('rede');
-  const [unidadeSlug, setUnidadeSlug] = useState(UNIDADES_CADASTRO[0]?.slug ?? '');
+  const [unidadeSlug, setUnidadeSlug] = useState(listarUnidadesCadastro()[0]?.slug ?? '');
   const [unidadesResumo, setUnidadesResumo] = useState<UnidadeResumo[]>([]);
   const [todasLinhas, setTodasLinhas] = useState<Linha[]>([]);
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
-  const [setorNovo, setSetorNovo] = useState<string>(SETORES_PREDEFINIDOS[0] ?? '');
+  const [setorNovo, setSetorNovo] = useState<string>(listarSetoresCadastro()[0] ?? '');
   const [liderNovo, setLiderNovo] = useState('');
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -328,14 +328,14 @@ export default function LideresPorSetorPage() {
   const editando = modoEditar && podeEditarMapa;
   const nomeUnidade =
     unidadeAtiva?.nome ??
-    UNIDADES_CADASTRO.find((u) => u.slug === unidadeSlug)?.label ??
+    listarUnidadesCadastro().find((u) => u.slug === unidadeSlug)?.label ??
     unidadeSlug;
 
   const unidadesLista = useMemo(
     () =>
       unidadesResumo.length > 0
         ? unidadesResumo
-        : UNIDADES_CADASTRO.map((u) => ({
+        : listarUnidadesCadastro().map((u) => ({
             slug: u.slug,
             nome: u.label,
             unidade_id: null,

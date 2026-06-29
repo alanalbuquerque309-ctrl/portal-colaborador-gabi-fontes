@@ -41,6 +41,7 @@ export const UNIDADES_RELATORIO_FILIAIS = UNIDADES_CADASTRO.filter(
 /** Perfis cadastráveis via fluxo principal. */
 export const ROLES_CADASTRO = ['colaborador', 'gerente', 'rh', 'admin', 'socio'] as const;
 
+/** @deprecated Preferir `isSetorCadastroValido` de `@/lib/tenant/org-catalog`. */
 export function isSetorValido(s: string | null | undefined): boolean {
   if (!s || !s.trim()) return false;
   const t = s.trim();
@@ -48,6 +49,7 @@ export function isSetorValido(s: string | null | undefined): boolean {
   return (SETORES_PREDEFINIDOS as readonly string[]).includes(t);
 }
 
+/** @deprecated Preferir `isUnidadeSlugCadastroValido` de `@/lib/tenant/org-catalog`. */
 export function isUnidadeSlugValido(slug: string): boolean {
   return UNIDADES_CADASTRO.some((u) => u.slug === slug);
 }

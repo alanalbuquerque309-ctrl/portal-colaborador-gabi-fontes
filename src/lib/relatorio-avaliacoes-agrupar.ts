@@ -1,4 +1,4 @@
-import { SETORES_PREDEFINIDOS } from '@/lib/constants/colaborador-org';
+import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
 
 export const SETOR_RELATORIO_SEM_DEFINICAO = 'Sem setor definido';
 
@@ -13,11 +13,12 @@ function normalizarSetor(setor: string | null | undefined): string {
 export function ordenarSetoresRelatorio(setoresEncontrados: Iterable<string>): string[] {
   const set = new Set(setoresEncontrados);
   const out: string[] = [];
-  for (const s of SETORES_PREDEFINIDOS) {
+  const setoresPredefinidos = listarSetoresCadastro();
+  for (const s of setoresPredefinidos) {
     if (set.has(s)) out.push(s);
   }
   const extras = Array.from(set)
-    .filter((s) => s !== SETOR_RELATORIO_SEM_DEFINICAO && !(SETORES_PREDEFINIDOS as readonly string[]).includes(s))
+    .filter((s) => s !== SETOR_RELATORIO_SEM_DEFINICAO && !setoresPredefinidos.includes(s))
     .sort((a, b) => a.localeCompare(b, 'pt-BR'));
   out.push(...extras);
   if (set.has(SETOR_RELATORIO_SEM_DEFINICAO)) out.push(SETOR_RELATORIO_SEM_DEFINICAO);

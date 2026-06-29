@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminViewerContext, requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { podeEditarCpfColaboradorAdmin } from '@/lib/admin-access';
-import { isSetorValido } from '@/lib/constants/colaborador-org';
+import { isSetorCadastroValido } from '@/lib/tenant/org-catalog';
 import { validateCpf } from '@/lib/utils/cpf';
 import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
 import { normalizePortalRole } from '@/lib/roles';
@@ -247,7 +247,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     if (body.setor !== undefined) {
       const s = body.setor === null || body.setor === '' ? null : String(body.setor).trim();
-      if (s && !isSetorValido(s)) {
+      if (s && !isSetorCadastroValido(s)) {
         return NextResponse.json({ ok: false, erro: 'Setor inválido' }, { status: 400 });
       }
       payload.setor = s;

@@ -1,4 +1,4 @@
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import {
   ehUnidadeFabrica,
@@ -109,7 +109,7 @@ export function montarOrganogramaLideranca(
   linhas: LinhaOrganograma[],
   unidades: { slug: string; nome: string }[]
 ): NoOrganogramaLideranca {
-  const filhosUnidades = UNIDADES_CADASTRO.map((u) => {
+  const filhosUnidades = listarUnidadesCadastro().map((u) => {
     const meta = unidades.find((x) => x.slug === u.slug);
     const nome = meta?.nome ?? u.label;
     const linhasU = linhas.filter((l) => l.unidade_slug === u.slug);

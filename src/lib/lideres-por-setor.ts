@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { isSetorValido, SETORES_AVALIACAO_EQUIPE_BACKOFFICE } from '@/lib/constants/colaborador-org';
+import { isSetorCadastroValido, listarSetoresAvaliacaoEquipeBackoffice } from '@/lib/tenant/org-catalog';
 import { SETORES_LIDERANCA_DANIEL_TRANSVERSAL } from '@/lib/config-lideranca-operacional';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { isLiderAdministradorTransversal } from '@/lib/lideranca-transversal';
@@ -92,7 +92,7 @@ export async function listarLideresConfigPorUnidadeSetor(
 
   const setorTrim = String(setor ?? '').trim();
   const setorCanon = normalizarSetorOrganizacional(setorTrim);
-  const setorEspecifico = setorTrim && isSetorValido(setorTrim);
+  const setorEspecifico = setorTrim && isSetorCadastroValido(setorTrim);
   const setorFabrica = setorEspecifico && isSetorLideradoNaFabrica(setorCanon || setorTrim);
 
   const unidadeIdLideranca = setorFabrica
@@ -184,7 +184,7 @@ export async function listarColaboradoresPorUnidadeSetor(
   }>
 > {
   const setorCfg = setor.trim();
-  if (setorCfg !== SETOR_TODOS_NA_UNIDADE && !isSetorValido(setorCfg)) return [];
+  if (setorCfg !== SETOR_TODOS_NA_UNIDADE && !isSetorCadastroValido(setorCfg)) return [];
 
   const filtrarMembro = (c: Record<string, unknown>) => {
     const id = String(c.id);
@@ -196,7 +196,7 @@ export async function listarColaboradoresPorUnidadeSetor(
     const setorTrim = normalizarSetorOrganizacional(String(setorCol ?? ''));
     return (
       (r === 'gerente' || r === 'admin') &&
-      (SETORES_AVALIACAO_EQUIPE_BACKOFFICE as readonly string[]).includes(setorTrim)
+      listarSetoresAvaliacaoEquipeBackoffice().includes(setorTrim)
     );
   };
 

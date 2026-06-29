@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AdminTrofeusRanking } from '@/components/admin/AdminTrofeusRanking';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { agregarRankingTrofeusPares } from '@/lib/trofeus-pares-ranking';
 import { TROFEU_PAR_LABELS, TROFEUS_PARES_TIPOS } from '@/lib/trofeus-pares';
 
@@ -139,7 +139,7 @@ export default function AdminAvaliacaoEntreParesPage() {
               className="rounded-lg border border-cream-300 px-3 py-2 text-coffee-base text-sm min-w-[160px]"
             >
               <option value="">Todas</option>
-              {UNIDADES_CADASTRO.map((u) => (
+              {listarUnidadesCadastro().map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

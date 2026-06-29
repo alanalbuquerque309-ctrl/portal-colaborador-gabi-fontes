@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 
 const OPCOES_ROLE = [
   { value: 'colaborador', label: 'Colaborador', desc: 'Equipe — apenas portal' },
@@ -209,7 +209,7 @@ export default function NovoColaboradorPage() {
             className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
           >
             <option value="">Selecione o setor (opcional)</option>
-            {SETORES_PREDEFINIDOS.map((s) => (
+            {listarSetoresCadastro().map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </select>
@@ -258,7 +258,7 @@ export default function NovoColaboradorPage() {
         <div>
           <span className="block text-sm font-medium text-coffee-base mb-2">Unidade *</span>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Selecione a unidade">
-            {UNIDADES_CADASTRO.map((opt) => (
+            {listarUnidadesCadastro().map((opt) => (
               <label
                 key={opt.slug}
                 className={`flex items-center min-h-[48px] rounded-lg border-2 px-4 py-3 text-left text-sm font-medium transition-colors cursor-pointer touch-manipulation ${

@@ -1,5 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import {
   LIDER_TRANSVERSAL_CD_NOME,
   REGRAS_LIDERANCA_OPERACIONAL,
@@ -46,7 +46,7 @@ async function resolverUnidadeId(
 ): Promise<string | null> {
   const { data } = await supabase.from('unidades').select('id').eq('slug', slug).maybeSingle();
   if (data?.id) return String(data.id);
-  const def = UNIDADES_CADASTRO.find((u) => u.slug === slug);
+  const def = listarUnidadesCadastro().find((u) => u.slug === slug);
   if (!def) return null;
   const { data: ins } = await supabase
     .from('unidades')
@@ -237,7 +237,7 @@ export async function desativarLideresForaDoMapaOperacional(
   regras: RegraLiderancaOperacional[] = REGRAS_LIDERANCA_OPERACIONAL
 ): Promise<number> {
   const unidadeIdsTodas: string[] = [];
-  for (const u of UNIDADES_CADASTRO) {
+  for (const u of listarUnidadesCadastro()) {
     const id = await resolverUnidadeId(supabase, u.slug);
     if (id) unidadeIdsTodas.push(id);
   }
@@ -288,7 +288,7 @@ export async function aplicarConfigLiderancaOperacional(
   };
 
   const unidadeIdsTodas: string[] = [];
-  for (const u of UNIDADES_CADASTRO) {
+  for (const u of listarUnidadesCadastro()) {
     const id = await resolverUnidadeId(supabase, u.slug);
     if (id) unidadeIdsTodas.push(id);
   }

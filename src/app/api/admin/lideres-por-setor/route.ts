@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized, requireAdminLiderancaMapaApi } from '@/lib/admin-auth';
-import { isSetorValido, SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { isSetorCadastroValido, listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { sincronizarVinculosUnidadeSetor } from '@/lib/sincronizar-vinculos-lideranca';
@@ -33,7 +33,7 @@ async function fetchLideres(
 }
 
 function setorConfigValido(setor: string): boolean {
-  return setor === SETOR_TODOS_NA_UNIDADE || isSetorValido(setor);
+  return setor === SETOR_TODOS_NA_UNIDADE || isSetorCadastroValido(setor);
 }
 
 function isUuid(value: string): boolean {
@@ -95,7 +95,7 @@ export async function GET(req: Request) {
         if (/lideres_por_setor|does not exist/i.test(error.message)) {
           return NextResponse.json({
             ok: true,
-            unidades: UNIDADES_CADASTRO.map((u) => ({
+            unidades: listarUnidadesCadastro().map((u) => ({
               slug: u.slug,
               nome: u.label,
               unidade_id: null,
@@ -115,7 +115,7 @@ export async function GET(req: Request) {
       const linhas = mapLinhas(data ?? [], nomePorId);
 
       const porSlug = new Map<string, { slug: string; nome: string; unidade_id: string | null; total: number }>();
-      for (const u of UNIDADES_CADASTRO) {
+      for (const u of listarUnidadesCadastro()) {
         porSlug.set(u.slug, { slug: u.slug, nome: u.label, unidade_id: null, total: 0 });
       }
       for (const l of linhas) {
@@ -149,7 +149,7 @@ export async function GET(req: Request) {
           total_lideres: u.total,
         })),
         linhas,
-        setores: [...SETORES_PREDEFINIDOS],
+        setores: [...listarSetoresCadastro()],
       });
     }
 
@@ -180,7 +180,7 @@ export async function GET(req: Request) {
           ok: true,
           unidade_id: uid,
           linhas: [],
-          setores: [...SETORES_PREDEFINIDOS],
+          setores: [...listarSetoresCadastro()],
           aviso: 'Execute a migration 032_lideres_por_setor.sql no Supabase.',
         });
       }
@@ -198,7 +198,7 @@ export async function GET(req: Request) {
       unidade_nome: unidadeRow?.unidade_nome ?? '',
       unidade_slug: unidadeRow?.unidade_slug ?? unidadeSlug,
       linhas,
-      setores: [...SETORES_PREDEFINIDOS],
+      setores: [...listarSetoresCadastro()],
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

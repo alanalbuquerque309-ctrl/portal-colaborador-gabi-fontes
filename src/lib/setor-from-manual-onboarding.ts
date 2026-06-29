@@ -1,4 +1,4 @@
-import { isSetorValido } from '@/lib/constants/colaborador-org';
+import { isSetorCadastroValido } from '@/lib/tenant/org-catalog';
 
 /** Manual escolhido no onboarding → setor cadastral (quando ainda não veio do admin). */
 const MANUAL_PARA_SETOR: Record<string, string> = {
@@ -13,6 +13,6 @@ const MANUAL_PARA_SETOR: Record<string, string> = {
 
 export function setorFromManualOnboardingFile(file: string | null | undefined): string | null {
   const s = file ? MANUAL_PARA_SETOR[file] : null;
-  if (!s || !isSetorValido(s)) return null;
+  if (!s || !isSetorCadastroValido(s)) return null;
   return s;
 }

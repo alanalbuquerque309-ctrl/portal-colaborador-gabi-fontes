@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import {
   podeVerRelatoriosAvaliacoesCompletos,
 } from '@/lib/avaliacoes-relatorio-access';
@@ -281,7 +281,7 @@ export default function RelatoriosAvaliacoesPage() {
               className="rounded-lg border border-cafeteria-200 px-3 py-2 text-sm min-w-[140px]"
             >
               <option value="">Todas filiais</option>
-              {UNIDADES_CADASTRO.map((u) => (
+              {listarUnidadesCadastro().map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>

@@ -1,5 +1,5 @@
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
-import { SLUG_UNIDADE_ADMINISTRATIVO } from '@/lib/constants/colaborador-org';
+import { slugUnidadeAdministrativo } from '@/lib/tenant/org-catalog';
 
 /** Setor legado — tratar como CD em vínculos e exibição. */
 export const SETOR_ESTOQUE_LEGADO = 'Estoque';
@@ -51,7 +51,7 @@ export function ehUnidadeFabrica(slug: string | null | undefined): boolean {
 }
 
 export function ehUnidadeAdministrativo(slug: string | null | undefined): boolean {
-  return String(slug ?? '') === SLUG_UNIDADE_ADMINISTRATIVO;
+  return String(slug ?? '') === slugUnidadeAdministrativo();
 }
 
 /** Título do bloco `*` (gerência) conforme o tipo de unidade. */

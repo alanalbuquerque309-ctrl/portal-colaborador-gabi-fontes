@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import type { FiltroPendenciasSemana, ItemPendenciaSemana } from '@/lib/avaliacao-pendentes-semana-shared';
 import { agregarLideresComPendenciaDeEnvio } from '@/lib/avaliacao-pendentes-semana-shared';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
@@ -389,7 +389,7 @@ export function AvaliacoesPendentesPainel({
               className="rounded-lg border border-cream-300 px-2 py-1.5 text-sm min-w-[140px]"
             >
               <option value="">Todas</option>
-              {UNIDADES_CADASTRO.map((u) => (
+              {listarUnidadesCadastro().map((u) => (
                 <option key={u.slug} value={u.slug}>
                   {u.label}
                 </option>
