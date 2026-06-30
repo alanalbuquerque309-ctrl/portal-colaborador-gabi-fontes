@@ -77,6 +77,7 @@ export default function AdminLayout({
       itens: [
         { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
         { href: '/admin/auditoria', label: 'Auditoria', auditoria: true },
+        { href: '/admin/tenant-espelho', label: 'Tenant (espelho)', auditoria: true },
         { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
         { href: '/portal/equipe-chat', label: 'Chat equipe' },
       ],

@@ -99,12 +99,17 @@ Todo o `src/` (exceto `colaborador-org.ts` e `tenant/org-catalog.ts`) usa:
 - Hook `useUnidadesCadastro()` nos selects (constante imediata → atualiza do Supabase)
 - APIs e libs servidor usam lista resolvida (`listarUnidadesCadastroResolvido`)
 
+## Fase 2.6 — admin read-only tenant (concluída)
+
+- `GET /api/admin/tenant-espelho` — sócios, admin (Daniel) ou login por senha (mesmo gate da auditoria)
+- `/admin/tenant-espelho` — compara **runtime efetivo**, **legado TS** e **espelho Supabase (061)**
+- Somente leitura; não edita banco nem liga `USE_TENANT_DB`
+
 ## Fases seguintes (não implementadas)
 
 1. **2.5** — espelho operacional (migration 062: regras no DB)
-2. **2.6** — admin read-only tenant
-3. **2.7** — PWA dinâmico (`manifest` por tenant)
-4. **2.8** — staging com `USE_TENANT_DB=true` e segundo tenant fake
-5. Admin CRUD setores/unidades só do banco
-6. `tenant_id` + RLS multi-tenant
-7. Provisionamento e billing
+2. **2.7** — PWA dinâmico (`manifest` por tenant)
+3. **2.8** — staging com `USE_TENANT_DB=true` e segundo tenant fake
+4. Admin CRUD setores/unidades só do banco
+5. `tenant_id` + RLS multi-tenant
+6. Provisionamento e billing
