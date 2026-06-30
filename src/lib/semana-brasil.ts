@@ -91,6 +91,44 @@ export function ehQuintaSaoPaulo(ref: Date = new Date()): boolean {
   return wd.startsWith('Thu');
 }
 
+/**
+ * Início do ciclo vigente do treino da quinta (YYYY-MM-DD, America/Sao_Paulo).
+ * Renova na quinta; de quinta a quarta conta o mesmo treino.
+ */
+export function inicioCicloTreinoQuintaIsoSp(ref: Date = new Date()): string {
+  const { y, mo, day } = partesSaoPaulo(ref);
+  const local = new Date(y, mo - 1, day);
+  const dow = local.getDay();
+  let daysBack = 0;
+  if (dow >= 4) daysBack = dow - 4;
+  else if (dow === 0) daysBack = 3;
+  else daysBack = dow + 3;
+  local.setDate(local.getDate() - daysBack);
+  const ys = local.getFullYear();
+  const ms = String(local.getMonth() + 1).padStart(2, '0');
+  const ds = String(local.getDate()).padStart(2, '0');
+  return `${ys}-${ms}-${ds}`;
+}
+
+/** Quinta 00:00 SP do ciclo vigente, em UTC ISO (para filtrar timestamptz). */
+export function inicioCicloTreinoQuintaUtcIsoSp(ref: Date = new Date()): string {
+  return `${inicioCicloTreinoQuintaIsoSp(ref)}T03:00:00.000Z`;
+}
+
+/** Rótulo legível do início do ciclo (ex.: «quinta-feira, 26 de junho»). */
+export function rotuloCicloTreinoQuinta(cicloInicioIso?: string): string {
+  const iso = cicloInicioIso ?? inicioCicloTreinoQuintaIsoSp();
+  const [y, m, d] = iso.split('-').map((x) => parseInt(x, 10));
+  if (!y || !m || !d) return iso;
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return dt.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
+}
+
 /** `true` na sexta-feira (0h–23:59 SP). */
 export function ehSextaSaoPaulo(ref: Date = new Date()): boolean {
   const { wd } = partesSaoPaulo(ref);

@@ -10,6 +10,7 @@ import {
   type ResumoAudienciaComunicacao,
 } from '@/lib/audiencia-comunicacao';
 import { resolverParTreinosQuinta } from '@/lib/graos/quinta-treino';
+import { inicioCicloTreinoQuintaIsoSp, inicioCicloTreinoQuintaUtcIsoSp, rotuloCicloTreinoQuinta } from '@/lib/semana-brasil';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { deveVerTreinoLiderancaPortal, normalizePortalRole } from '@/lib/roles';
 import { treinoLiderVideoIdAtual } from '@/lib/treino-lider-acompanhamento';
@@ -25,6 +26,8 @@ export type ItemAcompanhamentoTreinamento = {
   publico_label: string;
   exige_confirmacao: boolean;
   total_esperado: number;
+  /** Ciclo da quinta: desde qual data contamos conclusões (só treinos automáticos). */
+  ciclo_desde?: string | null;
   assistiram: PessoaAudiencia[];
   nao_assistiram: PessoaAudiencia[];
   visualizou_sem_confirmar: PessoaAudiencia[];
@@ -81,6 +84,9 @@ async function montarAudienciaTreinoLider(supabase: SupabaseAdmin): Promise<Item
   const par = resolverParTreinosQuinta(undefined);
   if (!videoId || !par.lider.embed_url) return null;
 
+  const cicloInicio = inicioCicloTreinoQuintaIsoSp();
+  const cicloUtc = inicioCicloTreinoQuintaUtcIsoSp();
+
   const base = await listarColaboradoresBase(supabase);
   const esperados: ColabBase[] = [];
 
@@ -99,6 +105,7 @@ async function montarAudienciaTreinoLider(supabase: SupabaseAdmin): Promise<Item
       .from('treino_lider_conclusoes')
       .select('colaborador_id, concluido_em')
       .eq('video_youtube_id', videoId)
+      .gte('concluido_em', cicloUtc)
       .in('colaborador_id', ids);
 
     for (const row of conf ?? []) {
@@ -134,6 +141,7 @@ async function montarAudienciaTreinoLider(supabase: SupabaseAdmin): Promise<Item
     formato: 'video',
     publico_label: 'Liderança',
     exige_confirmacao: true,
+    ciclo_desde: cicloInicio,
     total_esperado: resumo.total_esperado,
     ...classificarListas(resumo, true),
   };
@@ -150,6 +158,8 @@ async function montarAudienciaTreinoColaboradorQuinta(
   const videoId = par.colaborador.youtube_video_id;
   if (!videoId || !par.colaborador.embed_url) return null;
 
+  const cicloInicio = inicioCicloTreinoQuintaIsoSp();
+  const cicloUtc = inicioCicloTreinoQuintaUtcIsoSp();
   const chave = chaveTreinoAutomaticoColaborador(videoId);
   const base = await listarColaboradoresBase(supabase);
   const esperados = base.filter((p) => normalizePortalRole(p.role) === 'colaborador');
@@ -159,16 +169,38 @@ async function montarAudienciaTreinoColaboradorQuinta(
   const confMap = new Map<string, string>();
 
   if (ids.length > 0) {
-    const { data: rows } = await supabase
+    const { data: graosRows, error: graosErr } = await supabase
+      .from('graos_quinta_conclusoes')
+      .select('colaborador_id, data_quinta, created_at')
+      .gte('data_quinta', cicloInicio)
+      .in('colaborador_id', ids);
+
+    if (!graosErr) {
+      for (const row of graosRows ?? []) {
+        const cid = String(row.colaborador_id);
+        const quando = String(row.created_at ?? row.data_quinta ?? '');
+        if (quando) {
+          visualMap.set(cid, quando);
+          confMap.set(cid, quando);
+        }
+      }
+    }
+
+    const { data: rows, error: autoErr } = await supabase
       .from('treinamento_automatico_registros')
       .select('colaborador_id, visualizado_em, confirmado_em')
       .eq('treino_chave', chave)
       .in('colaborador_id', ids);
 
-    for (const row of rows ?? []) {
-      const cid = String(row.colaborador_id);
-      if (row.visualizado_em) visualMap.set(cid, String(row.visualizado_em));
-      if (row.confirmado_em) confMap.set(cid, String(row.confirmado_em));
+    if (!autoErr) {
+      for (const row of rows ?? []) {
+        const cid = String(row.colaborador_id);
+        const vis = row.visualizado_em ? String(row.visualizado_em) : '';
+        const conf = row.confirmado_em ? String(row.confirmado_em) : '';
+        if (vis && vis >= cicloUtc) visualMap.set(cid, vis);
+        if (conf && conf >= cicloUtc) confMap.set(cid, conf);
+        if (vis && vis >= cicloUtc && !confMap.has(cid)) confMap.set(cid, vis);
+      }
     }
   }
 
@@ -203,6 +235,7 @@ async function montarAudienciaTreinoColaboradorQuinta(
     formato: 'video',
     publico_label: 'Colaboradores',
     exige_confirmacao: false,
+    ciclo_desde: cicloInicio,
     total_esperado: resumo.total_esperado,
     ...classificarListas(resumo, false),
   };
@@ -213,9 +246,17 @@ export async function migration064TreinamentoPendente(supabase: SupabaseAdmin): 
   return Boolean(error && /treinamento_automatico_registros|does not exist|schema cache/i.test(error.message));
 }
 
+export type AcompanhamentoTreinamentosResultado = {
+  itens: ItemAcompanhamentoTreinamento[];
+  ciclo_quinta_inicio: string;
+  ciclo_quinta_rotulo: string;
+};
+
 export async function montarAcompanhamentoTreinamentos(
   supabase: SupabaseAdmin
-): Promise<ItemAcompanhamentoTreinamento[]> {
+): Promise<AcompanhamentoTreinamentosResultado> {
+  const ciclo_quinta_inicio = inicioCicloTreinoQuintaIsoSp();
+  const ciclo_quinta_rotulo = rotuloCicloTreinoQuinta(ciclo_quinta_inicio);
   const itens: ItemAcompanhamentoTreinamento[] = [];
 
   const queryFull = await supabase
@@ -263,7 +304,7 @@ export async function montarAcompanhamentoTreinamentos(
   const quintaLider = await montarAudienciaTreinoLider(supabase);
   if (quintaLider) itens.push(quintaLider);
 
-  return itens;
+  return { itens, ciclo_quinta_inicio, ciclo_quinta_rotulo };
 }
 
 export async function registrarVisualizacaoTreinoAutomatico(

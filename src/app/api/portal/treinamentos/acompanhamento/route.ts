@@ -10,11 +10,17 @@ export async function GET() {
 
   try {
     const supabase = createAdminClient();
-    const [itens, migracao_064_pendente] = await Promise.all([
+    const [acompanhamento, migracao_064_pendente] = await Promise.all([
       montarAcompanhamentoTreinamentos(supabase),
       migration064TreinamentoPendente(supabase),
     ]);
-    return NextResponse.json({ ok: true, itens, migracao_064_pendente });
+    return NextResponse.json({
+      ok: true,
+      itens: acompanhamento.itens,
+      ciclo_quinta_inicio: acompanhamento.ciclo_quinta_inicio,
+      ciclo_quinta_rotulo: acompanhamento.ciclo_quinta_rotulo,
+      migracao_064_pendente,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

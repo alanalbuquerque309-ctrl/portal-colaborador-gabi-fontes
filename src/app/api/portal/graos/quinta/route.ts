@@ -7,6 +7,11 @@ import { creditarMissaoGraos, refKeyGraos } from '@/lib/graos/movimentos';
 import { GRAOS_MISSAO } from '@/lib/graos/constants';
 import { processarElegibilidadeSemanaGraos } from '@/lib/graos/movimentos';
 import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
+import { resolverQuintaTreino } from '@/lib/graos/quinta-treino';
+import {
+  chaveTreinoAutomaticoColaborador,
+  registrarVisualizacaoTreinoAutomatico,
+} from '@/lib/treinamento-acompanhamento';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +61,15 @@ export async function POST() {
 
     if (errIns) {
       return NextResponse.json({ ok: false, erro: errIns.message }, { status: 500, headers: NO_STORE });
+    }
+
+    const quinta = resolverQuintaTreino(undefined, 'colaborador');
+    if (quinta.youtube_video_id) {
+      await registrarVisualizacaoTreinoAutomatico(
+        supabase,
+        colaboradorId,
+        chaveTreinoAutomaticoColaborador(quinta.youtube_video_id)
+      );
     }
 
     await creditarMissaoGraos(supabase, {

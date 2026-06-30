@@ -58,6 +58,7 @@ function CardTreinamento({ item }: { item: ItemAcompanhamentoTreinamento }) {
             {' · '}
             {item.formato === 'texto' ? 'Texto' : 'Vídeo'}
             {item.origem === 'automatico' ? ' · automático' : ''}
+            {item.ciclo_desde ? ` · ciclo desde ${item.ciclo_desde.split('-').reverse().join('/')}` : ''}
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -101,6 +102,7 @@ export function TreinamentoAcompanhamentoGestao() {
   const [visivel, setVisivel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [itens, setItens] = useState<ItemAcompanhamentoTreinamento[]>([]);
+  const [cicloQuintaRotulo, setCicloQuintaRotulo] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [migracao064Pendente, setMigracao064Pendente] = useState(false);
 
@@ -124,6 +126,7 @@ export function TreinamentoAcompanhamentoGestao() {
         setVisivel(true);
         setErro(null);
         setMigracao064Pendente(data.migracao_064_pendente === true);
+        setCicloQuintaRotulo(typeof data.ciclo_quinta_rotulo === 'string' ? data.ciclo_quinta_rotulo : null);
         setItens(Array.isArray(data.itens) ? data.itens : []);
       })
       .catch(() => {
@@ -157,8 +160,9 @@ export function TreinamentoAcompanhamentoGestao() {
         <div>
           <h2 className="text-lg font-display font-semibold text-coffee-base">Quem assistiu</h2>
           <p className="text-sm text-cafeteria-700 mt-1 leading-relaxed">
-            Visível para administração, RH e sócios. A lista inclui treinamentos cadastrados e os vídeos
-            automáticos da Quinta; atualiza quando entram materiais novos.
+            Visível para administração, RH e sócios. Treinos da Quinta contam desde a última quinta-feira
+            {cicloQuintaRotulo ? ` (${cicloQuintaRotulo})` : ''}, incluindo quem concluiu pelos Grãos ou pela página
+            Treinamento.
           </p>
         </div>
         <button
