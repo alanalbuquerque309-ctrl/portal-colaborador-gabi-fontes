@@ -16,6 +16,8 @@ type TreinamentoItem = {
   id: string;
   titulo: string;
   descricao: string | null;
+  tipo_conteudo?: 'video' | 'texto';
+  conteudo_texto?: string | null;
   exige_confirmacao: boolean;
   visualizado: boolean;
   confirmado: boolean;
@@ -218,6 +220,7 @@ export default function PortalTreinamentoPage() {
         <div className="space-y-4">
           {itens.map((t) => {
             const aberto = abertoId === t.id;
+            const ehTexto = t.tipo_conteudo === 'texto';
             const linkInstitucional = t.id === 'video-institutional' ? links.video_boas_vindas : null;
             const linkQuinta =
               t.id.startsWith('quinta-') && links.graos_quinta ? links.graos_quinta : null;
@@ -282,11 +285,15 @@ export default function PortalTreinamentoPage() {
                         onClick={() => abrirItem(t.id)}
                         className="rounded-lg bg-dourado-base px-4 py-2.5 text-sm font-medium text-cream-100 hover:bg-dourado-400 transition-colors min-h-[44px]"
                       >
-                        Assistir vídeo
+                        {ehTexto ? 'Ler material' : 'Assistir vídeo'}
                       </button>
                     ) : (
                       <div>
-                        {t.embed_url ? (
+                        {ehTexto && t.conteudo_texto ? (
+                          <div className="rounded-xl border border-cafeteria-200 bg-cream-50 px-4 py-4 text-sm text-coffee-base leading-relaxed whitespace-pre-wrap">
+                            {t.conteudo_texto}
+                          </div>
+                        ) : t.embed_url ? (
                           <QuintaTreinoEmbed embedUrl={t.embed_url} titulo={t.titulo} resumo={t.descricao ?? ''} />
                         ) : null}
                         {t.exige_confirmacao && !t.confirmado ? (

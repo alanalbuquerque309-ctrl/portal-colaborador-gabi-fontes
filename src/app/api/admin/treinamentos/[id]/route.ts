@@ -8,6 +8,7 @@ import {
   type PublicoAvisoKey,
 } from '@/lib/avisos-publico';
 import { extrairYoutubeVideoId } from '@/lib/graos/quinta-treino';
+import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 
 async function unidadeIdPorSlug(supabase: ReturnType<typeof createAdminClient>, slug: string) {
   const { data } = await supabase.from('unidades').select('id').eq('slug', slug).maybeSingle();
@@ -35,12 +36,40 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
     if (typeof body.titulo === 'string') patch.titulo = body.titulo.trim();
     if (typeof body.descricao === 'string') patch.descricao = body.descricao.trim() || null;
+
+    const tipoBody =
+      body.tipo_conteudo != null ? normalizarTipoConteudo(String(body.tipo_conteudo)) : null;
+
+    if (tipoBody === 'texto') {
+      const texto = typeof body.conteudo_texto === 'string' ? body.conteudo_texto.trim() : '';
+      if (!texto) {
+        return NextResponse.json({ ok: false, erro: 'Informe o texto do material.' }, { status: 400 });
+      }
+      patch.tipo_conteudo = 'texto';
+      patch.conteudo_texto = texto;
+      patch.video_youtube_url = null;
+    } else if (tipoBody === 'video') {
+      patch.tipo_conteudo = 'video';
+      patch.conteudo_texto = null;
+    }
+
+    if (typeof body.conteudo_texto === 'string' && tipoBody !== 'video') {
+      const texto = body.conteudo_texto.trim();
+      if (texto) patch.conteudo_texto = texto;
+    }
+
     if (typeof body.video_youtube_url === 'string') {
       const url = body.video_youtube_url.trim();
-      if (!extrairYoutubeVideoId(url)) {
+      if (url && !extrairYoutubeVideoId(url)) {
         return NextResponse.json({ ok: false, erro: 'URL do YouTube inválida' }, { status: 400 });
       }
-      patch.video_youtube_url = url;
+      if (url) {
+        patch.video_youtube_url = url;
+        if (!tipoBody) {
+          patch.tipo_conteudo = 'video';
+          patch.conteudo_texto = null;
+        }
+      }
     }
     if (typeof body.ativo === 'boolean') patch.ativo = body.ativo;
     if (typeof body.exige_confirmacao === 'boolean') patch.exige_confirmacao = body.exige_confirmacao;

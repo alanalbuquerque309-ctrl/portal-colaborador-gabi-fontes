@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AvisosPublicoSelector } from '@/components/admin/AvisosPublicoSelector';
 import type { PublicoAvisoKey } from '@/lib/avisos-publico';
+import type { TreinamentoTipoConteudo } from '@/lib/treinamento-conteudo';
 
 export default function NovoTreinamentoPage() {
   const router = useRouter();
@@ -13,7 +14,9 @@ export default function NovoTreinamentoPage() {
   const [form, setForm] = useState({
     titulo: '',
     descricao: '',
+    tipo_conteudo: 'video' as TreinamentoTipoConteudo,
     video_youtube_url: '',
+    conteudo_texto: '',
     publico_alvo: 'todos' as PublicoAvisoKey,
     exige_confirmacao: true,
     ordem: 0,
@@ -22,8 +25,16 @@ export default function NovoTreinamentoPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErro('');
-    if (!form.titulo.trim() || !form.video_youtube_url.trim()) {
-      setErro('Título e URL do YouTube são obrigatórios.');
+    if (!form.titulo.trim()) {
+      setErro('Título é obrigatório.');
+      return;
+    }
+    if (form.tipo_conteudo === 'video' && !form.video_youtube_url.trim()) {
+      setErro('URL do YouTube é obrigatória para vídeo.');
+      return;
+    }
+    if (form.tipo_conteudo === 'texto' && !form.conteudo_texto.trim()) {
+      setErro('Informe o texto do material.');
       return;
     }
     setEnviando(true);
@@ -67,14 +78,50 @@ export default function NovoTreinamentoPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">URL do YouTube *</label>
-          <input
-            value={form.video_youtube_url}
-            onChange={(e) => setForm((f) => ({ ...f, video_youtube_url: e.target.value }))}
-            className="w-full rounded-lg border border-cream-300 px-3 py-2"
-            placeholder="https://youtu.be/... ou https://youtube.com/shorts/..."
-          />
+          <span className="block text-sm font-medium mb-2">Formato *</span>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="tipo_conteudo"
+                checked={form.tipo_conteudo === 'video'}
+                onChange={() => setForm((f) => ({ ...f, tipo_conteudo: 'video' }))}
+              />
+              Vídeo (YouTube)
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="tipo_conteudo"
+                checked={form.tipo_conteudo === 'texto'}
+                onChange={() => setForm((f) => ({ ...f, tipo_conteudo: 'texto' }))}
+              />
+              Texto no portal
+            </label>
+          </div>
         </div>
+        {form.tipo_conteudo === 'video' ? (
+          <div>
+            <label className="block text-sm font-medium mb-1">URL do YouTube *</label>
+            <input
+              value={form.video_youtube_url}
+              onChange={(e) => setForm((f) => ({ ...f, video_youtube_url: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2"
+              placeholder="https://youtu.be/... ou https://youtube.com/shorts/..."
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium mb-1">Conteúdo em texto *</label>
+            <textarea
+              rows={10}
+              value={form.conteudo_texto}
+              onChange={(e) => setForm((f) => ({ ...f, conteudo_texto: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2 font-mono text-sm"
+              placeholder="Cole ou escreva o material que o colaborador vai ler no portal."
+            />
+          </div>
+        )}
         <AvisosPublicoSelector
           value={form.publico_alvo}
           onChange={(publico_alvo) => setForm((f) => ({ ...f, publico_alvo }))}

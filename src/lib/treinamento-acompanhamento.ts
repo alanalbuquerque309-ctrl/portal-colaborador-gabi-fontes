@@ -13,6 +13,7 @@ import { resolverParTreinosQuinta } from '@/lib/graos/quinta-treino';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { deveVerTreinoLiderancaPortal, normalizePortalRole } from '@/lib/roles';
 import { treinoLiderVideoIdAtual } from '@/lib/treino-lider-acompanhamento';
+import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -207,32 +208,47 @@ async function montarAudienciaTreinoColaboradorQuinta(
   };
 }
 
+export async function migration064TreinamentoPendente(supabase: SupabaseAdmin): Promise<boolean> {
+  const { error } = await supabase.from('treinamento_automatico_registros').select('treino_chave').limit(1);
+  return Boolean(error && /treinamento_automatico_registros|does not exist|schema cache/i.test(error.message));
+}
+
 export async function montarAcompanhamentoTreinamentos(
   supabase: SupabaseAdmin
 ): Promise<ItemAcompanhamentoTreinamento[]> {
   const itens: ItemAcompanhamentoTreinamento[] = [];
 
-  const { data: rows, error } = await supabase
+  const queryFull = await supabase
     .from('treinamentos')
     .select('id, titulo, tipo_conteudo, publico_alvo, exige_confirmacao, unidades:unidade_id(slug)')
     .eq('ativo', true)
     .order('ordem', { ascending: true })
     .order('created_at', { ascending: false });
 
-  if (!error) {
-    for (const row of rows ?? []) {
+  const query =
+    queryFull.error && /tipo_conteudo|schema cache/i.test(queryFull.error.message)
+      ? await supabase
+          .from('treinamentos')
+          .select('id, titulo, publico_alvo, exige_confirmacao, unidades:unidade_id(slug)')
+          .eq('ativo', true)
+          .order('ordem', { ascending: true })
+          .order('created_at', { ascending: false })
+      : queryFull;
+
+  if (!query.error) {
+    const rows = (query.data ?? []) as Record<string, unknown>[];
+    for (const row of rows) {
       const id = String(row.id);
       const audiencia = await montarAudienciaTreinamento(supabase, id);
       const unidade = row.unidades as { slug?: string } | null;
       const publico = resolverPublicoAviso(row.publico_alvo as string | null, unidade?.slug ?? null);
-      const tipo = String((row as { tipo_conteudo?: string }).tipo_conteudo ?? 'video');
-      const formato: 'video' | 'texto' = tipo === 'texto' ? 'texto' : 'video';
+      const tipo = normalizarTipoConteudo((row as { tipo_conteudo?: string }).tipo_conteudo);
 
       itens.push({
         id,
         titulo: String(row.titulo ?? audiencia.titulo),
         origem: 'cadastro',
-        formato,
+        formato: tipo,
         publico_label: labelPublicoAviso(publico as PublicoAvisoKey),
         exige_confirmacao: audiencia.exige_confirmacao,
         total_esperado: audiencia.total_esperado,

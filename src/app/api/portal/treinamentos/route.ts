@@ -18,6 +18,7 @@ import {
 } from '@/lib/roles';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
+import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 
 async function liderConcluiuTreinoSeguro(
   supabase: ReturnType<typeof createAdminClient>,
@@ -58,12 +59,28 @@ export async function GET(req: Request) {
       role: (eu.role as string | null) ?? null,
     };
 
-    const { data: rows, error } = await supabase
+    const queryFull = await supabase
       .from('treinamentos')
-      .select('id, titulo, descricao, video_youtube_url, publico_alvo, exige_confirmacao, created_at, unidades:unidade_id(slug)')
+      .select(
+        'id, titulo, descricao, video_youtube_url, tipo_conteudo, conteudo_texto, publico_alvo, exige_confirmacao, created_at, unidades:unidade_id(slug)'
+      )
       .eq('ativo', true)
       .order('ordem', { ascending: true })
       .order('created_at', { ascending: false });
+
+    const query =
+      queryFull.error && /tipo_conteudo|conteudo_texto|schema cache/i.test(queryFull.error.message)
+        ? await supabase
+            .from('treinamentos')
+            .select(
+              'id, titulo, descricao, video_youtube_url, publico_alvo, exige_confirmacao, created_at, unidades:unidade_id(slug)'
+            )
+            .eq('ativo', true)
+            .order('ordem', { ascending: true })
+            .order('created_at', { ascending: false })
+        : queryFull;
+
+    const { data: rows, error } = query;
 
     if (error && !/treinamentos|does not exist|schema cache/i.test(error.message)) {
       return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
@@ -98,16 +115,22 @@ export async function GET(req: Request) {
 
     const origin = new URL(req.url).origin;
     const treinamentos = listaDb.map((r) => {
+      const tipoConteudo = normalizarTipoConteudo((r as { tipo_conteudo?: string }).tipo_conteudo);
       const videoId = extrairYoutubeVideoId(String(r.video_youtube_url ?? ''));
       return {
         id: String(r.id),
         tipo: 'cadastro' as const,
+        tipo_conteudo: tipoConteudo,
         titulo: String(r.titulo ?? ''),
         descricao: r.descricao ? String(r.descricao) : null,
+        conteudo_texto:
+          tipoConteudo === 'texto' && (r as { conteudo_texto?: string }).conteudo_texto
+            ? String((r as { conteudo_texto?: string }).conteudo_texto)
+            : null,
         exige_confirmacao: r.exige_confirmacao === true,
         visualizado: visualMap.has(String(r.id)),
         confirmado: confMap.has(String(r.id)),
-        embed_url: videoId ? urlEmbedYoutubeTreino(videoId, origin) : null,
+        embed_url: tipoConteudo === 'video' && videoId ? urlEmbedYoutubeTreino(videoId, origin) : null,
         created_at: r.created_at,
       };
     });
@@ -130,8 +153,10 @@ export async function GET(req: Request) {
       extras.push({
         id: 'quinta-colaborador',
         tipo: 'cadastro' as const,
+        tipo_conteudo: 'video' as const,
         titulo: quintaColaborador.titulo,
         descricao: quintaColaborador.resumo,
+        conteudo_texto: null,
         exige_confirmacao: false,
         visualizado: verTodosTreinos ? false : true,
         confirmado: false,
@@ -147,8 +172,10 @@ export async function GET(req: Request) {
         extras.push({
           id: 'quinta-lider',
           tipo: 'cadastro' as const,
+          tipo_conteudo: 'video' as const,
           titulo: quintaLider.titulo,
           descricao: quintaLider.resumo,
+          conteudo_texto: null,
           exige_confirmacao: true,
           visualizado: concluiuTreinoLider,
           confirmado: concluiuTreinoLider,
@@ -161,8 +188,10 @@ export async function GET(req: Request) {
     extras.push({
       id: 'video-institutional',
       tipo: 'cadastro' as const,
+      tipo_conteudo: 'video' as const,
       titulo: 'Vídeo institucional — boas-vindas',
       descricao: 'Vídeo de cultura e boas-vindas da Gabi Fontes.',
+      conteudo_texto: null,
       exige_confirmacao: false,
       visualizado: false,
       confirmado: false,

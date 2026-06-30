@@ -102,6 +102,7 @@ export function TreinamentoAcompanhamentoGestao() {
   const [loading, setLoading] = useState(true);
   const [itens, setItens] = useState<ItemAcompanhamentoTreinamento[]>([]);
   const [erro, setErro] = useState<string | null>(null);
+  const [migracao064Pendente, setMigracao064Pendente] = useState(false);
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -122,6 +123,7 @@ export function TreinamentoAcompanhamentoGestao() {
         }
         setVisivel(true);
         setErro(null);
+        setMigracao064Pendente(data.migracao_064_pendente === true);
         setItens(Array.isArray(data.itens) ? data.itens : []);
       })
       .catch(() => {
@@ -167,6 +169,14 @@ export function TreinamentoAcompanhamentoGestao() {
           Atualizar
         </button>
       </div>
+
+      {migracao064Pendente ? (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          Migration <strong>064</strong> ainda não aplicada. O acompanhamento da Quinta colaborador e materiais em
+          texto dependem dela. Rode <code className="text-xs">npm run db:apply-064</code> ou o SQL em{' '}
+          <code className="text-xs">supabase/migrations/064_treinamento_automatico_registros.sql</code>.
+        </div>
+      ) : null}
 
       {erro ? <p className="text-sm text-red-700">{erro}</p> : null}
 

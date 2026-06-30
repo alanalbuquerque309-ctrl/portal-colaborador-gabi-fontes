@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { AvisosPublicoSelector } from '@/components/admin/AvisosPublicoSelector';
 import { resolverPublicoAviso, type PublicoAvisoKey } from '@/lib/avisos-publico';
+import { normalizarTipoConteudo, type TreinamentoTipoConteudo } from '@/lib/treinamento-conteudo';
 
 export default function EditarTreinamentoPage() {
   const params = useParams();
@@ -17,7 +18,9 @@ export default function EditarTreinamentoPage() {
   const [form, setForm] = useState({
     titulo: '',
     descricao: '',
+    tipo_conteudo: 'video' as TreinamentoTipoConteudo,
     video_youtube_url: '',
+    conteudo_texto: '',
     publico_alvo: 'todos' as PublicoAvisoKey,
     ativo: true,
     exige_confirmacao: true,
@@ -35,7 +38,9 @@ export default function EditarTreinamentoPage() {
             setForm({
               titulo: t.titulo ?? '',
               descricao: t.descricao ?? '',
+              tipo_conteudo: normalizarTipoConteudo(t.tipo_conteudo),
               video_youtube_url: t.video_youtube_url ?? '',
+              conteudo_texto: t.conteudo_texto ?? '',
               publico_alvo: resolverPublicoAviso(t.publico_alvo, t.unidade_slug),
               ativo: t.ativo !== false,
               exige_confirmacao: t.exige_confirmacao === true,
@@ -96,13 +101,48 @@ export default function EditarTreinamentoPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">URL do YouTube *</label>
-          <input
-            value={form.video_youtube_url}
-            onChange={(e) => setForm((f) => ({ ...f, video_youtube_url: e.target.value }))}
-            className="w-full rounded-lg border border-cream-300 px-3 py-2"
-          />
+          <span className="block text-sm font-medium mb-2">Formato</span>
+          <div className="flex flex-wrap gap-4">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="tipo_conteudo"
+                checked={form.tipo_conteudo === 'video'}
+                onChange={() => setForm((f) => ({ ...f, tipo_conteudo: 'video' }))}
+              />
+              Vídeo (YouTube)
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="radio"
+                name="tipo_conteudo"
+                checked={form.tipo_conteudo === 'texto'}
+                onChange={() => setForm((f) => ({ ...f, tipo_conteudo: 'texto' }))}
+              />
+              Texto no portal
+            </label>
+          </div>
         </div>
+        {form.tipo_conteudo === 'video' ? (
+          <div>
+            <label className="block text-sm font-medium mb-1">URL do YouTube</label>
+            <input
+              value={form.video_youtube_url}
+              onChange={(e) => setForm((f) => ({ ...f, video_youtube_url: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2"
+            />
+          </div>
+        ) : (
+          <div>
+            <label className="block text-sm font-medium mb-1">Conteúdo em texto</label>
+            <textarea
+              rows={10}
+              value={form.conteudo_texto}
+              onChange={(e) => setForm((f) => ({ ...f, conteudo_texto: e.target.value }))}
+              className="w-full rounded-lg border border-cream-300 px-3 py-2 font-mono text-sm"
+            />
+          </div>
+        )}
         <AvisosPublicoSelector
           value={form.publico_alvo}
           onChange={(publico_alvo) => setForm((f) => ({ ...f, publico_alvo }))}
