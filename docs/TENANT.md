@@ -42,9 +42,25 @@ Aplicar: `npm run db:apply-061` (requer `DATABASE_URL`).
 
 **Importante:** com `USE_TENANT_DB` desligado (padrão), o app **ignora** essas tabelas na leitura.
 
+## Fase 2.4 — wrappers regras liderança/avaliação (concluída)
+
+Porta única para regras por nome (hoje = TS legado Gabi Fontes; futuro = espelho DB):
+
+| Função síncrona (client-safe) | Função servidor (async) |
+|-------------------------------|-------------------------|
+| `carregarRegrasLiderancaLegado()` | `carregarRegrasLiderancaLegadoResolvido()` |
+| `carregarRegrasAvaliacaoDiretaLegado()` | `carregarRegrasAvaliacaoDiretaResolvido()` |
+
+- `src/lib/tenant/regras-legado.ts` — legado TS, sem `server-only`
+- `src/lib/tenant/regras-legado-server.ts` — resolução com `USE_TENANT_DB` (hoje ainda devolve legado)
+- `aplicar-config-lideranca.ts` e `avaliacao-direta.ts` usam as versões **resolvidas** no servidor
+- `setores-fabrica-lideranca.ts` / `resolver-unidades-equipe-avaliacao.ts` mantêm derivados estáticos do config (sem mudança de comportamento)
+
+`GET /api/tenant/branding` expõe `espelho_061_disponivel` (probe tabela `tenants`; não liga espelho sozinho).
+
 ## Inventário: ainda hardcoded (próximas fases)
 
-- `src/lib/config-lideranca-operacional.ts` e afins — nomes de pessoas
+- `src/lib/config-lideranca-operacional.ts` e afins — nomes de pessoas (fonte legado dos wrappers)
 - `src/lib/config-avaliacao-direta.ts` — avaliadores por nome
 - `public/manuais/` — conteúdo de cultura Gabi Fontes
 - Repo / domínio / PWA `manifest.json` estático
@@ -85,7 +101,10 @@ Todo o `src/` (exceto `colaborador-org.ts` e `tenant/org-catalog.ts`) usa:
 
 ## Fases seguintes (não implementadas)
 
-1. Admin CRUD setores/unidades só do banco
-2. `USE_TENANT_DB=true` em staging com segundo tenant fake
-3. `tenant_id` + RLS multi-tenant
-4. Provisionamento e billing
+1. **2.5** — espelho operacional (migration 062: regras no DB)
+2. **2.6** — admin read-only tenant
+3. **2.7** — PWA dinâmico (`manifest` por tenant)
+4. **2.8** — staging com `USE_TENANT_DB=true` e segundo tenant fake
+5. Admin CRUD setores/unidades só do banco
+6. `tenant_id` + RLS multi-tenant
+7. Provisionamento e billing

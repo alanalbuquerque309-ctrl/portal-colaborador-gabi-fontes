@@ -1,5 +1,7 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { REGRAS_AVALIACAO_DIRETA, type RegraAvaliacaoDireta } from '@/lib/config-avaliacao-direta';
+import type { RegraAvaliacaoDireta } from '@/lib/config-avaliacao-direta';
+import { nomeCoincide } from '@/lib/nome-coincide';
+import { carregarRegrasAvaliacaoDiretaResolvido } from '@/lib/tenant/regras-legado-server';
 import type { MembroEquipe } from '@/lib/colaborador-lideres';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -11,26 +13,7 @@ export type MapaAvaliacaoDireta = {
   alvosExclusivos: Set<string>;
 };
 
-function normalizarNome(s: string): string {
-  return String(s ?? '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
-export function nomeCoincide(cadastro: string, busca: string): boolean {
-  const a = normalizarNome(cadastro);
-  const b = normalizarNome(busca);
-  if (!a || !b) return false;
-  if (a === b) return true;
-  if (a.includes(b) || b.includes(a)) return true;
-  const partesB = b.split(/\s+/).filter((p) => p.length > 2);
-  if (partesB.length >= 2) {
-    return partesB.every((p) => a.includes(p));
-  }
-  return false;
-}
+export { nomeCoincide } from '@/lib/nome-coincide';
 
 function nomeCombinaLista(nome: string, padroes: string[]): boolean {
   return padroes.some((p) => nomeCoincide(nome, p));
@@ -62,8 +45,9 @@ export async function buildMapaAvaliacaoDireta(supabase: SupabaseAdmin): Promise
   const todos = await listarColaboradoresAtivos(supabase);
   const avaliadoresPorAlvo = new Map<string, Set<string>>();
   const alvosExclusivos = new Set<string>();
+  const regras = await carregarRegrasAvaliacaoDiretaResolvido();
 
-  for (const regra of REGRAS_AVALIACAO_DIRETA) {
+  for (const regra of regras) {
     const avaliadores = resolverIdsPorNomes(todos, regra.avaliadores_nomes);
     const alvos = resolverIdsPorNomes(todos, regra.colaboradores_nomes);
     for (const alvoId of alvos) {
@@ -142,14 +126,15 @@ export async function temEquipeAvaliacaoDireta(
 /** Materializa `colaboradores_lideres` para alvos com role colaborador. */
 export async function sincronizarVinculosAvaliacaoDireta(
   supabase: SupabaseAdmin,
-  regras: RegraAvaliacaoDireta[] = REGRAS_AVALIACAO_DIRETA
+  regras?: RegraAvaliacaoDireta[]
 ): Promise<{ vinculos: number; ignorados_nao_colaborador: number; vinculos_desativados: number }> {
+  const regrasEfetivas = regras ?? (await carregarRegrasAvaliacaoDiretaResolvido());
   const todos = await listarColaboradoresAtivos(supabase);
   const agora = new Date().toISOString();
   let vinculos = 0;
   let ignorados = 0;
 
-  for (const regra of regras) {
+  for (const regra of regrasEfetivas) {
     const avaliadores = resolverIdsPorNomes(todos, regra.avaliadores_nomes);
     const alvos = resolverIdsPorNomes(todos, regra.colaboradores_nomes);
     for (const colaboradorId of alvos) {

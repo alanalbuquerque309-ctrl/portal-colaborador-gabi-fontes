@@ -18,8 +18,12 @@ export {
   listarUnidadesRelatorioFiliaisResolvido,
 } from '@/lib/tenant/org-catalog-server';
 export {
-  DEFAULT_TENANT_SLUG,
-  DEFAULT_BRANDING,
-  DEFAULT_TERMOS,
-  DEFAULT_MODULOS,
-} from '@/lib/tenant/defaults';
+  carregarRegrasAvaliacaoDiretaLegado,
+  carregarRegrasLiderancaLegado,
+  type RegraAvaliacaoDireta,
+  type RegraLiderancaOperacional,
+} from '@/lib/tenant/regras-legado';
+export {
+  carregarRegrasAvaliacaoDiretaResolvido,
+  carregarRegrasLiderancaLegadoResolvido,
+} from '@/lib/tenant/regras-legado-server';

@@ -1,4 +1,4 @@
-import { nomeCoincide } from '@/lib/avaliacao-direta';
+import { nomeCoincide } from '@/lib/nome-coincide';
 import { normalizePortalRole } from '@/lib/roles';
 
 /**

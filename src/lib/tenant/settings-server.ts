@@ -166,3 +166,14 @@ export async function getModulosTenantServer(): Promise<TenantModulos> {
 
   return { ...base, ...mirror.modulos };
 }
+
+/** Tabelas da migration 061 existem (espelho SaaS). Não implica USE_TENANT_DB ligado. */
+export async function tenantEspelho061Disponivel(): Promise<boolean> {
+  try {
+    const supabase = createAdminClient();
+    const { error } = await supabase.from('tenants').select('id').limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
+}

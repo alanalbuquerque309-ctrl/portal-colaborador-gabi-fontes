@@ -2,9 +2,9 @@ import type { createAdminClient } from '@/lib/supabase/admin';
 import { listarUnidadesCadastroServer } from '@/lib/tenant/settings-server';
 import {
   LIDER_TRANSVERSAL_CD_NOME,
-  REGRAS_LIDERANCA_OPERACIONAL,
   type RegraLiderancaOperacional,
 } from '@/lib/config-lideranca-operacional';
+import { carregarRegrasLiderancaLegadoResolvido } from '@/lib/tenant/regras-legado-server';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { isLiderAdministradorTransversal } from '@/lib/lideranca-transversal';
 import { normalizePortalRole } from '@/lib/roles';
@@ -237,8 +237,9 @@ async function paresPermitidosParaLider(
  */
 export async function desativarLideresForaDoMapaOperacional(
   supabase: SupabaseAdmin,
-  regras: RegraLiderancaOperacional[] = REGRAS_LIDERANCA_OPERACIONAL
+  regras?: RegraLiderancaOperacional[]
 ): Promise<number> {
+  const regrasEfetivas = regras ?? (await carregarRegrasLiderancaLegadoResolvido());
   const catalogoUnidades = await listarUnidadesCadastroServer();
   const unidadeIdsTodas: string[] = [];
   for (const u of catalogoUnidades) {
@@ -247,14 +248,20 @@ export async function desativarLideresForaDoMapaOperacional(
   }
 
   const nomesUnicos = Array.from(
-    new Set(regras.flatMap((r) => r.lideres_nomes.map((n) => n.trim()).filter(Boolean)))
+    new Set(regrasEfetivas.flatMap((r) => r.lideres_nomes.map((n) => n.trim()).filter(Boolean)))
   );
 
   let desativados = 0;
   for (const nome of nomesUnicos) {
     const liderId = await resolverLiderId(supabase, nome, null);
     if (!liderId) continue;
-    const allowed = await paresPermitidosParaLider(supabase, nome, regras, unidadeIdsTodas, catalogoUnidades);
+    const allowed = await paresPermitidosParaLider(
+      supabase,
+      nome,
+      regrasEfetivas,
+      unidadeIdsTodas,
+      catalogoUnidades
+    );
     const { data, error } = await supabase
       .from('lideres_por_setor')
       .select('id, unidade_id, setor')
@@ -282,8 +289,9 @@ export async function desativarLideresForaDoMapaOperacional(
 /** Grava regras operacionais em `lideres_por_setor`. */
 export async function aplicarConfigLiderancaOperacional(
   supabase: SupabaseAdmin,
-  regras: RegraLiderancaOperacional[] = REGRAS_LIDERANCA_OPERACIONAL
+  regras?: RegraLiderancaOperacional[]
 ): Promise<ResultadoAplicarConfig> {
+  const regrasEfetivas = regras ?? (await carregarRegrasLiderancaLegadoResolvido());
   const resultado: ResultadoAplicarConfig = {
     inseridos: 0,
     erros: [],
@@ -298,7 +306,7 @@ export async function aplicarConfigLiderancaOperacional(
     if (id) unidadeIdsTodas.push(id);
   }
 
-  for (const regra of regras) {
+  for (const regra of regrasEfetivas) {
     try {
       await aplicarRegra(supabase, regra, resultado, unidadeIdsTodas, catalogoUnidades);
     } catch (e) {
@@ -307,7 +315,7 @@ export async function aplicarConfigLiderancaOperacional(
   }
 
   try {
-    resultado.desativados_fora_mapa = await desativarLideresForaDoMapaOperacional(supabase, regras);
+    resultado.desativados_fora_mapa = await desativarLideresForaDoMapaOperacional(supabase, regrasEfetivas);
   } catch (e) {
     resultado.erros.push(e instanceof Error ? e.message : String(e));
   }
