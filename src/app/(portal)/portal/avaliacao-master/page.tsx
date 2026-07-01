@@ -207,9 +207,11 @@ export default function AvaliacaoMasterPage() {
             id: m.id,
             nome: m.nome,
             concluido: m.avaliacao != null,
-            editavel: Boolean(m.avaliacao && !m.avaliacao.edicao_utilizada && m.avaliacao.id),
+            editavel:
+              Boolean(m.avaliacao && !m.avaliacao.avaliado_por_outro_lider && !m.avaliacao.edicao_utilizada && m.avaliacao.id),
             subtitulo:
               [
+                m.avaliacao?.avaliado_por_outro_lider ? 'já avaliado por outro líder' : null,
                 m.avaliacao?.assiduidade === 'fora_plantao' ? 'fora do plantão' : null,
                 m.cargo,
                 m.setor,

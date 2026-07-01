@@ -6,6 +6,12 @@ import { podeAvaliarRhVisitaGeral } from '@/lib/avaliacao-rh-visita-access';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { lembreteAvaliacaoSemanaPassada, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
 import { semanasReferenciaCobrancaAvaliacaoLider } from '@/lib/avaliacao-semana-cobranca';
+import {
+  agruparAvaliacoesPorColaborador,
+  carregarAvaliacoesFechamentoColaboradores,
+  colaboradorFechouSemanaPorAlgumLider,
+} from '@/lib/avaliacao-fechamento-lider';
+import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
 import { listarEquipeParaAvaliacaoSemanal, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
 import { colaboradorDeFeriasNaSemana, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
@@ -202,15 +208,23 @@ export async function montarPendenciasPortalHome(
       ids.length > 0 ? await idsColaboradoresDeFeriasNaSemana(supabase, ids, dataRef) : new Set<string>();
 
     if (ids.length > 0) {
-      const { data: avalRows } = await supabase
-        .from('avaliacoes_diarias')
-        .select('colaborador_id')
-        .eq('avaliador_id', ctx.colaboradorId)
-        .in('data_referencia', semanasCobranca)
-        .in('colaborador_id', ids);
-
-      for (const r of avalRows ?? []) {
-        avaliacoesPorColab[String(r.colaborador_id)] = r;
+      const { data: todosAvaliadores } = await supabase
+        .from('colaboradores')
+        .select('id, role, setor, nome');
+      const rhIds = construirConjuntoIdsRh(todosAvaliadores ?? []);
+      const { rows: avalRows, error: errAval } = await carregarAvaliacoesFechamentoColaboradores(
+        supabase,
+        semanasCobranca,
+        ids
+      );
+      if (!errAval) {
+        const porColab = agruparAvaliacoesPorColaborador(avalRows);
+        for (const id of ids) {
+          const linhas = porColab.get(id) ?? [];
+          if (colaboradorFechouSemanaPorAlgumLider(linhas, rhIds)) {
+            avaliacoesPorColab[id] = true;
+          }
+        }
       }
     }
 

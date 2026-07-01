@@ -4,11 +4,17 @@ import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
 import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
 import {
   insertAvaliacaoDiariaCompat,
-  selectAvaliacoesDiariasPorColaboradores,
   updateAvaliacaoDiariaCompat,
 } from '@/lib/avaliacoes-justificativa-compat';
+import {
+  agruparAvaliacoesPorColaborador,
+  carregarAvaliacoesFechamentoColaboradores,
+  colaboradorFechouSemanaPorOutroLider,
+  resolverAvaliacaoExibicaoLider,
+} from '@/lib/avaliacao-fechamento-lider';
+import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
-import { isDateIsoAvaliacao, assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
+import { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
 import { aplicarEfeitosFeriasSemanaColaborador, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { aplicarTipoEscala12x36PorForaPlantao } from '@/lib/escala-portal';
@@ -52,24 +58,31 @@ export async function GET(req: Request) {
     let avaliacoesPorColab: Record<string, Record<string, unknown>> = {};
 
     if (ids.length > 0) {
-      const { rows: avalRows, error: errAval } = await selectAvaliacoesDiariasPorColaboradores(
+      const { data: todosAvaliadores } = await supabase
+        .from('colaboradores')
+        .select('id, role, setor, nome');
+      const rhIds = construirConjuntoIdsRh(todosAvaliadores ?? []);
+
+      const { rows: avalRows, error: errAval } = await carregarAvaliacoesFechamentoColaboradores(
         supabase,
-        dataRef,
-        ids,
-        colaboradorId
+        [dataRef],
+        ids
       );
       if (errAval) {
         return NextResponse.json({ ok: false, erro: errAval }, { status: 500 });
       }
-      avaliacoesPorColab = Object.fromEntries(
-        avalRows.map((r) => [
-          r.colaborador_id,
-          {
-            ...r,
-            assiduidade: assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa),
-          },
-        ])
-      );
+
+      const porColab = agruparAvaliacoesPorColaborador(avalRows);
+      for (const id of ids) {
+        const exibicao = resolverAvaliacaoExibicaoLider({
+          rows: porColab.get(id) ?? [],
+          avaliadorAtualId: colaboradorId,
+          rhIds,
+        });
+        if (exibicao) {
+          avaliacoesPorColab[id] = exibicao as Record<string, unknown>;
+        }
+      }
 
       const idsSemAval = ids.filter((id) => !avaliacoesPorColab[id]);
       if (idsSemAval.length > 0) {
@@ -157,6 +170,29 @@ export async function POST(req: Request) {
           ok: false,
           erro:
             'Você já enviou a avaliação desta pessoa nesta semana. Para correção, contacte o administrativo/RH.',
+        },
+        { status: 409 }
+      );
+    }
+
+    const { data: todosAvaliadores } = await supabase
+      .from('colaboradores')
+      .select('id, role, setor, nome');
+    const rhIds = construirConjuntoIdsRh(todosAvaliadores ?? []);
+    const { rows: avalOutros, error: errOutros } = await carregarAvaliacoesFechamentoColaboradores(
+      supabase,
+      [dataRef],
+      [validado.colaboradorAlvo]
+    );
+    if (errOutros) {
+      return NextResponse.json({ ok: false, erro: errOutros }, { status: 500 });
+    }
+    if (colaboradorFechouSemanaPorOutroLider(avalOutros, rhIds, colaboradorId)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          erro:
+            'Outro líder da unidade já avaliou este colaborador nesta semana. Não é necessário enviar de novo.',
         },
         { status: 409 }
       );

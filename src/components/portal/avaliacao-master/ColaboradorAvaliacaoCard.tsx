@@ -22,6 +22,8 @@ export type AvaliacaoServidor = {
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
   edicao_utilizada?: boolean;
+  /** Semana já fechada por outro líder da unidade (somente leitura). */
+  avaliado_por_outro_lider?: boolean;
 } | null;
 
 type Props = {
@@ -103,8 +105,13 @@ export function ColaboradorAvaliacaoCard({
   const [modoEdicao, setModoEdicao] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
   const edicaoUtilizada = avaliacaoInicial?.edicao_utilizada === true;
+  const avaliadoPorOutroLider = avaliacaoInicial?.avaliado_por_outro_lider === true;
   const podeEditarAvaliacao =
-    permiteEdicaoUnica && avaliacaoInicial != null && !edicaoUtilizada && !!avaliacaoInicial.id;
+    permiteEdicaoUnica &&
+    avaliacaoInicial != null &&
+    !avaliadoPorOutroLider &&
+    !edicaoUtilizada &&
+    !!avaliacaoInicial.id;
   const somenteLeitura = avaliacaoInicial != null && !modoEdicao;
   const cadastroPortalPendente = !onboardingCompleto;
 
@@ -211,7 +218,7 @@ export function ColaboradorAvaliacaoCard({
   const estrelasDesabilitadas = somenteLeitura || injustificada;
   /** Painel de atalhos antes de abrir estrelas. */
   const mostrarAcoesRapidas =
-    !somenteLeitura && !avaliando && !foraPlantao && !ferias && !injustificada;
+    !avaliadoPorOutroLider && !somenteLeitura && !avaliando && !foraPlantao && !ferias && !injustificada;
   /** Bloco de notas: presente ou falta justificada (com critérios). */
   const mostrarNotas = !semNotaSemanal && !injustificada && (somenteLeitura || avaliando);
   const temNotaBaixa = temNotaBaixaEquipe(assiduidade, {
@@ -543,7 +550,11 @@ export function ColaboradorAvaliacaoCard({
           </span>
         ) : null}
         {somenteLeitura ? (
-          foraPlantao ? (
+          avaliadoPorOutroLider ? (
+            <span className="text-sm font-medium rounded-full bg-emerald-100 text-emerald-900 px-2.5 py-0.5">
+              Outro líder avaliou
+            </span>
+          ) : foraPlantao ? (
             <span className="text-sm font-medium rounded-full bg-violet-100 text-violet-900 px-2.5 py-0.5">
               Outro líder
             </span>
@@ -573,6 +584,11 @@ export function ColaboradorAvaliacaoCard({
       </div>
 
       <div className="p-4 space-y-5">
+        {avaliadoPorOutroLider ? (
+          <p className="text-sm rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-950">
+            Outro líder da unidade já fechou a avaliação desta semana. Você não precisa enviar de novo.
+          </p>
+        ) : null}
         {mostrarAcoesRapidas && (
           <div className="space-y-3">
             <p className="text-sm font-medium text-cafeteria-900">O que aconteceu nesta semana?</p>
