@@ -14,7 +14,6 @@ import {
   AdminTableTh,
 } from '@/components/admin/shell/AdminTable';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import { gruposCafeConectaComSorteio } from '@/lib/cafe-conecta/config';
 import { formatarIli, formatarNota, rotuloSituacao, tomSituacao } from '@/lib/evolucao';
 import { getTermo } from '@/lib/tenant/terminology';
 
@@ -76,114 +75,60 @@ export function AdminDashboardCockpit() {
       setErro(null);
 
       try {
-        const authRes = await fetch('/api/admin/auth', { credentials: 'include', cache: 'no-store' });
-        const auth = (await authRes.json()) as {
+        const res = await fetch('/api/admin/dashboard-resumo', { credentials: 'include', cache: 'no-store' });
+        const data = (await res.json()) as {
           ok?: boolean;
-          acesso_limitado_rh?: boolean;
-          podeVerGorjeta?: boolean;
-          podeVerBonificacao?: boolean;
-          podeGerirSugestoes?: boolean;
+          erro?: string;
+          auth?: {
+            acesso_limitado_rh?: boolean;
+            gestao_completa?: boolean;
+            pode_gerir_sugestoes?: boolean;
+          };
+          colaboradores?: Colaborador[];
+          avisos?: Aviso[];
+          alertas_emocional?: number;
+          redefinicoes_pendentes?: number;
+          alerta_cafe_conecta?: boolean;
+          sugestoes_pendentes?: number;
+          saude_resumo?: SaudeResumo;
+          ili_resumo?: IliResumo;
+          pendencias?: PendenciasResumo;
         };
 
         if (cancel) return;
-        const rh = auth.acesso_limitado_rh === true;
-        const full = auth.podeVerGorjeta === true || auth.podeVerBonificacao === true;
-        const gerirSug = auth.podeGerirSugestoes === true;
+
+        if (!res.ok || !data.ok) {
+          setErro(String(data.erro ?? 'Erro ao carregar o dashboard.'));
+          return;
+        }
+
+        const rh = data.auth?.acesso_limitado_rh === true;
         setAcessoRh(rh);
-        setGestaoCompleta(full && !rh);
-        setPodeGerirSugestoes(gerirSug);
+        setGestaoCompleta(data.auth?.gestao_completa === true);
+        setPodeGerirSugestoes(data.auth?.pode_gerir_sugestoes === true);
+        setColaboradores(data.colaboradores ?? []);
+        setAvisos(data.avisos ?? []);
+        setAlertasEmocional(Math.max(0, Number(data.alertas_emocional ?? 0)));
+        setRedefinicoesPendentes(Math.max(0, Number(data.redefinicoes_pendentes ?? 0)));
+        setAlertaCafeConecta(data.alerta_cafe_conecta === true);
+        setSugestoesPendentes(Math.max(0, Number(data.sugestoes_pendentes ?? 0)));
 
-        const tarefas: Promise<void>[] = [
-          fetch('/api/admin/colaboradores', { credentials: 'include', cache: 'no-store' })
-            .then((r) => r.json())
-            .then((cols) => {
-              if (cancel || !cols.ok) {
-                if (!cols.ok) setErro(String(cols.erro ?? 'Erro ao carregar colaboradores.'));
-                return;
-              }
-              setColaboradores(
-                (cols.colaboradores ?? []).map((c: Colaborador) => ({
-                  id: c.id,
-                  nome: c.nome,
-                  onboarding_completo: c.onboarding_completo === true,
-                }))
-              );
-            }),
-          fetch('/api/admin/avisos', { credentials: 'include', cache: 'no-store' })
-            .then((r) => r.json())
-            .then((avs) => {
-              if (cancel || !avs.ok) return;
-              setAvisos(
-                (avs.avisos ?? []).filter((a: Aviso) => a.ativo !== false).slice(0, 8)
-              );
-            }),
-          fetch('/api/portal/emocional-alertas', { credentials: 'include', cache: 'no-store' })
-            .then((r) => (r.status === 403 ? null : r.json()))
-            .then((emo) => {
-              if (cancel || !emo?.ok) return;
-              setAlertasEmocional(Array.isArray(emo.alertas) ? emo.alertas.length : 0);
-            }),
-          fetch('/api/admin/redefinicoes-senha', { credentials: 'include', cache: 'no-store' })
-            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
-            .then((red) => {
-              if (cancel || !red?.ok) return;
-              setRedefinicoesPendentes(Array.isArray(red.solicitacoes) ? red.solicitacoes.length : 0);
-            })
-            .catch(() => {}),
-          Promise.all(
-            gruposCafeConectaComSorteio().map((g) =>
-              fetch(`/api/admin/cafe-conecta?grupo=${encodeURIComponent(g.slug)}`, {
-                credentials: 'include',
-                cache: 'no-store',
-              })
-                .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
-                .then((cc) => cc?.alerta_quinta === true)
-            )
-          )
-            .then((flags) => {
-              if (cancel) return;
-              setAlertaCafeConecta(flags.some(Boolean));
-            })
-            .catch(() => {}),
-          fetch('/api/admin/evolucao?resumo=1', { credentials: 'include', cache: 'no-store' })
-            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
-            .then((evo) => {
-              if (cancel || !evo?.ok) return;
-              setSaudeResumo(evo as SaudeResumo);
-            })
-            .catch(() => {}),
-          fetch('/api/admin/evolucao/lideranca?rapido=1', { credentials: 'include', cache: 'no-store' })
-            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
-            .then((ili) => {
-              if (cancel || !ili?.ok) return;
-              setIliResumo(ili as IliResumo);
-            })
-            .catch(() => {}),
-        ];
-
-        if (gerirSug) {
-          tarefas.push(
-            fetch('/api/admin/sugestoes/pendentes', { credentials: 'include', cache: 'no-store' })
-              .then((r) => r.json())
-              .then((sug) => {
-                if (cancel || !sug.ok) return;
-                setSugestoesPendentes(Math.max(0, Number(sug.pendentes ?? 0)));
-              })
-          );
+        if (data.saude_resumo) {
+          setSaudeResumo(data.saude_resumo as SaudeResumo);
         }
-
-        if (full && !rh) {
-          tarefas.push(
-            fetch('/api/admin/avaliacoes-pendentes', { credentials: 'include', cache: 'no-store' })
-              .then((r) => r.json())
-              .then((pend) => {
-                if (cancel) return;
-                if (pend.ok) setPendencias(pend as PendenciasResumo);
-              })
-          );
+        if (data.ili_resumo) {
+          setIliResumo(data.ili_resumo as IliResumo);
         }
-
-        await Promise.all(tarefas);
+        if (data.pendencias) {
+          setPendencias({
+            ok: true,
+            total: data.pendencias.total,
+            intervalo: data.pendencias.intervalo,
+            meta: data.pendencias.meta,
+            resumo: data.pendencias.resumo,
+            itens: data.pendencias.itens,
+          });
+        }
       } catch {
         if (!cancel) setErro('Erro de conexão ao carregar o dashboard.');
       } finally {

@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import {
-  calcularPendenciasSemana,
+import { calcularPendenciasSemana,
   type FiltroPendenciasSemana,
 } from '@/lib/avaliacao-pendentes-semana';
 import { autorizadoPendenciasRede } from '@/lib/avaliacoes-pendentes-auth';
+import { obterPendenciasSemanaRedeCacheadas } from '@/lib/cache/servidor-operacional';
 import { isDateIsoAvaliacao } from '@/lib/semana-referencia';
 
 export const dynamic = 'force-dynamic';
@@ -42,16 +42,30 @@ export async function GET(req: Request) {
   }
 
   const somenteResumo = searchParams.get('resumo') === '1';
+  const filtro = parseFiltro(searchParams.get('filtro'));
+  const unidadeSlug = searchParams.get('unidade_slug')?.trim() || undefined;
+  const busca = searchParams.get('q')?.trim() || undefined;
+  const dataIso = dataRaw || undefined;
 
   try {
     const supabase = createAdminClient();
-    const resultado = await calcularPendenciasSemana(supabase, {
-      dataIso: dataRaw || undefined,
-      unidadeSlug: searchParams.get('unidade_slug')?.trim() || undefined,
-      filtro: parseFiltro(searchParams.get('filtro')),
-      busca: searchParams.get('q')?.trim() || undefined,
-      rhAvaliadorId: auth.rhAvaliadorId,
-    });
+
+    const podeCachear =
+      filtro === 'pendentes' &&
+      !unidadeSlug &&
+      !busca &&
+      !dataIso &&
+      !somenteResumo;
+
+    const resultado = podeCachear
+      ? await obterPendenciasSemanaRedeCacheadas(auth.rhAvaliadorId)
+      : await calcularPendenciasSemana(supabase, {
+          dataIso,
+          unidadeSlug,
+          filtro,
+          busca,
+          rhAvaliadorId: auth.rhAvaliadorId,
+        });
 
     if (somenteResumo) {
       return NextResponse.json(

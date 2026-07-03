@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminViewerContext } from '@/lib/admin-auth';
-import { montarPayloadEvolucaoLideranca, montarResumoILIRapido } from '@/lib/evolucao-lideranca';
+import { montarPayloadEvolucaoLideranca } from '@/lib/evolucao-lideranca';
+import { obterIliRapidoCacheado } from '@/lib/cache/servidor-operacional';
 
 /** Evolução do ILI por líder — completo sob demanda; ?rapido=1 só semana atual (dashboard). */
 export async function GET(req: Request) {
@@ -15,7 +16,7 @@ export async function GET(req: Request) {
   try {
     const supabase = createAdminClient();
     if (rapido) {
-      const resumo = await montarResumoILIRapido(supabase);
+      const resumo = await obterIliRapidoCacheado();
       return NextResponse.json({ ok: true, ...resumo });
     }
     const payload = await montarPayloadEvolucaoLideranca(supabase);

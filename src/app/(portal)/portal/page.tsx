@@ -9,6 +9,7 @@ import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasG
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { PortalHomeEntrada } from '@/components/portal/home/PortalHomeEntrada';
 import { PortalHomeSecaoAdiada } from '@/components/portal/PortalHomeSecaoAdiada';
+import { PortalDetalhesLazyMount } from '@/components/portal/PortalDetalhesLazyMount';
 import { PortalHomeGrupo } from '@/components/portal/home/PortalHomeGrupo';
 
 export default function PortalHomePage() {
@@ -17,7 +18,9 @@ export default function PortalHomePage() {
       <div className="space-y-8">
         <EmocionalAlertasGestao />
         <PortalHomeEntrada />
-        <AvisosHome />
+        <PortalHomeSecaoAdiada minHeight="5rem" delayMs={400}>
+          <AvisosHome />
+        </PortalHomeSecaoAdiada>
 
         <PortalHomeGrupo titulo="Esta semana" subtitulo="Cultura, reconhecimento e novidades." cor="uva" icone="estrela">
           <PortalHomeSecaoAdiada minHeight="7rem">
@@ -55,7 +58,9 @@ export default function PortalHomePage() {
                 </svg>
               </summary>
               <div className="px-3 pb-3 pt-1">
-                <SugestoesEquipeHome />
+                <PortalDetalhesLazyMount>
+                  <SugestoesEquipeHome />
+                </PortalDetalhesLazyMount>
               </div>
             </details>
           </section>

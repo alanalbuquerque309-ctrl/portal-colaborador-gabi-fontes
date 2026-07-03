@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminViewerContext } from '@/lib/admin-auth';
 import { montarPayloadEvolucaoRede, payloadSomenteResumo } from '@/lib/evolucao-rede';
+import { obterEvolucaoRedeResumoCacheado } from '@/lib/cache/servidor-operacional';
 
 /** Saúde da equipe — evolução semanal (colaboradores, unidades, rede). Acesso: admin completo + RH. */
 export async function GET(req: Request) {
@@ -18,6 +19,12 @@ export async function GET(req: Request) {
 
   try {
     const supabase = createAdminClient();
+
+    if (resumo && !unidade_slug && !setor) {
+      const cached = await obterEvolucaoRedeResumoCacheado();
+      return NextResponse.json({ ok: true, ...cached });
+    }
+
     const payload = await montarPayloadEvolucaoRede(supabase, {
       unidade_slug,
       setor,

@@ -44,12 +44,13 @@ export async function GET() {
 
     if (podeParticiparGraosCafe(role)) {
       const semanaGraos = segundaSemanaSaoPaulo();
-      const jaEntrouNaSemana = await colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaGraos);
-      if (!jaEntrouNaSemana) {
-        await sincronizarMissoesSemanaGraos(supabase, colaboradorId, semanaGraos, {
-          creditarLogin: true,
-        });
-      }
+      void colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaGraos).then((jaEntrou) => {
+        if (!jaEntrou) {
+          void sincronizarMissoesSemanaGraos(supabase, colaboradorId, semanaGraos, {
+            creditarLogin: true,
+          }).catch(() => undefined);
+        }
+      });
     }
 
     const tarefas = await montarPendenciasPortalHome(supabase, {
