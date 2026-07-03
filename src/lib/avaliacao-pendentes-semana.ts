@@ -29,6 +29,7 @@ import { ehSextaSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
 import { semanasReferenciaCobrancaAvaliacaoLider } from '@/lib/avaliacao-semana-cobranca';
 import { colaboradorForaAvaliacaoSemanalEquipe } from '@/lib/colaborador-fora-operacao-presencial';
+import { colaboradorFechouSemanaPorAlgumLider } from '@/lib/avaliacao-fechamento-lider';
 import type {
   FiltroPendenciasSemana,
   ItemPendenciaSemana,
@@ -379,25 +380,12 @@ async function carregarAvaliacoesCobrancaLider(
     return carregarAvaliacoesSemana(supabase, dataRefPrincipal, colaboradorIds);
   }
 
-  const porChave = new Map<string, AvaliacaoRow>();
-  const chave = (r: AvaliacaoRow) => `${r.colaborador_id}:${r.avaliador_id}`;
-
+  const out: AvaliacaoRow[] = [];
   for (const sem of semanas) {
     const rows = await carregarAvaliacoesSemana(supabase, sem, colaboradorIds);
-    for (const r of rows) {
-      const k = chave(r);
-      const existente = porChave.get(k);
-      if (!existente) {
-        porChave.set(k, r);
-        continue;
-      }
-      if (sem === dataRefPrincipal) {
-        porChave.set(k, r);
-      }
-    }
+    out.push(...rows);
   }
-
-  return Array.from(porChave.values());
+  return out;
 }
 
 async function carregarColaboradoresInfo(
@@ -583,8 +571,7 @@ export async function calcularPendenciasSemana(
     const esperados = mapaEsperados.get(cid) ?? [];
 
     const temNotaGerente =
-      esperados.some((e) => statusResponsavel(e.lider_id, rows, rhIds) === 'ja_avaliou') ||
-      rows.some((r) => avaliacaoFechaSemanaLider(r, rhIds));
+      esperados.length === 0 || colaboradorFechouSemanaPorAlgumLider(rows, rhIds);
     const temRh = rows.some((r) => avaliacaoFechaSemanaRh(r, rhIds));
     const elegivelRh = colaboradorElegivelVisitaRh(
       { id: cid, role: info.role, nome: info.nome },
