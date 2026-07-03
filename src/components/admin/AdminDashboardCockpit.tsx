@@ -15,6 +15,7 @@ import {
 } from '@/components/admin/shell/AdminTable';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { gruposCafeConectaComSorteio } from '@/lib/cafe-conecta/config';
+import { formatarIli, formatarNota, rotuloSituacao, tomSituacao } from '@/lib/evolucao';
 import { getTermo } from '@/lib/tenant/terminology';
 
 type Colaborador = { id: string; nome: string; onboarding_completo: boolean };
@@ -33,6 +34,21 @@ type PendenciasResumo = {
   resumo?: { criticos_sem_avaliacao?: number };
   itens?: PendenciaItem[];
 };
+type SaudeResumo = {
+  resumo?: {
+    media_rede: number | null;
+    situacao_rede: 'evoluindo' | 'estavel' | 'regredindo' | 'sem_historico';
+    evoluindo: number;
+    regredindo: number;
+    total_colaboradores: number;
+  };
+};
+type IliResumo = {
+  media_ili: number | null;
+  top_lider: { nome: string; ili: number } | null;
+  elegiveis: number;
+  total_lideres: number;
+};
 
 export function AdminDashboardCockpit() {
   const termoCafeConecta = getTermo('cafe_conecta');
@@ -47,6 +63,8 @@ export function AdminDashboardCockpit() {
   const [alertasEmocional, setAlertasEmocional] = useState(0);
   const [redefinicoesPendentes, setRedefinicoesPendentes] = useState(0);
   const [alertaCafeConecta, setAlertaCafeConecta] = useState(false);
+  const [saudeResumo, setSaudeResumo] = useState<SaudeResumo | null>(null);
+  const [iliResumo, setIliResumo] = useState<IliResumo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
 
@@ -127,6 +145,20 @@ export function AdminDashboardCockpit() {
               setAlertaCafeConecta(flags.some(Boolean));
             })
             .catch(() => {}),
+          fetch('/api/admin/evolucao?resumo=1', { credentials: 'include', cache: 'no-store' })
+            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
+            .then((evo) => {
+              if (cancel || !evo?.ok) return;
+              setSaudeResumo(evo as SaudeResumo);
+            })
+            .catch(() => {}),
+          fetch('/api/admin/evolucao/lideranca?rapido=1', { credentials: 'include', cache: 'no-store' })
+            .then((r) => (r.status === 401 || r.status === 403 ? null : r.json()))
+            .then((ili) => {
+              if (cancel || !ili?.ok) return;
+              setIliResumo(ili as IliResumo);
+            })
+            .catch(() => {}),
         ];
 
         if (gerirSug) {
@@ -177,6 +209,19 @@ export function AdminDashboardCockpit() {
     return 'verde' as const;
   }, [alertaSexta, totalPendencias]);
 
+  const saudeValor = saudeResumo?.resumo?.media_rede != null ? formatarNota(saudeResumo.resumo.media_rede) : '—';
+  const saudeSub = saudeResumo?.resumo
+    ? `${rotuloSituacao(saudeResumo.resumo.situacao_rede)} · ${saudeResumo.resumo.evoluindo} evoluindo`
+    : 'Abrir painel →';
+  const saudeTom = saudeResumo?.resumo ? tomSituacao(saudeResumo.resumo.situacao_rede) : 'neutro';
+
+  const iliValor = iliResumo?.media_ili != null ? formatarIli(iliResumo.media_ili) : '—';
+  const iliSub = iliResumo?.top_lider
+    ? `Topo: ${iliResumo.top_lider.nome} (${formatarIli(iliResumo.top_lider.ili)})`
+    : iliResumo
+      ? `${iliResumo.elegiveis} de ${iliResumo.total_lideres} líderes elegíveis`
+      : 'Ver ranking →';
+
   const loginUrl = typeof window !== 'undefined' ? `${window.location.origin}/login` : '/login';
 
   if (loading) {
@@ -224,17 +269,17 @@ export function AdminDashboardCockpit() {
         <AdminStatCard
           emoji="📈"
           label="Saúde da equipe"
-          valor="—"
-          sub="Abrir painel →"
-          tom="neutro"
+          valor={saudeValor}
+          sub={saudeSub}
+          tom={saudeTom}
           href="/admin/evolucao"
         />
 
         <AdminStatCard
           emoji="⭐"
           label="Nota dos líderes"
-          valor="—"
-          sub="Ver ranking →"
+          valor={iliValor}
+          sub={iliSub}
           tom="dourado"
           href="/admin/evolucao?aba=lideranca"
         />
