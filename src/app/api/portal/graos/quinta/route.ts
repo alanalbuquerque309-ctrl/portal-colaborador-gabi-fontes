@@ -36,11 +36,11 @@ export async function POST() {
     const supabase = createAdminClient();
     const { data: colab } = await supabase
       .from('colaboradores')
-      .select('role')
+      .select('role, tipo_escala')
       .eq('id', colaboradorId)
       .maybeSingle();
 
-    if (!colab || !podeParticiparGraosCafe((colab as { role?: string }).role)) {
+    if (!colab || !podeParticiparGraosCafe((colab as { role?: string }).role, { tipo_escala: (colab as { tipo_escala?: string | null }).tipo_escala })) {
       return NextResponse.json({ ok: false, erro: 'Apenas colaboradores.' }, { status: 403, headers: NO_STORE });
     }
 

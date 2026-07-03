@@ -12,6 +12,7 @@ import {
 } from '@/lib/avaliacao-direta';
 import { resolverUnidadesListaCompletaEquipeAvaliacao } from '@/lib/resolver-unidades-equipe-avaliacao';
 import { deveExcluirSetorDaListaCompletaUnidade } from '@/lib/setores-fabrica-lideranca';
+import { colaboradorForaAvaliacaoSemanalEquipe } from '@/lib/colaborador-fora-operacao-presencial';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -115,7 +116,7 @@ export async function listarEquipeParaAvaliacaoSemanal(
     listas.push(await listarColaboradoresUnidadeParaAvaliacaoGerente(supabase, unidadeId, liderId));
   }
 
-  return mesclarListas(listas);
+  return mesclarListas(listas).filter((m) => !colaboradorForaAvaliacaoSemanalEquipe(m));
 }
 
 /** Avaliação semanal do gerente: todos os colaboradores da unidade (independente do onboarding). */
@@ -148,6 +149,9 @@ export async function listarColaboradoresUnidadeParaAvaliacaoGerente(
     .filter((c) => {
       if (normalizePortalRole((c as { role?: string }).role) !== 'colaborador') return false;
       if (deveExcluirSetorDaListaCompletaUnidade(unidadeSlug, (c as { setor?: string | null }).setor)) {
+        return false;
+      }
+      if (colaboradorForaAvaliacaoSemanalEquipe(c as { tipo_escala?: string | null })) {
         return false;
       }
       return true;
@@ -303,7 +307,7 @@ export async function listarEquipeDoLider(
     Array.from(porId.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')),
     liderId,
     mapa
-  );
+  ).filter((m) => !colaboradorForaAvaliacaoSemanalEquipe(m));
 }
 
 /** Líderes diretos por colaborador (config unidade/setor + vínculos + `lider_id`). */

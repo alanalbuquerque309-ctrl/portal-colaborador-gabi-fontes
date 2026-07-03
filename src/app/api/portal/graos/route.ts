@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     const supabase = createAdminClient();
     const { data: viewer, error: errViewer } = await supabase
       .from('colaboradores')
-      .select('role')
+      .select('role, tipo_escala')
       .eq('id', viewerId)
       .maybeSingle();
 
@@ -49,7 +49,9 @@ export async function GET(req: Request) {
     }
 
     const gestao = podeVerGraosGestaoTodos(role, viewerId);
-    const colaboradorOperacao = podeParticiparGraosCafe(role);
+    const colaboradorOperacao = podeParticiparGraosCafe(role, {
+      tipo_escala: (viewer as { tipo_escala?: string | null }).tipo_escala,
+    });
 
     if (!colaboradorOperacao && alvoParam && alvoParam !== viewerId && !gestao) {
       return NextResponse.json({ ok: false, erro: 'Acesso negado.' }, { status: 403, headers: NO_STORE });

@@ -303,7 +303,7 @@ export async function montarPendenciasPortalHome(
     }
   }
 
-  if (podeVerPendenciasSemanaRede(nr) && !isentoOperacional) {
+  if (podeVerPendenciasSemanaRede(nr)) {
     try {
       const { calcularPendenciasSemana } = await import('@/lib/avaliacao-pendentes-semana');
       const pend = await calcularPendenciasSemana(supabase, {

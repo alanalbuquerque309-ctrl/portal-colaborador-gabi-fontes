@@ -28,6 +28,7 @@ import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/
 import { ehSextaSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
 import { semanasReferenciaCobrancaAvaliacaoLider } from '@/lib/avaliacao-semana-cobranca';
+import { colaboradorForaAvaliacaoSemanalEquipe } from '@/lib/colaborador-fora-operacao-presencial';
 import type {
   FiltroPendenciasSemana,
   ItemPendenciaSemana,
@@ -91,6 +92,7 @@ type ColabInfo = {
   unidade_nome: string | null;
   unidade_slug: string | null;
   role: string | null;
+  tipo_escala: string | null;
 };
 
 type AvaliadorEsperado = {
@@ -407,7 +409,7 @@ async function carregarColaboradoresInfo(
 
   let query = supabase
     .from('colaboradores')
-    .select('id, nome, setor, role, unidade_id, unidades(nome, slug)')
+    .select('id, nome, setor, role, tipo_escala, unidade_id, unidades(nome, slug)')
     .in('id', ids);
   if (unidadeId) query = query.eq('unidade_id', unidadeId);
 
@@ -426,6 +428,7 @@ async function carregarColaboradoresInfo(
       unidade_nome: u?.nome ? String(u.nome) : null,
       unidade_slug: u?.slug ? String(u.slug) : null,
       role: (c.role as string | null) ?? null,
+      tipo_escala: (c as { tipo_escala?: string | null }).tipo_escala ?? null,
     });
   }
   return out;
@@ -511,14 +514,16 @@ export async function calcularPendenciasSemana(
   const mapaEsperados = await buildMapaAvaliadoresEsperados(supabase);
   let colaboradorIds = Array.from(mapaEsperados.keys());
 
-  let queryRede = supabase.from('colaboradores').select('id, nome, role');
+  let queryRede = supabase.from('colaboradores').select('id, nome, role, tipo_escala');
   if (unidadeId) queryRede = queryRede.eq('unidade_id', unidadeId);
   const { data: colsRede } = await queryRede;
   const idsRede = (colsRede ?? [])
     .filter((c) => {
       const role = normalizePortalRole((c as { role?: string | null }).role);
       if (role !== 'colaborador') return false;
-      return !nomeEhDanielTransversal((c as { nome?: string | null }).nome);
+      if (nomeEhDanielTransversal((c as { nome?: string | null }).nome)) return false;
+      if (colaboradorForaAvaliacaoSemanalEquipe(c as { tipo_escala?: string | null })) return false;
+      return true;
     })
     .map((c) => String(c.id));
   colaboradorIds = Array.from(new Set([...colaboradorIds, ...idsRede]));
@@ -532,7 +537,8 @@ export async function calcularPendenciasSemana(
   const colabInfo = await carregarColaboradoresInfo(supabase, colaboradorIds, unidadeId || undefined);
   colaboradorIds = colaboradorIds.filter((id) => {
     const c = colabInfo.get(id);
-    return c && normalizePortalRole(c.role) === 'colaborador';
+    if (!c || normalizePortalRole(c.role) !== 'colaborador') return false;
+    return !colaboradorForaAvaliacaoSemanalEquipe(c);
   });
 
   const avaliacoes = await carregarAvaliacoesCobrancaLider(supabase, dataRef, colaboradorIds);

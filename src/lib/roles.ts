@@ -155,9 +155,16 @@ export function podeVerGraosCafePortal(
   return false;
 }
 
-/** Ganhar missões e resgatar na cafeteria — só colaborador da operação (líderes/sócios fora). */
-export function podeParticiparGraosCafe(role: string | null | undefined): boolean {
-  return normalizePortalRole(role) === 'colaborador';
+import { colaboradorForaGraosCafe } from '@/lib/colaborador-fora-operacao-presencial';
+
+/** Ganhar missões e resgatar na cafeteria — só colaborador da operação (líderes/sócios/home office fora). */
+export function podeParticiparGraosCafe(
+  role: string | null | undefined,
+  opts?: { tipo_escala?: string | null }
+): boolean {
+  if (normalizePortalRole(role) !== 'colaborador') return false;
+  if (colaboradorForaGraosCafe(opts)) return false;
+  return true;
 }
 
 /** @deprecated Use `podeParticiparGraosCafe` ou `podeVerGraosCafePortal`. */
