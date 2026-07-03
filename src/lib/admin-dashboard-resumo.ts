@@ -99,7 +99,7 @@ async function listarColaboradoresResumo(supabase: SupabaseClient): Promise<Admi
 async function listarAvisosAtivosResumo(supabase: SupabaseClient): Promise<AdminDashboardAvisoResumo[]> {
   const { data, error } = await supabase
     .from('avisos')
-    .select('id, titulo, ativo')
+    .select('id, titulo, ativo, data_publicacao')
     .order('data_publicacao', { ascending: false })
     .limit(24);
 
@@ -149,6 +149,15 @@ async function resolverRhAvaliadorId(ctx: AdminViewerContext): Promise<string | 
   return data?.id ? String(data.id) : undefined;
 }
 
+function comTimeout<T>(promessa: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promessa,
+    new Promise<T>((resolve) => {
+      setTimeout(() => resolve(fallback), ms);
+    }),
+  ]);
+}
+
 export async function montarAdminDashboardResumo(): Promise<
   { ok: false; status: number; erro: string } | AdminDashboardResumoPayload
 > {
@@ -161,14 +170,15 @@ export async function montarAdminDashboardResumo(): Promise<
   const role = ctx.kind === 'portal' ? ctx.role : null;
   const senha = ctx.kind === 'password_session';
   const podeCadastro = podeEditarCadastroColaborador(role, senha);
+  const rhAvaliadorId = auth.gestao_completa ? await resolverRhAvaliadorId(ctx) : undefined;
 
   const supabase = createAdminClient();
 
   const tarefas: Promise<unknown>[] = [
     listarColaboradoresResumo(supabase),
     listarAvisosAtivosResumo(supabase),
-    obterEvolucaoRedeResumoCacheado().catch(() => null),
-    obterIliRapidoCacheado().catch(() => null),
+    comTimeout(obterEvolucaoRedeResumoCacheado(), 20_000, null).catch(() => null),
+    comTimeout(obterIliRapidoCacheado(), 15_000, null).catch(() => null),
   ];
 
   let emocionalPromise: Promise<number> = Promise.resolve(0);
@@ -201,9 +211,10 @@ export async function montarAdminDashboardResumo(): Promise<
 
   let pendenciasPromise: Promise<AdminDashboardResumoPayload['pendencias']> = Promise.resolve(null);
   if (auth.gestao_completa) {
-    const rhId = await resolverRhAvaliadorId(ctx);
-    pendenciasPromise = obterPendenciasSemanaRedeCacheadas(rhId)
-      .then((resultado) => ({
+    pendenciasPromise = comTimeout(obterPendenciasSemanaRedeCacheadas(rhAvaliadorId), 20_000, null)
+      .then((resultado) => {
+        if (!resultado) return null;
+        return {
         total: resultado.itens.length,
         intervalo: resultado.intervalo,
         meta: resultado.meta,
@@ -214,7 +225,8 @@ export async function montarAdminDashboardResumo(): Promise<
           responsavel_lider_label: p.responsavel_lider_label,
           tipo: p.tipo,
         })),
-      }))
+        };
+      })
       .catch(() => null);
   }
   tarefas.push(pendenciasPromise);
