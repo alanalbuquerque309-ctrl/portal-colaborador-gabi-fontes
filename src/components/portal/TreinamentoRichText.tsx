@@ -23,7 +23,7 @@ const renderers: Components = {
     <h3 className="font-display text-lg font-bold text-gray-800 mt-7 mb-3">{children}</h3>
   ),
   p: ({ children }) => (
-    <p className="text-base text-gray-700 leading-7 mb-4 last:mb-0">{children}</p>
+    <p className="text-[17px] text-gray-700 leading-7 mb-4 last:mb-0">{children}</p>
   ),
   strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
   em: ({ children }) => <em className="text-gray-600 not-italic">{children}</em>,
@@ -42,7 +42,7 @@ const renderers: Components = {
   ul: ({ children }) => <ul className="space-y-2 my-4 pl-1">{children}</ul>,
   ol: ({ children }) => <ol className="space-y-2 my-4 pl-1 list-decimal list-inside">{children}</ol>,
   li: ({ children }) => (
-    <li className="text-base text-gray-700 leading-7 flex items-start gap-2">
+    <li className="text-[17px] text-gray-700 leading-7 flex items-start gap-2">
       <span className="text-dourado-500 mt-1.5 shrink-0">&#8226;</span>
       <span>{children}</span>
     </li>
