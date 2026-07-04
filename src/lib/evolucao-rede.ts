@@ -122,17 +122,27 @@ function erroColunaAusenteEvolucao(msg: string): boolean {
   );
 }
 
+function dateBoundEvolucao(): string {
+  const semanas = EVOLUCAO_SEMANAS_JANELA * 3;
+  const d = new Date();
+  d.setDate(d.getDate() - semanas * 7);
+  const iso = d.toISOString().slice(0, 10);
+  return iso > AVALIACAO_RANKING_EPOCA_INICIO ? AVALIACAO_RANKING_EPOCA_INICIO : iso;
+}
+
 async function buscarAvaliacoesParaEvolucao(
   supabase: SupabaseAdmin,
   colaboradorIds: string[]
 ): Promise<LinhaAval[]> {
+  const desde = dateBoundEvolucao();
   let lastError = 'Erro ao carregar avaliações';
   for (const select of SELECTS_AVALIACOES_EVOLUCAO) {
     const { data, error } = await supabase
       .from('avaliacoes_diarias')
       .select(select)
-      .gte('data_referencia', AVALIACAO_RANKING_EPOCA_INICIO)
-      .in('colaborador_id', colaboradorIds);
+      .gte('data_referencia', desde)
+      .in('colaborador_id', colaboradorIds)
+      .limit(8000);
     if (!error) return (data ?? []) as unknown as LinhaAval[];
     lastError = error.message;
     if (!erroColunaAusenteEvolucao(error.message)) break;

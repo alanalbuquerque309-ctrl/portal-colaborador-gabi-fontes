@@ -502,10 +502,23 @@ export async function calcularPendenciasSemana(
   const mapaEsperados = await buildMapaAvaliadoresEsperados(supabase);
   let colaboradorIds = Array.from(mapaEsperados.keys());
 
-  let queryRede = supabase.from('colaboradores').select('id, nome, role, tipo_escala');
-  if (unidadeId) queryRede = queryRede.eq('unidade_id', unidadeId);
-  const { data: colsRede } = await queryRede;
-  const idsRede = (colsRede ?? [])
+  const { data: todosColaboradores } = await supabase
+    .from('colaboradores')
+    .select('id, nome, role, setor, tipo_escala, unidade_id');
+
+  const rhIds = construirConjuntoIdsRh(
+    (todosColaboradores ?? []).map((c) => ({
+      id: String(c.id),
+      role: (c as { role?: string | null }).role,
+      setor: (c as { setor?: string | null }).setor,
+      nome: (c as { nome?: string | null }).nome,
+    }))
+  );
+
+  const colsRedeBase = unidadeId
+    ? (todosColaboradores ?? []).filter((c) => String(c.unidade_id ?? '') === unidadeId)
+    : (todosColaboradores ?? []);
+  const idsRede = colsRedeBase
     .filter((c) => {
       const role = normalizePortalRole((c as { role?: string | null }).role);
       if (role !== 'colaborador') return false;
@@ -517,8 +530,11 @@ export async function calcularPendenciasSemana(
   colaboradorIds = Array.from(new Set([...colaboradorIds, ...idsRede]));
 
   if (unidadeId) {
-    const { data: colsUn } = await supabase.from('colaboradores').select('id').eq('unidade_id', unidadeId);
-    const idsUn = new Set((colsUn ?? []).map((c) => String(c.id)));
+    const idsUn = new Set(
+      (todosColaboradores ?? [])
+        .filter((c) => String(c.unidade_id ?? '') === unidadeId)
+        .map((c) => String(c.id))
+    );
     colaboradorIds = colaboradorIds.filter((id) => idsUn.has(id));
   }
 
@@ -530,11 +546,6 @@ export async function calcularPendenciasSemana(
   });
 
   const avaliacoes = await carregarAvaliacoesCobrancaLider(supabase, dataRef, colaboradorIds);
-
-  const { data: todosAvaliadores } = await supabase
-    .from('colaboradores')
-    .select('id, role, setor, nome');
-  const rhIds = construirConjuntoIdsRh(todosAvaliadores ?? []);
 
   const avalPorColab = new Map<string, AvaliacaoRow[]>();
   for (const a of avaliacoes) {

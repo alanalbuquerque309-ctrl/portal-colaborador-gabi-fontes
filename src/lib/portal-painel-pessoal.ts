@@ -90,14 +90,16 @@ async function calcularRankingEscopo(
     .select(colsRanking)
     .in('colaborador_id', ids)
     .gte('data_referencia', refMin)
-    .lte('data_referencia', opts.fim);
+    .lte('data_referencia', opts.fim)
+    .limit(5000);
   if (errRanking && erroColunaIgnoradaAusente(errRanking.message)) {
     const retry = await supabase
       .from('avaliacoes_diarias')
       .select(colunasSemIgnorada(colsRanking))
       .in('colaborador_id', ids)
       .gte('data_referencia', refMin)
-      .lte('data_referencia', opts.fim);
+      .lte('data_referencia', opts.fim)
+      .limit(5000);
     linhas = (retry.data ?? null) as typeof linhas;
   }
 

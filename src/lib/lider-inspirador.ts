@@ -146,19 +146,19 @@ async function carregarDadosSemana(
       .from('avaliacoes_diarias')
       .select('colaborador_id, avaliador_id, media_dia, data_referencia')
       .in('data_referencia', [semanaEquipe, semanaAnterior])
-      .limit(10000),
+      .limit(2000),
     supabase
       .from('avaliacoes_lideranca')
       .select(
         'avaliado_id, n_exemplo, n_comunicacao, n_suporte, n_justica, n_clima, n_organizacao, n_fala_escuta, n_apoio, n_ambiente'
       )
       .eq('semana_inicio', semanaFeedback)
-      .limit(5000),
+      .limit(500),
     supabase
       .from('trofeus_entre_pares')
       .select('destinatario_id')
       .eq('semana_inicio', semanaEquipe)
-      .limit(5000),
+      .limit(500),
   ]);
 
   const avaliacoesEquipe = new Map<string, { media: number | null; avaliador_id: string | null }>();

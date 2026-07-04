@@ -7,10 +7,12 @@ import {
   normalizePortalRole,
 } from '@/lib/roles';
 import { getPortalSession } from '@/lib/utils/session';
+import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { CanalAjudaPainel } from '@/components/ajuda/CanalAjudaPainel';
 
 export function BotaoAjuda() {
+  const { role: ctxRole, carregado } = usePortalPerfil();
   const [mostrarFabAjuda, setMostrarFabAjuda] = useState<boolean | null>(null);
   const [podeInbox, setPodeInbox] = useState(false);
   const [pendentes, setPendentes] = useState(0);
@@ -32,31 +34,16 @@ export function BotaoAjuda() {
   }, []);
 
   useEffect(() => {
-    let cancel = false;
-    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
-        if (cancel) return;
-        if (!data.ok || !data.colaborador) {
-          setMostrarFabAjuda(true);
-          return;
-        }
-        const sess = getPortalSession();
-        const cidRaw = sess?.colaboradorId?.trim() ?? '';
-        const cid = cidRaw && cidRaw !== 'pending' ? cidRaw : '';
-        const role = normalizePortalRole(data.colaborador.role);
-        const podeVerInbox = canVisualizarAjuda(role, cid || undefined);
-        const podeExcluir = canExcluirMensagensAjuda(role);
-        setPodeInbox(podeVerInbox);
-        setMostrarFabAjuda(!podeVerInbox || podeExcluir);
-      })
-      .catch(() => {
-        if (!cancel) setMostrarFabAjuda(true);
-      });
-    return () => {
-      cancel = true;
-    };
-  }, []);
+    if (!carregado) return;
+    const sess = getPortalSession();
+    const cidRaw = sess?.colaboradorId?.trim() ?? '';
+    const cid = cidRaw && cidRaw !== 'pending' ? cidRaw : '';
+    const role = normalizePortalRole(ctxRole);
+    const podeVerInbox = canVisualizarAjuda(role, cid || undefined);
+    const podeExcluir = canExcluirMensagensAjuda(role);
+    setPodeInbox(podeVerInbox);
+    setMostrarFabAjuda(!podeVerInbox || podeExcluir);
+  }, [carregado, ctxRole]);
 
   useEffect(() => {
     if (!podeInbox) {

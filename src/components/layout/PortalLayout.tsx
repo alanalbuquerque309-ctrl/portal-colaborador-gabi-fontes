@@ -217,11 +217,28 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     if (!isLider) return;
     if (pathname === '/portal/avaliacao-master') return;
 
+    try {
+      const cached = sessionStorage.getItem('portal_lider_bloqueio');
+      if (cached) {
+        const parsed = JSON.parse(cached) as { bloqueado: boolean; ts: number };
+        if (Date.now() - parsed.ts < 10 * 60 * 1000) {
+          if (parsed.bloqueado) router.replace('/portal/avaliacao-master');
+          return;
+        }
+      }
+    } catch { /* noop */ }
+
     let cancel = false;
     fetch('/api/portal/graos/lider-bloqueio', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((d: { ok?: boolean; bloqueado?: boolean }) => {
         if (cancel) return;
+        try {
+          sessionStorage.setItem(
+            'portal_lider_bloqueio',
+            JSON.stringify({ bloqueado: !!d.bloqueado, ts: Date.now() })
+          );
+        } catch { /* noop */ }
         if (d.ok && d.bloqueado) {
           router.replace('/portal/avaliacao-master');
         }

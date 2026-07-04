@@ -3,63 +3,48 @@ import { calcularPendenciasSemana } from '@/lib/avaliacao-pendentes-semana';
 import { montarPayloadEvolucaoRede, payloadSomenteResumo } from '@/lib/evolucao-rede';
 import { montarResumoILIRapido } from '@/lib/evolucao-lideranca';
 
-const TTL_REDE_MS = 90_000;
-const TTL_PENDENCIAS_MS = 60_000;
+/**
+ * Cache de warm invocation (module-level Map).
+ * Em Vercel serverless, sobrevive entre requests no mesmo container,
+ * mas é perdido em cold starts. TTL de 120s limita dados obsoletos.
+ */
+const CACHE_TTL_MS = 120_000;
 
-type EntradaCache = { expira: number; valor: unknown };
+type Slot<T> = { expira: number; valor: T };
+let slotResumoRede: Slot<Awaited<ReturnType<typeof payloadSomenteResumo>>> | null = null;
+let slotIliRapido: Slot<Awaited<ReturnType<typeof montarResumoILIRapido>>> | null = null;
+const slotsPendencias = new Map<string, Slot<Awaited<ReturnType<typeof calcularPendenciasSemana>>>>();
 
-const cacheMemoria = new Map<string, EntradaCache>();
-
-function lerCache<T>(chave: string): T | null {
-  const hit = cacheMemoria.get(chave);
-  if (!hit || Date.now() > hit.expira) {
-    if (hit) cacheMemoria.delete(chave);
-    return null;
-  }
-  return hit.valor as T;
+function valido<T>(slot: Slot<T> | null | undefined): slot is Slot<T> {
+  return slot != null && Date.now() < slot.expira;
 }
 
-function gravarCache(chave: string, valor: unknown, ttlMs: number): void {
-  cacheMemoria.set(chave, { expira: Date.now() + ttlMs, valor });
-}
-
-/** Resumo de saúde da rede (dashboard / evolução ?resumo=1). */
 export async function obterEvolucaoRedeResumoCacheado() {
-  const chave = 'evolucao-rede-resumo';
-  const hit = lerCache<Awaited<ReturnType<typeof payloadSomenteResumo>>>(chave);
-  if (hit) return hit;
-
+  if (valido(slotResumoRede)) return slotResumoRede.valor;
   const supabase = createAdminClient();
   const payload = await montarPayloadEvolucaoRede(supabase, { incluir_criterios: false });
   const resumo = payloadSomenteResumo(payload);
-  gravarCache(chave, resumo, TTL_REDE_MS);
+  slotResumoRede = { expira: Date.now() + CACHE_TTL_MS, valor: resumo };
   return resumo;
 }
 
-/** ILI rápido da semana (dashboard). */
 export async function obterIliRapidoCacheado() {
-  const chave = 'ili-rapido';
-  const hit = lerCache<Awaited<ReturnType<typeof montarResumoILIRapido>>>(chave);
-  if (hit) return hit;
-
+  if (valido(slotIliRapido)) return slotIliRapido.valor;
   const supabase = createAdminClient();
   const resumo = await montarResumoILIRapido(supabase);
-  gravarCache(chave, resumo, TTL_REDE_MS);
+  slotIliRapido = { expira: Date.now() + CACHE_TTL_MS, valor: resumo };
   return resumo;
 }
 
-/** Pendências da semana na rede (sócios/admin). */
 export async function obterPendenciasSemanaRedeCacheadas(rhAvaliadorId?: string) {
-  const chaveAvaliador = rhAvaliadorId?.trim() || 'sem-avaliador';
-  const chave = `pendencias-semana-rede:${chaveAvaliador}`;
-  const hit = lerCache<Awaited<ReturnType<typeof calcularPendenciasSemana>>>(chave);
-  if (hit) return hit;
-
+  const chave = rhAvaliadorId?.trim() || '_';
+  const slot = slotsPendencias.get(chave);
+  if (valido(slot)) return slot.valor;
   const supabase = createAdminClient();
   const resultado = await calcularPendenciasSemana(supabase, {
     filtro: 'pendentes',
     rhAvaliadorId: rhAvaliadorId || undefined,
   });
-  gravarCache(chave, resultado, TTL_PENDENCIAS_MS);
+  slotsPendencias.set(chave, { expira: Date.now() + CACHE_TTL_MS, valor: resultado });
   return resultado;
 }
