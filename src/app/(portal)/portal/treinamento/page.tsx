@@ -9,6 +9,7 @@ import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
 import { PortalSection } from '@/components/portal/shell/PortalSection';
 import { PortalEmptyState } from '@/components/portal/shell/PortalEmptyState';
 import { PortalActionCard } from '@/components/portal/shell/PortalActionCard';
+import { TreinamentoRichText } from '@/components/portal/TreinamentoRichText';
 import { emitPortalHomeAtualizado } from '@/lib/portal-home-events';
 import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 
@@ -290,9 +291,7 @@ export default function PortalTreinamentoPage() {
                     ) : (
                       <div>
                         {ehTexto && t.conteudo_texto ? (
-                          <div className="rounded-xl border border-cafeteria-200 bg-cream-50 px-4 py-4 text-sm text-coffee-base leading-relaxed whitespace-pre-wrap">
-                            {t.conteudo_texto}
-                          </div>
+                          <TreinamentoRichText conteudo={t.conteudo_texto} />
                         ) : t.embed_url ? (
                           <QuintaTreinoEmbed embedUrl={t.embed_url} titulo={t.titulo} resumo={t.descricao ?? ''} />
                         ) : null}

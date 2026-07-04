@@ -18,7 +18,6 @@
     "db:apply-041": "node scripts/aplicar-migration-041.mjs",
     "db:apply-050": "node scripts/aplicar-migration-050.mjs",
     "db:apply-051": "node scripts/aplicar-migration-051.mjs",
-    "db:apply-040": "node scripts/aplicar-migration-040.mjs",
     "db:apply-052": "node scripts/aplicar-migration-052.mjs",
     "db:apply-053": "node scripts/aplicar-migration-053.mjs",
     "db:apply-054": "node scripts/aplicar-migration-054.mjs",
@@ -27,6 +26,8 @@
     "db:apply-057": "node scripts/aplicar-migration-057.mjs",
     "db:apply-059": "node scripts/aplicar-migration-059.mjs",
     "db:apply-061": "node scripts/aplicar-migration-061.mjs",
+    "db:apply-062": "node scripts/aplicar-migration-062.mjs",
+    "db:espelhar-regras-062": "npx tsx scripts/espelhar-regras-tenant-062.ts",
     "db:apply-064": "node scripts/aplicar-migration-064.mjs",
     "lideranca:aplicar": "npx tsx scripts/aplicar-lideranca-operacional.ts",
     "lideranca:snapshot": "npx tsx scripts/snapshot-lideranca.ts",
@@ -52,7 +53,8 @@
     "next": "14.1.0",
     "postgres": "^3.4.8",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
