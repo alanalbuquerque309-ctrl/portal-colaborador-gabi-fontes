@@ -149,7 +149,7 @@ export async function GET(req: Request) {
     const participaGraos = podeParticiparGraosCafe(role);
 
     const quintaColaborador = resolverQuintaTreino(origin, 'colaborador');
-    if (quintaColaborador.embed_url && !verTreinoLider) {
+    if (quintaColaborador.embed_url) {
       extras.push({
         id: 'quinta-colaborador',
         tipo: 'cadastro' as const,
