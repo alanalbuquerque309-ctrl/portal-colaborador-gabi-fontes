@@ -149,7 +149,7 @@ export async function GET(req: Request) {
     const participaGraos = podeParticiparGraosCafe(role);
 
     const quintaColaborador = resolverQuintaTreino(origin, 'colaborador');
-    if (quintaColaborador.embed_url) {
+    if (quintaColaborador.embed_url && !verTreinoLider) {
       extras.push({
         id: 'quinta-colaborador',
         tipo: 'cadastro' as const,
@@ -158,7 +158,7 @@ export async function GET(req: Request) {
         descricao: quintaColaborador.resumo,
         conteudo_texto: null,
         exige_confirmacao: false,
-        visualizado: verTodosTreinos ? false : true,
+        visualizado: true,
         confirmado: false,
         embed_url: quintaColaborador.embed_url,
         created_at: null,
