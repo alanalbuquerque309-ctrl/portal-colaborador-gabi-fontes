@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
-import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, inicioCicloTreinoQuintaUtcIsoSp, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { creditarMissaoGraos, refKeyGraos } from '@/lib/graos/movimentos';
 import { GRAOS_MISSAO } from '@/lib/graos/constants';
 import { processarElegibilidadeSemanaGraos } from '@/lib/graos/movimentos';
@@ -54,6 +54,24 @@ export async function POST() {
       );
     }
 
+    const quinta = resolverQuintaTreino(undefined, 'colaborador');
+    if (quinta.youtube_video_id) {
+      const chave = chaveTreinoAutomaticoColaborador(quinta.youtube_video_id);
+      const cicloUtc = inicioCicloTreinoQuintaUtcIsoSp();
+      const { data: anterior } = await supabase
+        .from('treinamento_automatico_registros')
+        .select('id')
+        .eq('treino_chave', chave)
+        .lt('visualizado_em', cicloUtc)
+        .limit(1);
+      if ((anterior ?? []).length > 0) {
+        return NextResponse.json(
+          { ok: false, erro: 'O treino desta semana ainda não foi publicado.' },
+          { status: 403, headers: NO_STORE }
+        );
+      }
+    }
+
     const { error: errIns } = await supabase.from('graos_quinta_conclusoes').upsert(
       { colaborador_id: colaboradorId, data_quinta: dataQuinta },
       { onConflict: 'colaborador_id,data_quinta' }
@@ -63,7 +81,6 @@ export async function POST() {
       return NextResponse.json({ ok: false, erro: errIns.message }, { status: 500, headers: NO_STORE });
     }
 
-    const quinta = resolverQuintaTreino(undefined, 'colaborador');
     if (quinta.youtube_video_id) {
       await registrarVisualizacaoTreinoAutomatico(
         supabase,

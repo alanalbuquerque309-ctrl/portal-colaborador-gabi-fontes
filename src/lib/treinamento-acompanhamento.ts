@@ -79,6 +79,23 @@ async function listarColaboradoresBase(supabase: SupabaseAdmin): Promise<ColabBa
   });
 }
 
+async function videoJaExistiaAntesDoCiclo(
+  supabase: SupabaseAdmin,
+  tabela: 'treino_lider_conclusoes' | 'treinamento_automatico_registros',
+  filtro: { coluna: string; valor: string },
+  cicloUtc: string
+): Promise<boolean> {
+  const colData = tabela === 'treino_lider_conclusoes' ? 'concluido_em' : 'visualizado_em';
+  const { data, error } = await supabase
+    .from(tabela)
+    .select('id')
+    .eq(filtro.coluna, filtro.valor)
+    .lt(colData, cicloUtc)
+    .limit(1);
+  if (error) return false;
+  return (data ?? []).length > 0;
+}
+
 async function montarAudienciaTreinoLider(supabase: SupabaseAdmin): Promise<ItemAcompanhamentoTreinamento | null> {
   const videoId = treinoLiderVideoIdAtual();
   const par = resolverParTreinosQuinta(undefined);
@@ -100,7 +117,12 @@ async function montarAudienciaTreinoLider(supabase: SupabaseAdmin): Promise<Item
   const ids = esperados.map((p) => p.id);
   const confMap = new Map<string, string>();
 
-  if (ids.length > 0) {
+  const videoReutilizado = await videoJaExistiaAntesDoCiclo(
+    supabase, 'treino_lider_conclusoes',
+    { coluna: 'video_youtube_id', valor: videoId }, cicloUtc
+  );
+
+  if (ids.length > 0 && !videoReutilizado) {
     const { data: conf } = await supabase
       .from('treino_lider_conclusoes')
       .select('colaborador_id, concluido_em')
@@ -168,7 +190,12 @@ async function montarAudienciaTreinoColaboradorQuinta(
   const visualMap = new Map<string, string>();
   const confMap = new Map<string, string>();
 
-  if (ids.length > 0) {
+  const videoReutilizado = await videoJaExistiaAntesDoCiclo(
+    supabase, 'treinamento_automatico_registros',
+    { coluna: 'treino_chave', valor: chave }, cicloUtc
+  );
+
+  if (ids.length > 0 && !videoReutilizado) {
     const { data: graosRows, error: graosErr } = await supabase
       .from('graos_quinta_conclusoes')
       .select('colaborador_id, data_quinta, created_at')
