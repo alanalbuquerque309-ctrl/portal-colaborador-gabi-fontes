@@ -10,40 +10,40 @@ type Props = {
 
 const renderers: Components = {
   h1: ({ children }) => (
-    <h1 className="font-display text-xl font-bold text-cafeteria-900 mt-6 mb-2 first:mt-0">
+    <h1 className="font-display text-2xl font-bold text-gray-900 mt-7 mb-3 first:mt-0">
       {children}
     </h1>
   ),
   h2: ({ children }) => (
-    <h2 className="font-display text-lg font-bold text-cafeteria-900 mt-8 mb-3 pb-2 border-b border-dourado-300/60 first:mt-0">
+    <h2 className="font-display text-xl font-bold text-gray-900 mt-9 mb-4 pb-2 border-b border-dourado-300/60 first:mt-0">
       {children}
     </h2>
   ),
   h3: ({ children }) => (
-    <h3 className="font-display text-base font-bold text-coffee-base mt-6 mb-2">{children}</h3>
+    <h3 className="font-display text-lg font-bold text-gray-800 mt-7 mb-3">{children}</h3>
   ),
   p: ({ children }) => (
-    <p className="text-sm text-cafeteria-800 leading-relaxed mb-3 last:mb-0">{children}</p>
+    <p className="text-base text-gray-700 leading-7 mb-4 last:mb-0">{children}</p>
   ),
-  strong: ({ children }) => <strong className="font-semibold text-coffee-base">{children}</strong>,
-  em: ({ children }) => <em className="text-cafeteria-600 not-italic">{children}</em>,
+  strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+  em: ({ children }) => <em className="text-gray-600 not-italic">{children}</em>,
   blockquote: ({ children }) => (
-    <div className="my-4 rounded-xl border-l-4 border-dourado-400 bg-gradient-to-r from-dourado-50/80 to-cream-50 px-4 py-3">
+    <div className="my-5 rounded-xl border-l-4 border-dourado-400 bg-gradient-to-r from-dourado-50/80 to-cream-50 px-5 py-4">
       {children}
     </div>
   ),
   hr: () => (
-    <div className="my-6 flex items-center justify-center gap-2">
+    <div className="my-7 flex items-center justify-center gap-2">
       <span className="h-px flex-1 bg-dourado-300/50" />
       <span className="text-dourado-400 text-xs">&#9679;</span>
       <span className="h-px flex-1 bg-dourado-300/50" />
     </div>
   ),
-  ul: ({ children }) => <ul className="space-y-1.5 my-3 pl-1">{children}</ul>,
-  ol: ({ children }) => <ol className="space-y-1.5 my-3 pl-1 list-decimal list-inside">{children}</ol>,
+  ul: ({ children }) => <ul className="space-y-2 my-4 pl-1">{children}</ul>,
+  ol: ({ children }) => <ol className="space-y-2 my-4 pl-1 list-decimal list-inside">{children}</ol>,
   li: ({ children }) => (
-    <li className="text-sm text-cafeteria-800 leading-relaxed flex items-start gap-2">
-      <span className="text-dourado-500 mt-1 shrink-0">&#8226;</span>
+    <li className="text-base text-gray-700 leading-7 flex items-start gap-2">
+      <span className="text-dourado-500 mt-1.5 shrink-0">&#8226;</span>
       <span>{children}</span>
     </li>
   ),
@@ -59,7 +59,7 @@ export function TreinamentoRichText({ conteudo, className = '' }: Props) {
           Material de treinamento
         </p>
       </div>
-      <div className="px-5 py-5">
+      <div className="px-6 py-6">
         <ReactMarkdown components={renderers}>{conteudo}</ReactMarkdown>
       </div>
     </div>
