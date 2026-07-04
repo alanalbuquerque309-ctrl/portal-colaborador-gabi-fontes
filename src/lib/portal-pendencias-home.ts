@@ -19,6 +19,7 @@ import { TROFEUS_PARES_CREDITOS_SEMANA } from '@/lib/trofeus-pares';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { listarComunicadosPendenteConfirmacao } from '@/lib/avisos-pendencias';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
+import { resolverQuintaTreino } from '@/lib/graos/quinta-treino';
 import { socioIsentoObrigacoesOperacionaisPortal } from '@/lib/socios-negocio';
 
 function formatarNomes(nomes: string[], max = 3): string {
@@ -188,10 +189,11 @@ export async function montarPendenciasPortalHome(
       concluiuTreinoLider = false;
     }
     if (!concluiuTreinoLider) {
+      const treinoLider = resolverQuintaTreino(undefined, 'lider');
       lista.push({
         id: 'treino-lideranca',
         titulo: 'Assistir treinamento de liderança',
-        detalhe: 'Vídeo exclusivo para quem avalia a equipe. Assista e confirme em Treinamento.',
+        detalhe: `Falta assistir: "${treinoLider.titulo}". Assista e confirme em Treinamento.`,
         href: '/portal/treinamento',
         urgente: false,
         acaoLabel: 'Assistir agora →',

@@ -59,8 +59,6 @@ export function QuintaTreinosPanel({
   intro,
   className = '',
 }: Props) {
-  if (!ehQuinta) return null;
-
   const temColab = Boolean(treinoColaborador?.embed_url || treinoColaborador?.resumo);
   const temLider = Boolean(treinoLider?.embed_url || treinoLider?.resumo);
   if (!temColab && !temLider) return null;

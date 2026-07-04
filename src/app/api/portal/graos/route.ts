@@ -150,7 +150,7 @@ export async function GET(req: Request) {
         graos_semana_ganhos: resumo.graos_semana_ganhos,
         aviso_quinta: ehQuinta
           ? null
-          : 'Toda quinta-feira tem treino rápido no portal. Concluindo, você ganha +5 Grãos extras (até 40 na semana).',
+          : 'O treino da semana continua disponível para assistir. Na próxima quinta, conclua para ganhar +5 Grãos.',
         eh_quinta: ehQuinta,
         quinta_treino: quintaTreino,
         treinos_quinta: verTodosTreinos ? treinosQuinta ?? resolverParTreinosQuinta(origin) : null,

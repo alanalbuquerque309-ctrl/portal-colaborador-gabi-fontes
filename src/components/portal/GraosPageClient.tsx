@@ -387,29 +387,22 @@ export function GraosPageClient() {
             </div>
           )}
 
-          {data.eh_quinta && !modoVisualizacao && (
+          {data.quinta_treino?.embed_url && !modoVisualizacao && (
             <div className="rounded-xl border-2 border-dourado-400 bg-white p-4 space-y-3">
               <p className="font-semibold text-cafeteria-900">⭐ {termoQuinta}</p>
 
-              {data.quinta_treino?.embed_url ? (
-                <QuintaTreinoEmbed
-                  embedUrl={data.quinta_treino.embed_url}
-                  titulo={data.quinta_treino.titulo}
-                  resumo={data.quinta_treino.resumo}
-                  apresentador={data.quinta_treino.apresentador}
-                  formato={data.quinta_treino.formato}
-                />
-              ) : (
-                <p className="text-sm text-cafeteria-700 leading-relaxed">
-                  {data.quinta_treino?.resumo ??
-                    'Treino rápido: trate bem quem entra na loja e confira o cardápio do dia.'}
-                </p>
-              )}
+              <QuintaTreinoEmbed
+                embedUrl={data.quinta_treino.embed_url}
+                titulo={data.quinta_treino.titulo}
+                resumo={data.quinta_treino.resumo}
+                apresentador={data.quinta_treino.apresentador}
+                formato={data.quinta_treino.formato}
+              />
 
               {(data.missoes ?? []).find((m) => m.id === 'quinta')?.status === 'feito_confirmado' ||
               (data.missoes ?? []).find((m) => m.id === 'quinta')?.status === 'feito_pendente' ? (
                 <p className="text-sm font-medium text-emerald-800">✅ Treino desta quinta já concluído.</p>
-              ) : (
+              ) : data.eh_quinta ? (
                 <>
                   <label className="flex items-start gap-2 text-sm text-cafeteria-800 cursor-pointer">
                     <input
@@ -429,6 +422,10 @@ export function GraosPageClient() {
                     {quintaLoading ? 'Salvando…' : `Concluir treino (+5 ${graosCurto})`}
                   </button>
                 </>
+              ) : (
+                <p className="text-sm text-amber-800">
+                  O prazo para ganhar {graosCurto} com este treino encerrou na quinta-feira. Você ainda pode assistir ao vídeo.
+                </p>
               )}
             </div>
           )}

@@ -127,7 +127,7 @@ export function QuintaTreinoLiderBanner() {
 
 
 
-  if (!data?.ok || !data.eh_quinta) return null;
+  if (!data?.ok) return null;
 
 
 

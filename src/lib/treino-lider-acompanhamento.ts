@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { extrairYoutubeVideoId, QUINTA_VIDEO_LIDERES_PADRAO } from '@/lib/graos/quinta-treino';
+import { inicioCicloTreinoQuintaUtcIsoSp } from '@/lib/semana-brasil';
 
 function envLimpo(valor: string | undefined | null): string {
   const v = String(valor ?? '').trim();
@@ -16,6 +17,10 @@ export function treinoLiderVideoIdAtual(): string | null {
   return extrairYoutubeVideoId(urlRaw);
 }
 
+/**
+ * Verifica se o líder concluiu o treino do ciclo vigente.
+ * Conclusões de ciclos anteriores (mesmo vídeo reutilizado) não contam.
+ */
 export async function liderConcluiuTreinoAtual(
   supabase: SupabaseClient,
   colaboradorId: string
@@ -23,11 +28,14 @@ export async function liderConcluiuTreinoAtual(
   const videoId = treinoLiderVideoIdAtual();
   if (!videoId) return true;
 
+  const cicloUtc = inicioCicloTreinoQuintaUtcIsoSp();
+
   const { data, error } = await supabase
     .from('treino_lider_conclusoes')
     .select('id')
     .eq('colaborador_id', colaboradorId)
     .eq('video_youtube_id', videoId)
+    .gte('concluido_em', cicloUtc)
     .maybeSingle();
 
   if (error) {

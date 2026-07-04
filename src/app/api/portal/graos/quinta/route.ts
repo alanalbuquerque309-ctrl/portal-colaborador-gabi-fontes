@@ -27,7 +27,7 @@ export async function POST() {
 
   if (!ehQuintaSaoPaulo()) {
     return NextResponse.json(
-      { ok: false, erro: 'Quinta do café disponível apenas na quinta-feira (horário de São Paulo).' },
+      { ok: false, erro: 'O prazo para concluir o treino e ganhar Grãos encerrou na quinta-feira. Você ainda pode assistir ao vídeo.' },
       { status: 403, headers: NO_STORE }
     );
   }
