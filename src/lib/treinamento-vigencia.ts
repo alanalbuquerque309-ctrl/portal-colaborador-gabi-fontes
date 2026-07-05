@@ -1,4 +1,4 @@
-import { inicioCicloTreinoQuintaUtcIsoSp } from '@/lib/semana-brasil';
+import { inicioCicloTreinoQuintaUtcIsoSp, rotuloCicloTreinoQuinta } from '@/lib/semana-brasil';
 import type { PublicoAvisoKey } from '@/lib/avisos-publico';
 import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 
@@ -58,4 +58,22 @@ export function haTreinoTextoLiderancaVigente(rows: TreinamentoDbRow[]): boolean
 /** Há treino de texto para todos no ciclo vigente. */
 export function haTreinoTextoTodosVigente(rows: TreinamentoDbRow[]): boolean {
   return treinoTextoVigentePorPublico(rows, 'todos') !== null;
+}
+
+/** Rótulo legível da semana de publicação (ciclo quinta da data). */
+export function rotuloSemanaTreino(createdAt: string | null | undefined): string {
+  if (!createdAt) return 'Sem data';
+  const d = new Date(createdAt);
+  if (isNaN(d.getTime())) return 'Sem data';
+  const iso = d.toISOString().slice(0, 10);
+  return rotuloCicloTreinoQuinta(iso);
+}
+
+export function rotuloSemanaCurto(createdAt: string | null | undefined): string {
+  if (!createdAt) return '';
+  const d = new Date(createdAt);
+  if (isNaN(d.getTime())) return '';
+  const dia = String(d.getDate()).padStart(2, '0');
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dia}/${mes}`;
 }

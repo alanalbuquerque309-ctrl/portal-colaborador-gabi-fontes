@@ -15,6 +15,12 @@ import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { deveVerTreinoLiderancaPortal, normalizePortalRole } from '@/lib/roles';
 import { treinoLiderVideoIdAtual } from '@/lib/treino-lider-acompanhamento';
 import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
+import {
+  haTreinoTextoLiderancaVigente,
+  rotuloSemanaTreino,
+  treinamentoTextoArquivado,
+  type TreinamentoDbRow,
+} from '@/lib/treinamento-vigencia';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
 
@@ -24,8 +30,12 @@ export type ItemAcompanhamentoTreinamento = {
   origem: 'cadastro' | 'automatico';
   formato: 'video' | 'texto';
   publico_label: string;
+  publico_alvo: PublicoAvisoKey | 'colaboradores' | 'lideranca';
   exige_confirmacao: boolean;
   total_esperado: number;
+  vigente: boolean;
+  semana_rotulo: string;
+  created_at?: string | null;
   /** Ciclo da quinta: desde qual data contamos conclusões (só treinos automáticos). */
   ciclo_desde?: string | null;
   assistiram: PessoaAudiencia[];
@@ -162,7 +172,10 @@ async function montarAudienciaTreinoLider(supabase: SupabaseAdmin): Promise<Item
     origem: 'automatico',
     formato: 'video',
     publico_label: 'Liderança',
+    publico_alvo: 'lideranca',
     exige_confirmacao: true,
+    vigente: true,
+    semana_rotulo: rotuloCicloTreinoQuinta(cicloInicio),
     ciclo_desde: cicloInicio,
     total_esperado: resumo.total_esperado,
     ...classificarListas(resumo, true),
@@ -261,7 +274,10 @@ async function montarAudienciaTreinoColaboradorQuinta(
     origem: 'automatico',
     formato: 'video',
     publico_label: 'Colaboradores',
+    publico_alvo: 'colaboradores',
     exige_confirmacao: false,
+    vigente: true,
+    semana_rotulo: rotuloCicloTreinoQuinta(cicloInicio),
     ciclo_desde: cicloInicio,
     total_esperado: resumo.total_esperado,
     ...classificarListas(resumo, false),
@@ -275,6 +291,8 @@ export async function migration064TreinamentoPendente(supabase: SupabaseAdmin): 
 
 export type AcompanhamentoTreinamentosResultado = {
   itens: ItemAcompanhamentoTreinamento[];
+  vigentes: ItemAcompanhamentoTreinamento[];
+  anteriores: ItemAcompanhamentoTreinamento[];
   ciclo_quinta_inicio: string;
   ciclo_quinta_rotulo: string;
 };
@@ -288,13 +306,13 @@ export async function montarAcompanhamentoTreinamentos(
 
   const queryFull = await supabase
     .from('treinamentos')
-    .select('id, titulo, tipo_conteudo, publico_alvo, exige_confirmacao, unidades:unidade_id(slug)')
+    .select('id, titulo, tipo_conteudo, publico_alvo, exige_confirmacao, created_at, unidades:unidade_id(slug)')
     .eq('ativo', true)
     .order('ordem', { ascending: true })
     .order('created_at', { ascending: false });
 
   const query =
-    queryFull.error && /tipo_conteudo|schema cache/i.test(queryFull.error.message)
+    queryFull.error && /tipo_conteudo|created_at|schema cache/i.test(queryFull.error.message)
       ? await supabase
           .from('treinamentos')
           .select('id, titulo, publico_alvo, exige_confirmacao, unidades:unidade_id(slug)')
@@ -303,14 +321,37 @@ export async function montarAcompanhamentoTreinamentos(
           .order('created_at', { ascending: false })
       : queryFull;
 
+  const rowsDb: TreinamentoDbRow[] = [];
+
   if (!query.error) {
     const rows = (query.data ?? []) as Record<string, unknown>[];
+    for (const row of rows) {
+      rowsDb.push({
+        id: String(row.id),
+        titulo: String(row.titulo ?? ''),
+        publico_alvo: (row.publico_alvo as string | null) ?? null,
+        tipo_conteudo: (row as { tipo_conteudo?: string }).tipo_conteudo ?? null,
+        created_at: String(row.created_at ?? ''),
+        ativo: true,
+      });
+    }
+
     for (const row of rows) {
       const id = String(row.id);
       const audiencia = await montarAudienciaTreinamento(supabase, id);
       const unidade = row.unidades as { slug?: string } | null;
       const publico = resolverPublicoAviso(row.publico_alvo as string | null, unidade?.slug ?? null);
       const tipo = normalizarTipoConteudo((row as { tipo_conteudo?: string }).tipo_conteudo);
+      const created_at = (row.created_at as string | null) ?? null;
+      const dbRow: TreinamentoDbRow = {
+        id,
+        titulo: String(row.titulo ?? ''),
+        publico_alvo: (row.publico_alvo as string | null) ?? null,
+        tipo_conteudo: (row as { tipo_conteudo?: string }).tipo_conteudo ?? null,
+        created_at: String(created_at ?? ''),
+        ativo: true,
+      };
+      const arquivado = treinamentoTextoArquivado(dbRow, rowsDb);
 
       itens.push({
         id,
@@ -318,7 +359,11 @@ export async function montarAcompanhamentoTreinamentos(
         origem: 'cadastro',
         formato: tipo,
         publico_label: labelPublicoAviso(publico as PublicoAvisoKey),
+        publico_alvo: publico as PublicoAvisoKey,
         exige_confirmacao: audiencia.exige_confirmacao,
+        vigente: !arquivado,
+        semana_rotulo: rotuloSemanaTreino(created_at),
+        created_at,
         total_esperado: audiencia.total_esperado,
         ...classificarListas(audiencia, audiencia.exige_confirmacao),
       });
@@ -328,10 +373,15 @@ export async function montarAcompanhamentoTreinamentos(
   const quintaColab = await montarAudienciaTreinoColaboradorQuinta(supabase);
   if (quintaColab) itens.push(quintaColab);
 
-  const quintaLider = await montarAudienciaTreinoLider(supabase);
-  if (quintaLider) itens.push(quintaLider);
+  if (!haTreinoTextoLiderancaVigente(rowsDb)) {
+    const quintaLider = await montarAudienciaTreinoLider(supabase);
+    if (quintaLider) itens.push(quintaLider);
+  }
 
-  return { itens, ciclo_quinta_inicio, ciclo_quinta_rotulo };
+  const vigentes = itens.filter((i) => i.vigente);
+  const anteriores = itens.filter((i) => !i.vigente);
+
+  return { itens, vigentes, anteriores, ciclo_quinta_inicio, ciclo_quinta_rotulo };
 }
 
 export async function registrarVisualizacaoTreinoAutomatico(

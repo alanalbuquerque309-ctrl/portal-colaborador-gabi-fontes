@@ -17,6 +17,8 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       itens: acompanhamento.itens,
+      vigentes: acompanhamento.vigentes,
+      anteriores: acompanhamento.anteriores,
       ciclo_quinta_inicio: acompanhamento.ciclo_quinta_inicio,
       ciclo_quinta_rotulo: acompanhamento.ciclo_quinta_rotulo,
       migracao_064_pendente,
