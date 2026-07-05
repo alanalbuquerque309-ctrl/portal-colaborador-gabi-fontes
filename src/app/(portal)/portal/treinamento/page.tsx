@@ -24,6 +24,7 @@ type TreinamentoItem = {
   confirmado: boolean;
   embed_url: string | null;
   created_at?: string | null;
+  arquivado?: boolean;
 };
 
 function ehUuid(id: string): boolean {
@@ -31,6 +32,7 @@ function ehUuid(id: string): boolean {
 }
 
 function ehConcluido(t: TreinamentoItem): boolean {
+  if (t.arquivado) return true;
   return t.confirmado || (!t.exige_confirmacao && t.visualizado);
 }
 

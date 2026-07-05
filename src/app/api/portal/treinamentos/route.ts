@@ -19,6 +19,11 @@ import {
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
+import {
+  haTreinoTextoLiderancaVigente,
+  treinamentoTextoArquivado,
+  type TreinamentoDbRow,
+} from '@/lib/treinamento-vigencia';
 
 async function liderConcluiuTreinoSeguro(
   supabase: ReturnType<typeof createAdminClient>,
@@ -114,9 +119,22 @@ export async function GET(req: Request) {
     }
 
     const origin = new URL(req.url).origin;
+    const rowsDb = (rows ?? []) as TreinamentoDbRow[];
     const treinamentos = listaDb.map((r) => {
       const tipoConteudo = normalizarTipoConteudo((r as { tipo_conteudo?: string }).tipo_conteudo);
       const videoId = extrairYoutubeVideoId(String(r.video_youtube_url ?? ''));
+      const arquivado = treinamentoTextoArquivado(
+        {
+          id: String(r.id),
+          publico_alvo: r.publico_alvo as string | null,
+          tipo_conteudo: (r as { tipo_conteudo?: string }).tipo_conteudo,
+          created_at: String(r.created_at),
+          ativo: true,
+        },
+        rowsDb
+      );
+      const confirmado = confMap.has(String(r.id));
+      const visualizado = visualMap.has(String(r.id));
       return {
         id: String(r.id),
         tipo: 'cadastro' as const,
@@ -128,8 +146,9 @@ export async function GET(req: Request) {
             ? String((r as { conteudo_texto?: string }).conteudo_texto)
             : null,
         exige_confirmacao: r.exige_confirmacao === true,
-        visualizado: visualMap.has(String(r.id)),
-        confirmado: confMap.has(String(r.id)),
+        visualizado: arquivado ? true : visualizado,
+        confirmado,
+        arquivado,
         embed_url: tipoConteudo === 'video' && videoId ? urlEmbedYoutubeTreino(videoId, origin) : null,
         created_at: r.created_at,
       };
@@ -160,12 +179,13 @@ export async function GET(req: Request) {
         exige_confirmacao: false,
         visualizado: true,
         confirmado: false,
+        arquivado: false,
         embed_url: quintaColaborador.embed_url,
         created_at: null,
       });
     }
 
-    if (verTreinoLider) {
+    if (verTreinoLider && !haTreinoTextoLiderancaVigente(rowsDb)) {
       const quintaLider = resolverQuintaTreino(origin, 'lider');
       const concluiuTreinoLider = await liderConcluiuTreinoSeguro(supabase, colaboradorId);
       if (quintaLider.embed_url) {
@@ -179,6 +199,7 @@ export async function GET(req: Request) {
           exige_confirmacao: true,
           visualizado: concluiuTreinoLider,
           confirmado: concluiuTreinoLider,
+          arquivado: false,
           embed_url: quintaLider.embed_url,
           created_at: null,
         });
@@ -193,8 +214,9 @@ export async function GET(req: Request) {
       descricao: 'Vídeo de cultura e boas-vindas da Gabi Fontes.',
       conteudo_texto: null,
       exige_confirmacao: false,
-      visualizado: false,
+      visualizado: true,
       confirmado: false,
+      arquivado: false,
       embed_url: null,
       created_at: null,
     });

@@ -20,6 +20,8 @@ import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { listarComunicadosPendenteConfirmacao } from '@/lib/avisos-pendencias';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 import { resolverQuintaTreino } from '@/lib/graos/quinta-treino';
+import { treinoTextoVigentePorPublico } from '@/lib/treinamento-vigencia';
+import { colaboradorRecebeAvisoPublico } from '@/lib/avisos-publico';
 import { socioIsentoObrigacoesOperacionaisPortal } from '@/lib/socios-negocio';
 
 function formatarNomes(nomes: string[], max = 3): string {
@@ -88,6 +90,39 @@ export async function montarPendenciasPortalHome(
       urgente: false,
       acaoLabel: 'Ver comunicados →',
     });
+  }
+
+  if (!isentoOperacional) {
+    const { data: treinosDb } = await supabase
+      .from('treinamentos')
+      .select('id, titulo, publico_alvo, tipo_conteudo, created_at, ativo')
+      .eq('ativo', true);
+
+    const textoTodos = treinoTextoVigentePorPublico(treinosDb ?? [], 'todos');
+    const recebeTodos = colaboradorRecebeAvisoPublico(
+      { unidade_slug: ctx.unidadeSlug ?? '', setor: ctx.setor ?? null, role: ctx.role },
+      'todos'
+    );
+
+    if (textoTodos && recebeTodos) {
+      const { data: confTodos } = await supabase
+        .from('treinamento_confirmacoes')
+        .select('id')
+        .eq('treinamento_id', textoTodos.id)
+        .eq('colaborador_id', ctx.colaboradorId)
+        .maybeSingle();
+
+      if (!confTodos) {
+        lista.push({
+          id: 'treino-semana-texto',
+          titulo: 'Ler treinamento da semana',
+          detalhe: `Falta ler e confirmar: "${textoTodos.titulo}".`,
+          href: '/portal/treinamento',
+          urgente: false,
+          acaoLabel: 'Ler agora →',
+        });
+      }
+    }
   }
 
   if (isColaborador) {
@@ -182,22 +217,49 @@ export async function montarPendenciasPortalHome(
   }
 
   if (deveVerTreinoLiderancaPortal(nr, podeEquipe) && !isentoOperacional) {
-    let concluiuTreinoLider = false;
-    try {
-      concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, ctx.colaboradorId);
-    } catch {
-      concluiuTreinoLider = false;
-    }
-    if (!concluiuTreinoLider) {
-      const treinoLider = resolverQuintaTreino(undefined, 'lider');
-      lista.push({
-        id: 'treino-lideranca',
-        titulo: 'Assistir treinamento de liderança',
-        detalhe: `Falta assistir: "${treinoLider.titulo}". Assista e confirme em Treinamento.`,
-        href: '/portal/treinamento',
-        urgente: false,
-        acaoLabel: 'Assistir agora →',
-      });
+    const { data: treinosDb } = await supabase
+      .from('treinamentos')
+      .select('id, titulo, publico_alvo, tipo_conteudo, created_at, ativo')
+      .eq('ativo', true);
+
+    const textoLider = treinoTextoVigentePorPublico(treinosDb ?? [], 'lideranca');
+
+    if (textoLider) {
+      const { data: confTexto } = await supabase
+        .from('treinamento_confirmacoes')
+        .select('id')
+        .eq('treinamento_id', textoLider.id)
+        .eq('colaborador_id', ctx.colaboradorId)
+        .maybeSingle();
+
+      if (!confTexto) {
+        lista.push({
+          id: 'treino-lideranca-texto',
+          titulo: 'Ler treinamento de liderança',
+          detalhe: `Falta ler e confirmar: "${textoLider.titulo}".`,
+          href: '/portal/treinamento',
+          urgente: false,
+          acaoLabel: 'Ler agora →',
+        });
+      }
+    } else {
+      let concluiuTreinoLider = false;
+      try {
+        concluiuTreinoLider = await liderConcluiuTreinoAtual(supabase, ctx.colaboradorId);
+      } catch {
+        concluiuTreinoLider = false;
+      }
+      if (!concluiuTreinoLider) {
+        const treinoLider = resolverQuintaTreino(undefined, 'lider');
+        lista.push({
+          id: 'treino-lideranca',
+          titulo: 'Assistir treinamento de liderança',
+          detalhe: `Falta assistir: "${treinoLider.titulo}". Assista e confirme em Treinamento.`,
+          href: '/portal/treinamento',
+          urgente: false,
+          acaoLabel: 'Assistir agora →',
+        });
+      }
     }
 
     const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, ctx.colaboradorId, ctx.unidadeId);

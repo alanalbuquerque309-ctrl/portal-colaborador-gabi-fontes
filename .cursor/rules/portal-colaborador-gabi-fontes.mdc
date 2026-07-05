@@ -58,10 +58,29 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 
 - Agregados pesados no `montarAdminDashboardResumo` têm timeout 15–20s; página abre com cards parciais se Supabase estiver lento
 
+## Treinamentos cadastrados (texto/markdown)
+
+- **Componente:** `src/components/portal/TreinamentoRichText.tsx` — renderiza markdown com `react-markdown` e renderers estilizados (identidade Gabi Fontes: títulos com borda dourada, callouts com fundo creme, separadores decorativos)
+- **Página:** `src/app/(portal)/portal/treinamento/page.tsx` — usa `TreinamentoRichText` para `tipo_conteudo === 'texto'`
+- **Gaveta de concluídos:** treinamentos já confirmados/assistidos saem da lista principal e ficam em gaveta colapsável "Treinamentos anteriores" com rótulo "Semana de DD/MM"; clicar expande para rever
+- **Público:** `publico_alvo` define quem vê; `'todos'` = colaboradores + líderes; `'lideranca'` = gerentes/masters/sócios
+- **Tracking:** `exige_confirmacao: true` rastreia quem leu via `treinamento_confirmacoes`; audiência visível em `/admin/treinamento`
+- **Quinta-colaborador (vídeo semanal):** aparece para todos com `visualizado: true` (vai direto para gaveta); líderes veem para saber o que colaboradores assistem
+- **Não confundir** com Quinta do café (grãos/ILI): treinamentos cadastrados **não** dão grãos nem afetam pontuação de líder por si só
+- **Vigência semanal (jul/2026):** `src/lib/treinamento-vigencia.ts` — só o texto do **ciclo vigente** (quinta a quarta) fica pendente; anteriores vão para gaveta (`arquivado`). Com texto de liderança vigente, o vídeo `quinta-lider` deixa de competir como pendência
+- **Audiência admin:** `/admin/treinamento` → botão audiência por item; `/admin/avisos` → audiência do aviso (confirmados / abriu / não fez)
+
 ## Commits de referência (operacional + perf)
 
 | Commit | Conteúdo |
 |--------|----------|
+| `1e2bf93` | fix: treino colaborador visível para todos, já concluído (gaveta) |
+| `ff0733d` | fix: treino de colaborador não aparece para liderança (revertido em `1e2bf93`) |
+| `c70ade5` | ux: gaveta colapsável para treinamentos concluídos |
+| `af6a1f7` | ux: fonte maior e contraste reforçado no treinamento de texto |
+| `82021e7` | feat: renderizar treinamentos de texto com markdown estilizado (react-markdown + TreinamentoRichText) |
+| `93328be` | fix: treino da quinta visível após quinta, líder com ciclo correto |
+| `683391c` | perf: reduzir bandwidth Supabase (meta abaixo 2 GB/mês) |
 | `7c7a29a` | Pendência some quando outro líder já fechou a semana |
 | `f3399f0` | Semáforo home + pendências rede; `home_office` fora de avaliação/Grãos |
 | `b5c7552` | Pendências rede: não descartar avaliação válida na janela de cobrança |
@@ -88,6 +107,10 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 
 | Área | Caminhos |
 |------|----------|
+| Treinamento (página) | `src/app/(portal)/portal/treinamento/page.tsx` |
+| Treinamento (rich text) | `src/components/portal/TreinamentoRichText.tsx` |
+| Treinamento (API portal) | `src/app/api/portal/treinamentos/route.ts` |
+| Treinamento (API admin) | `src/app/api/admin/treinamentos/route.ts` |
 | Dashboard pacote | `src/app/api/admin/dashboard-resumo/route.ts`, `src/lib/admin-dashboard-resumo.ts` |
 | Cache | `src/lib/cache/servidor-operacional.ts` |
 | Home | `src/app/api/portal/home-resumo/route.ts`, `src/components/portal/home/PortalHomeEntrada.tsx` |
