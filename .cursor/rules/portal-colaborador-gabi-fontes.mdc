@@ -116,17 +116,54 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 
 ## Elogios da equipe (portal)
 
-- **Rede inteira:** feed em `/api/portal/sugestoes` (`tipo = elogio`), sem filtro por unidade
-- **Prazo:** semana de publicação + semana seguinte (some na **segunda** após a publicação, ex. publicado semana 29/06 → até 13/07); ver `elogioVisivelNoPrazoRede` em `src/lib/elogios-vigencia.ts`
-- **Por pessoa:** botão «Marcar como lido» → `elogio_leituras` (migration **066**); some só para quem marcou
-- **Admin «Marcar como visto»** (`visualizado_em` em `sugestoes_reclamacoes`) = fila interna da gestão; **não** esconde do mural da equipe
-- **Componentes:** `ElogioFeedItem.tsx`, `SugestoesEquipeHome.tsx`, `POST /api/portal/sugestoes/[id]/marcar-lido`
-- **Futuro (ideia):** elogio de cliente em rede social com print/imagem — tipo separado ou destaque admin, não misturar com elogio interno de colega
+### Fluxo vigente (jul/2026, commits `8e7abe6` + `f5624c3`)
+
+| Camada | Comportamento |
+|--------|----------------|
+| **Feed rede** | Todos os colaboradores logados veem elogios de **todas as unidades** (`GET /api/portal/sugestoes`, `tipo = elogio`, sem `unidade_id`) |
+| **Autor** | Nome · setor · unidade (`LinhaAutorElogio.tsx`, `mapaAutoresElogio` na API); anônimo só se `anonimo: true` (elogio interno não permite anônimo no POST) |
+| **Prazo máximo** | Semana da publicação + **semana seguinte inteira**; some na **segunda** após a publicação (`elogioVisivelNoPrazoRede`, `segundaExpiracaoElogioRede` em `src/lib/elogios-vigencia.ts`). Ex.: publicado semana 29/06 → visível até segunda **13/07** |
+| **Por pessoa** | Botão **«Marcar como lido»** (`ElogioFeedItem.tsx`) → `POST /api/portal/sugestoes/[id]/marcar-lido` → tabela **`elogio_leituras`** (migration **066**). Some **só para quem clicou** |
+| **Admin** | «Marcar como visto» em `/admin/sugestoes` grava `visualizado_em` em `sugestoes_reclamacoes` = **fila interna da gestão**; **não** remove do mural da equipe |
+
+### Banco (migration 066 — aplicar no SQL Editor Supabase)
+
+```sql
+CREATE TABLE IF NOT EXISTS elogio_leituras (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  sugestao_id uuid NOT NULL REFERENCES sugestoes_reclamacoes(id) ON DELETE CASCADE,
+  colaborador_id uuid NOT NULL REFERENCES colaboradores(id) ON DELETE CASCADE,
+  lido_em timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (sugestao_id, colaborador_id)
+);
+CREATE INDEX IF NOT EXISTS idx_elogio_leituras_colaborador ON elogio_leituras(colaborador_id);
+CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(sugestao_id);
+```
+
+- Script local (se `DATABASE_URL` no `.env.local`): `node scripts/aplicar-migration-066.mjs`
+- Arquivo: `supabase/migrations/066_elogio_leituras.sql`
+
+### UI
+
+- **Home:** `SugestoesEquipeHome.tsx` — até 3 elogios não lidos + marcar como lido
+- **Página:** `/portal/sugestoes` — seção «Elogios da rede»
+- **Sugestões/reclamações:** continuam por unidade e só gestão vê feed de terceiros
+
+### Próximo passo discutido (não implementado): elogio de cliente em rede social
+
+- **Tipo separado** de elogio interno de colega (ex. «Destaque do cliente»)
+- **Cadastro admin/sócio:** upload print (Instagram, Google, iFood…) + legenda + colaborador/unidade mencionados
+- **Exibição:** card com **imagem em destaque** na home, selo visual diferente
+- **Mesma lógica de leitura:** rede inteira, marcar como lido, prazo semanal
+- **Não misturar** com `tipo = elogio` atual em `sugestoes_reclamacoes`
 
 ## Commits de referência (operacional + perf)
 
 | Commit | Conteúdo |
 |--------|----------|
+| `f5624c3` | elogios: marcar como lido por pessoa + prazo 2 semanas + migration 066 |
+| `8e7abe6` | elogios: rede inteira + setor/unidade do autor |
+| `cb1e9ff` | avisos treino alinhados ao ciclo quinta + norma atualizada |
 | `190afc4` | ux: aba Treinamento em 3 blocos, histórico honesto, painel gestão vigentes/anteriores + filtros |
 | `fcb2e0b` | fix: vigência semanal texto + quinta-lider oculto com texto liderança vigente |
 | `1e2bf93` | fix: treino colaborador visível para todos, já concluído (gaveta) |
@@ -156,7 +193,14 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 2. Novo pacote por tela pesada > espalhar fetches no cliente
 3. Cache: preferir **memória TTL** ou Redis futuro; evitar `unstable_cache` em APIs autenticadas dinâmicas
 4. Commit/push **só no repo do Portal**; não misturar WIP local (Tenant SaaS 2.5, scripts `diag-*`, migration `062` não aplicada) com commits operacionais
-5. `DATABASE_URL` pode não existir no `.env.local` (só URL + service role)
+5. `DATABASE_URL` pode não existir no `.env.local` (só URL + service role); migration **066** elogios = colar SQL no Supabase SQL Editor
+
+## Handoff rápido (jul/2026)
+
+- **Treinamento:** textos vigentes «Você lembra…» (`todos`) + «O Papel da Liderança» (`lideranca`); painel gestão em `/portal/treinamento` (sócios fora da meta colaboradores)
+- **Elogios:** 2 da Letícia Fernandes na rede até 13/07; cada um marca «lido» individualmente; migration 066 aplicada no Supabase
+- **Pendente produto:** destaque elogio cliente rede social (print + imagem) — ver secção Elogios acima
+- **Produção:** `main` em `portal-colaborador-gabi-fontes`, deploy Vercel automático
 
 ## Arquivos-chave
 
@@ -171,6 +215,10 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 | Treinamento (API admin) | `src/app/api/admin/treinamentos/route.ts` |
 | Avisos (vigência mural) | `src/lib/avisos-vigencia.ts`, `src/app/api/portal/avisos/route.ts` |
 | Diag treinamentos | `scripts/diag-treinamentos-audiencia.mjs` |
+| Elogios (vigência) | `src/lib/elogios-vigencia.ts` |
+| Elogios (UI/API) | `ElogioFeedItem.tsx`, `LinhaAutorElogio.tsx`, `SugestoesEquipeHome.tsx`, `api/portal/sugestoes`, `api/portal/sugestoes/[id]/marcar-lido` |
+| Elogios (DB) | `supabase/migrations/066_elogio_leituras.sql`, `scripts/aplicar-migration-066.mjs` |
+| Sugestões admin | `src/app/(admin)/admin/sugestoes/page.tsx` |
 | Dashboard pacote | `src/app/api/admin/dashboard-resumo/route.ts`, `src/lib/admin-dashboard-resumo.ts` |
 | Cache | `src/lib/cache/servidor-operacional.ts` |
 | Home | `src/app/api/portal/home-resumo/route.ts`, `src/components/portal/home/PortalHomeEntrada.tsx` |
