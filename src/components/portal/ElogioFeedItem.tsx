@@ -12,6 +12,7 @@ export type ElogioFeedItemData = {
   autor_setor?: string | null;
   autor_unidade?: string | null;
   anonimo?: boolean;
+  lido_por_mim?: boolean;
 };
 
 type Props = {
@@ -23,8 +24,10 @@ type Props = {
 export function ElogioFeedItem({ item, compacto, onMarcadoLido }: Props) {
   const [marcando, setMarcando] = useState(false);
   const expira = rotuloExpiracaoElogio(item.created_at);
+  const jaLido = item.lido_por_mim === true;
 
   const marcarLido = async () => {
+    if (jaLido) return;
     setMarcando(true);
     try {
       const res = await fetch(`/api/portal/sugestoes/${item.id}/marcar-lido`, {
@@ -42,8 +45,14 @@ export function ElogioFeedItem({ item, compacto, onMarcadoLido }: Props) {
     <li
       className={
         compacto
-          ? 'rounded-xl border border-portal-action/15 bg-white/80 px-3.5 py-3 text-sm'
-          : 'rounded-lg border border-emerald-200 bg-white/90 p-3 flex flex-col gap-2'
+          ? `rounded-xl border px-3.5 py-3 text-sm ${
+              jaLido
+                ? 'border-cafeteria-200/80 bg-cafeteria-50/80 opacity-90'
+                : 'border-portal-action/15 bg-white/80'
+            }`
+          : `rounded-lg border p-3 flex flex-col gap-2 ${
+              jaLido ? 'border-cafeteria-200 bg-cafeteria-50/80' : 'border-emerald-200 bg-white/90'
+            }`
       }
     >
       <p
@@ -71,14 +80,18 @@ export function ElogioFeedItem({ item, compacto, onMarcadoLido }: Props) {
         ) : (
           <span />
         )}
-        <button
-          type="button"
-          onClick={() => void marcarLido()}
-          disabled={marcando}
-          className="text-xs font-medium rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 px-3 py-1.5 min-h-[32px] hover:bg-emerald-100 disabled:opacity-50"
-        >
-          {marcando ? 'Salvando…' : 'Marcar como lido'}
-        </button>
+        {jaLido ? (
+          <span className="text-xs font-medium text-cafeteria-500">Já visto por você</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void marcarLido()}
+            disabled={marcando}
+            className="text-xs font-medium rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 px-3 py-1.5 min-h-[32px] hover:bg-emerald-100 disabled:opacity-50"
+          >
+            {marcando ? 'Salvando…' : 'Marcar como lido'}
+          </button>
+        )}
       </div>
     </li>
   );

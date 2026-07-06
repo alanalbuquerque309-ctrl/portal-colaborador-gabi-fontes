@@ -51,7 +51,11 @@ async function mapaAutoresElogio(
 }
 
 /** GET: Minhas mensagens + feed de sugestões da unidade (para curtir). */
-export async function GET() {
+export async function GET(req: Request) {
+  const elogiosVigentesRede =
+    new URL(req.url).searchParams.get('elogios_vigentes') === '1' ||
+    new URL(req.url).searchParams.get('elogios_vigentes') === 'true';
+
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
   const unidadeId = cookieStore.get('portal_unidade_id')?.value;
@@ -120,6 +124,7 @@ export async function GET() {
       anonimo: boolean;
       curtiu: boolean;
       tipo: string;
+      lido_por_mim?: boolean;
     }> = [];
 
     let feed_sugestoes: Array<{
@@ -173,26 +178,29 @@ export async function GET() {
           }
         }
 
-        const feedPendentes = feedRaw.filter((r: { id: string }) => !lidosSet.has(String(r.id)));
+        const feedLista = elogiosVigentesRede
+          ? feedRaw
+          : feedRaw.filter((r: { id: string }) => !lidosSet.has(String(r.id)));
 
         const autoresFeed = await mapaAutoresElogio(
           supabase,
-          feedPendentes.map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
+          feedLista.map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
         );
         const { data: minhasCurtidas } = await supabase
           .from('sugestao_curtidas')
           .select('sugestao_id')
           .eq('colaborador_id', colaboradorId)
-          .in('sugestao_id', feedPendentes.map((r: { id: string }) => r.id));
+          .in('sugestao_id', feedLista.map((r: { id: string }) => r.id));
 
         const curtiuSet = new Set((minhasCurtidas ?? []).map((c) => c.sugestao_id));
 
-        feed = feedPendentes.map((r: Record<string, unknown>) => {
+        feed = feedLista.map((r: Record<string, unknown>) => {
           const anon = r.anonimo === true;
           const cid = r.colaborador_id ? String(r.colaborador_id) : '';
           const autorDb = cid ? autoresFeed.get(cid) : undefined;
+          const id = String(r.id ?? '');
           return {
-            id: String(r.id ?? ''),
+            id,
             texto: String(r.texto ?? ''),
             created_at: String(r.created_at ?? ''),
             curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
@@ -200,10 +208,20 @@ export async function GET() {
             autor_setor: anon ? null : autorDb?.setor ?? null,
             autor_unidade: anon ? null : autorDb?.unidade_nome ?? null,
             anonimo: anon,
-            curtiu: curtiuSet.has(String(r.id)),
+            curtiu: curtiuSet.has(id),
             tipo: 'elogio',
+            ...(elogiosVigentesRede ? { lido_por_mim: lidosSet.has(id) } : {}),
           };
         });
+
+        if (elogiosVigentesRede) {
+          feed.sort((a, b) => {
+            const la = a.lido_por_mim === true ? 1 : 0;
+            const lb = b.lido_por_mim === true ? 1 : 0;
+            if (la !== lb) return la - lb;
+            return String(b.created_at).localeCompare(String(a.created_at));
+          });
+        }
       }
     }
 
