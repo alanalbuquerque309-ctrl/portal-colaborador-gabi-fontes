@@ -7,6 +7,7 @@ import { getPortalSession } from '@/lib/utils/session';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
+import { LinhaAutorElogio } from '@/components/portal/LinhaAutorElogio';
 import { emitSugestoesAtualizado } from '@/lib/sugestoes-events';
 import { mensagemRespostaColaborador, MENSAGEM_SUGESTAO_SEM_GRAOS } from '@/lib/sugestao-resposta-graos';
 import { getTermoCurto } from '@/lib/tenant/terminology';
@@ -31,6 +32,9 @@ interface FeedItem {
   created_at: string;
   curtidas: number;
   autor: string;
+  autor_setor?: string | null;
+  autor_unidade?: string | null;
+  anonimo?: boolean;
   curtiu: boolean;
   tipo?: string;
 }
@@ -229,7 +233,7 @@ export default function SugestoesPage() {
                 {podeReclamacao && tipo === 'reclamacao'
                   ? 'Canal confidencial para administração, RH e sócios. Reclamações podem ser anônimas.'
                   : tipo === 'elogio'
-                    ? 'Reconheça colegas, líderes ou a operação. Elogios são visíveis para toda a unidade.'
+                    ? 'Reconheça colegas, líderes ou a operação. Elogios são visíveis para toda a rede nesta semana.'
                     : 'Compartilhe ideias para melhorar a operação. Sugestões de colegas são visíveis só para a gestão.'}
               </p>
             </div>
@@ -448,16 +452,16 @@ export default function SugestoesPage() {
         )}
 
         <PortalBalaoCard tom="creme" ramoCanto="direita" className="max-w-xl p-5">
-          <h2 className="text-lg font-semibold text-cafeteria-800 mb-2">Elogios da unidade</h2>
+          <h2 className="text-lg font-semibold text-cafeteria-800 mb-2">Elogios da rede</h2>
           <p className="text-sm text-coffee-100 mb-3">
-            Reconhecimentos públicos da mesma unidade. Sugestões e reclamações ficam restritas à gestão.
+            Reconhecimentos públicos de todas as unidades nesta semana (até domingo). Sugestões e reclamações ficam restritas à gestão.
           </p>
           {carregandoMural ? (
             <div className="flex justify-center py-6">
               <XicaraCarregando size="sm" label="Carregando…" />
             </div>
           ) : feed.length === 0 ? (
-            <p className="text-sm text-coffee-100">Nenhum elogio para exibir aqui.</p>
+            <p className="text-sm text-coffee-100">Nenhum elogio nesta semana.</p>
           ) : (
             <ul className="space-y-3">
               {feed.map((f) => (
@@ -468,7 +472,13 @@ export default function SugestoesPage() {
                   <p className="text-coffee-base text-sm whitespace-pre-wrap break-words">{f.texto}</p>
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-coffee-100">
                     <span>
-                      <span className="text-emerald-800 font-medium">Elogio · </span>— {f.autor}
+                      <span className="text-emerald-800 font-medium">Elogio · </span>
+                      <LinhaAutorElogio
+                        anonimo={f.anonimo === true}
+                        autor={f.autor}
+                        autor_setor={f.autor_setor ?? null}
+                        autor_unidade={f.autor_unidade ?? null}
+                      />
                     </span>
                     <span>{new Date(f.created_at).toLocaleString('pt-BR')}</span>
                   </div>

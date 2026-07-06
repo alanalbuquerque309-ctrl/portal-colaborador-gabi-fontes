@@ -3,8 +3,15 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
+import { elogioVisivelNaSemanaCivil } from '@/lib/elogios-vigencia';
 
 const TIPOS = ['sugestao', 'reclamacao', 'elogio'] as const;
+
+type AutorElogioDb = {
+  nome: string;
+  setor: string | null;
+  unidade_nome: string | null;
+};
 
 async function mapaNomesColaboradores(
   supabase: ReturnType<typeof createAdminClient>,
@@ -16,6 +23,29 @@ async function mapaNomesColaboradores(
   const { data } = await supabase.from('colaboradores').select('id, nome').in('id', unicos);
   for (const c of data ?? []) {
     map.set(String((c as { id: string }).id), String((c as { nome?: string }).nome ?? ''));
+  }
+  return map;
+}
+
+async function mapaAutoresElogio(
+  supabase: ReturnType<typeof createAdminClient>,
+  ids: string[]
+): Promise<Map<string, AutorElogioDb>> {
+  const map = new Map<string, AutorElogioDb>();
+  const unicos = Array.from(new Set(ids.filter(Boolean)));
+  if (unicos.length === 0) return map;
+  const { data } = await supabase
+    .from('colaboradores')
+    .select('id, nome, setor, unidades(nome)')
+    .in('id', unicos);
+  for (const c of data ?? []) {
+    const un = (c as { unidades?: { nome?: string } | { nome?: string }[] | null }).unidades;
+    const u = Array.isArray(un) ? un[0] : un;
+    map.set(String((c as { id: string }).id), {
+      nome: String((c as { nome?: string }).nome ?? ''),
+      setor: ((c as { setor?: string | null }).setor as string | null) ?? null,
+      unidade_nome: u?.nome ? String(u.nome) : null,
+    });
   }
   return map;
 }
@@ -85,6 +115,9 @@ export async function GET() {
       created_at: string;
       curtidas: number;
       autor: string;
+      autor_setor: string | null;
+      autor_unidade: string | null;
+      anonimo: boolean;
       curtiu: boolean;
       tipo: string;
     }> = [];
@@ -113,18 +146,21 @@ export async function GET() {
     const meuRole = normalizePortalRole((perfil as { role?: string } | null)?.role);
     const gestaoVeSugestoesReclamacoes = podeGerirSugestoesReclamacoes(meuRole);
 
-    if (unidadeId) {
-      const { data: feedRaw, error: errFeed } = await supabase
-        .from('sugestoes_reclamacoes')
-        .select('id, texto, created_at, curtidas, colaborador_id, anonimo, tipo')
-        .eq('unidade_id', unidadeId)
-        .eq('tipo', 'elogio')
-        .order('created_at', { ascending: false })
-        .limit(30);
+    const { data: feedElogiosRaw, error: errFeedElogios } = await supabase
+      .from('sugestoes_reclamacoes')
+      .select('id, texto, created_at, curtidas, colaborador_id, anonimo, tipo')
+      .eq('tipo', 'elogio')
+      .order('created_at', { ascending: false })
+      .limit(80);
 
-      if (!errFeed && feedRaw?.length) {
+    if (!errFeedElogios && feedElogiosRaw?.length) {
+      const feedRaw = feedElogiosRaw.filter((r: { created_at?: string }) =>
+        elogioVisivelNaSemanaCivil(r.created_at)
+      );
+
+      if (feedRaw.length > 0) {
         const ids = feedRaw.map((r: { id: string }) => r.id);
-        const nomesFeed = await mapaNomesColaboradores(
+        const autoresFeed = await mapaAutoresElogio(
           supabase,
           feedRaw.map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
         );
@@ -137,21 +173,26 @@ export async function GET() {
         const curtiuSet = new Set((minhasCurtidas ?? []).map((c) => c.sugestao_id));
 
         feed = feedRaw.map((r: Record<string, unknown>) => {
-          const tipoFeed = String(r.tipo ?? 'sugestao');
+          const anon = r.anonimo === true;
           const cid = r.colaborador_id ? String(r.colaborador_id) : '';
-          const nome = cid ? nomesFeed.get(cid) : undefined;
+          const autorDb = cid ? autoresFeed.get(cid) : undefined;
           return {
             id: String(r.id ?? ''),
             texto: String(r.texto ?? ''),
             created_at: String(r.created_at ?? ''),
             curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
-            autor: nome?.trim() || 'Colega',
+            autor: anon ? 'Anônimo' : autorDb?.nome?.trim() || 'Colega',
+            autor_setor: anon ? null : autorDb?.setor ?? null,
+            autor_unidade: anon ? null : autorDb?.unidade_nome ?? null,
+            anonimo: anon,
             curtiu: curtiuSet.has(String(r.id)),
-            tipo: tipoFeed,
+            tipo: 'elogio',
           };
         });
       }
+    }
 
+    if (unidadeId) {
       if (gestaoVeSugestoesReclamacoes) {
         const { data: sugRaw } = await supabase
           .from('sugestoes_reclamacoes')

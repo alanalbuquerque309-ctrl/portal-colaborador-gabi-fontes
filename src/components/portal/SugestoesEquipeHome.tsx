@@ -5,16 +5,20 @@ import { useCallback, useEffect, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
+import { LinhaAutorElogio } from '@/components/portal/LinhaAutorElogio';
 
 type FeedElogio = {
   id: string;
   texto: string;
   created_at: string;
   autor: string;
+  autor_setor?: string | null;
+  autor_unidade?: string | null;
+  anonimo?: boolean;
   tipo?: string;
 };
 
-/** Balão na home: elogios públicos da unidade. */
+/** Balão na home: elogios públicos da rede (semana civil vigente). */
 export function SugestoesEquipeHome() {
   const [loading, setLoading] = useState(true);
   const [feed, setFeed] = useState<FeedElogio[]>([]);
@@ -40,7 +44,7 @@ export function SugestoesEquipeHome() {
         <div className="min-w-0">
           <h2 className="text-lg font-display font-semibold text-cafeteria-900">Elogios da equipe</h2>
           <p className="text-sm text-cafeteria-600 mt-0.5 leading-relaxed">
-            Reconhecimentos públicos da sua unidade. Sugestões e reclamações são tratadas pela gestão.
+            Reconhecimentos públicos de todas as unidades nesta semana. Sugestões e reclamações são tratadas pela gestão.
           </p>
         </div>
         <IlustracaoMegafone className="w-20 h-16 shrink-0 opacity-90" />
@@ -52,7 +56,7 @@ export function SugestoesEquipeHome() {
         </div>
       ) : feed.length === 0 ? (
         <p className="text-sm text-cafeteria-600 mb-4 rounded-xl bg-white/70 border border-portal-action/15 px-4 py-3">
-          Ainda não há elogios publicados na unidade. Seja o primeiro a reconhecer um colega.
+          Ainda não há elogios publicados nesta semana. Seja o primeiro a reconhecer um colega.
         </p>
       ) : (
         <ul className="space-y-2.5 mb-4">
@@ -64,7 +68,13 @@ export function SugestoesEquipeHome() {
               <p className="text-cafeteria-800 leading-snug line-clamp-3 whitespace-pre-wrap">{f.texto}</p>
               <div className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-cafeteria-600">
                 <span>
-                  <span className="text-emerald-800 font-medium">Elogio · </span>— {f.autor}
+                  <span className="text-emerald-800 font-medium">Elogio · </span>
+                  <LinhaAutorElogio
+                    anonimo={f.anonimo === true}
+                    autor={f.autor}
+                    autor_setor={f.autor_setor ?? null}
+                    autor_unidade={f.autor_unidade ?? null}
+                  />
                 </span>
                 <span>{new Date(f.created_at).toLocaleString('pt-BR')}</span>
               </div>
