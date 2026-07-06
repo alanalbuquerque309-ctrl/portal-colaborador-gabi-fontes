@@ -5,7 +5,7 @@ import {
   colaboradorRecebeAvisoPublico,
   resolverPublicoAviso,
 } from '@/lib/avisos-publico';
-import { avisoVisivelNaSemanaAtual } from '@/lib/avisos-vigencia';
+import { avisoVisivelNoPortal } from '@/lib/avisos-vigencia';
 
 const SELECT_AVISOS =
   'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, publico_alvo, unidades(slug)';
@@ -64,7 +64,7 @@ export async function GET() {
     }
 
     let avisos = avisosRows.filter((a: Record<string, unknown>) =>
-      avisoVisivelNaSemanaAtual(a.data_publicacao as string | null | undefined)
+      avisoVisivelNoPortal(a.data_publicacao as string | null | undefined)
     );
 
     if (!verTodasLojas) {

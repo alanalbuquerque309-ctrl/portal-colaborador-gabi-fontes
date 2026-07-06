@@ -319,6 +319,9 @@ export function TreinamentoAcompanhamentoGestao() {
             ) : (
               <span className="font-semibold text-emerald-700"> Semana em dia.</span>
             )}
+            <span className="block text-xs text-cafeteria-600 mt-1">
+              Treino «Todos» não conta sócios/admin na meta. Confirmações de teste da gestão não entram nesse total.
+            </span>
           </p>
         </div>
         <button

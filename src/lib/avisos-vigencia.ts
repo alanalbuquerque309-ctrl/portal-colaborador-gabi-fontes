@@ -1,4 +1,4 @@
-import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { inicioCicloTreinoQuintaIsoSp, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 
 /** Segunda-feira (SP) da semana em que o aviso foi publicado. */
 export function semanaPublicacaoAviso(dataPublicacao: string | null | undefined): string | null {
@@ -20,4 +20,19 @@ export function avisoVisivelNaSemanaAtual(
   const semanaAviso = semanaPublicacaoAviso(dataPublicacao);
   if (!semanaAviso) return false;
   return semanaAviso === segundaSemanaSaoPaulo(ref);
+}
+
+/**
+ * Aviso visível no mural: semana civil da publicação OU mesmo ciclo quinta (qui–qua).
+ * Evita sumir na segunda-feira enquanto o treino da semana ainda está vigente.
+ */
+export function avisoVisivelNoPortal(
+  dataPublicacao: string | null | undefined,
+  ref: Date = new Date()
+): boolean {
+  if (avisoVisivelNaSemanaAtual(dataPublicacao, ref)) return true;
+  if (!dataPublicacao) return false;
+  const d = new Date(String(dataPublicacao));
+  if (Number.isNaN(d.getTime())) return false;
+  return inicioCicloTreinoQuintaIsoSp(d) === inicioCicloTreinoQuintaIsoSp(ref);
 }

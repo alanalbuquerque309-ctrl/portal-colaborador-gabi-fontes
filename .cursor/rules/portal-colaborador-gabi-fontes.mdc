@@ -60,20 +60,66 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 
 ## Treinamentos cadastrados (texto/markdown)
 
-- **Componente:** `src/components/portal/TreinamentoRichText.tsx` — renderiza markdown com `react-markdown` e renderers estilizados (identidade Gabi Fontes: títulos com borda dourada, callouts com fundo creme, separadores decorativos)
-- **Página:** `src/app/(portal)/portal/treinamento/page.tsx` — usa `TreinamentoRichText` para `tipo_conteudo === 'texto'`
-- **Gaveta de concluídos:** treinamentos já confirmados/assistidos saem da lista principal e ficam em gaveta colapsável "Treinamentos anteriores" com rótulo "Semana de DD/MM"; clicar expande para rever
-- **Público:** `publico_alvo` define quem vê; `'todos'` = colaboradores + líderes; `'lideranca'` = gerentes/masters/sócios
-- **Tracking:** `exige_confirmacao: true` rastreia quem leu via `treinamento_confirmacoes`; audiência visível em `/admin/treinamento`
-- **Quinta-colaborador (vídeo semanal):** aparece para todos com `visualizado: true` (vai direto para gaveta); líderes veem para saber o que colaboradores assistem
-- **Não confundir** com Quinta do café (grãos/ILI): treinamentos cadastrados **não** dão grãos nem afetam pontuação de líder por si só
-- **Vigência semanal (jul/2026):** `src/lib/treinamento-vigencia.ts` — só o texto do **ciclo vigente** (quinta a quarta) fica pendente; anteriores vão para gaveta (`arquivado`). Com texto de liderança vigente, o vídeo `quinta-lider` deixa de competir como pendência
-- **Audiência admin:** `/admin/treinamento` → botão audiência por item; `/admin/avisos` → audiência do aviso (confirmados / abriu / não fez)
+### Renderização e conteúdo
+
+- **Componente:** `src/components/portal/TreinamentoRichText.tsx` — markdown com `react-markdown` (identidade Gabi Fontes)
+- **Página:** `src/app/(portal)/portal/treinamento/page.tsx` — layout em **3 blocos** (jul/2026, commit `190afc4`)
+- **Helpers UX:** `src/lib/treinamento-portal-ux.ts` — categorização, status honesto, progresso só da semana vigente
+- **Subcomponentes:** `TreinamentoStatusChip.tsx`, `TreinamentoItemConteudo.tsx`
+
+### Layout da aba Treinamento (cada colaborador vê só o seu)
+
+| Bloco | O que entra | Status |
+|-------|-------------|--------|
+| **Treinamento desta semana** | Itens `!arquivado`, exceto extras (`video-institutional`, `quinta-colaborador`) | Chip real: Pendente / Visualizou não confirmou / Concluído ✓ |
+| **Treinamentos anteriores** | Textos `arquivado` (ciclos passados) | **Status honesto** — arquivado **não** mascara como concluído; mostra «Não concluiu» se não confirmou |
+| **Outros materiais** | Vídeo institucional, `quinta-colaborador` (referência) | Fora da barra de progresso da semana |
+
+- Barra de progresso conta **apenas** o bloco «esta semana»
+- Admin/RH/sócios: painel extra no fim da página (`TreinamentoAcompanhamentoGestao.tsx`)
+
+### Público-alvo (quem vê o quê)
+
+- **`publico_alvo: 'todos'`** → toda a operação (colaboradores + líderes que recebem aviso `todos`); **sócios também veem e podem confirmar** na página, mas **não entram na meta** do painel de gestão
+- **`publico_alvo: 'lideranca'`** → gerentes, masters e sócios (`roleRecebeAvisoLideranca` em `avisos-publico.ts`); admin de rede **não** recebe
+- Filtro na API portal: `colaboradorRecebeAvisoPublico` em `src/app/api/portal/treinamentos/route.ts`
+- **Exemplo validado (jul/2026):** colaborador vê só «Você lembra…»; gerente vê os dois textos vigentes
+
+### Vigência semanal (ciclo quinta)
+
+- **Lib:** `src/lib/treinamento-vigencia.ts`
+- Só o texto do **ciclo vigente** (quinta a quarta) fica pendente; anteriores vão para gaveta (`arquivado: true`)
+- Com texto de liderança vigente, vídeo `quinta-lider` **não** compete como pendência
+- `video-institutional` e `quinta-colaborador` são extras (não entram na semana vigente)
+- Pendências home: `treinoTextoVigentePorPublico` em `portal-pendencias-home.ts`
+
+### Acompanhamento gestão (admin, RH, sócios)
+
+- **API:** `GET /api/portal/treinamentos/acompanhamento` — retorna `vigentes`, `anteriores`, `ciclo_quinta_rotulo`
+- **Lib:** `src/lib/treinamento-acompanhamento.ts` — audiência por `montarAudienciaTreinamento`; exclui `admin`; exclui **sócios** da meta de treino `todos`
+- **UI:** `TreinamentoAcompanhamentoGestao.tsx` — filtros **Todos | Colaboradores | Liderança**; cards com contagem de pendentes em destaque; «esta semana» vs «semanas anteriores» (histórico colapsável)
+- **Nota no painel:** confirmações de teste da gestão (sócio) não entram no total de colaboradores em treino `todos`
+- **Admin cadastro:** `/admin/treinamento` → audiência por item; `/admin/avisos` → audiência do aviso
+
+### Avisos sobre treinamento (mural)
+
+- Avisos ativos jul/2026: «TREINAMENTO» (`lideranca`), «TREINAMENTO DE EQUIPE» (`todos`) — ambos `exige_confirmacao: true`
+- **Vigência mural:** `avisoVisivelNoPortal` em `src/lib/avisos-vigencia.ts` — visível na **semana civil** da publicação **ou** no **mesmo ciclo quinta** (evita sumir na segunda-feira enquanto o treino ainda está vigente até quarta)
+- Usado em `src/app/api/portal/avisos/route.ts`
+- Pendências de aviso (`avisos-pendencias.ts`) seguem público-alvo; não confundir confirmação de **aviso** com confirmação de **treinamento** (tabelas diferentes)
+
+### Tracking e grãos
+
+- `exige_confirmacao: true` → `treinamento_visualizacoes` + `treinamento_confirmacoes`
+- Treinamentos cadastrados **não** dão grãos nem ILI (diferente da Quinta do café)
+- **Diag operacional:** `node scripts/diag-treinamentos-audiencia.mjs` — treinos vigentes, audiência, confirmações, visibilidade de avisos, números do painel gestão
 
 ## Commits de referência (operacional + perf)
 
 | Commit | Conteúdo |
 |--------|----------|
+| `190afc4` | ux: aba Treinamento em 3 blocos, histórico honesto, painel gestão vigentes/anteriores + filtros |
+| `fcb2e0b` | fix: vigência semanal texto + quinta-lider oculto com texto liderança vigente |
 | `1e2bf93` | fix: treino colaborador visível para todos, já concluído (gaveta) |
 | `ff0733d` | fix: treino de colaborador não aparece para liderança (revertido em `1e2bf93`) |
 | `c70ade5` | ux: gaveta colapsável para treinamentos concluídos |
@@ -108,9 +154,14 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 | Área | Caminhos |
 |------|----------|
 | Treinamento (página) | `src/app/(portal)/portal/treinamento/page.tsx` |
+| Treinamento (UX/helpers) | `src/lib/treinamento-portal-ux.ts`, `TreinamentoStatusChip.tsx`, `TreinamentoItemConteudo.tsx` |
+| Treinamento (vigência) | `src/lib/treinamento-vigencia.ts` |
+| Treinamento (acompanhamento) | `src/lib/treinamento-acompanhamento.ts`, `TreinamentoAcompanhamentoGestao.tsx`, `api/portal/treinamentos/acompanhamento` |
 | Treinamento (rich text) | `src/components/portal/TreinamentoRichText.tsx` |
 | Treinamento (API portal) | `src/app/api/portal/treinamentos/route.ts` |
 | Treinamento (API admin) | `src/app/api/admin/treinamentos/route.ts` |
+| Avisos (vigência mural) | `src/lib/avisos-vigencia.ts`, `src/app/api/portal/avisos/route.ts` |
+| Diag treinamentos | `scripts/diag-treinamentos-audiencia.mjs` |
 | Dashboard pacote | `src/app/api/admin/dashboard-resumo/route.ts`, `src/lib/admin-dashboard-resumo.ts` |
 | Cache | `src/lib/cache/servidor-operacional.ts` |
 | Home | `src/app/api/portal/home-resumo/route.ts`, `src/components/portal/home/PortalHomeEntrada.tsx` |
