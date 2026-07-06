@@ -48,7 +48,7 @@ export function ElogioFeedItem({ item, compacto, onMarcadoLido }: Props) {
     >
       <p
         className={`text-coffee-base whitespace-pre-wrap break-words ${
-          compacto ? 'text-cafeteria-800 leading-snug line-clamp-3' : 'text-sm'
+          compacto ? 'text-cafeteria-800 leading-relaxed' : 'text-sm'
         }`}
       >
         {item.texto}

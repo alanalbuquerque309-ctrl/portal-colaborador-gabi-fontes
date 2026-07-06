@@ -18,7 +18,7 @@ export function SugestoesEquipeHome() {
       .then((r) => r.json())
       .then((d: { ok?: boolean; feed?: ElogioFeedItemData[] }) => {
         if (d.ok && Array.isArray(d.feed)) {
-          setFeed(d.feed.slice(0, 3));
+          setFeed(d.feed.slice(0, 2));
         } else {
           setFeed([]);
         }

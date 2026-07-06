@@ -9,7 +9,6 @@ import { EmocionalAlertasGestao } from '@/components/emocional/EmocionalAlertasG
 import { PortalRodapeFrase } from '@/components/portal/vivo/PortalRodapeFrase';
 import { PortalHomeEntrada } from '@/components/portal/home/PortalHomeEntrada';
 import { PortalHomeSecaoAdiada } from '@/components/portal/PortalHomeSecaoAdiada';
-import { PortalDetalhesLazyMount } from '@/components/portal/PortalDetalhesLazyMount';
 import { PortalHomeGrupo } from '@/components/portal/home/PortalHomeGrupo';
 
 export default function PortalHomePage() {
@@ -29,41 +28,9 @@ export default function PortalHomePage() {
           <PortalHomeSecaoAdiada minHeight="10rem">
             <DestaqueSection />
           </PortalHomeSecaoAdiada>
-          <section className="rounded-2xl border border-portal-action/20 bg-gradient-to-br from-portal-actionLight/40 via-white to-cream-50 overflow-hidden shadow-sm">
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 hover:bg-portal-actionLight/40 transition-colors [&::-webkit-details-marker]:hidden">
-                <div className="flex items-center gap-3">
-                  <span
-                    aria-hidden
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-portal-actionLight text-portal-action text-xl"
-                  >
-                    💡
-                  </span>
-                  <div>
-                    <h2 className="text-lg font-display font-semibold text-cafeteria-900">Sugestões da equipe</h2>
-                    <p className="text-sm text-cafeteria-600 mt-0.5">Ideias dos colegas. Toque para ver e enviar.</p>
-                  </div>
-                </div>
-                <svg
-                  className="w-5 h-5 shrink-0 text-portal-action transition-transform group-open:rotate-180"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.25a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </summary>
-              <div className="px-3 pb-3 pt-1">
-                <PortalDetalhesLazyMount>
-                  <SugestoesEquipeHome />
-                </PortalDetalhesLazyMount>
-              </div>
-            </details>
-          </section>
+          <PortalHomeSecaoAdiada minHeight="8rem">
+            <SugestoesEquipeHome />
+          </PortalHomeSecaoAdiada>
         </PortalHomeGrupo>
 
         <PortalHomeGrupo titulo="Mais informações" subtitulo="Acesso rápido e materiais oficiais." cor="oceano" icone="livro">
