@@ -114,6 +114,15 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 - Treinamentos cadastrados **não** dão grãos nem ILI (diferente da Quinta do café)
 - **Diag operacional:** `node scripts/diag-treinamentos-audiencia.mjs` — treinos vigentes, audiência, confirmações, visibilidade de avisos, números do painel gestão
 
+## Elogios da equipe (portal)
+
+- **Rede inteira:** feed em `/api/portal/sugestoes` (`tipo = elogio`), sem filtro por unidade
+- **Prazo:** semana de publicação + semana seguinte (some na **segunda** após a publicação, ex. publicado semana 29/06 → até 13/07); ver `elogioVisivelNoPrazoRede` em `src/lib/elogios-vigencia.ts`
+- **Por pessoa:** botão «Marcar como lido» → `elogio_leituras` (migration **066**); some só para quem marcou
+- **Admin «Marcar como visto»** (`visualizado_em` em `sugestoes_reclamacoes`) = fila interna da gestão; **não** esconde do mural da equipe
+- **Componentes:** `ElogioFeedItem.tsx`, `SugestoesEquipeHome.tsx`, `POST /api/portal/sugestoes/[id]/marcar-lido`
+- **Futuro (ideia):** elogio de cliente em rede social com print/imagem — tipo separado ou destaque admin, não misturar com elogio interno de colega
+
 ## Commits de referência (operacional + perf)
 
 | Commit | Conteúdo |

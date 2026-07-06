@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
-import { elogioVisivelNaSemanaCivil } from '@/lib/elogios-vigencia';
+import { elogioVisivelNoPrazoRede } from '@/lib/elogios-vigencia';
 
 const TIPOS = ['sugestao', 'reclamacao', 'elogio'] as const;
 
@@ -155,24 +155,39 @@ export async function GET() {
 
     if (!errFeedElogios && feedElogiosRaw?.length) {
       const feedRaw = feedElogiosRaw.filter((r: { created_at?: string }) =>
-        elogioVisivelNaSemanaCivil(r.created_at)
+        elogioVisivelNoPrazoRede(r.created_at)
       );
 
       if (feedRaw.length > 0) {
         const ids = feedRaw.map((r: { id: string }) => r.id);
+        const lidosSet = new Set<string>();
+        const { data: lidos, error: errLidos } = await supabase
+          .from('elogio_leituras')
+          .select('sugestao_id')
+          .eq('colaborador_id', colaboradorId)
+          .in('sugestao_id', ids);
+
+        if (!errLidos) {
+          for (const row of lidos ?? []) {
+            lidosSet.add(String(row.sugestao_id));
+          }
+        }
+
+        const feedPendentes = feedRaw.filter((r: { id: string }) => !lidosSet.has(String(r.id)));
+
         const autoresFeed = await mapaAutoresElogio(
           supabase,
-          feedRaw.map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
+          feedPendentes.map((r: { colaborador_id?: string | null }) => String(r.colaborador_id ?? ''))
         );
         const { data: minhasCurtidas } = await supabase
           .from('sugestao_curtidas')
           .select('sugestao_id')
           .eq('colaborador_id', colaboradorId)
-          .in('sugestao_id', ids);
+          .in('sugestao_id', feedPendentes.map((r: { id: string }) => r.id));
 
         const curtiuSet = new Set((minhasCurtidas ?? []).map((c) => c.sugestao_id));
 
-        feed = feedRaw.map((r: Record<string, unknown>) => {
+        feed = feedPendentes.map((r: Record<string, unknown>) => {
           const anon = r.anonimo === true;
           const cid = r.colaborador_id ? String(r.colaborador_id) : '';
           const autorDb = cid ? autoresFeed.get(cid) : undefined;

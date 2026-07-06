@@ -2,33 +2,25 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { ElogioFeedItem, type ElogioFeedItemData } from '@/components/portal/ElogioFeedItem';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalBalaoCard } from '@/components/portal/vivo/PortalBalaoCard';
 import { IlustracaoMegafone } from '@/components/portal/vivo/PortalIlustracao';
-import { LinhaAutorElogio } from '@/components/portal/LinhaAutorElogio';
 
-type FeedElogio = {
-  id: string;
-  texto: string;
-  created_at: string;
-  autor: string;
-  autor_setor?: string | null;
-  autor_unidade?: string | null;
-  anonimo?: boolean;
-  tipo?: string;
-};
-
-/** Balão na home: elogios públicos da rede (semana civil vigente). */
+/** Balão na home: elogios da rede ainda não lidos pelo colaborador. */
 export function SugestoesEquipeHome() {
   const [loading, setLoading] = useState(true);
-  const [feed, setFeed] = useState<FeedElogio[]>([]);
+  const [feed, setFeed] = useState<ElogioFeedItemData[]>([]);
 
   const carregar = useCallback(() => {
+    setLoading(true);
     fetch('/api/portal/sugestoes', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((d: { ok?: boolean; feed?: FeedElogio[] }) => {
+      .then((d: { ok?: boolean; feed?: ElogioFeedItemData[] }) => {
         if (d.ok && Array.isArray(d.feed)) {
           setFeed(d.feed.slice(0, 3));
+        } else {
+          setFeed([]);
         }
       })
       .finally(() => setLoading(false));
@@ -38,13 +30,18 @@ export function SugestoesEquipeHome() {
     carregar();
   }, [carregar]);
 
+  const removerDoFeed = (id: string) => {
+    setFeed((prev) => prev.filter((f) => f.id !== id));
+  };
+
   return (
     <PortalBalaoCard tom="verde" ramoCanto="direita" className="p-5 sm:p-6">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="min-w-0">
           <h2 className="text-lg font-display font-semibold text-cafeteria-900">Elogios da equipe</h2>
           <p className="text-sm text-cafeteria-600 mt-0.5 leading-relaxed">
-            Reconhecimentos públicos de todas as unidades nesta semana. Sugestões e reclamações são tratadas pela gestão.
+            Reconhecimentos de todas as unidades. Marque como lido quando vir; somem na segunda seguinte se ainda
+            estiverem no ar.
           </p>
         </div>
         <IlustracaoMegafone className="w-20 h-16 shrink-0 opacity-90" />
@@ -56,29 +53,12 @@ export function SugestoesEquipeHome() {
         </div>
       ) : feed.length === 0 ? (
         <p className="text-sm text-cafeteria-600 mb-4 rounded-xl bg-white/70 border border-portal-action/15 px-4 py-3">
-          Ainda não há elogios publicados nesta semana. Seja o primeiro a reconhecer um colega.
+          Nenhum elogio novo para você no momento. Quando surgir um, aparece aqui até marcar como lido.
         </p>
       ) : (
         <ul className="space-y-2.5 mb-4">
           {feed.map((f) => (
-            <li
-              key={f.id}
-              className="rounded-xl border border-portal-action/15 bg-white/80 px-3.5 py-3 text-sm"
-            >
-              <p className="text-cafeteria-800 leading-snug line-clamp-3 whitespace-pre-wrap">{f.texto}</p>
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-2 text-xs text-cafeteria-600">
-                <span>
-                  <span className="text-emerald-800 font-medium">Elogio · </span>
-                  <LinhaAutorElogio
-                    anonimo={f.anonimo === true}
-                    autor={f.autor}
-                    autor_setor={f.autor_setor ?? null}
-                    autor_unidade={f.autor_unidade ?? null}
-                  />
-                </span>
-                <span>{new Date(f.created_at).toLocaleString('pt-BR')}</span>
-              </div>
-            </li>
+            <ElogioFeedItem key={f.id} item={f} compacto onMarcadoLido={removerDoFeed} />
           ))}
         </ul>
       )}
