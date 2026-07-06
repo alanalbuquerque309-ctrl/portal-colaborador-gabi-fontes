@@ -1,0 +1,156 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { ChecklistRegistro, ChecklistRespostasPayload, ChecklistTurno, ChecklistTipo } from '@/lib/checklists/types';
+import { templateChecklistPorTipo, todosIdsItens } from '@/lib/checklists/templates';
+
+export function normalizarRespostas(
+  templateTipo: ChecklistTipo,
+  bruto: unknown
+): ChecklistRespostasPayload {
+  const template = templateChecklistPorTipo(templateTipo);
+  const ids = template ? new Set(todosIdsItens(template)) : new Set<string>();
+  const src = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {};
+  const itensSrc =
+    src.itens && typeof src.itens === 'object' ? (src.itens as Record<string, unknown>) : {};
+  const itens: Record<string, boolean> = {};
+  for (const id of Array.from(ids)) {
+    itens[id] = itensSrc[id] === true;
+  }
+  const notas_secoes: Record<string, string> = {};
+  if (src.notas_secoes && typeof src.notas_secoes === 'object') {
+    for (const [k, v] of Object.entries(src.notas_secoes as Record<string, unknown>)) {
+      if (typeof v === 'string' && v.trim()) notas_secoes[k] = v.trim();
+    }
+  }
+  const out: ChecklistRespostasPayload = { itens, notas_secoes };
+  if (typeof src.setor === 'string' && src.setor.trim()) out.setor = src.setor.trim();
+  if (typeof src.temperatura_geladeira === 'string' && src.temperatura_geladeira.trim()) {
+    out.temperatura_geladeira = src.temperatura_geladeira.trim();
+  }
+  return out;
+}
+
+type RowDb = {
+  id: string;
+  unidade_id: string;
+  tipo: string;
+  turno: string;
+  dia_semana: number;
+  colaborador_id: string;
+  respostas: unknown;
+  observacoes: string | null;
+  preenchido_em: string;
+  updated_at: string;
+  unidades?: { nome?: string; slug?: string } | { nome?: string; slug?: string }[] | null;
+  colaboradores?: { nome?: string } | { nome?: string }[] | null;
+};
+
+function mapRow(row: RowDb): ChecklistRegistro {
+  const u = row.unidades;
+  const unidade = Array.isArray(u) ? u[0] : u;
+  const c = row.colaboradores;
+  const colab = Array.isArray(c) ? c[0] : c;
+  return {
+    id: row.id,
+    unidade_id: row.unidade_id,
+    unidade_nome: unidade?.nome ? String(unidade.nome) : undefined,
+    unidade_slug: unidade?.slug ? String(unidade.slug) : undefined,
+    tipo: row.tipo as ChecklistTipo,
+    turno: row.turno as ChecklistTurno,
+    dia_semana: Number(row.dia_semana),
+    colaborador_id: row.colaborador_id,
+    colaborador_nome: colab?.nome ? String(colab.nome) : undefined,
+    respostas: normalizarRespostas(row.tipo as ChecklistTipo, row.respostas),
+    observacoes: row.observacoes,
+    preenchido_em: String(row.preenchido_em),
+    updated_at: String(row.updated_at),
+  };
+}
+
+export async function buscarChecklistSlot(
+  supabase: SupabaseClient,
+  opts: {
+    unidadeId: string;
+    tipo: ChecklistTipo;
+    turno: ChecklistTurno;
+    diaSemana: number;
+  }
+): Promise<ChecklistRegistro | null> {
+  const { data, error } = await supabase
+    .from('checklists_operacionais')
+    .select(
+      'id, unidade_id, tipo, turno, dia_semana, colaborador_id, respostas, observacoes, preenchido_em, updated_at, unidades(nome, slug), colaboradores(nome)'
+    )
+    .eq('unidade_id', opts.unidadeId)
+    .eq('tipo', opts.tipo)
+    .eq('turno', opts.turno)
+    .eq('dia_semana', opts.diaSemana)
+    .maybeSingle();
+
+  if (error) {
+    if (error.message.toLowerCase().includes('does not exist')) return null;
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+  return mapRow(data as RowDb);
+}
+
+export async function salvarChecklistSlot(
+  supabase: SupabaseClient,
+  opts: {
+    unidadeId: string;
+    tipo: ChecklistTipo;
+    turno: ChecklistTurno;
+    diaSemana: number;
+    colaboradorId: string;
+    respostas: ChecklistRespostasPayload;
+    observacoes: string | null;
+  }
+): Promise<ChecklistRegistro> {
+  const agora = new Date().toISOString();
+  const payload = {
+    unidade_id: opts.unidadeId,
+    tipo: opts.tipo,
+    turno: opts.turno,
+    dia_semana: opts.diaSemana,
+    colaborador_id: opts.colaboradorId,
+    respostas: opts.respostas,
+    observacoes: opts.observacoes,
+    preenchido_em: agora,
+    updated_at: agora,
+  };
+
+  const { data, error } = await supabase
+    .from('checklists_operacionais')
+    .upsert(payload, { onConflict: 'unidade_id,tipo,turno,dia_semana' })
+    .select(
+      'id, unidade_id, tipo, turno, dia_semana, colaborador_id, respostas, observacoes, preenchido_em, updated_at, unidades(nome, slug), colaboradores(nome)'
+    )
+    .single();
+
+  if (error) throw new Error(error.message);
+  return mapRow(data as RowDb);
+}
+
+export async function listarChecklistsSemana(
+  supabase: SupabaseClient,
+  opts: { unidadeId?: string | null; tipo?: string | null }
+): Promise<ChecklistRegistro[]> {
+  let q = supabase
+    .from('checklists_operacionais')
+    .select(
+      'id, unidade_id, tipo, turno, dia_semana, colaborador_id, respostas, observacoes, preenchido_em, updated_at, unidades(nome, slug), colaboradores(nome)'
+    )
+    .order('dia_semana', { ascending: true })
+    .order('tipo', { ascending: true })
+    .order('turno', { ascending: true });
+
+  if (opts.unidadeId) q = q.eq('unidade_id', opts.unidadeId);
+  if (opts.tipo) q = q.eq('tipo', opts.tipo);
+
+  const { data, error } = await q;
+  if (error) {
+    if (error.message.toLowerCase().includes('does not exist')) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []).map((row) => mapRow(row as RowDb));
+}

@@ -23,6 +23,7 @@ export default function AdminLayout({
   const [menuNav, setMenuNav] = useState<{ href: string; label: string }[]>([]);
   const [podeVerGorjeta, setPodeVerGorjeta] = useState(false);
   const [podeGerirSugestoes, setPodeGerirSugestoes] = useState(false);
+  const [podeVerChecklistsRede, setPodeVerChecklistsRede] = useState(false);
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [pendenciasSemana, setPendenciasSemana] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -33,6 +34,7 @@ export default function AdminLayout({
     gorjeta?: boolean;
     auditoria?: boolean;
     sugestoesGestao?: boolean;
+    checklistsRede?: boolean;
   };
 
   const navGrupos: { titulo: string; itens: NavItemAdmin[] }[] = [
@@ -75,6 +77,7 @@ export default function AdminLayout({
     {
       titulo: 'Gestão',
       itens: [
+        { href: '/admin/checklists', label: 'Checklists operacionais', checklistsRede: true },
         { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
         { href: '/admin/auditoria', label: 'Auditoria', auditoria: true },
         { href: '/admin/tenant-espelho', label: 'Tenant (espelho)', auditoria: true },
@@ -107,6 +110,7 @@ export default function AdminLayout({
           podeVerBonificacao?: boolean;
           podeVerAuditoria?: boolean;
           podeGerirSugestoes?: boolean;
+          podeVerChecklistsRede?: boolean;
         };
         setAuthorized(d.ok === true);
         const rh = d.acesso_limitado_rh === true;
@@ -118,12 +122,15 @@ export default function AdminLayout({
           const podeGorjeta = d.podeVerGorjeta === true || d.podeVerBonificacao === true;
           const podeSugestoes = d.podeGerirSugestoes === true;
           const podeAud = d.podeVerAuditoria === true;
+          const podeChecklists = d.podeVerChecklistsRede === true;
           setPodeGerirSugestoes(podeSugestoes);
+          setPodeVerChecklistsRede(podeChecklists);
           setMenuNav(
             navCompleto.filter((i) => {
               if (i.gorjeta && !podeGorjeta) return false;
               if (i.auditoria && !podeAud) return false;
               if (i.sugestoesGestao && !podeSugestoes) return false;
+              if (i.checklistsRede && !podeChecklists) return false;
               return true;
             })
           );

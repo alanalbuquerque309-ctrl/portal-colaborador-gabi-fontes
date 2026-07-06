@@ -32,7 +32,7 @@ type NavItem = {
   href: string;
   label: string;
   short: string;
-  icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia' | 'graos' | 'treinamento';
+  icon: 'mural' | 'escala' | 'sugestoes' | 'comunicacao' | 'manuais' | 'perfil' | 'meu-manual' | 'avaliacao' | 'desempenho' | 'familia' | 'graos' | 'treinamento' | 'checklist';
 };
 
 function dedupeNavPorHref(items: NavItem[]): NavItem[] {
@@ -55,6 +55,9 @@ function navAtivo(pathname: string | null | undefined, href: string): boolean {
   }
   if (href === '/portal/treinamento') {
     return p === href || p.startsWith('/portal/treinamento/');
+  }
+  if (href === '/portal/checklists') {
+    return p === href || p.startsWith('/portal/checklists/');
   }
   if (href === '/portal/comunicacao') {
     return (
@@ -162,6 +165,12 @@ function NavIcon({ type }: { type: string }) {
           <ellipse cx="16" cy="11" rx="3" ry="5" opacity="0.65" />
         </svg>
       );
+    case 'checklist':
+      return (
+        <svg className={base} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -194,6 +203,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [perfilRoleLocal, setPerfilRoleLocal] = useState<string | null>(null);
   const [colaboradorIdNav, setColaboradorIdNav] = useState<string | null>(null);
   const [mostrarGraosNav, setMostrarGraosNav] = useState(false);
+  const [mostrarChecklistsNav, setMostrarChecklistsNav] = useState(false);
   const [graosSaldo, setGraosSaldo] = useState<number | null>(null);
   const [maisAberto, setMaisAberto] = useState(false);
 
@@ -303,6 +313,25 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
       cancel = true;
     };
   }, [perfilCarregado, roleNav, colaboradorIdEfetivo, pathname]);
+
+  useEffect(() => {
+    if (!perfilCarregado) {
+      setMostrarChecklistsNav(false);
+      return;
+    }
+    let cancel = false;
+    fetch('/api/portal/checklists', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean }) => {
+        if (!cancel) setMostrarChecklistsNav(d.ok === true);
+      })
+      .catch(() => {
+        if (!cancel) setMostrarChecklistsNav(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [perfilCarregado, roleNav, pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -473,6 +502,13 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     icon: 'graos',
   };
 
+  const itemChecklists: NavItem = {
+    href: '/portal/checklists',
+    label: 'Checklists',
+    short: 'Checklist',
+    icon: 'checklist',
+  };
+
   const injetarGraos = (items: NavItem[]): NavItem[] => {
     if (!mostrarGraosNav || items.some((i) => i.href === '/portal/graos')) return items;
     const idx = items.findIndex((i) => i.href === '/portal');
@@ -493,7 +529,15 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     return [...items.slice(0, at), itemTreinamento, ...items.slice(at)];
   };
 
-  const navMobile: NavItem[] = injetarTreinamento(injetarGraos(
+  const injetarChecklists = (items: NavItem[]): NavItem[] => {
+    if (!mostrarChecklistsNav || items.some((i) => i.href === '/portal/checklists')) return items;
+    const idx = items.findIndex((i) => i.href === '/portal/treinamento');
+    const at = idx >= 0 ? idx + 1 : items.findIndex((i) => i.href === '/portal') + 1;
+    if (at <= 0) return [itemChecklists, ...items];
+    return [...items.slice(0, at), itemChecklists, ...items.slice(at)];
+  };
+
+  const navMobile: NavItem[] = injetarChecklists(injetarTreinamento(injetarGraos(
     isAdm
     ? [
         { href: '/portal', label: 'Início', short: 'Início', icon: 'mural' },
@@ -532,7 +576,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
           itemComunicacao,
           { href: '/portal/perfil', label: 'Meu perfil', short: 'Perfil', icon: 'perfil' },
         ]
-  ));
+  )));
 
   const navDesktop: NavItem[] = dedupeNavPorHref([
     ...navMobile.filter((i) => i.href !== '/portal/perfil' && i.href !== '/portal/comunicacao'),

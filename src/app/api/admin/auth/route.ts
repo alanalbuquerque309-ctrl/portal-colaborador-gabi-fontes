@@ -13,6 +13,8 @@ import {
   podeVerDetalheNotasAvaliacaoAdmin,
 } from '@/lib/admin-access';
 
+import { podeVerHistoricoChecklistsRede } from '@/lib/checklists/access';
+
 import { resolveColaboradorForAdminBridge } from '@/lib/admin-portal-bridge';
 
 import { parseManterLogado } from '@/lib/portal-login-persist';
@@ -189,6 +191,9 @@ export async function GET() {
     podeVerBonificacao: podeGorjeta,
 
     podeVerAuditoria: podeVerAuditoria(role, senhaAdmin),
+
+    podeVerChecklistsRede:
+      senhaAdmin || (role != null && podeVerHistoricoChecklistsRede(role)),
 
   });
 
