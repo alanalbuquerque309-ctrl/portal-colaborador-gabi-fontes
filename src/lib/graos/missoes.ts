@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { GRAOS_MISSAO, GRAOS_MAX_SEMANA, GRAOS_SUGESTAO_MAX_SEMANA, type GraosMissaoId } from '@/lib/graos/constants';
+import { graosCongelado } from '@/lib/graos/congelado';
 import { calcularElegibilidadeSemanaComUi } from '@/lib/graos/elegibilidade';
 import {
   calcularSaldoGraos,
@@ -48,6 +49,7 @@ export async function sincronizarMissoesSemanaGraos(
   semanaInicio: string,
   opts?: { creditarLogin?: boolean }
 ): Promise<void> {
+  if (graosCongelado()) return;
   if (!semanaVigenteParaGraos(semanaInicio)) return;
 
   await deduplicarLoginSemanaColaborador(supabase, colaboradorId);

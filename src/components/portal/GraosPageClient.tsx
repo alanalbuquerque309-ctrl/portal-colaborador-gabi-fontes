@@ -50,6 +50,8 @@ type LinhaGestao = {
 type ResumoGraos = {
   ok: boolean;
   erro?: string;
+  congelado?: boolean;
+  congelado_mensagem?: string | null;
   modo_gestao?: boolean;
   apenas_visualizacao?: boolean;
   colaborador_id?: string;
@@ -86,6 +88,15 @@ type ResumoGraos = {
 };
 
 type CarrinhoLinha = { catalogo_id: string; nome: string; graos: number; qtd: number };
+
+function AvisoGraosCongelados({ mensagem }: { mensagem: string }) {
+  return (
+    <div className="rounded-xl border border-sky-300 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+      <p className="font-semibold">❄️ Programa pausado</p>
+      <p className="mt-1 leading-relaxed">{mensagem}</p>
+    </div>
+  );
+}
 
 export function GraosPageClient() {
   const termoReconhecimento = getTermo('reconhecimento');
@@ -194,6 +205,10 @@ export function GraosPageClient() {
     100,
     Math.round(((data.graos_semana_ganhos ?? 0) / (data.graos_semana_possivel ?? 40)) * 100)
   );
+  const congelado = data.congelado === true;
+  const mensagemCongelado =
+    data.congelado_mensagem?.trim() ||
+    'Grãos temporariamente congelados. Em breve voltaremos. Seu saldo está guardado.';
   const modoVisualizacao = data.apenas_visualizacao === true;
   const listaGestao = data.modo_gestao === true && !colaboradorGestaoId && (data.colaboradores?.length ?? 0) > 0;
 
@@ -225,6 +240,8 @@ export function GraosPageClient() {
             <IlustracaoGraos className="w-24 h-16 shrink-0" />
           </div>
         </header>
+
+        {congelado && <AvisoGraosCongelados mensagem={mensagemCongelado} />}
 
         <input
           type="search"
@@ -331,9 +348,13 @@ export function GraosPageClient() {
           {data.nivel?.emoji} {data.nivel?.label}
         </p>
         <p className="text-xs text-cafeteria-600 pt-1">
-          Participe → junte → troque na cafeteria Gabi Fontes
+          {congelado
+            ? 'Seu saldo fica guardado até o programa voltar.'
+            : 'Participe → junte → troque na cafeteria Gabi Fontes'}
         </p>
       </header>
+
+      {congelado && <AvisoGraosCongelados mensagem={mensagemCongelado} />}
 
       {data.resgate_sair_cedo && !modoVisualizacao && (
         <div
@@ -419,7 +440,11 @@ export function GraosPageClient() {
                     onClick={() => void concluirQuinta()}
                     className="w-full rounded-xl bg-cafeteria-800 text-cream-50 py-3 font-semibold min-h-[48px] disabled:opacity-50"
                   >
-                    {quintaLoading ? 'Salvando…' : `Concluir treino (+5 ${graosCurto})`}
+                    {quintaLoading
+                      ? 'Salvando…'
+                      : congelado
+                        ? 'Concluir treino'
+                        : `Concluir treino (+5 ${graosCurto})`}
                   </button>
                 </>
               ) : (
@@ -430,6 +455,7 @@ export function GraosPageClient() {
             </div>
           )}
 
+          {!congelado && (
           <section className="rounded-xl border border-cafeteria-200 bg-white p-4 space-y-3">
             <div className="flex justify-between text-sm font-medium text-cafeteria-800">
               <span>Suas missões desta semana</span>
@@ -470,8 +496,14 @@ export function GraosPageClient() {
               ))}
             </ul>
           </section>
+          )}
 
           {!modoVisualizacao && (
+            congelado ? (
+              <div className="w-full rounded-2xl border border-cafeteria-200 bg-cafeteria-50 text-cafeteria-700 text-center text-sm font-medium py-4 min-h-[56px] flex items-center justify-center px-4">
+                Resgates pausados enquanto o programa está congelado.
+              </div>
+            ) : (
             <button
               type="button"
               disabled={saldoConfirmado <= 0}
@@ -480,6 +512,7 @@ export function GraosPageClient() {
             >
               Usar grãos
             </button>
+            )
           )}
 
           {modoVisualizacao && (data.catalogo ?? []).length > 0 && (
@@ -511,6 +544,10 @@ export function GraosPageClient() {
           <button type="button" onClick={() => setModo('home')} className="text-sm text-cafeteria-700">
             ← Voltar
           </button>
+          {congelado ? (
+            <AvisoGraosCongelados mensagem={mensagemCongelado} />
+          ) : (
+        <>
           <p className="font-semibold text-cafeteria-900">Escolha os itens</p>
           <p className="text-sm text-cafeteria-600">Saldo confirmado: {saldoConfirmado} {graosCurto}</p>
           <ul className="space-y-2">
@@ -575,6 +612,8 @@ export function GraosPageClient() {
             </div>
           )}
           {msgResgate && <p className="text-red-800 text-sm">{msgResgate}</p>}
+        </>
+          )}
         </div>
       )}
 

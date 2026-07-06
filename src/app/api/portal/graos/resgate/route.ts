@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { buscarItensCatalogoGraosPorIds, complementoCentavosResgate } from '@/lib/graos/catalogo';
 import { calcularSaldoGraos, debitarResgateGraos } from '@/lib/graos/movimentos';
+import { GRAOS_CONGELADO_MENSAGEM, graosCongelado } from '@/lib/graos/congelado';
 import {
   avaliarElegibilidadeResgateSairCedo,
   itemCatalogoEhSairCedo,
@@ -36,6 +37,10 @@ export async function POST(req: Request) {
   const linhas = (body.itens ?? []).filter((i) => i.catalogo_id && (i.quantidade ?? 1) > 0);
   if (linhas.length === 0) {
     return NextResponse.json({ ok: false, erro: 'Selecione ao menos um item.' }, { status: 400, headers: NO_STORE });
+  }
+
+  if (graosCongelado()) {
+    return NextResponse.json({ ok: false, erro: GRAOS_CONGELADO_MENSAGEM }, { status: 403, headers: NO_STORE });
   }
 
   try {

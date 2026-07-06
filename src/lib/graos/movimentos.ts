@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { calcularElegibilidadeSemana } from '@/lib/graos/elegibilidade';
 import type { GraosMissaoId } from '@/lib/graos/constants';
 import { GRAOS_PRIMEIRA_SEMANA_INICIO } from '@/lib/graos/constants';
+import { graosCongelado } from '@/lib/graos/congelado';
 import { semanaVigenteParaGraos } from '@/lib/graos/semana-vigencia';
 import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 
@@ -401,6 +402,9 @@ export async function creditarMissaoGraos(
     reabrirSeCancelado?: boolean;
   }
 ): Promise<{ ok: true; criado: boolean; estado: GraosEstadoMovimento } | { ok: false; erro: string }> {
+  if (graosCongelado()) {
+    return { ok: true, criado: false, estado: 'cancelado' };
+  }
   if (!semanaVigenteParaGraos(opts.semanaInicio)) {
     return { ok: true, criado: false, estado: 'cancelado' };
   }

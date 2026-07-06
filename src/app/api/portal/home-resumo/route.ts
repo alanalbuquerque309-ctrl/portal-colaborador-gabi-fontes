@@ -11,6 +11,7 @@ import { socioIsentoObrigacoesOperacionaisPortal } from '@/lib/socios-negocio';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 import { sincronizarMissoesSemanaGraos } from '@/lib/graos/missoes';
+import { graosCongelado } from '@/lib/graos/congelado';
 import type { PortalHomeResumo } from '@/lib/portal-home-types';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +43,7 @@ export async function GET() {
     const unidadeEmbed = (col as { unidades?: { slug?: string } | { slug?: string }[] | null }).unidades;
     const unidadeSlug = Array.isArray(unidadeEmbed) ? unidadeEmbed[0]?.slug : unidadeEmbed?.slug;
 
-    if (podeParticiparGraosCafe(role)) {
+    if (podeParticiparGraosCafe(role) && !graosCongelado()) {
       const semanaGraos = segundaSemanaSaoPaulo();
       void colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaGraos).then((jaEntrou) => {
         if (!jaEntrou) {

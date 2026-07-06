@@ -14,6 +14,7 @@ import {
   avaliarElegibilidadeResgateSairCedo,
   enriquecerCatalogoResgateSairCedo,
 } from '@/lib/graos/resgate-sair-cedo-elegibilidade';
+import { GRAOS_CONGELADO_MENSAGEM, graosCongelado } from '@/lib/graos/congelado';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +68,7 @@ export async function GET(req: Request) {
     const semanaInicio = segundaSemanaSaoPaulo();
     const origin = new URL(req.url).origin;
     const ehQuinta = ehQuintaSaoPaulo();
+    const congelado = graosCongelado();
     const verTodosTreinos = podeVerTodosTreinosQuinta(role);
     const quintaTreino = resolverQuintaTreino(origin, 'colaborador');
     const treinosQuinta = verTodosTreinos ? resolverParTreinosQuinta(origin) : null;
@@ -80,6 +82,8 @@ export async function GET(req: Request) {
           ok: true,
           modo_gestao: true,
           apenas_visualizacao: true,
+          congelado,
+          congelado_mensagem: congelado ? GRAOS_CONGELADO_MENSAGEM : null,
           semana_inicio: semanaInicio,
           eh_quinta: ehQuinta,
           treinos_quinta: treinosQuinta,
@@ -107,8 +111,8 @@ export async function GET(req: Request) {
     const apenasVisualizacao = !colaboradorOperacao || (gestao && colaboradorId !== viewerId);
 
     const resumo = await obterResumoGraosColaborador(supabase, colaboradorId, semanaInicio, {
-      sincronizar: colaboradorOperacao && colaboradorId === viewerId,
-      creditarLogin: colaboradorOperacao && colaboradorId === viewerId,
+      sincronizar: !congelado && colaboradorOperacao && colaboradorId === viewerId,
+      creditarLogin: !congelado && colaboradorOperacao && colaboradorId === viewerId,
     });
     const saldoTotal = await calcularSaldoGraos(supabase, colaboradorId);
     const saldoSemana = await calcularSaldoGraos(supabase, colaboradorId, { semanaInicio });
@@ -138,6 +142,8 @@ export async function GET(req: Request) {
         ok: true,
         modo_gestao: gestao,
         apenas_visualizacao: apenasVisualizacao,
+        congelado,
+        congelado_mensagem: congelado ? GRAOS_CONGELADO_MENSAGEM : null,
         colaborador_id: colaboradorId,
         colaborador_nome: colaboradorNome,
         semana_inicio: semanaInicio,
