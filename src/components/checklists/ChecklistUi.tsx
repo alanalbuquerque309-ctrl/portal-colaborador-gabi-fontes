@@ -11,7 +11,7 @@ export function ChecklistPreviewBanner() {
         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-200/80 text-xs" aria-hidden>
           β
         </span>
-        Prévia para sócios
+        Prévia para sócios e admin
       </p>
       <p className="mt-1.5 leading-relaxed text-amber-900/90 pl-8">
         Valide os itens em cada loja. Quando estiver ok, liberamos gerentes com{' '}
