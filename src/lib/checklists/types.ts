@@ -1,11 +1,23 @@
 export type ChecklistTurno = 'manha' | 'tarde';
 
-export type ChecklistTipo = 'gerencia_diaria_mesquita';
+export type ChecklistSetorVistoria = 'estoque' | 'asg' | 'cozinha' | 'balcao' | 'caixa';
+
+export type ChecklistVistoriaStatus = 'conferido' | 'pendente' | 'nao_preenchido';
+
+export type ChecklistTipo =
+  | 'gerencia_diaria_mesquita'
+  | 'estoque_diario_mesquita'
+  | 'asg_diario_mesquita'
+  | 'cozinha_diario_mesquita'
+  | 'balcao_diario_mesquita'
+  | 'caixa_diario_mesquita';
 
 export type ChecklistSecao = {
   id: string;
   titulo: string;
-  itens: { id: string; label: string }[];
+  /** Se definido, a seção só aparece neste turno do formulário. */
+  turno_foco?: ChecklistTurno;
+  itens: { id: string; label: string; horario?: string }[];
   permite_nota?: boolean;
 };
 
@@ -14,6 +26,7 @@ export type ChecklistTemplate = {
   titulo: string;
   descricao: string;
   turnos: ChecklistTurno[];
+  papel: 'gerencia' | 'setor';
   campos_extras?: Array<
     | { id: 'setor'; label: string; tipo: 'text' }
     | { id: 'temperatura_geladeira'; label: string; tipo: 'text'; placeholder?: string }
@@ -46,5 +59,19 @@ export type ChecklistRegistro = {
   respostas: ChecklistRespostasPayload;
   observacoes: string | null;
   preenchido_em: string;
+  updated_at: string;
+};
+
+export type ChecklistVistoriaRegistro = {
+  id: string;
+  unidade_id: string;
+  setor: ChecklistSetorVistoria;
+  dia_semana: number;
+  colaborador_id: string;
+  colaborador_nome?: string;
+  status: ChecklistVistoriaStatus;
+  checklist_operacional_id: string | null;
+  observacoes: string | null;
+  vistoriado_em: string;
   updated_at: string;
 };

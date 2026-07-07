@@ -30,6 +30,8 @@
     "db:espelhar-regras-062": "npx tsx scripts/espelhar-regras-tenant-062.ts",
     "db:apply-064": "node scripts/aplicar-migration-064.mjs",
     "db:apply-067": "node scripts/aplicar-migration-067.mjs",
+    "db:apply-068": "node scripts/aplicar-migration-068.mjs",
+    "db:apply-069": "node scripts/aplicar-migration-069.mjs",
     "lideranca:aplicar": "npx tsx scripts/aplicar-lideranca-operacional.ts",
     "lideranca:snapshot": "npx tsx scripts/snapshot-lideranca.ts",
     "lideranca:auditar": "npx tsx scripts/auditar-lideranca-banco-vs-nome.ts",

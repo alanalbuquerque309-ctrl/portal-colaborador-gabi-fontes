@@ -44,6 +44,7 @@ export async function GET() {
       titulo: t.titulo,
       descricao: t.descricao,
       turnos: t.turnos,
+      papel: t.papel,
       exige_unidade_slug: t.exige_unidade_slug ?? [],
     }));
 

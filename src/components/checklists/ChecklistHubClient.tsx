@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import type { ChecklistTurno } from '@/lib/checklists/types';
+import { ChecklistVistoriaPanel } from '@/components/checklists/ChecklistVistoriaPanel';
 import {
   ChecklistChip,
   ChecklistHero,
@@ -18,6 +19,7 @@ type TemplateResumo = {
   titulo: string;
   descricao: string;
   turnos: ChecklistTurno[];
+  papel?: 'gerencia' | 'setor';
   exige_unidade_slug?: string[];
 };
 
@@ -77,6 +79,15 @@ export function ChecklistHubClient() {
     });
   }, [templates, unidadeSlug]);
 
+  const templatesGerencia = useMemo(
+    () => templatesVisiveis.filter((t) => t.papel !== 'setor'),
+    [templatesVisiveis]
+  );
+  const templatesSetor = useMemo(
+    () => templatesVisiveis.filter((t) => t.papel === 'setor'),
+    [templatesVisiveis]
+  );
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -96,10 +107,10 @@ export function ChecklistHubClient() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-8">
       <ChecklistHero
-        titulo="Checklist Diário Gerência"
+        titulo="Checklists Mesquita"
         subtitulo={
           fasePiloto
-            ? 'Piloto Mesquita: formulário digital do checklist de gerência (33 itens do PDF). Escolha o turno e preencha.'
+            ? 'Piloto Mesquita: seu checklist de gerência por turno e vistoria dos setores (Estoque, ASG, Cozinha, Balcão, Caixa).'
             : 'Escolha a loja e o turno, depois abra o checklist. Cada envio atualiza o registro deste dia da semana.'
         }
         chips={
@@ -120,8 +131,8 @@ export function ChecklistHubClient() {
 
       {fasePiloto && (
         <div className="rounded-2xl border border-coffee-base/15 bg-cream-50 px-4 py-3 text-sm text-cafeteria-700">
-          Fase de análise: só o checklist de <strong className="text-coffee-base">Gerência Mesquita</strong>. Estoque,
-          ASG, Barra e demais lojas entram depois da validação.
+          Fase piloto <strong className="text-coffee-base">Mesquita</strong>: gerência preenche abertura (manhã) e
+          fechamento (tarde); ao longo do dia, vistorie se Estoque, ASG, Cozinha, Balcão e Caixa preencheram o deles.
         </div>
       )}
 
@@ -150,23 +161,55 @@ export function ChecklistHubClient() {
         </div>
       </div>
 
-      {templatesVisiveis.length === 0 ? (
+      {templatesGerencia.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-cafeteria-500 px-1">Meu checklist (gerência)</h2>
+          <ul className="space-y-3">
+            {templatesGerencia.map((t) => (
+              <li key={t.tipo}>
+                <ChecklistTemplateCard
+                  href={`/portal/checklists/${t.tipo}?unidade_id=${encodeURIComponent(unidadeId)}&turno=${turno}`}
+                  titulo={t.titulo}
+                  descricao={t.descricao}
+                  tipo={t.tipo}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {unidadeId && unidadeSlug === 'mesquita' && (
+        <ChecklistVistoriaPanel unidadeId={unidadeId} unidadeSlug={unidadeSlug} turno={turno} />
+      )}
+
+      {templatesSetor.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-cafeteria-500 px-1">
+            Formulários dos setores
+          </h2>
+          <p className="text-xs text-cafeteria-500 px-1">
+            Cada setor preenche o seu. Na fase piloto, sócios/gerência podem testar antes de liberar para a equipe.
+          </p>
+          <ul className="space-y-3">
+            {templatesSetor.map((t) => (
+              <li key={t.tipo}>
+                <ChecklistTemplateCard
+                  href={`/portal/checklists/${t.tipo}?unidade_id=${encodeURIComponent(unidadeId)}&turno=${turno}`}
+                  titulo={t.titulo}
+                  descricao={t.descricao}
+                  tipo={t.tipo}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {templatesVisiveis.length === 0 && (
         <div className="rounded-2xl border border-dashed border-cafeteria-300 bg-cream-50 px-4 py-8 text-center text-sm text-cafeteria-600">
           Nenhum checklist disponível para esta unidade na fase piloto.
         </div>
-      ) : (
-        <ul className="space-y-3">
-          {templatesVisiveis.map((t) => (
-            <li key={t.tipo}>
-              <ChecklistTemplateCard
-                href={`/portal/checklists/${t.tipo}?unidade_id=${encodeURIComponent(unidadeId)}&turno=${turno}`}
-                titulo={t.titulo}
-                descricao={t.descricao}
-                tipo={t.tipo}
-              />
-            </li>
-          ))}
-        </ul>
       )}
 
       <div className="rounded-2xl border border-cafeteria-200/80 bg-cream-50/80 px-4 py-3 text-xs text-cafeteria-600">

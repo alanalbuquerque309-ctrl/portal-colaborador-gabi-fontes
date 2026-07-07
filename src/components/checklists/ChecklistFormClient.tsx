@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import type { ChecklistRegistro, ChecklistTemplate, ChecklistTurno } from '@/lib/checklists/types';
+import { secoesVisiveisParaTurno, todosIdsItensTurno } from '@/lib/checklists/templates';
 import {
   ChecklistCampoCard,
   ChecklistChip,
@@ -91,10 +92,15 @@ export function ChecklistFormClient({ tipo }: Props) {
     void carregar();
   }, [carregar]);
 
+  const secoesVisiveis = useMemo(() => {
+    if (!template) return [];
+    return secoesVisiveisParaTurno(template, turno);
+  }, [template, turno]);
+
   const idsIniciais = useMemo(() => {
     if (!template) return [];
-    return template.secoes.flatMap((s) => s.itens.map((i) => i.id));
-  }, [template]);
+    return todosIdsItensTurno(template, turno);
+  }, [template, turno]);
 
   useEffect(() => {
     if (!template) return;
@@ -260,7 +266,7 @@ export function ChecklistFormClient({ tipo }: Props) {
         return null;
       })}
 
-      {template.secoes.map((secao) => {
+      {secoesVisiveis.map((secao) => {
         const ids = secao.itens.map((i) => i.id);
         const { ok, total: totSec } = contagemSecao(itens, ids);
         return (
@@ -269,7 +275,7 @@ export function ChecklistFormClient({ tipo }: Props) {
               <ChecklistItemRow
                 key={item.id}
                 id={`chk-${item.id}`}
-                label={item.label}
+                label={item.horario ? `${item.horario} — ${item.label}` : item.label}
                 checked={itens[item.id] === true}
                 onChange={(v) => setItens((p) => ({ ...p, [item.id]: v }))}
               />
