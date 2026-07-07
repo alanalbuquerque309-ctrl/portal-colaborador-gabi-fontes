@@ -1,10 +1,6 @@
 export type ChecklistTurno = 'manha' | 'tarde';
 
-export type ChecklistTipo =
-  | 'abertura_setor'
-  | 'abertura_balcao_salao'
-  | 'fechamento_salao'
-  | 'fechamento_geral';
+export type ChecklistTipo = 'gerencia_diaria_mesquita';
 
 export type ChecklistSecao = {
   id: string;
@@ -18,10 +14,11 @@ export type ChecklistTemplate = {
   titulo: string;
   descricao: string;
   turnos: ChecklistTurno[];
-  /** Campo extra no formulário (ex.: setor, temperatura). */
   campos_extras?: Array<
     | { id: 'setor'; label: string; tipo: 'text' }
     | { id: 'temperatura_geladeira'; label: string; tipo: 'text'; placeholder?: string }
+    | { id: 'responsavel_abertura'; label: string; tipo: 'text' }
+    | { id: 'responsavel_fechamento'; label: string; tipo: 'text' }
   >;
   secoes: ChecklistSecao[];
   exige_unidade_slug?: string[];
@@ -32,6 +29,8 @@ export type ChecklistRespostasPayload = {
   notas_secoes?: Record<string, string>;
   setor?: string;
   temperatura_geladeira?: string;
+  responsavel_abertura?: string;
+  responsavel_fechamento?: string;
 };
 
 export type ChecklistRegistro = {

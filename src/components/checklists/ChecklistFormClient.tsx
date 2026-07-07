@@ -41,6 +41,8 @@ export function ChecklistFormClient({ tipo }: Props) {
   const [notasSecoes, setNotasSecoes] = useState<Record<string, string>>({});
   const [setor, setSetor] = useState('');
   const [temperatura, setTemperatura] = useState('');
+  const [respAbertura, setRespAbertura] = useState('');
+  const [respFechamento, setRespFechamento] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
   const carregar = useCallback(async () => {
@@ -75,6 +77,8 @@ export function ChecklistFormClient({ tipo }: Props) {
       setNotasSecoes(resp?.notas_secoes ?? {});
       setSetor(resp?.setor ?? '');
       setTemperatura(resp?.temperatura_geladeira ?? '');
+      setRespAbertura(resp?.responsavel_abertura ?? '');
+      setRespFechamento(resp?.responsavel_fechamento ?? '');
       setObservacoes(reg?.observacoes ?? '');
     } catch {
       setErro('Erro de conexão.');
@@ -126,6 +130,8 @@ export function ChecklistFormClient({ tipo }: Props) {
             notas_secoes: notasSecoes,
             setor: setor || undefined,
             temperatura_geladeira: temperatura || undefined,
+            responsavel_abertura: respAbertura || undefined,
+            responsavel_fechamento: respFechamento || undefined,
           },
         }),
       });
@@ -223,6 +229,30 @@ export function ChecklistFormClient({ tipo }: Props) {
                 value={temperatura}
                 onChange={(e) => setTemperatura(e.target.value)}
                 placeholder={campo.placeholder ?? 'Ex.: 4'}
+              />
+            </ChecklistCampoCard>
+          );
+        }
+        if (campo.id === 'responsavel_abertura') {
+          return (
+            <ChecklistCampoCard key={campo.id} label={campo.label}>
+              <ChecklistInput
+                type="text"
+                value={respAbertura}
+                onChange={(e) => setRespAbertura(e.target.value)}
+                placeholder="Nome do responsável na abertura"
+              />
+            </ChecklistCampoCard>
+          );
+        }
+        if (campo.id === 'responsavel_fechamento') {
+          return (
+            <ChecklistCampoCard key={campo.id} label={campo.label}>
+              <ChecklistInput
+                type="text"
+                value={respFechamento}
+                onChange={(e) => setRespFechamento(e.target.value)}
+                placeholder="Nome do responsável no fechamento"
               />
             </ChecklistCampoCard>
           );

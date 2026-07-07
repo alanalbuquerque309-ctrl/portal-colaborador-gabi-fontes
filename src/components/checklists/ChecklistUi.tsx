@@ -334,7 +334,8 @@ export function ChecklistStickyActions({
   );
 }
 
-export function iconeTemplateChecklist(tipo: string): { emoji: string; categoria: 'abertura' | 'fechamento' } {
+export function iconeTemplateChecklist(tipo: string): { emoji: string; categoria: 'abertura' | 'fechamento' | 'gerencia' } {
+  if (tipo.includes('gerencia')) return { emoji: '📋', categoria: 'gerencia' };
   if (tipo.startsWith('fechamento')) return { emoji: '🌙', categoria: 'fechamento' };
   if (tipo === 'abertura_setor') return { emoji: '🧹', categoria: 'abertura' };
   return { emoji: '☕', categoria: 'abertura' };
@@ -353,6 +354,7 @@ export function ChecklistTemplateCard({
 }) {
   const { emoji, categoria } = iconeTemplateChecklist(tipo);
   const abertura = categoria === 'abertura';
+  const gerencia = categoria === 'gerencia';
 
   return (
     <Link
@@ -361,7 +363,11 @@ export function ChecklistTemplateCard({
     >
       <span
         className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl ${
-          abertura ? 'bg-amber-50 text-amber-900 border border-amber-100' : 'bg-indigo-50 text-indigo-900 border border-indigo-100'
+          gerencia
+            ? 'bg-coffee-base/10 text-coffee-base border border-coffee-base/20'
+            : abertura
+              ? 'bg-amber-50 text-amber-900 border border-amber-100'
+              : 'bg-indigo-50 text-indigo-900 border border-indigo-100'
         }`}
         aria-hidden
       >
@@ -374,10 +380,14 @@ export function ChecklistTemplateCard({
           </span>
           <span
             className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full ${
-              abertura ? 'bg-amber-100 text-amber-900' : 'bg-indigo-100 text-indigo-900'
+              gerencia
+                ? 'bg-coffee-base/10 text-coffee-base'
+                : abertura
+                  ? 'bg-amber-100 text-amber-900'
+                  : 'bg-indigo-100 text-indigo-900'
             }`}
           >
-            {abertura ? 'Abertura' : 'Fechamento'}
+            {gerencia ? 'Gerência' : abertura ? 'Abertura' : 'Fechamento'}
           </span>
         </span>
         <span className="block text-sm text-cafeteria-600 mt-1 leading-relaxed">{descricao}</span>

@@ -78,8 +78,8 @@ export function AdminChecklistsClient() {
         <p className="text-xs font-bold uppercase tracking-wider text-dourado-base">Formulários digitais</p>
         <h2 className="font-display text-xl font-semibold text-coffee-base mt-1">Preencher abertura ou fechamento</h2>
         <p className="text-sm text-cafeteria-600 mt-2 leading-relaxed max-w-xl">
-          Os checklists do papel viraram formulários no portal (4 modelos: setor, balcão/salão, fechamento salão e
-          fechamento geral). Esta tela admin é só o relatório do que já foi salvo.
+          Os checklists do papel viraram formulários no portal. Piloto atual: <strong>Gerência Mesquita</strong>.
+          Esta tela admin é só o relatório do que já foi salvo.
         </p>
         <Link
           href="/portal/checklists"

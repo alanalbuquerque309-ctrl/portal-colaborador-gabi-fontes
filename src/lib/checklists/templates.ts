@@ -1,156 +1,146 @@
 import type { ChecklistTemplate, ChecklistTipo } from '@/lib/checklists/types';
 
+/** Checklist Diário Gerência — Mesquita (PDF png2pdf, págs. 3–4). Fase piloto: só esta unidade. */
 export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
   {
-    tipo: 'abertura_setor',
-    titulo: 'Abertura do setor',
-    descricao: 'Conferências antes de abrir o setor (limpeza, equipamentos, insumos).',
+    tipo: 'gerencia_diaria_mesquita',
+    titulo: 'Checklist Diário Gerência',
+    descricao: 'Rotina diária da gerência Mesquita (abertura, supervisão e fechamento).',
     turnos: ['manha', 'tarde'],
-    campos_extras: [{ id: 'setor', label: 'Setor', tipo: 'text' }],
-    secoes: [
-      {
-        id: 'preparo',
-        titulo: 'Preparo e organização',
-        itens: [
-          { id: 'piso_limpo', label: 'Piso limpo e seco' },
-          { id: 'bancadas', label: 'Bancadas higienizadas e organizadas' },
-          { id: 'lixeiras', label: 'Lixeiras vazias e com saco' },
-          { id: 'equipamentos', label: 'Equipamentos ligados e funcionando' },
-          { id: 'insumos', label: 'Insumos do turno separados' },
-          { id: 'uniforme_equipe', label: 'Equipe uniformizada no setor' },
-        ],
-      },
-    ],
-  },
-  {
-    tipo: 'abertura_balcao_salao',
-    titulo: 'Abertura balcão e salão',
-    descricao: 'Checklist de abertura da loja (balcão, salão e área externa).',
-    turnos: ['manha', 'tarde'],
-    secoes: [
-      {
-        id: 'limpeza_geral',
-        titulo: 'Limpeza geral',
-        itens: [
-          { id: 'piso', label: 'Piso limpo' },
-          { id: 'lixeiras', label: 'Lixeiras vazias' },
-          { id: 'mesas_cadeiras', label: 'Mesas e cadeiras limpas e organizadas' },
-          { id: 'banheiros', label: 'Banheiros conferidos' },
-        ],
-      },
-      {
-        id: 'balcao',
-        titulo: 'Balcão e cozinha',
-        itens: [
-          { id: 'bancada', label: 'Bancada higienizada' },
-          { id: 'maquinas', label: 'Máquinas de café / equipamentos OK' },
-          { id: 'vitines', label: 'Vitines organizadas e abastecidas' },
-          { id: 'cardapio', label: 'Cardápio e preços conferidos' },
-        ],
-        permite_nota: true,
-      },
-      {
-        id: 'salao',
-        titulo: 'Salão',
-        itens: [
-          { id: 'layout', label: 'Layout do salão conforme padrão' },
-          { id: 'som', label: 'Ambiente (som/luz) adequado' },
-        ],
-        permite_nota: true,
-      },
-      {
-        id: 'externo',
-        titulo: 'Área externa',
-        itens: [
-          { id: 'fachada', label: 'Fachada e entrada limpas' },
-          { id: 'calçada', label: 'Calçada / área externa sem obstáculos' },
-        ],
-        permite_nota: true,
-      },
-    ],
-  },
-  {
-    tipo: 'fechamento_salao',
-    titulo: 'Fechamento salão',
-    descricao: 'Fechamento do salão (inclui registro de temperatura da geladeira quando aplicável).',
-    turnos: ['manha', 'tarde'],
+    exige_unidade_slug: ['mesquita'],
     campos_extras: [
-      {
-        id: 'temperatura_geladeira',
-        label: 'Temperatura geladeira (°C)',
-        tipo: 'text',
-        placeholder: 'Ex.: 4',
-      },
+      { id: 'responsavel_abertura', label: 'Responsável abertura', tipo: 'text' },
+      { id: 'responsavel_fechamento', label: 'Responsável fechamento', tipo: 'text' },
     ],
     secoes: [
       {
-        id: 'limpeza',
-        titulo: 'Limpeza geral e instalações',
+        id: 'abertura_operacao',
+        titulo: 'Abertura e operação',
         itens: [
-          { id: 'piso', label: 'Piso limpo' },
-          { id: 'lixeiras', label: 'Lixeiras tratadas' },
-          { id: 'equipamentos_off', label: 'Equipamentos desligados conforme padrão' },
+          { id: 'abrir_loja_0730', label: 'Abrir loja às 07:30h' },
+          { id: 'ligar_servidor', label: 'Ligar o servidor no escritório' },
+          {
+            id: 'chegada_funcionarios',
+            label:
+              'Acompanhar chegada dos funcionários; falta, atraso ou atestado → comunicar no grupo ESCALA',
+          },
+          {
+            id: 'organizacao_salao',
+            label:
+              'Supervisionar mesas e cadeiras do salão: mesas limpas, cadeiras alinhadas, vaso, açucareiro, porta-guardanapo e número',
+          },
+          { id: 'abertura_caixa_ifood', label: 'Abertura do caixa e iFood às 07:45h' },
+          {
+            id: 'entrega_radios',
+            label:
+              'Entregar rádios carregados testando na presença (Atendimento, Balcão, Caixa, Recepção, Cozinha Doce/Salgada, ADM, Gerência)',
+          },
+          {
+            id: 'reservas_dia',
+            label: 'Verificar reservas do dia e alinhar atendente responsável por cada uma',
+          },
+          {
+            id: 'celular_delivery',
+            label: 'Acompanhar celular do delivery e itens pausados/despausados',
+          },
+          {
+            id: 'limpeza_balcao_frente',
+            label:
+              'Supervisionar limpeza dos balcões de frente (mármore, vitrine doces/salgados, caixa)',
+          },
+          {
+            id: 'qualidade_doces_validade',
+            label: 'Conferir qualidade dos doces e validade; pedir ajuste se necessário',
+          },
+          {
+            id: 'briefing_sexta',
+            label: 'Sexta-feira: briefing com os setores (conforme disponibilidade)',
+          },
         ],
       },
       {
-        id: 'salao',
-        titulo: 'Salão de lazer',
+        id: 'supervisao_recorrente',
+        titulo: 'Supervisão diária e recorrente',
         itens: [
-          { id: 'mesas', label: 'Mesas e cadeiras limpas e empilhadas' },
-          { id: 'decoracao', label: 'Decoração e materiais guardados' },
+          {
+            id: 'insumos_barra',
+            label: 'Conferência da lista de insumos da Barra com estoquista e motorista',
+          },
+          {
+            id: 'vistoria_salao_banheiros',
+            label: 'Vistoria diária do salão e banheiros; ASG abastece se necessário',
+          },
+          {
+            id: 'limpeza_acucareiros',
+            label: 'Segundas e quintas: supervisionar limpeza dos açucareiros',
+          },
+          {
+            id: 'limpeza_baixo_balcao',
+            label: 'Segundas: supervisionar limpeza embaixo dos balcões/vitrines',
+          },
+          {
+            id: 'lavagem_cozinhas',
+            label: 'Segundas: supervisionar lavagem das cozinhas (preferencialmente 14h)',
+          },
+          {
+            id: 'limpeza_estoque_quinta',
+            label: 'Quintas: supervisionar limpeza e organização do estoque',
+          },
+          {
+            id: 'contagem_talheres',
+            label: 'Quartas: contagem de talheres e louças → ADM alimenta planilha Excel',
+          },
+          {
+            id: 'limpeza_vidros_14h',
+            label:
+              'Diariamente 14h: limpeza de vidros e portas (3 entradas, reservados, colunas catraca)',
+          },
+          {
+            id: 'lavagem_entrada_quinta',
+            label: 'Quintas: supervisionar lavagem da entrada principal e área externa',
+          },
+          {
+            id: 'insumos_balcao_doce',
+            label:
+              'Diário: conferir insumos do balcão do doce vs. vendas do dia anterior; anotar faltas',
+          },
         ],
         permite_nota: true,
       },
       {
-        id: 'externo',
-        titulo: 'Área externa',
+        id: 'fechamento_controles',
+        titulo: 'Fechamento e controles finais',
         itens: [
-          { id: 'portas', label: 'Portas e grades conferidas' },
-          { id: 'lixo_externo', label: 'Área externa limpa' },
-        ],
-        permite_nota: true,
-      },
-    ],
-  },
-  {
-    tipo: 'fechamento_geral',
-    titulo: 'Fechamento geral',
-    descricao: 'Fechamento completo da unidade (atendimento, balcão, salão e externo).',
-    turnos: ['manha', 'tarde'],
-    secoes: [
-      {
-        id: 'atendimento',
-        titulo: 'Fechamento geral do atendimento',
-        itens: [
-          { id: 'caixa', label: 'Caixa / fechamento operacional conferido' },
-          { id: 'sistema', label: 'Sistemas e PDV encerrados conforme procedimento' },
-        ],
-      },
-      {
-        id: 'balcao',
-        titulo: 'Balcão e cozinha',
-        itens: [
-          { id: 'limpeza_balcao', label: 'Balcão e cozinha limpos' },
-          { id: 'alimentos', label: 'Alimentos armazenados corretamente' },
-          { id: 'equipamentos', label: 'Equipamentos desligados' },
-        ],
-        permite_nota: true,
-      },
-      {
-        id: 'salao',
-        titulo: 'Salão',
-        itens: [
-          { id: 'mesas', label: 'Mesas e cadeiras organizadas' },
-          { id: 'piso_salao', label: 'Piso do salão limpo' },
-        ],
-        permite_nota: true,
-      },
-      {
-        id: 'externo',
-        titulo: 'Área externa',
-        itens: [
-          { id: 'fechamento_portas', label: 'Portas e acessos conferidos' },
-          { id: 'iluminacao', label: 'Iluminação externa conforme padrão' },
+          {
+            id: 'camara_dia_24',
+            label: '1× ao mês: limpeza da câmara frigorífica (dia 24)',
+          },
+          {
+            id: 'recolher_radios',
+            label: 'Recolher rádios ao final do expediente testando na presença dos funcionários',
+          },
+          { id: 'foto_cafe_conecta', label: 'Quarta: enviar foto do Café Conecta' },
+          {
+            id: 'planilha_desperdicio',
+            label: 'Diário: enviar planilha de desperdício de cada setor no grupo de supervisão',
+          },
+          { id: 'verificar_gas', label: 'Quarta: verificar gás das cozinhas' },
+          {
+            id: 'janelas_andar_superior',
+            label: 'A cada 10 dias: limpeza janelas andar superior (dias 10, 20 e 30)',
+          },
+          {
+            id: 'planilha_temperatura',
+            label: 'Verificar/solicitar planilha de temperatura de geladeiras e balcões (todos setores)',
+          },
+          { id: 'luzes_externas_18h', label: 'Ligar luzes externas às 18h' },
+          {
+            id: 'checklist_setores',
+            label: 'Conferir checklist dos setores antes de liberar equipe (Estoque, Cozinha, ASG etc.)',
+          },
+          { id: 'desligar_servidor', label: 'Desligar servidor ao deixar malote no escritório' },
+          { id: 'desligar_luzes', label: 'Conferir e desligar todas as luzes antes de sair' },
+          { id: 'ativar_alarme', label: 'Ativar o alarme' },
         ],
         permite_nota: true,
       },
@@ -177,4 +167,18 @@ export function templateVisivelParaUnidade(
 
 export function todosIdsItens(template: ChecklistTemplate): string[] {
   return template.secoes.flatMap((s) => s.itens.map((i) => i.id));
+}
+
+export function filtrarTemplatesPorUnidade(unidadeSlug: string | null | undefined): ChecklistTemplate[] {
+  return CHECKLIST_TEMPLATES.filter((t) => templateVisivelParaUnidade(t, unidadeSlug));
+}
+
+export function slugsUnidadesComChecklist(): string[] {
+  const slugs = new Set<string>();
+  for (const t of CHECKLIST_TEMPLATES) {
+    if (t.exige_unidade_slug?.length) {
+      for (const s of t.exige_unidade_slug) slugs.add(s);
+    }
+  }
+  return Array.from(slugs);
 }

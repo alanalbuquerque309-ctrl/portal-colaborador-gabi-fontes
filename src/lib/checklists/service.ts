@@ -26,6 +26,12 @@ export function normalizarRespostas(
   if (typeof src.temperatura_geladeira === 'string' && src.temperatura_geladeira.trim()) {
     out.temperatura_geladeira = src.temperatura_geladeira.trim();
   }
+  if (typeof src.responsavel_abertura === 'string' && src.responsavel_abertura.trim()) {
+    out.responsavel_abertura = src.responsavel_abertura.trim();
+  }
+  if (typeof src.responsavel_fechamento === 'string' && src.responsavel_fechamento.trim()) {
+    out.responsavel_fechamento = src.responsavel_fechamento.trim();
+  }
   return out;
 }
 

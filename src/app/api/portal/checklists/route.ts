@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolverSessaoChecklist } from '@/lib/checklists/auth-sessao';
 import { checklistsLideresAtivos, podeAcessarChecklistsOperacionais } from '@/lib/checklists/access';
-import { CHECKLIST_TEMPLATES, templateVisivelParaUnidade } from '@/lib/checklists/templates';
+import { CHECKLIST_TEMPLATES, slugsUnidadesComChecklist, templateVisivelParaUnidade } from '@/lib/checklists/templates';
 import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana } from '@/lib/checklists/dia-semana';
 
 export const dynamic = 'force-dynamic';
@@ -27,25 +27,35 @@ export async function GET() {
 
   try {
     const supabase = createAdminClient();
-    const { data: unidades } = await supabase
+    const { data: unidadesRaw } = await supabase
       .from('unidades')
       .select('id, nome, slug')
       .neq('slug', 'matriz')
       .order('nome');
 
+    const slugsAtivos = slugsUnidadesComChecklist();
+    let unidades = unidadesRaw ?? [];
+    if (slugsAtivos.length > 0) {
+      unidades = unidades.filter((u) => slugsAtivos.includes(String((u as { slug?: string }).slug ?? '')));
+    }
+
+    const templates = CHECKLIST_TEMPLATES.map((t) => ({
+      tipo: t.tipo,
+      titulo: t.titulo,
+      descricao: t.descricao,
+      turnos: t.turnos,
+      exige_unidade_slug: t.exige_unidade_slug ?? [],
+    }));
+
     return NextResponse.json(
       {
         ok: true,
         preview_socios: !checklistsLideresAtivos(),
+        fase_piloto: slugsAtivos.length > 0,
         dia_semana: dia,
         dia_semana_rotulo: rotuloDiaSemana(dia),
-        unidades: unidades ?? [],
-        templates: CHECKLIST_TEMPLATES.map((t) => ({
-          tipo: t.tipo,
-          titulo: t.titulo,
-          descricao: t.descricao,
-          turnos: t.turnos,
-        })),
+        unidades,
+        templates,
       },
       { headers: NO_STORE }
     );
