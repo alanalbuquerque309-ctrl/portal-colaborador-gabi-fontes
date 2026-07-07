@@ -77,7 +77,7 @@ export default function AdminLayout({
     {
       titulo: 'Gestão',
       itens: [
-        { href: '/admin/checklists', label: 'Checklists operacionais', checklistsRede: true },
+        { href: '/admin/checklists', label: 'Checklists (consulta)', checklistsRede: true },
         { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
         { href: '/admin/auditoria', label: 'Auditoria', auditoria: true },
         { href: '/admin/tenant-espelho', label: 'Tenant (espelho)', auditoria: true },

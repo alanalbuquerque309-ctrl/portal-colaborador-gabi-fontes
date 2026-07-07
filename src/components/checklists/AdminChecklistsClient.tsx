@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { AdminSection } from '@/components/admin/shell/AdminSection';
@@ -73,6 +74,21 @@ export function AdminChecklistsClient() {
     <div className="space-y-6">
       {preview && <ChecklistPreviewBanner />}
 
+      <div className="rounded-2xl border-2 border-dourado-base/40 bg-gradient-to-br from-dourado-50/80 via-white to-cream-50 p-5 md:p-6 shadow-sm">
+        <p className="text-xs font-bold uppercase tracking-wider text-dourado-base">Formulários digitais</p>
+        <h2 className="font-display text-xl font-semibold text-coffee-base mt-1">Preencher abertura ou fechamento</h2>
+        <p className="text-sm text-cafeteria-600 mt-2 leading-relaxed max-w-xl">
+          Os checklists do papel viraram formulários no portal (4 modelos: setor, balcão/salão, fechamento salão e
+          fechamento geral). Esta tela admin é só o relatório do que já foi salvo.
+        </p>
+        <Link
+          href="/portal/checklists"
+          className="inline-flex mt-4 min-h-[48px] items-center rounded-xl bg-coffee-base px-6 py-3 text-sm font-bold text-cream-50 hover:bg-coffee-base/90"
+        >
+          Abrir formulários no portal →
+        </Link>
+      </div>
+
       <div className="rounded-2xl border border-cafeteria-200 bg-white p-4 md:p-5 shadow-sm">
         <div className="flex flex-wrap gap-4 items-end">
           <label className="text-sm flex-1 min-w-[200px]">
@@ -119,8 +135,14 @@ export function AdminChecklistsClient() {
           </p>
           <p className="font-semibold text-coffee-base">Nenhum registro ainda</p>
           <p className="text-sm text-cafeteria-600 mt-1 max-w-md mx-auto">
-            Quando os sócios preencherem checklists no portal, eles aparecem aqui.
+            Normal antes do primeiro preenchimento. Use os formulários no portal; depois eles aparecem aqui.
           </p>
+          <Link
+            href="/portal/checklists"
+            className="inline-flex mt-4 min-h-[44px] items-center rounded-xl bg-dourado-base px-5 py-2.5 text-sm font-bold text-coffee-base"
+          >
+            Preencher primeiro checklist →
+          </Link>
         </div>
       ) : (
         <>

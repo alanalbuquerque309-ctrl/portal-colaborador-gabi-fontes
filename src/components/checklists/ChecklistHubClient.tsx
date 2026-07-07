@@ -126,6 +126,12 @@ export function ChecklistHubClient() {
         </div>
       </div>
 
+      {aberturas.length === 0 && fechamentos.length === 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+          Nenhum modelo de checklist carregou. Recarregue a página ou avise o suporte.
+        </div>
+      )}
+
       {aberturas.length > 0 && (
         <div className="space-y-3">
           <h2 className="font-display text-lg font-semibold text-coffee-base px-1">Abertura</h2>
@@ -162,14 +168,13 @@ export function ChecklistHubClient() {
         </div>
       )}
 
-      <div className="rounded-2xl border border-dourado-200/50 bg-gradient-to-r from-cream-50 to-dourado-50/30 px-4 py-4 text-sm text-cafeteria-700">
-        <p className="font-semibold text-coffee-base">Consulta da rede</p>
-        <p className="mt-1 leading-relaxed">
-          Veja o que foi preenchido em todas as lojas no painel admin.{' '}
-          <Link href="/admin/checklists" className="font-semibold text-dourado-base hover:underline">
-            Admin → Checklists
-          </Link>
-        </p>
+      <div className="rounded-2xl border border-cafeteria-200/80 bg-cream-50/80 px-4 py-3 text-xs text-cafeteria-600">
+        <span className="font-semibold text-cafeteria-800">Relatório da rede:</span> o que já foi salvo em todas as lojas
+        está em{' '}
+        <Link href="/admin/checklists" className="font-semibold text-dourado-base hover:underline">
+          Admin → Checklists (consulta)
+        </Link>
+        . Aqui em cima estão os formulários para preencher.
       </div>
     </div>
   );
