@@ -183,7 +183,7 @@ Quando ela pensa diferente, ela trabalha diferente.
 | Versão | Público no admin | Quem vê |
 |--------|------------------|---------|
 | Equipe | **Todos** | Toda a operação |
-| Liderança | **Liderança** | Gerentes, masters, sócios com equipe |
+| Liderança | **Liderança** | Gerentes, masters, sócios, administrador e RH |
 
 - **Formato:** Texto no portal (Markdown)
 - **Confirmação:** «Assisti e entendi» ativada

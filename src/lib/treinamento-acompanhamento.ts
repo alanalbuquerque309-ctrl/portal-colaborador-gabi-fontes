@@ -104,7 +104,6 @@ async function listarColaboradoresBase(supabase: SupabaseAdmin): Promise<ColabBa
   const { data, error } = await supabase
     .from('colaboradores')
     .select('id, nome, setor, role, unidades(nome, slug)')
-    .neq('role', 'admin')
     .order('nome');
 
   if (error) throw new Error(error.message);

@@ -1,5 +1,7 @@
 /** Público-alvo de um aviso no mural (Admin → Avisos). */
 
+import { normalizePortalRole } from '@/lib/roles';
+
 export type PublicoAvisoKey =
   | 'todos'
   | 'adm'
@@ -37,7 +39,7 @@ export const PUBLICOS_AVISO: PublicoAvisoOpcao[] = [
   {
     key: 'lideranca',
     label: 'Liderança',
-    hint: 'Gerentes, masters e sócios com equipe (avaliação semanal)',
+    hint: 'Gerentes, masters, sócios, administrador e RH',
   },
 ];
 
@@ -108,12 +110,10 @@ export type ColaboradorPublicoAviso = {
   role?: string | null;
 };
 
-/** Gerentes/masters/sócios com equipe; admin de rede não recebe aviso de liderança. */
+/** Gerentes, masters, sócios, administrador e RH recebem treino/aviso de liderança. */
 export function roleRecebeAvisoLideranca(role: string | null | undefined): boolean {
-  const r = String(role ?? '')
-    .trim()
-    .toLowerCase();
-  return r === 'gerente' || r === 'master' || r === 'socio';
+  const r = normalizePortalRole(role);
+  return r === 'gerente' || r === 'master' || r === 'socio' || r === 'admin' || r === 'rh';
 }
 
 export function colaboradorRecebeAvisoPublico(

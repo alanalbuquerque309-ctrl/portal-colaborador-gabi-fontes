@@ -139,9 +139,9 @@ export function deveVerTreinoLiderancaPortal(
   role: string | null | undefined,
   podeAvaliacaoEquipe: boolean
 ): boolean {
-  if (podeVerTodosTreinosQuinta(role)) return true;
   const r = normalizePortalRole(role);
-  return podeAvaliacaoEquipe && (r === 'gerente' || r === 'master' || r === 'admin');
+  if (r === 'admin' || r === 'rh' || r === 'socio') return true;
+  return podeAvaliacaoEquipe && (r === 'gerente' || r === 'master');
 }
 
 /** Abrir /portal/graos: colaboradores da operação + sócios + admin (Daniel) + UUID dedicado ajuda. */
