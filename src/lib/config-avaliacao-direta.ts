@@ -1,6 +1,6 @@
 /**
  * Avaliação semanal da equipe: vínculos por nome (Alan).
- * `exclusivo`: só os avaliadores listados veem esses alvos; gerentes de loja não avaliam mais.
+ * `exclusivo`: só os avaliadores listados veem esses alvos; gerentes de loja e Visita RH não entram.
  */
 
 export type RegraAvaliacaoDireta = {

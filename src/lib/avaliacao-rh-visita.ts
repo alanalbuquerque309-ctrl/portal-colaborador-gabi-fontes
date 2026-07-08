@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
+import { buildMapaAvaliacaoDireta } from '@/lib/avaliacao-direta';
 import { colaboradorElegivelVisitaRh } from '@/lib/avaliacao-rh-visita-access';
 import { colaboradorForaVisitaRh } from '@/lib/colaborador-fora-operacao-presencial';
 import { normalizePortalRole } from '@/lib/roles';
@@ -42,6 +43,8 @@ export async function listarRedeParaVisitaRh(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
 
+  const mapaDirect = await buildMapaAvaliacaoDireta(supabase);
+
   const qNorm = filtros?.q?.trim().toLowerCase() ?? '';
   const setorFiltro = filtros?.setor?.trim() ?? '';
 
@@ -63,6 +66,7 @@ export async function listarRedeParaVisitaRh(
     })
     .filter((c) => colaboradorElegivelVisitaRh(c, avaliadorId))
     .filter((c) => !colaboradorForaVisitaRh(c))
+    .filter((c) => !mapaDirect.alvosExclusivos.has(c.id))
     .filter((c) => {
       const r = normalizePortalRole(c.role);
       if (r === 'socio') return false;

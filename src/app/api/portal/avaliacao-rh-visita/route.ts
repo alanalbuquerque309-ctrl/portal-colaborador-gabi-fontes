@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requirePortalRhVisitaSession } from '@/lib/portal-rh-visita-session';
+import { buildMapaAvaliacaoDireta, colaboradorForaVisitaRhPorExclusividade } from '@/lib/avaliacao-direta';
 import { listarRedeParaVisitaRh } from '@/lib/avaliacao-rh-visita';
 import { colaboradorElegivelVisitaRh } from '@/lib/avaliacao-rh-visita-access';
 import { insertAvaliacaoDiariaCompat } from '@/lib/avaliacoes-justificativa-compat';
@@ -143,9 +144,18 @@ export async function POST(req: Request) {
       .eq('id', validado.colaboradorAlvo)
       .maybeSingle();
 
-    if (!alvo?.id || !colaboradorElegivelVisitaRh(alvo, colaboradorId)) {
+    const mapaDirect = await buildMapaAvaliacaoDireta(supabase);
+
+    if (
+      !alvo?.id ||
+      !colaboradorElegivelVisitaRh(alvo, colaboradorId) ||
+      colaboradorForaVisitaRhPorExclusividade(String(alvo.id), mapaDirect)
+    ) {
       return NextResponse.json(
-        { ok: false, erro: 'Pessoa fora do escopo da visita RH.' },
+        {
+          ok: false,
+          erro: 'Pessoa fora do escopo da visita RH (avaliação exclusiva de outro líder).',
+        },
         { status: 403 }
       );
     }

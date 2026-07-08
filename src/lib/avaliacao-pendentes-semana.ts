@@ -1,7 +1,7 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
 import { assiduidadeIsentaSemana, assiduidadeLegacySemanalRemovida } from '@/lib/avaliacao-diaria';
-import { buildMapaAvaliacaoDireta } from '@/lib/avaliacao-direta';
+import { buildMapaAvaliacaoDireta, colaboradorForaVisitaRhPorExclusividade } from '@/lib/avaliacao-direta';
 import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
 import {
   colaboradorElegivelVisitaRh,
@@ -220,9 +220,13 @@ async function buildGerentesPorUnidade(
 }
 
 async function buildMapaAvaliadoresEsperados(
-  supabase: SupabaseAdmin
-): Promise<Map<string, AvaliadorEsperado[]>> {
-  const mapaDirect = await buildMapaAvaliacaoDireta(supabase);
+  supabase: SupabaseAdmin,
+  mapaDirectIn?: Awaited<ReturnType<typeof buildMapaAvaliacaoDireta>>
+): Promise<{
+  esperados: Map<string, AvaliadorEsperado[]>;
+  mapaDirect: Awaited<ReturnType<typeof buildMapaAvaliacaoDireta>>;
+}> {
+  const mapaDirect = mapaDirectIn ?? (await buildMapaAvaliacaoDireta(supabase));
   const { gerentesPorUnidade, paridadePorLider } = await buildGerentesPorUnidade(supabase);
 
   const { data: lpsRows, error: lpsErr } = await supabase
@@ -308,7 +312,7 @@ async function buildMapaAvaliadoresEsperados(
       Array.from(inner.values()).sort((a, b) => a.lider_nome.localeCompare(b.lider_nome, 'pt-BR'))
     );
   }
-  return out;
+  return { esperados: out, mapaDirect };
 }
 
 async function carregarAvaliacoesSemana(
@@ -502,7 +506,8 @@ export async function calcularPendenciasSemana(
     if (u?.id) unidadeId = String(u.id);
   }
 
-  const mapaEsperados = await buildMapaAvaliadoresEsperados(supabase);
+  const mapaDirect = await buildMapaAvaliacaoDireta(supabase);
+  const { esperados: mapaEsperados } = await buildMapaAvaliadoresEsperados(supabase, mapaDirect);
   let colaboradorIds = Array.from(mapaEsperados.keys());
 
   const { data: todosColaboradores } = await supabase
@@ -527,6 +532,7 @@ export async function calcularPendenciasSemana(
       if (role !== 'colaborador') return false;
       if (nomeEhDanielTransversal((c as { nome?: string | null }).nome)) return false;
       if (colaboradorForaAvaliacaoSemanalEquipe(c as { tipo_escala?: string | null })) return false;
+      if (colaboradorForaVisitaRhPorExclusividade(String(c.id), mapaDirect)) return false;
       return true;
     })
     .map((c) => String(c.id));
@@ -588,10 +594,11 @@ export async function calcularPendenciasSemana(
     const temNotaGerente =
       esperados.length === 0 || colaboradorFechouSemanaPorAlgumLider(rows, rhIds);
     const temRh = rows.some((r) => avaliacaoFechaSemanaRh(r, rhIds));
-    const elegivelRh = colaboradorElegivelVisitaRh(
-      { id: cid, role: info.role, nome: info.nome },
-      opts.rhAvaliadorId ?? 'rh-placeholder'
-    );
+    const elegivelRh =
+      colaboradorElegivelVisitaRh(
+        { id: cid, role: info.role, nome: info.nome },
+        opts.rhAvaliadorId ?? 'rh-placeholder'
+      ) && !colaboradorForaVisitaRhPorExclusividade(cid, mapaDirect);
 
     const responsaveis: ResponsavelLider[] = esperados.map((e) => ({
       lider_id: e.lider_id,

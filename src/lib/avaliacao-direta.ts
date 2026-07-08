@@ -71,6 +71,14 @@ export function avaliadorPodeVerAlvoExclusivo(
   return permitidos?.has(avaliadorId) ?? false;
 }
 
+/** Avaliação exclusiva (ex.: marketing sob demanda): fora da Visita RH e pendências de complemento RH. */
+export function colaboradorForaVisitaRhPorExclusividade(
+  colaboradorId: string,
+  mapa: Pick<MapaAvaliacaoDireta, 'alvosExclusivos'>
+): boolean {
+  return mapa.alvosExclusivos.has(colaboradorId);
+}
+
 export function filtrarEquipeRespeitandoExclusividade(
   membros: MembroEquipe[],
   avaliadorId: string,
