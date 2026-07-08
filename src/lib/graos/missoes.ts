@@ -13,7 +13,7 @@ import {
   processarElegibilidadeTodasSemanasPendentesGraos,
   refKeyGraos,
 } from '@/lib/graos/movimentos';
-import { colaboradorAcessouPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
+import { colaboradorTemGraosLoginSemana } from '@/lib/cafe-conecta/acesso-portal';
 import { graosPorTrofeusEnviadosNaSemana } from '@/lib/graos/trofeus-graos';
 import { ehQuintaSaoPaulo, hojeIsoSaoPaulo, semanaFimExclusiveUtcIsoSp, semanaInicioUtcIsoSp } from '@/lib/semana-brasil';
 import { GRAOS_ENVIO_SUGESTAO } from '@/lib/sugestao-resposta-graos';
@@ -54,7 +54,7 @@ export async function sincronizarMissoesSemanaGraos(
 
   await deduplicarLoginSemanaColaborador(supabase, colaboradorId);
 
-  let temLoginSemana = await colaboradorAcessouPortalSemanaGraos(supabase, colaboradorId, semanaInicio);
+  let temLoginSemana = await colaboradorTemGraosLoginSemana(supabase, colaboradorId, semanaInicio);
 
   // Entrada no portal: 1 crédito/semana, só na primeira vez que acessa (sync com creditarLogin).
   if (opts?.creditarLogin !== false && !temLoginSemana) {

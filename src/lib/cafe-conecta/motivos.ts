@@ -11,6 +11,8 @@ export function rotuloMotivoInelegibilidadeCafeConecta(m: CafeConectaMotivoInele
       return 'Folga na quarta';
     case 'fora_plantao':
       return 'Fora do plantão';
+    case 'nota_abaixo_minimo':
+      return 'Nota abaixo de 3';
     case 'sem_acesso_portal':
       return 'Sem login na semana';
     case 'onboarding_pendente':
@@ -33,8 +35,10 @@ export function descricaoMotivoInelegibilidadeCafeConecta(m: CafeConectaMotivoIn
       return 'Folga na quarta-feira desta semana (escala 5x2 ou 6x1, ou avaliação).';
     case 'fora_plantao':
       return 'Escala 12x36 fora do plantão ativo nesta quarta (avaliado por outro líder ou sem avaliação no plantão de hoje).';
+    case 'nota_abaixo_minimo':
+      return 'Algum critério da avaliação semanal do líder ficou abaixo de 3 (ou falta injustificada).';
     case 'sem_acesso_portal':
-      return 'Não entrou no portal esta semana (segunda a quarta): falta login ou uso registrado no app.';
+      return 'Não entrou no portal esta semana (segunda a quarta): falta login, termômetro, comunicado ou uso registrado no app.';
     case 'onboarding_pendente':
       return 'Cadastro no portal ainda não concluído.';
     case 'perfil_nao_participa':
@@ -53,6 +57,7 @@ export const CAFE_CONECTA_TEXTO_COMUNICADO_EQUIPE = `☕ Café Conecta — quem 
 Para entrar no sorteio você precisa:
 • Ter entrado no portal pelo menos uma vez entre segunda e quarta desta semana.
 • Não estar de férias nem afastado(a).
+• Não ter nenhuma nota abaixo de 3 na avaliação semanal do líder.
 • Estar em dia com a escala do dia (regras abaixo).
 
 Escalas 5x2 e 6x1: participam normalmente. Quem está de folga na quarta-feira não entra no sorteio.

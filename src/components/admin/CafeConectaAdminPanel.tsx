@@ -16,6 +16,10 @@ import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import type { CafeConectaDashboardPayload } from '@/lib/cafe-conecta/types';
 import { CAFE_CONECTA_REACOES } from '@/lib/cafe-conecta/feedback';
 import {
+  motivoExcluiDoPoolSorteioCafeConecta,
+  poolSorteioAdminCafeConecta,
+} from '@/lib/cafe-conecta/sorteio-pool';
+import {
   CAFE_CONECTA_AVISO_VIRADA_SEMANA,
   CAFE_CONECTA_TEXTO_COMUNICADO_EQUIPE,
   descricaoMotivoInelegibilidadeCafeConecta,
@@ -24,6 +28,10 @@ import {
 import { getTermo } from '@/lib/tenant/terminology';
 
 type GrupoTab = { slug: string; label: string; sorteio_liberado: boolean };
+
+function ordenarPorNome(a: { nome: string }, b: { nome: string }): number {
+  return a.nome.localeCompare(b.nome, 'pt-BR');
+}
 
 export function CafeConectaAdminPanel() {
   const termoCafeConecta = getTermo('cafe_conecta');
@@ -101,6 +109,10 @@ export function CafeConectaAdminPanel() {
     () => listaElegibilidade.filter((l) => l.motivo === 'sem_acesso_portal'),
     [listaElegibilidade]
   );
+  const notaBaixaLista = useMemo(
+    () => listaElegibilidade.filter((l) => l.motivo === 'nota_abaixo_minimo'),
+    [listaElegibilidade]
+  );
   const outrosInelegiveis = useMemo(
     () =>
       listaElegibilidade.filter(
@@ -109,11 +121,30 @@ export function CafeConectaAdminPanel() {
           l.motivo !== 'ferias' &&
           l.motivo !== 'folga_quarta' &&
           l.motivo !== 'fora_plantao' &&
+          l.motivo !== 'nota_abaixo_minimo' &&
           l.motivo !== 'afastado' &&
           l.motivo !== 'sem_acesso_portal'
       ),
     [listaElegibilidade]
   );
+
+  const poolInfo = useMemo(() => poolSorteioAdminCafeConecta(listaElegibilidade), [listaElegibilidade]);
+
+  const elegiveisLista = useMemo(
+    () => listaElegibilidade.filter((l) => l.elegivel).sort(ordenarPorNome),
+    [listaElegibilidade]
+  );
+
+  const inelegiveisLista = useMemo(
+    () => listaElegibilidade.filter((l) => !l.elegivel).sort(ordenarPorNome),
+    [listaElegibilidade]
+  );
+
+  const semLoginNoPoolLista = useMemo(() => {
+    if (!poolInfo.relaxouPortal) return [];
+    const elegIds = new Set(elegiveisLista.map((l) => l.id));
+    return poolInfo.pool.filter((p) => !elegIds.has(p.id)).sort(ordenarPorNome);
+  }, [poolInfo.pool, poolInfo.relaxouPortal, elegiveisLista]);
 
   const copiarComunicado = async () => {
     try {
@@ -235,27 +266,15 @@ export function CafeConectaAdminPanel() {
         title={termoCafeConecta}
         description={`${data.grupo.label} · semana ${data.semana_inicio} · quarta ${data.data_referencia}`}
         actions={
-          sorteioLiberado ? (
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void realizarSorteio()}
-                disabled={acao !== null || isPublicado}
-                className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-4 py-2 text-sm font-semibold text-cream-100 hover:bg-dourado-400 disabled:opacity-50"
-              >
-                {acao === 'sorteio' ? 'Sorteando…' : isRascunho ? 'Sortear novamente' : 'Realizar sorteio'}
-              </button>
-              {isRascunho && (
-                <button
-                  type="button"
-                  onClick={() => void publicar()}
-                  disabled={acao !== null}
-                  className="inline-flex min-h-[44px] items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
-                >
-                  {acao === 'publicar' ? 'Publicando…' : 'Publicar sorteio'}
-                </button>
-              )}
-            </div>
+          sorteioLiberado && isRascunho ? (
+            <button
+              type="button"
+              onClick={() => void publicar()}
+              disabled={acao !== null}
+              className="inline-flex min-h-[44px] items-center rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+            >
+              {acao === 'publicar' ? 'Publicando…' : 'Publicar sorteio'}
+            </button>
           ) : null
         }
       />
@@ -327,12 +346,151 @@ export function CafeConectaAdminPanel() {
         />
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <AdminStatCard label="Férias" valor={data.elegibilidade.ferias} tom="neutro" />
         <AdminStatCard label="Afastados" valor={data.elegibilidade.afastados} tom="neutro" />
         <AdminStatCard label="Folga quarta" valor={data.elegibilidade.folga} tom="neutro" />
         <AdminStatCard label="Fora plantão 12x36" valor={data.elegibilidade.fora_plantao ?? 0} tom="neutro" />
+        <AdminStatCard label="Nota abaixo de 3" valor={data.elegibilidade.nota_baixa ?? 0} tom="neutro" />
       </div>
+
+      {sorteioLiberado && !isPublicado && (
+        <AdminSection
+          title="Revisão antes do sorteio"
+          description="Confira quem entra no pool e quem fica de fora desta quarta antes de sortear."
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg border border-cafeteria-200 bg-cream-50/80 px-4 py-3 text-sm text-cafeteria-800">
+              <p>
+                <strong className="text-coffee-base">{elegiveisLista.length}</strong> elegíveis ·{' '}
+                <strong className="text-coffee-base">{inelegiveisLista.length}</strong> inelegíveis · sorteio entre{' '}
+                <strong className="text-coffee-base">{poolInfo.pool.length}</strong> no pool
+                {poolInfo.relaxouPortal ? ' (pool ampliado: inclui sem login)' : ''}
+              </p>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <div className="rounded-xl border border-emerald-200 bg-white overflow-hidden">
+                <div className="border-b border-emerald-100 bg-emerald-50/80 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-emerald-900">
+                    Elegíveis ({elegiveisLista.length})
+                  </h3>
+                  <p className="text-xs text-emerald-800 mt-0.5">
+                    Entraram no portal entre segunda e quarta desta semana.
+                  </p>
+                </div>
+                <div className="max-h-[min(32rem,65vh)] overflow-y-auto">
+                  <AdminTable>
+                    <AdminTableHead>
+                      <AdminTableRow>
+                        <AdminTableTh>Nome</AdminTableTh>
+                        <AdminTableTh>Setor</AdminTableTh>
+                        <AdminTableTh>Unidade</AdminTableTh>
+                      </AdminTableRow>
+                    </AdminTableHead>
+                    <AdminTableBody>
+                      {elegiveisLista.map((l) => (
+                        <AdminTableRow key={l.id}>
+                          <AdminTableTd>{l.nome}</AdminTableTd>
+                          <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                          <AdminTableTd>{l.unidade_nome}</AdminTableTd>
+                        </AdminTableRow>
+                      ))}
+                    </AdminTableBody>
+                  </AdminTable>
+                  {elegiveisLista.length === 0 && (
+                    <p className="px-4 py-6 text-sm text-cafeteria-500">Nenhum elegível com login nesta semana.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-cream-300 bg-white overflow-hidden">
+                <div className="border-b border-cream-200 bg-cream-50 px-4 py-3">
+                  <h3 className="text-sm font-semibold text-coffee-base">
+                    Inelegíveis ({inelegiveisLista.length})
+                  </h3>
+                  <p className="text-xs text-cafeteria-600 mt-0.5">
+                    Sem login, férias, folga, fora do plantão, nota abaixo de 3 ou afastados.
+                  </p>
+                </div>
+                <div className="max-h-[min(32rem,65vh)] overflow-y-auto">
+                  <AdminTable>
+                    <AdminTableHead>
+                      <AdminTableRow>
+                        <AdminTableTh>Nome</AdminTableTh>
+                        <AdminTableTh>Setor</AdminTableTh>
+                        <AdminTableTh>Motivo</AdminTableTh>
+                      </AdminTableRow>
+                    </AdminTableHead>
+                    <AdminTableBody>
+                      {inelegiveisLista.map((l) => (
+                        <AdminTableRow key={l.id}>
+                          <AdminTableTd>{l.nome}</AdminTableTd>
+                          <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                          <AdminTableTd className="text-sm text-cafeteria-700">
+                            <span className="font-medium text-coffee-base">
+                              {rotuloMotivoInelegibilidadeCafeConecta(l.motivo)}
+                            </span>
+                            {motivoExcluiDoPoolSorteioCafeConecta(l.motivo) ? (
+                              <span className="block text-xs text-cafeteria-500 mt-0.5">Fora do sorteio</span>
+                            ) : (
+                              <span className="block text-xs text-amber-700 mt-0.5">
+                                Pode entrar no pool ampliado se faltarem elegíveis
+                              </span>
+                            )}
+                          </AdminTableTd>
+                        </AdminTableRow>
+                      ))}
+                    </AdminTableBody>
+                  </AdminTable>
+                  {inelegiveisLista.length === 0 && (
+                    <p className="px-4 py-6 text-sm text-cafeteria-500">Todos da base estão elegíveis.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {poolInfo.pool.length > 0 && (
+              <div className="rounded-xl border border-dourado-200 bg-cream-50/60 px-4 py-4">
+                <h3 className="text-sm font-semibold text-coffee-base">
+                  Pool do sorteio ({poolInfo.pool.length})
+                </h3>
+                <p className="text-xs text-cafeteria-600 mt-0.5 mb-2">
+                  Nomes que o sistema usa ao clicar em «Realizar sorteio».
+                </p>
+                <p className="text-sm text-cafeteria-800">
+                  {[...poolInfo.pool].sort(ordenarPorNome).map((p) => p.nome).join(' · ')}
+                </p>
+              </div>
+            )}
+
+            {semLoginNoPoolLista.length > 0 && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 text-sm text-amber-950">
+                <p className="font-semibold">Sem login, mas no pool ampliado ({semLoginNoPoolLista.length})</p>
+                <p className="mt-1 text-xs">
+                  {semLoginNoPoolLista.map((p) => p.nome).join(' · ')}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => void realizarSorteio()}
+                disabled={acao !== null || poolInfo.pool.length < 2}
+                className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-5 py-2 text-sm font-semibold text-cream-100 hover:bg-dourado-400 disabled:opacity-50"
+              >
+                {acao === 'sorteio' ? 'Sorteando…' : isRascunho ? 'Sortear novamente' : 'Realizar sorteio'}
+              </button>
+              {poolInfo.pool.length < 2 && (
+                <p className="text-sm text-red-700 self-center">
+                  Pool com menos de 2 pessoas — revise as listas acima.
+                </p>
+              )}
+            </div>
+          </div>
+        </AdminSection>
+      )}
 
       {sorteio && (
         <AdminSection title="Sorteio atual" description={isPublicado ? 'Publicado na home do portal.' : 'Rascunho — revise antes de publicar.'}>
@@ -354,8 +512,8 @@ export function CafeConectaAdminPanel() {
       )}
 
       <AdminSection
-        title="Elegíveis"
-        description={`Com login no portal nesta semana (segunda a quarta). Se forem menos de 2, o sorteio admin inclui quem está ativo mas ainda não entrou (exceto férias, folga na quarta, fora do plantão 12x36 e afastados).`}
+        title="Detalhamento — elegíveis"
+        description="Lista completa de quem já entrou no portal nesta semana (segunda a quarta)."
       >
         <AdminTable>
           <AdminTableHead>
@@ -363,27 +521,47 @@ export function CafeConectaAdminPanel() {
               <AdminTableTh>Nome</AdminTableTh>
               <AdminTableTh>Setor</AdminTableTh>
               <AdminTableTh>Unidade</AdminTableTh>
-              <AdminTableTh>Status</AdminTableTh>
             </AdminTableRow>
           </AdminTableHead>
           <AdminTableBody>
-            {data.elegibilidade.lista
-              .filter((l) => l.elegivel)
-              .slice(0, 40)
-              .map((l) => (
-                <AdminTableRow key={l.id}>
-                  <AdminTableTd>{l.nome}</AdminTableTd>
-                  <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
-                  <AdminTableTd>{l.unidade_nome}</AdminTableTd>
-                  <AdminTableTd className="text-emerald-700 font-medium">
-                    Elegível · entrou no portal esta semana
-                  </AdminTableTd>
-                </AdminTableRow>
-              ))}
+            {elegiveisLista.map((l) => (
+              <AdminTableRow key={l.id}>
+                <AdminTableTd>{l.nome}</AdminTableTd>
+                <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                <AdminTableTd>{l.unidade_nome}</AdminTableTd>
+              </AdminTableRow>
+            ))}
           </AdminTableBody>
         </AdminTable>
-        {data.elegibilidade.elegiveis > 40 && (
-          <p className="text-xs text-cafeteria-500 mt-2">Mostrando 40 de {data.elegibilidade.elegiveis} elegíveis.</p>
+        {elegiveisLista.length === 0 && (
+          <p className="text-sm text-cafeteria-500 mt-2">Nenhum elegível com login nesta semana.</p>
+        )}
+      </AdminSection>
+
+      <AdminSection
+        title="Detalhamento — sem login na semana"
+        description="Não entram como elegíveis estritos; podem entrar no pool ampliado se faltarem pessoas com login."
+      >
+        <AdminTable>
+          <AdminTableHead>
+            <AdminTableRow>
+              <AdminTableTh>Nome</AdminTableTh>
+              <AdminTableTh>Setor</AdminTableTh>
+              <AdminTableTh>Unidade</AdminTableTh>
+            </AdminTableRow>
+          </AdminTableHead>
+          <AdminTableBody>
+            {semAcessoLista.map((l) => (
+              <AdminTableRow key={l.id}>
+                <AdminTableTd>{l.nome}</AdminTableTd>
+                <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                <AdminTableTd>{l.unidade_nome}</AdminTableTd>
+              </AdminTableRow>
+            ))}
+          </AdminTableBody>
+        </AdminTable>
+        {semAcessoLista.length === 0 && (
+          <p className="text-sm text-cafeteria-500 mt-2">Todos da base já entraram no portal esta semana.</p>
         )}
       </AdminSection>
 
@@ -418,7 +596,7 @@ export function CafeConectaAdminPanel() {
       )}
 
       {folgaLista.length > 0 && (
-        <AdminSection title="Folga na quarta" description="Não entram no sorteio desta quarta.">
+        <AdminSection title="Detalhamento — folga na quarta" description="Não entram no sorteio desta quarta.">
           <AdminTable>
             <AdminTableHead>
               <AdminTableRow>
@@ -428,7 +606,7 @@ export function CafeConectaAdminPanel() {
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
-              {folgaLista.slice(0, 40).map((l) => (
+              {folgaLista.map((l) => (
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
@@ -439,15 +617,12 @@ export function CafeConectaAdminPanel() {
               ))}
             </AdminTableBody>
           </AdminTable>
-          {folgaLista.length > 40 && (
-            <p className="text-xs text-cafeteria-500 mt-2">Mostrando 40 de {folgaLista.length}.</p>
-          )}
         </AdminSection>
       )}
 
       {foraPlantaoLista.length > 0 && (
         <AdminSection
-          title="Fora do plantão (12x36)"
+          title="Detalhamento — fora do plantão (12x36)"
           description="Escala 12x36 em outro turno nesta quarta — não entram no sorteio de hoje."
         >
           <AdminTable>
@@ -459,7 +634,7 @@ export function CafeConectaAdminPanel() {
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
-              {foraPlantaoLista.slice(0, 40).map((l) => (
+              {foraPlantaoLista.map((l) => (
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
@@ -470,16 +645,13 @@ export function CafeConectaAdminPanel() {
               ))}
             </AdminTableBody>
           </AdminTable>
-          {foraPlantaoLista.length > 40 && (
-            <p className="text-xs text-cafeteria-500 mt-2">Mostrando 40 de {foraPlantaoLista.length}.</p>
-          )}
         </AdminSection>
       )}
 
-      {semAcessoLista.length > 0 && (
+      {notaBaixaLista.length > 0 && (
         <AdminSection
-          title="Sem login na semana"
-          description="Precisam entrar no portal entre segunda e quarta para serem sorteados como elegíveis."
+          title="Detalhamento — nota abaixo de 3"
+          description="Critério da avaliação semanal do líder abaixo do mínimo para o Café Conecta."
         >
           <AdminTable>
             <AdminTableHead>
@@ -490,7 +662,7 @@ export function CafeConectaAdminPanel() {
               </AdminTableRow>
             </AdminTableHead>
             <AdminTableBody>
-              {semAcessoLista.slice(0, 40).map((l) => (
+              {notaBaixaLista.map((l) => (
                 <AdminTableRow key={l.id}>
                   <AdminTableTd>{l.nome}</AdminTableTd>
                   <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
@@ -501,9 +673,6 @@ export function CafeConectaAdminPanel() {
               ))}
             </AdminTableBody>
           </AdminTable>
-          {semAcessoLista.length > 40 && (
-            <p className="text-xs text-cafeteria-500 mt-2">Mostrando 40 de {semAcessoLista.length}.</p>
-          )}
         </AdminSection>
       )}
 

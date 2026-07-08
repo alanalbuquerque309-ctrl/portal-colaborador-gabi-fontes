@@ -396,6 +396,7 @@ export async function realizarSorteioCafeConecta(
         semAcesso: contagem.sem_acesso,
         folga: contagem.folga,
         foraPlantao: contagem.fora_plantao,
+        notaBaixa: contagem.nota_baixa,
         ferias: contagem.ferias,
         afastados: contagem.afastados,
       })}`,

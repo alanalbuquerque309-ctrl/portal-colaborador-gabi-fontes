@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { dataCivilBr } from '@/lib/data-civil-br';
+import { registrarPresencaPortal } from '@/lib/registrar-presenca-portal';
+import { graosCongelado } from '@/lib/graos/congelado';
+import { registrarLoginSemanaGraos } from '@/lib/graos/missoes';
+import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import {
   EMOCOES_IDS,
   isEmocaoId,
@@ -91,6 +95,12 @@ export async function POST(req: Request) {
     }
 
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
+
+    await registrarPresencaPortal(supabase, colaboradorId);
+    if (!graosCongelado()) {
+      await registrarLoginSemanaGraos(supabase, colaboradorId, segundaSemanaSaoPaulo());
+    }
+
     return NextResponse.json({ ok: true, alerta_gestao: emocaoRequerAlertaGestao(emocao), motivo });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';

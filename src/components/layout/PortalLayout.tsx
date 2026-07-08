@@ -16,6 +16,7 @@ import { PortalAmbientePagina } from '@/components/portal/vivo/PortalBalaoCard';
 import { PortalPerfilProvider } from '@/contexts/PortalPerfilContext';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalNavigationLoader } from '@/components/portal/PortalNavigationLoader';
+import { PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
 
 type ColaboradorGate = {
   role?: string | null;
@@ -313,6 +314,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
         <PortalAmbientePagina />
         <Header perfilRole={perfilRole} perfilCarregado={gateOk} />
         <PortalPwaRefresh />
+        {!carregandoInicial && gateOk && <PortalPresenceHeartbeat />}
         <main className="relative z-[1] max-w-6xl mx-auto px-4 py-8 pb-[max(6rem,calc(5rem+env(safe-area-inset-bottom,0px)))] md:pb-8">
           {carregandoInicial ? <PortalLayoutSkeleton /> : children}
         </main>

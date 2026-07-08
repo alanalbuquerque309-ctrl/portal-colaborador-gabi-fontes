@@ -6,6 +6,10 @@ import { listarIdsLideresAtivos } from '@/lib/lider-inspirador';
 import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
 import { idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { idsComAcessoPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
+import {
+  colaboradorTemNotaAbaixoMinimoCafeConecta,
+  type LinhaAvaliacaoCafeConecta,
+} from '@/lib/cafe-conecta/avaliacao-elegibilidade';
 import type { CafeConectaColaboradorBase, CafeConectaElegibilidadeLinha, CafeConectaMotivoInelegivel } from '@/lib/cafe-conecta/types';
 import { resolverUnidadeIdsGrupoMesquita } from '@/lib/setores-fabrica-lideranca';
 import type { CafeConectaGrupoConfig } from '@/lib/cafe-conecta/config';
@@ -28,11 +32,7 @@ function isTipoEscala(v: string | null | undefined): v is TipoEscala {
   return v === '5x2' || v === '6x1' || v === '12x36';
 }
 
-type LinhaAvaliacaoSemanal = {
-  assiduidade?: string | null;
-  justificativa_nota_baixa?: string | null;
-  ignorada?: boolean | null;
-};
+type LinhaAvaliacaoSemanal = LinhaAvaliacaoCafeConecta;
 
 /** 12x36: só entra quem está no plantão ativo (avaliado pelo líder de plantão desta semana). */
 function colaborador12x36NoPlantaoAtivo(linhas: LinhaAvaliacaoSemanal[]): boolean {
@@ -151,7 +151,9 @@ export async function avaliarElegibilidadeSemanaCafeConecta(
     idsComAcessoPortalSemanaGraos(supabase, ids, semanaInicio),
     supabase
       .from('avaliacoes_diarias')
-      .select('colaborador_id, assiduidade, justificativa_nota_baixa, ignorada')
+      .select(
+        'colaborador_id, assiduidade, justificativa_nota_baixa, ignorada, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade'
+      )
       .eq('data_referencia', semanaInicio)
       .in('colaborador_id', ids),
     supabase
@@ -222,6 +224,10 @@ export async function avaliarElegibilidadeSemanaCafeConecta(
           }
         }
 
+        if (motivo === null && colaboradorTemNotaAbaixoMinimoCafeConecta(linhas)) {
+          motivo = 'nota_abaixo_minimo';
+        }
+
         if (motivo === null && !acessoIds.has(c.id)) {
           motivo = 'sem_acesso_portal';
         }
@@ -238,6 +244,7 @@ export function contagemMotivosElegibilidade(lista: CafeConectaElegibilidadeLinh
   let afastados = 0;
   let folga = 0;
   let fora_plantao = 0;
+  let nota_baixa = 0;
   let sem_acesso = 0;
   for (const l of lista) {
     if (l.elegivel) {
@@ -257,6 +264,9 @@ export function contagemMotivosElegibilidade(lista: CafeConectaElegibilidadeLinh
       case 'fora_plantao':
         fora_plantao++;
         break;
+      case 'nota_abaixo_minimo':
+        nota_baixa++;
+        break;
       case 'sem_acesso_portal':
         sem_acesso++;
         break;
@@ -271,6 +281,7 @@ export function contagemMotivosElegibilidade(lista: CafeConectaElegibilidadeLinh
     afastados,
     folga,
     fora_plantao,
+    nota_baixa,
     sem_acesso,
   };
 }

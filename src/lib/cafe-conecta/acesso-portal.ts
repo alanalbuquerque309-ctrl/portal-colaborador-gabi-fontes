@@ -1,9 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-
-/** Segunda 00:00 America/Sao_Paulo (UTC-3) em ISO. */
-function inicioSemanaUtcIso(semanaInicio: string): string {
-  return `${semanaInicio}T03:00:00.000Z`;
-}
+import { semanaInicioUtcIsoSp } from '@/lib/semana-brasil';
 
 async function idsGraosLoginSemana(
   supabase: SupabaseClient,
@@ -41,7 +37,7 @@ async function idsComPresencaPortalSemana(
   const out = new Set<string>();
   if (colaboradorIds.length === 0) return out;
 
-  const desde = inicioSemanaUtcIso(semanaInicio);
+  const desde = semanaInicioUtcIsoSp(semanaInicio);
   const { data, error } = await supabase
     .from('portal_presenca')
     .select('colaborador_id')
@@ -60,8 +56,7 @@ async function idsComPresencaPortalSemana(
   return out;
 }
 
-/** Lote: ids com acesso ao portal na semana (Grãos login_semana ou ping desde segunda). */
-async function idsComAcessoPortalSemana(
+async function idsComEmocionalSemana(
   supabase: SupabaseClient,
   colaboradorIds: string[],
   semanaInicio: string
@@ -69,23 +64,98 @@ async function idsComAcessoPortalSemana(
   const out = new Set<string>();
   if (colaboradorIds.length === 0) return out;
 
-  const [graos, presenca] = await Promise.all([
-    idsGraosLoginSemana(supabase, colaboradorIds, semanaInicio),
-    idsComPresencaPortalSemana(supabase, colaboradorIds, semanaInicio),
-  ]);
-  graos.forEach((id) => out.add(id));
-  presenca.forEach((id) => out.add(id));
+  const { data, error } = await supabase
+    .from('emocional_registro')
+    .select('colaborador_id')
+    .in('colaborador_id', colaboradorIds)
+    .gte('data', semanaInicio);
+
+  if (error) {
+    if (/emocional_registro/i.test(error.message) && /does not exist|schema cache/i.test(error.message)) {
+      return out;
+    }
+    throw new Error(error.message);
+  }
+  for (const row of data ?? []) {
+    out.add(String(row.colaborador_id));
+  }
   return out;
 }
 
-/** Mesma regra dos 5 Grãos «Entrar no portal esta semana» (`login_semana`), mais presença no app. */
+async function idsComAvisoVisualizadoSemana(
+  supabase: SupabaseClient,
+  colaboradorIds: string[],
+  semanaInicio: string
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (colaboradorIds.length === 0) return out;
+
+  const desde = semanaInicioUtcIsoSp(semanaInicio);
+  const { data, error } = await supabase
+    .from('aviso_visualizacoes')
+    .select('colaborador_id')
+    .in('colaborador_id', colaboradorIds)
+    .gte('visualizado_em', desde);
+
+  if (error) {
+    if (/aviso_visualizacoes/i.test(error.message) && /does not exist|schema cache/i.test(error.message)) {
+      return out;
+    }
+    throw new Error(error.message);
+  }
+  for (const row of data ?? []) {
+    out.add(String(row.colaborador_id));
+  }
+  return out;
+}
+
+/** Qualquer uso registrado do portal na semana (Café Conecta e regras operacionais amplas). */
+export async function idsComAtividadePortalSemana(
+  supabase: SupabaseClient,
+  colaboradorIds: string[],
+  semanaInicio: string
+): Promise<Set<string>> {
+  const out = new Set<string>();
+  if (colaboradorIds.length === 0) return out;
+
+  const [graos, presenca, emocional, avisos] = await Promise.all([
+    idsGraosLoginSemana(supabase, colaboradorIds, semanaInicio),
+    idsComPresencaPortalSemana(supabase, colaboradorIds, semanaInicio),
+    idsComEmocionalSemana(supabase, colaboradorIds, semanaInicio),
+    idsComAvisoVisualizadoSemana(supabase, colaboradorIds, semanaInicio),
+  ]);
+  for (const set of [graos, presenca, emocional, avisos]) {
+    set.forEach((id) => out.add(id));
+  }
+  return out;
+}
+
+/** Crédito Grãos `login_semana` (não confundir com atividade ampla do portal). */
+export async function colaboradorTemGraosLoginSemana(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string
+): Promise<boolean> {
+  const ids = await idsGraosLoginSemana(supabase, [colaboradorId], semanaInicio);
+  return ids.has(colaboradorId);
+}
+
+export async function colaboradorTeveAtividadePortalSemana(
+  supabase: SupabaseClient,
+  colaboradorId: string,
+  semanaInicio: string
+): Promise<boolean> {
+  const ids = await idsComAtividadePortalSemana(supabase, [colaboradorId], semanaInicio);
+  return ids.has(colaboradorId);
+}
+
+/** @deprecated Nome legado — usa atividade ampla do portal, não só Grãos. */
 export async function colaboradorAcessouPortalSemanaGraos(
   supabase: SupabaseClient,
   colaboradorId: string,
   semanaInicio: string
 ): Promise<boolean> {
-  const ids = await idsComAcessoPortalSemana(supabase, [colaboradorId], semanaInicio);
-  return ids.has(colaboradorId);
+  return colaboradorTeveAtividadePortalSemana(supabase, colaboradorId, semanaInicio);
 }
 
 export async function idsComAcessoPortalSemanaGraos(
@@ -93,5 +163,5 @@ export async function idsComAcessoPortalSemanaGraos(
   colaboradorIds: string[],
   semanaInicio: string
 ): Promise<Set<string>> {
-  return idsComAcessoPortalSemana(supabase, colaboradorIds, semanaInicio);
+  return idsComAtividadePortalSemana(supabase, colaboradorIds, semanaInicio);
 }
