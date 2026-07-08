@@ -12,7 +12,7 @@ export type TreinamentoPortalItem = {
   arquivado?: boolean;
 };
 
-export const TREINO_IDS_EXTRAS = new Set(['video-institutional', 'quinta-colaborador']);
+export const TREINO_IDS_EXTRAS = new Set(['video-institutional']);
 
 export function ehUuid(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);

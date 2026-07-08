@@ -214,34 +214,48 @@ export default function PortalTreinamentoPage() {
                   </p>
                 ) : null}
 
-                <div className="space-y-4">
+                <div className="divide-y divide-cafeteria-100/60 border-t border-cafeteria-100/60">
                   {semana.map((t) => {
-                    const aberto = abertoId === t.id;
-                    const concluido = ehConcluidoSemana(t);
+                    const itemAberto = abertoId === t.id;
                     return (
-                      <div
-                        key={t.id}
-                        className={`rounded-xl border p-4 ${
-                          concluido
-                            ? 'border-emerald-200 bg-emerald-50/40'
-                            : 'border-amber-200 bg-white'
-                        }`}
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
-                          <div className="min-w-0">
-                            <h3 className="text-base font-semibold text-coffee-base">{t.titulo}</h3>
-                            {t.descricao ? (
-                              <p className="text-sm text-cafeteria-600 mt-0.5">{t.descricao}</p>
-                            ) : null}
+                      <div key={t.id}>
+                        <button
+                          type="button"
+                          onClick={() => abrirItem(t.id)}
+                          className="w-full flex items-center justify-between py-3 text-left hover:bg-cream-50/40 transition-colors min-h-[48px]"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+                            <TreinamentoStatusChip item={t} grande />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-coffee-base">{t.titulo}</p>
+                              {t.descricao ? (
+                                <p className="text-xs text-cafeteria-500 truncate mt-0.5">{t.descricao}</p>
+                              ) : null}
+                            </div>
                           </div>
-                          <TreinamentoStatusChip item={t} grande />
-                        </div>
-                        <TreinamentoItemConteudo
-                          item={t}
-                          aberto={aberto}
-                          botaoPrimario={!concluido}
-                          {...propsConteudo}
-                        />
+                          <svg
+                            className={`h-4 w-4 text-cafeteria-400 shrink-0 transition-transform duration-200 ${
+                              itemAberto ? 'rotate-180' : ''
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                            aria-hidden
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+
+                        {itemAberto ? (
+                          <div className="pb-4">
+                            <TreinamentoItemConteudo
+                              item={t}
+                              aberto
+                              botaoPrimario={!ehConcluidoSemana(t)}
+                              {...propsConteudo}
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -333,21 +347,47 @@ export default function PortalTreinamentoPage() {
           )}
 
           {extras.length > 0 && (
-            <section className="rounded-2xl border border-cafeteria-200/50 bg-cream-50/50 p-5 space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-cafeteria-600">
-                Outros materiais
-              </p>
-              {extras.map((t) => (
-                <div key={t.id} className="rounded-lg border border-cafeteria-200/60 bg-white p-4">
-                  <p className="text-sm font-medium text-coffee-base mb-2">{t.titulo}</p>
-                  <TreinamentoItemConteudo
-                    item={t}
-                    aberto={abertoId === t.id}
-                    botaoPrimario={false}
-                    {...propsConteudo}
-                  />
-                </div>
-              ))}
+            <section className="rounded-2xl border border-cafeteria-200/50 bg-cream-50/50 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-cafeteria-100/60">
+                <p className="text-xs font-bold uppercase tracking-wide text-cafeteria-600">
+                  Outros materiais
+                </p>
+              </div>
+              {extras.map((t) => {
+                const itemAberto = abertoId === t.id;
+                return (
+                  <div key={t.id} className="border-b border-cafeteria-100/60 last:border-b-0">
+                    <button
+                      type="button"
+                      onClick={() => abrirItem(t.id)}
+                      className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-white/60 transition-colors min-h-[44px]"
+                    >
+                      <p className="text-sm font-medium text-coffee-base">{t.titulo}</p>
+                      <svg
+                        className={`h-3.5 w-3.5 text-cafeteria-300 shrink-0 ml-2 transition-transform duration-200 ${
+                          itemAberto ? 'rotate-180' : ''
+                        }`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                    {itemAberto ? (
+                      <div className="px-5 pb-4">
+                        <TreinamentoItemConteudo
+                          item={t}
+                          aberto
+                          botaoPrimario={false}
+                          {...propsConteudo}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </section>
           )}
         </>

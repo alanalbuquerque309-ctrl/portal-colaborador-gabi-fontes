@@ -42,10 +42,30 @@ export function TreinamentoItemConteudo({
     : 'rounded-lg bg-cafeteria-100 px-4 py-2 text-sm font-medium text-coffee-base hover:bg-cafeteria-200 transition-colors min-h-[40px] items-center inline-flex';
 
   if (linkInstitucional) {
+    if (!aberto) {
+      return (
+        <button type="button" onClick={() => onAbrir(t.id)} className={btnCls}>
+          {botaoPrimario ? 'Abrir vídeo institucional' : 'Rever vídeo institucional'}
+        </button>
+      );
+    }
     return (
-      <Link href={linkInstitucional} className={btnCls}>
-        {botaoPrimario ? 'Abrir vídeo institucional' : 'Rever vídeo institucional'}
-      </Link>
+      <div className="space-y-2">
+        <Link href={linkInstitucional} className={btnCls}>
+          Abrir vídeo institucional
+        </Link>
+        <button type="button" onClick={onRecolher} className="text-sm text-cafeteria-600 hover:text-coffee-base underline">
+          Recolher
+        </button>
+      </div>
+    );
+  }
+
+  if (!aberto) {
+    return (
+      <button type="button" onClick={() => onAbrir(t.id)} className={btnCls}>
+        {t.id.startsWith('quinta-') ? 'Assistir vídeo' : ehTexto ? 'Ler material' : 'Assistir vídeo'}
+      </button>
     );
   }
 
@@ -71,7 +91,15 @@ export function TreinamentoItemConteudo({
           >
             {confirmando === t.id ? 'Salvando…' : 'Assisti e entendi'}
           </button>
-        ) : null}
+        ) : (
+          <button
+            type="button"
+            onClick={onRecolher}
+            className="mt-3 text-sm text-cafeteria-600 hover:text-coffee-base underline"
+          >
+            Recolher
+          </button>
+        )}
         {linkQuinta ? (
           <Link href={linkQuinta} className="inline-block mt-2 text-xs text-dourado-base underline">
             Abrir também em {termoReconhecimento}
@@ -83,17 +111,14 @@ export function TreinamentoItemConteudo({
 
   if (linkQuinta) {
     return (
-      <Link href={linkQuinta} className={btnCls}>
-        Ir para {termoQuinta} ({graosCurto})
-      </Link>
-    );
-  }
-
-  if (!aberto) {
-    return (
-      <button type="button" onClick={() => onAbrir(t.id)} className={btnCls}>
-        {ehTexto ? 'Ler material' : 'Assistir vídeo'}
-      </button>
+      <div className="space-y-2">
+        <Link href={linkQuinta} className={btnCls}>
+          Ir para {termoQuinta} ({graosCurto})
+        </Link>
+        <button type="button" onClick={onRecolher} className="text-sm text-cafeteria-600 hover:text-coffee-base underline">
+          Recolher
+        </button>
+      </div>
     );
   }
 
