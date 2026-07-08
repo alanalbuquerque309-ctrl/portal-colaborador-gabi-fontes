@@ -395,6 +395,7 @@ export async function realizarSorteioCafeConecta(
         pool: pool.length,
         semAcesso: contagem.sem_acesso,
         folga: contagem.folga,
+        foraPlantao: contagem.fora_plantao,
         ferias: contagem.ferias,
         afastados: contagem.afastados,
       })}`,

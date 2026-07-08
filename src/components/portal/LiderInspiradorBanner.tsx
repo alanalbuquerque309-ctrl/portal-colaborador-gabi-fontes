@@ -89,7 +89,7 @@ export function LiderInspiradorBanner({ embedded = false, periodo = 'semanal' }:
         Gerente · {vencedor.unidade_nome}
         {vencedor.setor ? ` · ${vencedor.setor}` : ''}
       </p>
-      <p className="text-base font-semibold text-emerald-800 mt-2">Nota ILI {formatarNotaIli(vencedor.ili)}</p>
+      <p className="text-base font-semibold text-emerald-800 mt-2">Nota {formatarNotaIli(vencedor.ili)}</p>
     </section>
   );
 }

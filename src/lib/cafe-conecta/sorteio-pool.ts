@@ -1,7 +1,7 @@
 import type { CafeConectaColaboradorBase, CafeConectaElegibilidadeLinha } from '@/lib/cafe-conecta/types';
 
 function motivoBloqueiaSorteio(m: CafeConectaElegibilidadeLinha['motivo']): boolean {
-  return m === 'ferias' || m === 'afastado' || m === 'folga_quarta';
+  return m === 'ferias' || m === 'afastado' || m === 'folga_quarta' || m === 'fora_plantao';
 }
 
 function linhaParaBase(l: CafeConectaElegibilidadeLinha): CafeConectaColaboradorBase {
@@ -45,6 +45,7 @@ export function mensagemErroPoolSorteioAdmin(opts: {
   pool: number;
   semAcesso: number;
   folga: number;
+  foraPlantao: number;
   ferias: number;
   afastados: number;
 }): string {
@@ -58,9 +59,10 @@ export function mensagemErroPoolSorteioAdmin(opts: {
     partes.push(`No pool ampliado (sem exigir portal) restam ${opts.pool}.`);
   }
   if (opts.semAcesso > 0) {
-    partes.push(`${opts.semAcesso} sem acesso ao portal (Grãos login_semana).`);
+    partes.push(`${opts.semAcesso} sem login no portal esta semana.`);
   }
   if (opts.folga > 0) partes.push(`${opts.folga} de folga na quarta.`);
+  if (opts.foraPlantao > 0) partes.push(`${opts.foraPlantao} fora do plantão 12x36.`);
   if (opts.ferias > 0) partes.push(`${opts.ferias} de férias.`);
   if (opts.afastados > 0) partes.push(`${opts.afastados} afastados.`);
   return partes.join(' ');

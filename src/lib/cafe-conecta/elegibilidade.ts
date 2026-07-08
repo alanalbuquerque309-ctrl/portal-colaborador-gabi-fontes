@@ -28,6 +28,21 @@ function isTipoEscala(v: string | null | undefined): v is TipoEscala {
   return v === '5x2' || v === '6x1' || v === '12x36';
 }
 
+type LinhaAvaliacaoSemanal = {
+  assiduidade?: string | null;
+  justificativa_nota_baixa?: string | null;
+  ignorada?: boolean | null;
+};
+
+/** 12x36: só entra quem está no plantão ativo (avaliado pelo líder de plantão desta semana). */
+function colaborador12x36NoPlantaoAtivo(linhas: LinhaAvaliacaoSemanal[]): boolean {
+  return linhas.some((r) => {
+    if (r.ignorada === true) return false;
+    const a = assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa);
+    return a === 'presente' || a === 'falta_justificada' || a === 'falta_injustificada';
+  });
+}
+
 function colaboradorEmFolgaNaData(
   tipoEscala: string | null,
   escalaFolgaDias: string | null,
@@ -150,11 +165,11 @@ export async function avaliarElegibilidadeSemanaCafeConecta(
   }
   if (escalaRows.error) throw new Error(escalaRows.error.message);
 
-  const avalPorColab = new Map<string, Array<{ assiduidade?: string | null; justificativa_nota_baixa?: string | null; ignorada?: boolean | null }>>();
+  const avalPorColab = new Map<string, LinhaAvaliacaoSemanal[]>();
   for (const row of avalRows.data ?? []) {
     const cid = String(row.colaborador_id);
     const list = avalPorColab.get(cid) ?? [];
-    list.push(row as { assiduidade?: string | null; justificativa_nota_baixa?: string | null; ignorada?: boolean | null });
+    list.push(row as LinhaAvaliacaoSemanal);
     avalPorColab.set(cid, list);
   }
 
@@ -184,20 +199,30 @@ export async function avaliarElegibilidadeSemanaCafeConecta(
       if (afastado) {
         motivo = 'afastado';
       } else {
-        const folgaSemana = linhas.some((r) => {
-          if (r.ignorada === true) return false;
-          const a = assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa);
-          return a === 'folga' || a === 'outra_escala';
-        });
         const esc = escalaPorId.get(c.id);
-        const folgaQuarta =
-          folgaSemana ||
-          (esc
-            ? colaboradorEmFolgaNaData(esc.tipo_escala, esc.escala_folga_dias, dataQuarta)
-            : false);
-        if (folgaQuarta) {
-          motivo = 'folga_quarta';
-        } else if (!acessoIds.has(c.id)) {
+        const tipoEscala = esc?.tipo_escala ?? null;
+
+        if (tipoEscala === '12x36') {
+          if (!colaborador12x36NoPlantaoAtivo(linhas)) {
+            motivo = 'fora_plantao';
+          }
+        } else {
+          const folgaSemana = linhas.some((r) => {
+            if (r.ignorada === true) return false;
+            const a = assiduidadeDoBanco(r.assiduidade, r.justificativa_nota_baixa);
+            return a === 'folga' || a === 'outra_escala';
+          });
+          const folgaQuarta =
+            folgaSemana ||
+            (esc
+              ? colaboradorEmFolgaNaData(esc.tipo_escala, esc.escala_folga_dias, dataQuarta)
+              : false);
+          if (folgaQuarta) {
+            motivo = 'folga_quarta';
+          }
+        }
+
+        if (motivo === null && !acessoIds.has(c.id)) {
           motivo = 'sem_acesso_portal';
         }
       }
@@ -212,6 +237,7 @@ export function contagemMotivosElegibilidade(lista: CafeConectaElegibilidadeLinh
   let ferias = 0;
   let afastados = 0;
   let folga = 0;
+  let fora_plantao = 0;
   let sem_acesso = 0;
   for (const l of lista) {
     if (l.elegivel) {
@@ -228,6 +254,9 @@ export function contagemMotivosElegibilidade(lista: CafeConectaElegibilidadeLinh
       case 'folga_quarta':
         folga++;
         break;
+      case 'fora_plantao':
+        fora_plantao++;
+        break;
       case 'sem_acesso_portal':
         sem_acesso++;
         break;
@@ -241,6 +270,7 @@ export function contagemMotivosElegibilidade(lista: CafeConectaElegibilidadeLinh
     ferias,
     afastados,
     folga,
+    fora_plantao,
     sem_acesso,
   };
 }

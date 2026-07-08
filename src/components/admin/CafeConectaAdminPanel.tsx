@@ -17,16 +17,16 @@ import type { CafeConectaDashboardPayload } from '@/lib/cafe-conecta/types';
 import { CAFE_CONECTA_REACOES } from '@/lib/cafe-conecta/feedback';
 import {
   CAFE_CONECTA_AVISO_VIRADA_SEMANA,
+  CAFE_CONECTA_TEXTO_COMUNICADO_EQUIPE,
   descricaoMotivoInelegibilidadeCafeConecta,
   rotuloMotivoInelegibilidadeCafeConecta,
 } from '@/lib/cafe-conecta/motivos';
-import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
+import { getTermo } from '@/lib/tenant/terminology';
 
 type GrupoTab = { slug: string; label: string; sorteio_liberado: boolean };
 
 export function CafeConectaAdminPanel() {
   const termoCafeConecta = getTermo('cafe_conecta');
-  const graosCurto = getTermoCurto('reconhecimento');
   const [loading, setLoading] = useState(true);
   const [acao, setAcao] = useState<'sorteio' | 'publicar' | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -89,6 +89,10 @@ export function CafeConectaAdminPanel() {
     () => listaElegibilidade.filter((l) => l.motivo === 'folga_quarta'),
     [listaElegibilidade]
   );
+  const foraPlantaoLista = useMemo(
+    () => listaElegibilidade.filter((l) => l.motivo === 'fora_plantao'),
+    [listaElegibilidade]
+  );
   const afastadosLista = useMemo(
     () => listaElegibilidade.filter((l) => l.motivo === 'afastado'),
     [listaElegibilidade]
@@ -100,10 +104,25 @@ export function CafeConectaAdminPanel() {
   const outrosInelegiveis = useMemo(
     () =>
       listaElegibilidade.filter(
-        (l) => !l.elegivel && l.motivo !== 'ferias' && l.motivo !== 'folga_quarta' && l.motivo !== 'afastado' && l.motivo !== 'sem_acesso_portal'
+        (l) =>
+          !l.elegivel &&
+          l.motivo !== 'ferias' &&
+          l.motivo !== 'folga_quarta' &&
+          l.motivo !== 'fora_plantao' &&
+          l.motivo !== 'afastado' &&
+          l.motivo !== 'sem_acesso_portal'
       ),
     [listaElegibilidade]
   );
+
+  const copiarComunicado = async () => {
+    try {
+      await navigator.clipboard.writeText(CAFE_CONECTA_TEXTO_COMUNICADO_EQUIPE);
+      setAviso('Texto do comunicado copiado.');
+    } catch {
+      setAviso('Não foi possível copiar automaticamente. Selecione o texto abaixo.');
+    }
+  };
 
   const realizarSorteio = async () => {
     setAcao('sorteio');
@@ -269,8 +288,21 @@ export function CafeConectaAdminPanel() {
         </p>
       )}
 
-      <div className="rounded-xl border border-cream-200 bg-cream-50/80 px-4 py-3 text-sm text-cafeteria-800">
-        {CAFE_CONECTA_AVISO_VIRADA_SEMANA}
+      <div className="rounded-xl border border-cream-200 bg-cream-50/80 px-4 py-3 text-sm text-cafeteria-800 space-y-3">
+        <p>{CAFE_CONECTA_AVISO_VIRADA_SEMANA}</p>
+        <div className="rounded-lg border border-cafeteria-200 bg-white p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-semibold text-coffee-base">Comunicado para a equipe</p>
+            <button
+              type="button"
+              onClick={() => void copiarComunicado()}
+              className="inline-flex min-h-[36px] items-center rounded-lg border border-cafeteria-200 bg-cream-50 px-3 py-1.5 text-xs font-semibold text-coffee-base hover:bg-cream-100"
+            >
+              Copiar texto
+            </button>
+          </div>
+          <pre className="whitespace-pre-wrap text-xs text-cafeteria-700 font-sans">{CAFE_CONECTA_TEXTO_COMUNICADO_EQUIPE}</pre>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -286,7 +318,7 @@ export function CafeConectaAdminPanel() {
           }
           tom="neutro"
         />
-        <AdminStatCard label="Sem acesso portal" valor={data.elegibilidade.sem_acesso} tom="ambar" />
+        <AdminStatCard label="Sem login semana" valor={data.elegibilidade.sem_acesso} tom="ambar" />
         <AdminStatCard
           label={`Ciclo ${data.ciclo?.numero ?? 1}`}
           valor={`${data.ciclo?.participaram ?? 0}/${data.ciclo?.total_base ?? 0}`}
@@ -295,10 +327,11 @@ export function CafeConectaAdminPanel() {
         />
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <AdminStatCard label="Férias" valor={data.elegibilidade.ferias} tom="neutro" />
         <AdminStatCard label="Afastados" valor={data.elegibilidade.afastados} tom="neutro" />
         <AdminStatCard label="Folga quarta" valor={data.elegibilidade.folga} tom="neutro" />
+        <AdminStatCard label="Fora plantão 12x36" valor={data.elegibilidade.fora_plantao ?? 0} tom="neutro" />
       </div>
 
       {sorteio && (
@@ -322,7 +355,7 @@ export function CafeConectaAdminPanel() {
 
       <AdminSection
         title="Elegíveis"
-        description={`Com login no portal (${graosCurto}) nesta semana. Se forem menos de 2, o sorteio admin inclui quem está ativo mas ainda não entrou (exceto férias, folga na quarta e afastados).`}
+        description={`Com login no portal nesta semana (segunda a quarta). Se forem menos de 2, o sorteio admin inclui quem está ativo mas ainda não entrou (exceto férias, folga na quarta, fora do plantão 12x36 e afastados).`}
       >
         <AdminTable>
           <AdminTableHead>
@@ -412,10 +445,41 @@ export function CafeConectaAdminPanel() {
         </AdminSection>
       )}
 
+      {foraPlantaoLista.length > 0 && (
+        <AdminSection
+          title="Fora do plantão (12x36)"
+          description="Escala 12x36 em outro turno nesta quarta — não entram no sorteio de hoje."
+        >
+          <AdminTable>
+            <AdminTableHead>
+              <AdminTableRow>
+                <AdminTableTh>Nome</AdminTableTh>
+                <AdminTableTh>Setor</AdminTableTh>
+                <AdminTableTh>Motivo</AdminTableTh>
+              </AdminTableRow>
+            </AdminTableHead>
+            <AdminTableBody>
+              {foraPlantaoLista.slice(0, 40).map((l) => (
+                <AdminTableRow key={l.id}>
+                  <AdminTableTd>{l.nome}</AdminTableTd>
+                  <AdminTableTd>{l.setor ?? '—'}</AdminTableTd>
+                  <AdminTableTd className="text-sm text-cafeteria-700">
+                    {descricaoMotivoInelegibilidadeCafeConecta(l.motivo)}
+                  </AdminTableTd>
+                </AdminTableRow>
+              ))}
+            </AdminTableBody>
+          </AdminTable>
+          {foraPlantaoLista.length > 40 && (
+            <p className="text-xs text-cafeteria-500 mt-2">Mostrando 40 de {foraPlantaoLista.length}.</p>
+          )}
+        </AdminSection>
+      )}
+
       {semAcessoLista.length > 0 && (
         <AdminSection
-          title="Sem acesso ao portal"
-          description={`Precisam dos 5 ${graosCurto} login_semana (segunda a quarta) para serem sorteados.`}
+          title="Sem login na semana"
+          description="Precisam entrar no portal entre segunda e quarta para serem sorteados como elegíveis."
         >
           <AdminTable>
             <AdminTableHead>

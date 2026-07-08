@@ -3,6 +3,7 @@ export type CafeConectaMotivoInelegivel =
   | 'ferias'
   | 'afastado'
   | 'folga_quarta'
+  | 'fora_plantao'
   | 'sem_acesso_portal'
   | 'onboarding_pendente';
 
@@ -110,6 +111,7 @@ export type CafeConectaDashboardPayload = {
     ferias: number;
     afastados: number;
     folga: number;
+    fora_plantao: number;
     sem_acesso: number;
     /** Disponíveis no sorteio admin (pode incluir quem não entrou no portal). */
     pool_sorteio: number;
