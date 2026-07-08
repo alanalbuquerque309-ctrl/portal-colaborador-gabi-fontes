@@ -1,5 +1,6 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
 import { colaboradorElegivelVisitaRh } from '@/lib/avaliacao-rh-visita-access';
+import { colaboradorForaVisitaRh } from '@/lib/colaborador-fora-operacao-presencial';
 import { normalizePortalRole } from '@/lib/roles';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -14,6 +15,7 @@ export type MembroRedeRhVisita = {
   unidade_slug: string | null;
   onboarding_completo: boolean;
   operacao_apto: boolean;
+  tipo_escala: string | null;
 };
 
 export async function listarRedeParaVisitaRh(
@@ -24,7 +26,7 @@ export async function listarRedeParaVisitaRh(
   let query = supabase
     .from('colaboradores')
     .select(
-      'id, nome, role, cargo, setor, onboarding_completo, operacao_apto, unidade_id, unidades(nome, slug)'
+      'id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto, unidade_id, unidades(nome, slug)'
     )
     .order('nome', { ascending: true });
 
@@ -56,9 +58,11 @@ export async function listarRedeParaVisitaRh(
         unidade_slug: unidade && typeof unidade === 'object' ? String((unidade as { slug?: string }).slug ?? '') : null,
         onboarding_completo: Boolean((c as { onboarding_completo?: boolean }).onboarding_completo),
         operacao_apto: (c as { operacao_apto?: boolean }).operacao_apto === true,
+        tipo_escala: (c as { tipo_escala?: string | null }).tipo_escala ?? null,
       };
     })
     .filter((c) => colaboradorElegivelVisitaRh(c, avaliadorId))
+    .filter((c) => !colaboradorForaVisitaRh(c))
     .filter((c) => {
       const r = normalizePortalRole(c.role);
       if (r === 'socio') return false;

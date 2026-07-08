@@ -3,7 +3,7 @@ import { normalizePortalRole, podeParticiparGraosCafe } from '@/lib/roles';
 import { isSocioNegocioColaborador } from '@/lib/socios-negocio';
 import { podeSerLider } from '@/lib/pode-ser-lider';
 import { listarIdsLideresAtivos } from '@/lib/lider-inspirador';
-import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
+import { assiduidadeDoBanco, justificativaIndicaLicencaOuAfastamento } from '@/lib/avaliacao-semanal-shared';
 import { idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { idsComAcessoPortalSemanaGraos } from '@/lib/cafe-conecta/acesso-portal';
 import {
@@ -15,17 +15,8 @@ import { resolverUnidadeIdsGrupoMesquita } from '@/lib/setores-fabrica-lideranca
 import type { CafeConectaGrupoConfig } from '@/lib/cafe-conecta/config';
 import { gerarMes, parseFolgaDiasTexto, type ConfigEscala, type TipoEscala } from '@/lib/escala-calendario';
 
-function normJust(s: string | null | undefined): string {
-  return String(s ?? '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
 function isAfastadoJustificativa(j: string | null | undefined): boolean {
-  const t = normJust(j);
-  return t.includes('licenca') || t.includes('afastamento');
+  return justificativaIndicaLicencaOuAfastamento(j);
 }
 
 function isTipoEscala(v: string | null | undefined): v is TipoEscala {

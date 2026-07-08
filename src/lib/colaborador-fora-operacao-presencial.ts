@@ -15,7 +15,12 @@ function normalizarTipoEscala(valor: string | null | undefined): string {
 
 export function colaboradorEmRegimeHomeOffice(col: ColaboradorRegimeOperacao | null | undefined): boolean {
   const t = normalizarTipoEscala(col?.tipo_escala);
-  return t === 'homeoffice' || t === 'remoto';
+  return t === 'homeoffice' || t === 'remoto' || t === 'teletrabalho';
+}
+
+/** Fora da Visita RH e pendências de complemento na rede. */
+export function colaboradorForaVisitaRh(col: ColaboradorRegimeOperacao | null | undefined): boolean {
+  return colaboradorEmRegimeHomeOffice(col);
 }
 
 export function colaboradorForaAvaliacaoSemanalEquipe(col: ColaboradorRegimeOperacao | null | undefined): boolean {

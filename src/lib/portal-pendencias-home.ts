@@ -14,6 +14,7 @@ import {
 import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
 import { listarEquipeParaAvaliacaoSemanal, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
 import { colaboradorDeFeriasNaSemana, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
+import { idsColaboradoresDeLicencaOuAfastamentoNaSemana } from '@/lib/avaliacao-licenca-semana';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { TROFEUS_PARES_CREDITOS_SEMANA } from '@/lib/trofeus-pares';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
@@ -270,6 +271,10 @@ export async function montarPendenciasPortalHome(
     const avaliacoesPorColab: Record<string, unknown> = {};
     const feriasIds =
       ids.length > 0 ? await idsColaboradoresDeFeriasNaSemana(supabase, ids, dataRef) : new Set<string>();
+    const licencaIds =
+      ids.length > 0
+        ? await idsColaboradoresDeLicencaOuAfastamentoNaSemana(supabase, ids, dataRef)
+        : new Set<string>();
 
     if (ids.length > 0) {
       const { data: todosAvaliadores } = await supabase
@@ -292,7 +297,7 @@ export async function montarPendenciasPortalHome(
       }
     }
 
-    const equipeElegivel = equipe.filter((m) => !feriasIds.has(m.id));
+    const equipeElegivel = equipe.filter((m) => !feriasIds.has(m.id) && !licencaIds.has(m.id));
     const pendentesMembros = equipeElegivel.filter((m) => !avaliacoesPorColab[m.id]);
     const pendentes = pendentesMembros.length;
     const total = equipeElegivel.length;
@@ -327,6 +332,10 @@ export async function montarPendenciasPortalHome(
     const semanasRh = semanasReferenciaCobrancaAvaliacaoLider();
     const feriasRhIds =
       idsRh.length > 0 ? await idsColaboradoresDeFeriasNaSemana(supabase, idsRh, dataRef) : new Set<string>();
+    const licencaRhIds =
+      idsRh.length > 0
+        ? await idsColaboradoresDeLicencaOuAfastamentoNaSemana(supabase, idsRh, dataRef)
+        : new Set<string>();
 
     let avaliadosRh = new Set<string>();
     if (idsRh.length > 0) {
@@ -344,7 +353,8 @@ export async function montarPendenciasPortalHome(
       (m) =>
         normalizePortalRole(m.role) === 'colaborador' &&
         !avaliadosRh.has(m.id) &&
-        !feriasRhIds.has(m.id)
+        !feriasRhIds.has(m.id) &&
+        !licencaRhIds.has(m.id)
     );
     const pendentes = pendentesMembros.length;
 

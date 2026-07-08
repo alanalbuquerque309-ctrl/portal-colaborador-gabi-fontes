@@ -9,7 +9,7 @@ import {
   nomeEhDanielTransversal,
 } from '@/lib/avaliacao-rh-visita-access';
 import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
-import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
+import { assiduidadeDoBanco, ehLicencaOuAfastamentoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { normalizePortalRole } from '@/lib/roles';
@@ -27,6 +27,7 @@ import {
 import { SELECT_AVALIACAO_META, SELECT_AVALIACAO_META_SEM_IGNORAR } from '@/lib/avaliacoes-justificativa-compat';
 import { ehSextaSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { colaboradorDeFeriasNasLinhas } from '@/lib/avaliacao-ferias-semana';
+import { colaboradorDeLicencaOuAfastamentoNasLinhas } from '@/lib/avaliacao-licenca-semana';
 import { semanasReferenciaCobrancaAvaliacaoLider } from '@/lib/avaliacao-semana-cobranca';
 import { colaboradorForaAvaliacaoSemanalEquipe } from '@/lib/colaborador-fora-operacao-presencial';
 import { colaboradorFechouSemanaPorAlgumLider } from '@/lib/avaliacao-fechamento-lider';
@@ -111,6 +112,7 @@ function avaliacaoFechaSemanaLider(row: AvaliacaoRow, rhIds: Set<string>): boole
   if (a === 'fora_plantao') return false;
   if (assiduidadeLegacySemanalRemovida(a)) return false;
   if (a === 'ferias') return true;
+  if (ehLicencaOuAfastamentoAvaliacao(row.assiduidade, row.justificativa_nota_baixa)) return true;
   if (a === 'falta_injustificada') return true;
   return row.media_dia != null && !Number.isNaN(Number(row.media_dia));
 }
@@ -126,6 +128,7 @@ function avaliacaoFechaSemanaRh(row: AvaliacaoRow, rhIds: Set<string>): boolean 
   if (!isAvaliacaoDeVisitaRh(row.avaliador_id, row.avaliador_role, rhIds)) return false;
   const a = assiduidadeDoBanco(row.assiduidade, row.justificativa_nota_baixa);
   if (assiduidadeIsentaSemana(a)) return true;
+  if (ehLicencaOuAfastamentoAvaliacao(row.assiduidade, row.justificativa_nota_baixa)) return true;
   return row.media_dia != null && !Number.isNaN(Number(row.media_dia));
 }
 
@@ -578,6 +581,7 @@ export async function calcularPendenciasSemana(
 
     const rows = avalPorColab.get(cid) ?? [];
     if (colaboradorDeFeriasNasLinhas(rows)) continue;
+    if (colaboradorDeLicencaOuAfastamentoNasLinhas(rows)) continue;
 
     const esperados = mapaEsperados.get(cid) ?? [];
 

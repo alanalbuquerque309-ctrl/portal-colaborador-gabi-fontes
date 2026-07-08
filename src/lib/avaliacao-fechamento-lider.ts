@@ -2,7 +2,7 @@ import type { createAdminClient } from '@/lib/supabase/admin';
 import { avaliacaoEstaIgnorada } from '@/lib/avaliacao-ignorada';
 import { assiduidadeLegacySemanalRemovida } from '@/lib/avaliacao-diaria';
 import { isAvaliacaoDeVisitaRh } from '@/lib/avaliacao-rh-visita-access';
-import { assiduidadeDoBanco } from '@/lib/avaliacao-semanal-shared';
+import { assiduidadeDoBanco, ehLicencaOuAfastamentoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import type { AvaliacaoDiariaLeitura } from '@/lib/avaliacoes-justificativa-compat';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -33,6 +33,7 @@ export function avaliacaoFechaSemanaLider(row: AvaliacaoFechamentoRow, rhIds: Se
   if (a === 'fora_plantao') return false;
   if (assiduidadeLegacySemanalRemovida(a)) return false;
   if (a === 'ferias') return true;
+  if (ehLicencaOuAfastamentoAvaliacao(row.assiduidade, row.justificativa_nota_baixa)) return true;
   if (a === 'falta_injustificada') return true;
   return row.media_dia != null && !Number.isNaN(Number(row.media_dia));
 }

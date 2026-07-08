@@ -76,6 +76,7 @@ export function AvaliacoesPendentesPainel({
   const [filtroLider, setFiltroLider] = useState('');
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [marcandoFeriasId, setMarcandoFeriasId] = useState<string | null>(null);
+  const [marcandoLicencaId, setMarcandoLicencaId] = useState<string | null>(null);
   const [modalAviso, setModalAviso] = useState(false);
   const [previewAviso, setPreviewAviso] = useState<{
     titulo: string;
@@ -268,6 +269,40 @@ export function AvaliacoesPendentesPainel({
       alert('Erro de conexão.');
     } finally {
       setMarcandoFeriasId(null);
+    }
+  };
+
+  const handleMarcarLicenca = async (id: string, nome: string) => {
+    if (!dataRef) {
+      alert('Aguarde o carregamento da semana.');
+      return;
+    }
+    if (
+      !confirm(
+        `${nome} está de licença ou afastamento na semana ${intervalo || dataRef}?\n\nA semana não recebe nota, sai da lista de pendências e volta na próxima semana.`
+      )
+    ) {
+      return;
+    }
+    setMarcandoLicencaId(id);
+    try {
+      const res = await fetch(`${apiBase}/licenca`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colaborador_id: id, data_referencia: dataRef }),
+      });
+      const data = (await res.json()) as { ok?: boolean; erro?: string; mensagem?: string };
+      if (data.ok) {
+        setItens((prev) => prev.filter((i) => i.colaborador_id !== id));
+        if (data.mensagem) alert(data.mensagem);
+      } else {
+        alert(data.erro || 'Não foi possível registrar licença.');
+      }
+    } catch {
+      alert('Erro de conexão.');
+    } finally {
+      setMarcandoLicencaId(null);
     }
   };
 
@@ -500,6 +535,17 @@ export function AvaliacoesPendentesPainel({
                         className="text-xs font-semibold text-sky-700 hover:text-sky-900 disabled:opacity-50 whitespace-nowrap"
                       >
                         {marcandoFeriasId === item.colaborador_id ? 'Salvando…' : 'Férias'}
+                      </button>
+                      <span className="text-coffee-100 text-xs" aria-hidden>
+                        ·
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleMarcarLicenca(item.colaborador_id, item.colaborador_nome)}
+                        disabled={marcandoLicencaId === item.colaborador_id || !dataRef}
+                        className="text-xs font-semibold text-amber-800 hover:text-amber-950 disabled:opacity-50 whitespace-nowrap"
+                      >
+                        {marcandoLicencaId === item.colaborador_id ? 'Salvando…' : 'Licença'}
                       </button>
                       <span className="text-coffee-100 text-xs" aria-hidden>
                         ·

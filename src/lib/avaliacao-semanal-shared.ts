@@ -7,6 +7,10 @@ export const JUSTIFICATIVA_FORA_PLANTAO =
 /** Marcador de férias (assiduidade no banco = falta_justificada → média isenta/null). */
 export const JUSTIFICATIVA_FERIAS = 'Colaborador de férias nesta semana (não entra na média).';
 
+/** Marcador de licença / afastamento (semana sem nota, fora das pendências). */
+export const JUSTIFICATIVA_LICENCA_SEMANA =
+  'Licença médica / afastamento nesta semana (não entra na média).';
+
 export function assiduidadeParaBanco(
   s: AssiduidadeTipo
 ): 'presente' | 'falta_justificada' | 'falta_injustificada' {
@@ -60,6 +64,30 @@ export function ehFeriasAvaliacao(
   justificativa?: string | null
 ): boolean {
   return assiduidadeDoBanco(stored, justificativa) === 'ferias';
+}
+
+function normJustificativaLicenca(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Licença ou afastamento registrado na semana (UI ou marcador de rede). */
+export function justificativaIndicaLicencaOuAfastamento(justificativa?: string | null): boolean {
+  const j = String(justificativa ?? '').trim();
+  if (!j) return false;
+  if (j === JUSTIFICATIVA_LICENCA_SEMANA) return true;
+  const t = normJustificativaLicenca(j);
+  return t.includes('licenca') || t.includes('afastamento');
+}
+
+export function ehLicencaOuAfastamentoAvaliacao(
+  _stored: string | null | undefined,
+  justificativa?: string | null
+): boolean {
+  return justificativaIndicaLicencaOuAfastamento(justificativa);
 }
 
 export function isDateIsoAvaliacao(s: string): boolean {
