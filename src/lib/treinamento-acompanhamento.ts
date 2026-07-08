@@ -43,6 +43,41 @@ export type ItemAcompanhamentoTreinamento = {
   visualizou_sem_confirmar: PessoaAudiencia[];
 };
 
+/** Resumo leve (sem listas de nomes) para carregar sob demanda. */
+export type ItemAcompanhamentoResumo = {
+  id: string;
+  titulo: string;
+  origem: 'cadastro' | 'automatico';
+  formato: 'video' | 'texto';
+  publico_label: string;
+  publico_alvo: PublicoAvisoKey | 'colaboradores' | 'lideranca';
+  exige_confirmacao: boolean;
+  total_esperado: number;
+  vigente: boolean;
+  semana_rotulo: string;
+  concluiram: number;
+  nao_fizeram: number;
+  visualizou_sem_confirmar: number;
+};
+
+export function itemAcompanhamentoParaResumo(item: ItemAcompanhamentoTreinamento): ItemAcompanhamentoResumo {
+  return {
+    id: item.id,
+    titulo: item.titulo,
+    origem: item.origem,
+    formato: item.formato,
+    publico_label: item.publico_label,
+    publico_alvo: item.publico_alvo,
+    exige_confirmacao: item.exige_confirmacao,
+    total_esperado: item.total_esperado,
+    vigente: item.vigente,
+    semana_rotulo: item.semana_rotulo,
+    concluiram: item.assistiram.length,
+    nao_fizeram: item.nao_assistiram.length,
+    visualizou_sem_confirmar: item.visualizou_sem_confirmar.length,
+  };
+}
+
 function classificarListas(
   resumo: ResumoAudienciaComunicacao,
   exige_confirmacao: boolean
@@ -298,8 +333,10 @@ export type AcompanhamentoTreinamentosResultado = {
 };
 
 export async function montarAcompanhamentoTreinamentos(
-  supabase: SupabaseAdmin
+  supabase: SupabaseAdmin,
+  opts?: { escopo?: 'vigentes' | 'anteriores' | 'todos' }
 ): Promise<AcompanhamentoTreinamentosResultado> {
+  const escopo = opts?.escopo ?? 'todos';
   const ciclo_quinta_inicio = inicioCicloTreinoQuintaIsoSp();
   const ciclo_quinta_rotulo = rotuloCicloTreinoQuinta(ciclo_quinta_inicio);
   const itens: ItemAcompanhamentoTreinamento[] = [];
@@ -338,7 +375,6 @@ export async function montarAcompanhamentoTreinamentos(
 
     for (const row of rows) {
       const id = String(row.id);
-      const audiencia = await montarAudienciaTreinamento(supabase, id);
       const unidade = row.unidades as { slug?: string } | null;
       const publico = resolverPublicoAviso(row.publico_alvo as string | null, unidade?.slug ?? null);
       const tipo = normalizarTipoConteudo((row as { tipo_conteudo?: string }).tipo_conteudo);
@@ -352,6 +388,10 @@ export async function montarAcompanhamentoTreinamentos(
         ativo: true,
       };
       const arquivado = treinamentoTextoArquivado(dbRow, rowsDb);
+      if (escopo === 'vigentes' && arquivado) continue;
+      if (escopo === 'anteriores' && !arquivado) continue;
+
+      const audiencia = await montarAudienciaTreinamento(supabase, id);
 
       itens.push({
         id,
@@ -370,18 +410,99 @@ export async function montarAcompanhamentoTreinamentos(
     }
   }
 
-  const quintaColab = await montarAudienciaTreinoColaboradorQuinta(supabase);
-  if (quintaColab) itens.push(quintaColab);
+  if (escopo !== 'anteriores') {
+    const quintaColab = await montarAudienciaTreinoColaboradorQuinta(supabase);
+    if (quintaColab) itens.push(quintaColab);
 
-  if (!haTreinoTextoLiderancaVigente(rowsDb)) {
-    const quintaLider = await montarAudienciaTreinoLider(supabase);
-    if (quintaLider) itens.push(quintaLider);
+    if (!haTreinoTextoLiderancaVigente(rowsDb)) {
+      const quintaLider = await montarAudienciaTreinoLider(supabase);
+      if (quintaLider) itens.push(quintaLider);
+    }
   }
 
   const vigentes = itens.filter((i) => i.vigente);
   const anteriores = itens.filter((i) => !i.vigente);
 
   return { itens, vigentes, anteriores, ciclo_quinta_inicio, ciclo_quinta_rotulo };
+}
+
+export async function montarAcompanhamentoResumo(
+  supabase: SupabaseAdmin,
+  escopo: 'vigentes' | 'anteriores'
+): Promise<{ itens: ItemAcompanhamentoResumo[]; ciclo_quinta_inicio: string; ciclo_quinta_rotulo: string }> {
+  const full = await montarAcompanhamentoTreinamentos(supabase, { escopo });
+  const lista = escopo === 'vigentes' ? full.vigentes : full.anteriores;
+  return {
+    itens: lista.map(itemAcompanhamentoParaResumo),
+    ciclo_quinta_inicio: full.ciclo_quinta_inicio,
+    ciclo_quinta_rotulo: full.ciclo_quinta_rotulo,
+  };
+}
+
+export async function montarDetalheAcompanhamentoItem(
+  supabase: SupabaseAdmin,
+  itemId: string
+): Promise<ItemAcompanhamentoTreinamento | null> {
+  if (itemId === 'quinta-colaborador') {
+    return montarAudienciaTreinoColaboradorQuinta(supabase);
+  }
+  if (itemId === 'quinta-lider') {
+    return montarAudienciaTreinoLider(supabase);
+  }
+
+  const { data: row, error } = await supabase
+    .from('treinamentos')
+    .select('id, titulo, tipo_conteudo, publico_alvo, exige_confirmacao, created_at, unidades:unidade_id(slug)')
+    .eq('id', itemId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!row) return null;
+
+  const audiencia = await montarAudienciaTreinamento(supabase, itemId);
+  const unidade = row.unidades as { slug?: string } | null;
+  const publico = resolverPublicoAviso(row.publico_alvo as string | null, unidade?.slug ?? null);
+  const tipo = normalizarTipoConteudo((row as { tipo_conteudo?: string }).tipo_conteudo);
+  const created_at = (row.created_at as string | null) ?? null;
+
+  const { data: todosAtivos } = await supabase
+    .from('treinamentos')
+    .select('id, titulo, tipo_conteudo, publico_alvo, created_at')
+    .eq('ativo', true);
+
+  const rowsDb: TreinamentoDbRow[] = (todosAtivos ?? []).map((r) => ({
+    id: String(r.id),
+    titulo: String(r.titulo ?? ''),
+    publico_alvo: (r.publico_alvo as string | null) ?? null,
+    tipo_conteudo: (r as { tipo_conteudo?: string }).tipo_conteudo ?? null,
+    created_at: String(r.created_at ?? ''),
+    ativo: true,
+  }));
+
+  const dbRow: TreinamentoDbRow = {
+    id: itemId,
+    titulo: String(row.titulo ?? ''),
+    publico_alvo: (row.publico_alvo as string | null) ?? null,
+    tipo_conteudo: (row as { tipo_conteudo?: string }).tipo_conteudo ?? null,
+    created_at: String(created_at ?? ''),
+    ativo: true,
+  };
+  const arquivado = treinamentoTextoArquivado(dbRow, rowsDb);
+
+  return {
+    id: itemId,
+    titulo: String(row.titulo ?? audiencia.titulo),
+    origem: 'cadastro',
+    formato: tipo,
+    publico_label: labelPublicoAviso(publico as PublicoAvisoKey),
+    publico_alvo: publico as PublicoAvisoKey,
+    exige_confirmacao: audiencia.exige_confirmacao,
+    vigente: !arquivado,
+    semana_rotulo: rotuloSemanaTreino(created_at),
+    created_at,
+    total_esperado: audiencia.total_esperado,
+    ...classificarListas(audiencia, audiencia.exige_confirmacao),
+  };
 }
 
 export async function registrarVisualizacaoTreinoAutomatico(

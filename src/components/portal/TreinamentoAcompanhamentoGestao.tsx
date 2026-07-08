@@ -1,13 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { ItemAcompanhamentoTreinamento } from '@/lib/treinamento-acompanhamento';
+import type { ItemAcompanhamentoResumo, ItemAcompanhamentoTreinamento } from '@/lib/treinamento-acompanhamento';
 import type { PessoaAudiencia } from '@/lib/audiencia-comunicacao';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 
 type FiltroPublico = 'todos' | 'colaboradores' | 'lideranca';
 
-function filtrarPorPublico(item: ItemAcompanhamentoTreinamento, filtro: FiltroPublico): boolean {
+function filtrarPorPublico(item: ItemAcompanhamentoResumo, filtro: FiltroPublico): boolean {
   if (filtro === 'todos') return true;
   if (filtro === 'lideranca') {
     return item.publico_alvo === 'lideranca' || item.id === 'quinta-lider';
@@ -41,7 +41,7 @@ function ListaNomes({
         <p className="text-xs text-cafeteria-600 mt-1">{vazio}</p>
       ) : (
         <ul
-          className={`mt-1.5 max-h-48 overflow-y-auto rounded-lg border divide-y ${
+          className={`mt-1.5 max-h-56 overflow-y-auto rounded-lg border divide-y ${
             destaque ? 'border-red-200 divide-red-100 bg-red-50/30' : 'border-cafeteria-200 divide-cafeteria-100'
           }`}
         >
@@ -62,180 +62,109 @@ function ListaNomes({
   );
 }
 
-function CardTreinamentoGestao({
-  item,
-  destaqueSemana,
+function CardTreinamentoResumo({
+  resumo,
+  detalhe,
+  carregandoDetalhe,
+  onAbrir,
 }: {
-  item: ItemAcompanhamentoTreinamento;
-  destaqueSemana?: boolean;
+  resumo: ItemAcompanhamentoResumo;
+  detalhe: ItemAcompanhamentoTreinamento | null;
+  carregandoDetalhe: boolean;
+  onAbrir: (aberto: boolean) => void;
 }) {
-  const pct =
-    item.total_esperado > 0 ? Math.round((item.assistiram.length / item.total_esperado) * 100) : 0;
-  const pendentes = item.nao_assistiram.length + item.visualizou_sem_confirmar.length;
-  const tudoOk = pendentes === 0 && item.total_esperado > 0;
+  const pendentes = resumo.nao_fizeram + resumo.visualizou_sem_confirmar;
+  const tudoOk = pendentes === 0 && resumo.total_esperado > 0;
 
   return (
     <details
-      className={`rounded-xl border overflow-hidden group ${
-        destaqueSemana
-          ? tudoOk
-            ? 'border-emerald-300 bg-emerald-50/40'
-            : 'border-amber-300 bg-amber-50/30'
-          : 'border-cafeteria-200 bg-white'
+      className={`rounded-xl border overflow-hidden ${
+        tudoOk ? 'border-emerald-200 bg-emerald-50/30' : 'border-cafeteria-200 bg-white'
       }`}
-      open={destaqueSemana && pendentes > 0}
+      onToggle={(e) => {
+        const aberto = (e.currentTarget as HTMLDetailsElement).open;
+        onAbrir(aberto);
+      }}
     >
-      <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-3 hover:bg-cream-50/60 transition-colors [&::-webkit-details-marker]:hidden">
-        <div
-          className={`shrink-0 flex flex-col items-center justify-center rounded-lg px-2.5 py-2 min-w-[4.5rem] text-center ${
-            tudoOk ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-          }`}
-        >
-          <span className="text-lg font-bold tabular-nums leading-none">{pendentes}</span>
-          <span className="text-[10px] font-semibold uppercase mt-0.5">pend.</span>
-        </div>
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-cream-50/60 transition-colors min-h-[52px] [&::-webkit-details-marker]:hidden">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-coffee-base leading-snug">{item.titulo}</p>
+          <p className="font-semibold text-coffee-base leading-snug">{resumo.titulo}</p>
           <p className="text-xs text-cafeteria-600 mt-0.5">
-            {item.publico_label}
+            {resumo.publico_label}
             {' · '}
-            {item.semana_rotulo}
-            {' · '}
-            {item.formato === 'texto' ? 'Texto' : 'Vídeo'}
-          </p>
-          <div className="mt-2 h-1.5 rounded-full bg-cream-200 overflow-hidden max-w-xs">
-            <div
-              className={`h-full rounded-full transition-all ${tudoOk ? 'bg-emerald-500' : 'bg-dourado-base'}`}
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-          <p className="text-xs text-cafeteria-600 mt-1">
-            <span className="font-semibold text-emerald-700">{item.assistiram.length} concluíram</span>
-            {' · '}
-            {item.nao_assistiram.length} não fizeram
-            {item.visualizou_sem_confirmar.length > 0
-              ? ` · ${item.visualizou_sem_confirmar.length} só visualizaram`
-              : ''}
+            {resumo.formato === 'texto' ? 'Texto' : 'Vídeo'}
+            {resumo.semana_rotulo ? ` · ${resumo.semana_rotulo}` : ''}
           </p>
         </div>
-        <div className="shrink-0 text-right pt-1">
-          <p className="text-sm font-semibold tabular-nums text-dourado-base">{pct}%</p>
+        <div className="shrink-0 flex items-center gap-3 text-sm tabular-nums">
+          <span className="font-semibold text-emerald-700">{resumo.concluiram} fez</span>
+          <span className="text-cafeteria-400">|</span>
+          <span className={`font-semibold ${pendentes > 0 ? 'text-red-700' : 'text-cafeteria-500'}`}>
+            {pendentes} pend.
+          </span>
         </div>
       </summary>
-      <div className="border-t border-cafeteria-100 px-4 py-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <ListaNomes
-          titulo="Não fizeram"
-          corTitulo="text-red-800"
-          pessoas={item.nao_assistiram}
-          vazio="Todos concluíram."
-          destaque={item.nao_assistiram.length > 0}
-        />
-        {item.visualizou_sem_confirmar.length > 0 ? (
-          <ListaNomes
-            titulo="Visualizou, não confirmou"
-            corTitulo="text-sky-700"
-            pessoas={item.visualizou_sem_confirmar}
-            vazio=""
-          />
-        ) : null}
-        <ListaNomes
-          titulo="Concluíram"
-          corTitulo="text-emerald-700"
-          pessoas={item.assistiram}
-          vazio="Ninguém concluiu ainda."
-        />
+      <div className="border-t border-cafeteria-100 px-4 py-4">
+        {carregandoDetalhe ? (
+          <div className="flex justify-center py-4">
+            <XicaraCarregando size="sm" label="Carregando nomes…" />
+          </div>
+        ) : detalhe ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <ListaNomes
+              titulo="Não fizeram"
+              corTitulo="text-red-800"
+              pessoas={detalhe.nao_assistiram}
+              vazio="Todos concluíram."
+              destaque={detalhe.nao_assistiram.length > 0}
+            />
+            {detalhe.visualizou_sem_confirmar.length > 0 ? (
+              <ListaNomes
+                titulo="Visualizou, não confirmou"
+                corTitulo="text-sky-700"
+                pessoas={detalhe.visualizou_sem_confirmar}
+                vazio=""
+              />
+            ) : null}
+            <ListaNomes
+              titulo="Concluíram"
+              corTitulo="text-emerald-700"
+              pessoas={detalhe.assistiram}
+              vazio="Ninguém concluiu ainda."
+            />
+          </div>
+        ) : (
+          <p className="text-sm text-cafeteria-600">Não foi possível carregar os nomes.</p>
+        )}
       </div>
     </details>
   );
 }
 
-function SecaoTreinos({
-  titulo,
-  subtitulo,
-  itens,
-  destaqueSemana,
-  colapsavel,
-}: {
-  titulo: string;
-  subtitulo?: string;
-  itens: ItemAcompanhamentoTreinamento[];
-  destaqueSemana?: boolean;
-  colapsavel?: boolean;
-}) {
-  const [aberta, setAberta] = useState(!colapsavel);
-  const pendentesTotal = itens.reduce(
-    (acc, i) => acc + i.nao_assistiram.length + i.visualizou_sem_confirmar.length,
-    0
-  );
-
-  if (itens.length === 0) return null;
-
-  const conteudo = (
-    <div className="space-y-3">
-      {itens.map((item) => (
-        <CardTreinamentoGestao key={item.id} item={item} destaqueSemana={destaqueSemana} />
-      ))}
-    </div>
-  );
-
-  if (!colapsavel) {
-    return (
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-bold uppercase tracking-wide text-coffee-base">{titulo}</h3>
-          {subtitulo ? <p className="text-xs text-cafeteria-600 mt-0.5">{subtitulo}</p> : null}
-        </div>
-        {conteudo}
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-xl border border-cafeteria-200 bg-white overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setAberta((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-cream-50 transition-colors min-h-[48px]"
-      >
-        <div>
-          <p className="text-sm font-semibold text-coffee-base">
-            {titulo} ({itens.length})
-          </p>
-          <p className="text-xs text-cafeteria-600">
-            {pendentesTotal > 0 ? `${pendentesTotal} pendência(s) no histórico` : 'Sem pendências no histórico'}
-          </p>
-        </div>
-        <svg
-          className={`h-4 w-4 text-cafeteria-400 transition-transform ${aberta ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          aria-hidden
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {aberta ? <div className="border-t border-cafeteria-100 p-4">{conteudo}</div> : null}
-    </div>
-  );
-}
-
 /**
- * Painel para admin, RH e sócios: esta semana vs histórico, com foco em quem não fez.
+ * Painel admin/RH/sócios: resumo leve + nomes só ao expandir; histórico carrega sob demanda.
  */
 export function TreinamentoAcompanhamentoGestao() {
   const [visivel, setVisivel] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [vigentes, setVigentes] = useState<ItemAcompanhamentoTreinamento[]>([]);
-  const [anteriores, setAnteriores] = useState<ItemAcompanhamentoTreinamento[]>([]);
+  const [loadingVigentes, setLoadingVigentes] = useState(true);
+  const [loadingAnteriores, setLoadingAnteriores] = useState(false);
+  const [vigentes, setVigentes] = useState<ItemAcompanhamentoResumo[]>([]);
+  const [anteriores, setAnteriores] = useState<ItemAcompanhamentoResumo[]>([]);
+  const [anterioresCarregados, setAnterioresCarregados] = useState(false);
+  const [secaoAnterioresAberta, setSecaoAnterioresAberta] = useState(false);
   const [cicloQuintaRotulo, setCicloQuintaRotulo] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [migracao064Pendente, setMigracao064Pendente] = useState(false);
   const [filtro, setFiltro] = useState<FiltroPublico>('todos');
+  const [detalhes, setDetalhes] = useState<Record<string, ItemAcompanhamentoTreinamento>>({});
+  const [carregandoDetalheId, setCarregandoDetalheId] = useState<string | null>(null);
 
-  const carregar = useCallback(() => {
-    setLoading(true);
-    fetch('/api/portal/treinamentos/acompanhamento', { credentials: 'include', cache: 'no-store' })
+  const carregarVigentes = useCallback(() => {
+    setLoadingVigentes(true);
+    return fetch('/api/portal/treinamentos/acompanhamento?resumo=1&escopo=vigentes', {
+      credentials: 'include',
+      cache: 'no-store',
+    })
       .then((r) => {
         if (r.status === 403 || r.status === 401) {
           setVisivel(false);
@@ -254,19 +183,62 @@ export function TreinamentoAcompanhamentoGestao() {
         setErro(null);
         setMigracao064Pendente(data.migracao_064_pendente === true);
         setCicloQuintaRotulo(typeof data.ciclo_quinta_rotulo === 'string' ? data.ciclo_quinta_rotulo : null);
-        setVigentes(Array.isArray(data.vigentes) ? data.vigentes : data.itens ?? []);
-        setAnteriores(Array.isArray(data.anteriores) ? data.anteriores : []);
+        setVigentes(Array.isArray(data.itens) ? data.itens : []);
+        setDetalhes({});
       })
       .catch(() => {
         setVisivel(false);
         setErro('Falha de conexão ao carregar acompanhamento.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => setLoadingVigentes(false));
   }, []);
 
+  const carregarAnteriores = useCallback(() => {
+    if (anterioresCarregados) return Promise.resolve();
+    setLoadingAnteriores(true);
+    return fetch('/api/portal/treinamentos/acompanhamento?resumo=1&escopo=anteriores', {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.ok && Array.isArray(data.itens)) {
+          setAnteriores(data.itens);
+          setAnterioresCarregados(true);
+        }
+      })
+      .finally(() => setLoadingAnteriores(false));
+  }, [anterioresCarregados]);
+
+  const carregarDetalhe = useCallback(
+    async (id: string) => {
+      if (detalhes[id]) return;
+      setCarregandoDetalheId(id);
+      try {
+        const res = await fetch('/api/portal/treinamentos/acompanhamento', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        });
+        const data = await res.json();
+        if (data.ok && data.item) {
+          setDetalhes((prev) => ({ ...prev, [id]: data.item as ItemAcompanhamentoTreinamento }));
+        }
+      } finally {
+        setCarregandoDetalheId(null);
+      }
+    },
+    [detalhes]
+  );
+
   useEffect(() => {
-    carregar();
-  }, [carregar]);
+    void carregarVigentes();
+  }, [carregarVigentes]);
+
+  useEffect(() => {
+    if (secaoAnterioresAberta) void carregarAnteriores();
+  }, [secaoAnterioresAberta, carregarAnteriores]);
 
   const vigentesFiltrados = useMemo(
     () => vigentes.filter((i) => filtrarPorPublico(i, filtro)),
@@ -278,17 +250,13 @@ export function TreinamentoAcompanhamentoGestao() {
   );
 
   const pendentesSemana = useMemo(
-    () =>
-      vigentesFiltrados.reduce(
-        (acc, i) => acc + i.nao_assistiram.length + i.visualizou_sem_confirmar.length,
-        0
-      ),
+    () => vigentesFiltrados.reduce((acc, i) => acc + i.nao_fizeram + i.visualizou_sem_confirmar, 0),
     [vigentesFiltrados]
   );
 
-  if (!visivel && !loading) return null;
+  if (!visivel && !loadingVigentes) return null;
 
-  if (loading) {
+  if (loadingVigentes) {
     return (
       <section className="rounded-2xl border border-cafeteria-200 bg-white p-5 shadow-sm">
         <div className="flex justify-center py-4">
@@ -306,27 +274,46 @@ export function TreinamentoAcompanhamentoGestao() {
     { id: 'lideranca', label: 'Liderança' },
   ];
 
+  const renderLista = (itens: ItemAcompanhamentoResumo[]) => (
+    <div className="space-y-2">
+      {itens.map((item) => (
+        <CardTreinamentoResumo
+          key={item.id}
+          resumo={item}
+          detalhe={detalhes[item.id] ?? null}
+          carregandoDetalhe={carregandoDetalheId === item.id}
+          onAbrir={(aberto) => {
+            if (aberto) void carregarDetalhe(item.id);
+          }}
+        />
+      ))}
+    </div>
+  );
+
   return (
-    <section className="rounded-2xl border border-dourado-base/30 bg-gradient-to-br from-dourado-50/50 via-white to-cream-50 p-5 shadow-sm space-y-5">
+    <section className="rounded-2xl border border-cafeteria-200 bg-white p-5 shadow-sm space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-display font-semibold text-coffee-base">Acompanhamento da equipe</h2>
-          <p className="text-sm text-cafeteria-700 mt-1 leading-relaxed">
-            Visível para administração, RH e sócios.
-            {cicloQuintaRotulo ? ` Ciclo vigente: ${cicloQuintaRotulo}.` : ''}
+          <p className="text-sm text-cafeteria-700 mt-1">
+            {cicloQuintaRotulo ? `Ciclo vigente: ${cicloQuintaRotulo}. ` : ''}
             {pendentesSemana > 0 ? (
-              <span className="font-semibold text-red-800"> {pendentesSemana} pendência(s) nesta semana.</span>
+              <span className="font-semibold text-red-800">{pendentesSemana} pendência(s) nesta semana.</span>
             ) : (
-              <span className="font-semibold text-emerald-700"> Semana em dia.</span>
+              <span className="font-semibold text-emerald-700">Semana em dia.</span>
             )}
-            <span className="block text-xs text-cafeteria-600 mt-1">
-              Treino «Todos» não conta sócios/admin na meta. Confirmações de teste da gestão não entram nesse total.
-            </span>
+          </p>
+          <p className="text-xs text-cafeteria-500 mt-1">
+            Clique em um treinamento para ver os nomes. Histórico só carrega ao abrir a gaveta.
           </p>
         </div>
         <button
           type="button"
-          onClick={() => carregar()}
+          onClick={() => {
+            setAnterioresCarregados(false);
+            setAnteriores([]);
+            void carregarVigentes();
+          }}
           className="text-sm font-medium text-dourado-base hover:underline min-h-[44px] px-2"
         >
           Atualizar
@@ -352,28 +339,61 @@ export function TreinamentoAcompanhamentoGestao() {
 
       {migracao064Pendente ? (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          Migration <strong>064</strong> ainda não aplicada. Rode <code className="text-xs">npm run db:apply-064</code>.
+          Migration <strong>064</strong> pendente. Rode <code className="text-xs">npm run db:apply-064</code>.
         </div>
       ) : null}
 
       {erro ? <p className="text-sm text-red-700">{erro}</p> : null}
 
-      {vigentesFiltrados.length === 0 && anterioresFiltrados.length === 0 ? (
-        <p className="text-sm text-cafeteria-600">Nenhum treinamento para este filtro no momento.</p>
+      {vigentesFiltrados.length === 0 && !secaoAnterioresAberta ? (
+        <p className="text-sm text-cafeteria-600">Nenhum treinamento vigente para este filtro.</p>
       ) : (
         <div className="space-y-6">
-          <SecaoTreinos
-            titulo="Treinamentos desta semana"
-            subtitulo="O que está vigente agora. Expanda cada card para ver quem não fez."
-            itens={vigentesFiltrados}
-            destaqueSemana
-          />
-          <SecaoTreinos
-            titulo="Semanas anteriores"
-            subtitulo="Treinos de ciclos passados. Pendências aqui são treinos que a pessoa não concluiu."
-            itens={anterioresFiltrados}
-            colapsavel
-          />
+          {vigentesFiltrados.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-bold uppercase tracking-wide text-cafeteria-500">Esta semana</h3>
+              {renderLista(vigentesFiltrados)}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-cafeteria-200 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setSecaoAnterioresAberta((v) => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-cream-50 transition-colors min-h-[48px]"
+            >
+              <div>
+                <p className="text-sm font-semibold text-coffee-base">Semanas anteriores</p>
+                <p className="text-xs text-cafeteria-600">
+                  {anterioresCarregados
+                    ? `${anterioresFiltrados.length} treino(s) no histórico`
+                    : 'Carrega sob demanda ao abrir'}
+                </p>
+              </div>
+              <svg
+                className={`h-4 w-4 text-cafeteria-400 transition-transform ${secaoAnterioresAberta ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {secaoAnterioresAberta ? (
+              <div className="border-t border-cafeteria-100 p-4">
+                {loadingAnteriores ? (
+                  <div className="flex justify-center py-4">
+                    <XicaraCarregando size="sm" label="Carregando histórico…" />
+                  </div>
+                ) : anterioresFiltrados.length === 0 ? (
+                  <p className="text-sm text-cafeteria-600">Nenhum treino anterior neste filtro.</p>
+                ) : (
+                  renderLista(anterioresFiltrados)
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </section>
