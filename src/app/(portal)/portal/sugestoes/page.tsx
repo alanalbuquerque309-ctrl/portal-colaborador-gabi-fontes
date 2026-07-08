@@ -97,16 +97,11 @@ export default function SugestoesPage() {
 
   const carregarMural = () => {
     setCarregandoMural(true);
-    fetch('/api/portal/sugestoes', { credentials: 'include' })
+    fetch('/api/portal/sugestoes?escopo=minhas', { credentials: 'include' })
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
           if (Array.isArray(data.minhas)) setMinhas(data.minhas);
-          if (Array.isArray(data.feed)) setFeed(data.feed);
-          if (Array.isArray(data.feed_sugestoes)) setFeedSugestoes(data.feed_sugestoes);
-          else setFeedSugestoes([]);
-          if (Array.isArray(data.feed_reclamacoes)) setFeedReclamacoes(data.feed_reclamacoes);
-          else setFeedReclamacoes([]);
           const gestao =
             data.pode_gerir_sugestoes_reclamacoes === true || data.pode_enviar_reclamacao === true;
           setPodeGerir(gestao);
@@ -118,6 +113,18 @@ export default function SugestoesPage() {
         }
       })
       .finally(() => setCarregandoMural(false));
+
+    fetch('/api/portal/sugestoes?escopo=feeds', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.ok) return;
+        if (Array.isArray(data.feed)) setFeed(data.feed);
+        if (Array.isArray(data.feed_sugestoes)) setFeedSugestoes(data.feed_sugestoes);
+        else setFeedSugestoes([]);
+        if (Array.isArray(data.feed_reclamacoes)) setFeedReclamacoes(data.feed_reclamacoes);
+        else setFeedReclamacoes([]);
+      })
+      .catch(() => undefined);
   };
 
   useEffect(() => {

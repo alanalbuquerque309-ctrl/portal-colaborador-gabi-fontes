@@ -8,7 +8,8 @@ import {
   semanaAnteriorInicioISO,
   semanaAvaliacaoEquipePadraoISO,
 } from '@/lib/semana-referencia';
-import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { segundaSemanaSaoPaulo, semanaAnteriorSaoPaulo } from '@/lib/semana-brasil';
+import { mesAtualUTC, anoAtualUTC } from '@/lib/mural-ranking-unidade';
 import type { ILIComponente, LiderInspiradorVencedor, PainelLider } from '@/lib/portal-home-types';
 import {
   ILI_CAP_INFLACAO,
@@ -442,6 +443,81 @@ export async function calcularRankingLiderInspirador(
   const payload = await calcularRankingLiderInspiradorCore(supabase, semanaEquipe);
   rankingCachePorSemana.set(semanaEquipe, { expira: Date.now() + RANKING_CACHE_TTL_MS, payload });
   return payload;
+}
+
+export type PeriodoLiderDestaque = 'semanal' | 'mensal' | 'anual';
+
+function deslocarSemana(semanaInicio: string, semanas: number): string {
+  const [y, m, d] = semanaInicio.split('-').map((x) => parseInt(x, 10));
+  const dt = new Date(y, (m || 1) - 1, d || 1);
+  dt.setDate(dt.getDate() + semanas * 7);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function semanasNoPeriodo(periodo: 'mensal' | 'anual'): string[] {
+  const fim = semanaAnteriorSaoPaulo();
+  const limite = periodo === 'mensal' ? 6 : 52;
+  const alvoAno = periodo === 'mensal' ? mesAtualUTC().ano : anoAtualUTC().ano;
+  const alvoMes = periodo === 'mensal' ? mesAtualUTC().mes : null;
+
+  const semanas: string[] = [];
+  let cur = fim;
+  for (let i = 0; i < limite; i++) {
+    const [y, m] = cur.split('-').map((x) => parseInt(x, 10));
+    if (y < alvoAno) break;
+    if (periodo === 'anual' && y === alvoAno) semanas.push(cur);
+    if (periodo === 'mensal' && y === alvoAno && alvoMes != null && m === alvoMes) semanas.push(cur);
+    if (periodo === 'mensal' && y === alvoAno && alvoMes != null && m < alvoMes) break;
+    cur = deslocarSemana(cur, -1);
+  }
+  return semanas;
+}
+
+/** Líder destaque por período: semana vigente, mais vitórias no mês ou no ano. */
+export async function calcularVencedorLiderDestaquePeriodo(
+  supabase: SupabaseClient,
+  periodo: PeriodoLiderDestaque
+): Promise<{
+  periodo: PeriodoLiderDestaque;
+  periodo_rotulo: string;
+  vencedor: LiderInspiradorVencedor | null;
+}> {
+  if (periodo === 'semanal') {
+    const r = await calcularRankingLiderInspirador(supabase);
+    return { periodo, periodo_rotulo: r.semana_rotulo, vencedor: r.vencedor };
+  }
+
+  const semanas = semanasNoPeriodo(periodo);
+  const wins = new Map<string, { count: number; iliMax: number; vencedor: LiderInspiradorVencedor }>();
+
+  for (const semana of semanas) {
+    const r = await calcularRankingLiderInspirador(supabase, { semanaEquipe: semana });
+    const v = r.vencedor;
+    if (!v) continue;
+    const prev = wins.get(v.lider_id);
+    if (!prev) {
+      wins.set(v.lider_id, { count: 1, iliMax: v.ili, vencedor: v });
+    } else {
+      prev.count += 1;
+      if (v.ili > prev.iliMax) {
+        prev.iliMax = v.ili;
+        prev.vencedor = v;
+      }
+      wins.set(v.lider_id, prev);
+    }
+  }
+
+  const ranked = Array.from(wins.values()).sort(
+    (a, b) => b.count - a.count || b.iliMax - a.iliMax
+  );
+  const top = ranked[0]?.vencedor ?? null;
+
+  const periodo_rotulo =
+    periodo === 'mensal'
+      ? mesAtualUTC().mesRef.replace('-', '/')
+      : String(anoAtualUTC().ano);
+
+  return { periodo, periodo_rotulo, vencedor: top };
 }
 
 async function calcularRankingLiderInspiradorCore(

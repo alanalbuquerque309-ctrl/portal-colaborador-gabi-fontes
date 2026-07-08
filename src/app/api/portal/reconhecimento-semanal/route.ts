@@ -1,12 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { createAdminClient } from '@/lib/supabase/admin';
-import {
-  calcularTop3GeralSemana,
-  calcularTop3PorUnidadeSemana,
-} from '@/lib/mural-ranking-unidade';
-import { calcularRankingTrofeusSemanaCompleto } from '@/lib/mural-ranking-trofeus-pares';
-import { segundaSemanaSaoPaulo, semanaAnteriorSaoPaulo, rotuloSemanaSaoPaulo } from '@/lib/semana-brasil';
+import { obterReconhecimentoSemanalCacheado } from '@/lib/cache/portal-reconhecimentos-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,33 +13,10 @@ export async function GET() {
   }
 
   try {
-    const supabase = createAdminClient();
-    /** Avaliação: semana que já terminou (a que a liderança registra). Troféus: semana corrente. */
-    const semanaAvaliacao = semanaAnteriorSaoPaulo();
-    const semanaTrofeus = segundaSemanaSaoPaulo();
-
-    const [geral, porUnidade, trofeus] = await Promise.all([
-      calcularTop3GeralSemana(supabase, semanaAvaliacao),
-      calcularTop3PorUnidadeSemana(supabase, semanaAvaliacao),
-      calcularRankingTrofeusSemanaCompleto(supabase, semanaTrofeus).catch(() => ({
-        semana_inicio: semanaTrofeus,
-        ranking: [],
-      })),
-    ]);
-
-    return NextResponse.json(
-      {
-        ok: true,
-        semana_inicio: semanaAvaliacao,
-        semana_trofeus_inicio: semanaTrofeus,
-        semana_rotulo: rotuloSemanaSaoPaulo(semanaAvaliacao),
-        semana_rotulo_trofeus: rotuloSemanaSaoPaulo(semanaTrofeus),
-        ranking_geral_top3: geral.top,
-        ranking_por_unidade: porUnidade.unidades,
-        ranking_trofeus: trofeus.ranking,
-      },
-      { headers: { 'Cache-Control': 'no-store, max-age=0' } }
-    );
+    const payload = await obterReconhecimentoSemanalCacheado();
+    return NextResponse.json(payload, {
+      headers: { 'Cache-Control': 'private, max-age=60' },
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

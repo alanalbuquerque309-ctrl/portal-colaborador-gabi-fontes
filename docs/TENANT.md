@@ -79,7 +79,7 @@ Override via `NEXT_PUBLIC_TERMO_*` (ver `.env.local.example`). Lógica de missõ
 
 - [x] Novo branding só com env, sem editar TS
 - [x] Nenhum import novo direto a `UNIDADES_CADASTRO` em telas novas (usar `@/lib/tenant`)
-- [ ] Migration 061 aplicada em staging/prod (espelho; runtime inalterado)
+- [x] Migration 061 aplicada em staging/prod (espelho; runtime inalterado)
 - [x] `GET /api/tenant/branding` retorna defaults em produção atual
 
 ## Fase 2.1 — centralização org (concluída)
@@ -105,11 +105,18 @@ Todo o `src/` (exceto `colaborador-org.ts` e `tenant/org-catalog.ts`) usa:
 - `/admin/tenant-espelho` — compara **runtime efetivo**, **legado TS** e **espelho Supabase (061)**
 - Somente leitura; não edita banco nem liga `USE_TENANT_DB`
 
+## Fase 2.5 — espelho operacional regras (concluída)
+
+Migration `062_tenant_regras_operacionais.sql`:
+
+- Colunas `regras_lideranca` e `regras_avaliacao_direta` em `tenant_settings` (JSONB)
+- Popular: `npm run db:espelhar-regras-062` (usa service role; copia do TS legado)
+- `carregarRegras*Resolvido()` lê do espelho **só** com `USE_TENANT_DB=true`; senão, TS como hoje
+
 ## Fases seguintes (não implementadas)
 
-1. **2.5** — espelho operacional (migration 062: regras no DB)
-2. **2.7** — PWA dinâmico (`manifest` por tenant)
-3. **2.8** — staging com `USE_TENANT_DB=true` e segundo tenant fake
-4. Admin CRUD setores/unidades só do banco
-5. `tenant_id` + RLS multi-tenant
-6. Provisionamento e billing
+1. **2.7** — PWA dinâmico (`manifest` por tenant)
+2. **2.8** — staging com `USE_TENANT_DB=true` e segundo tenant fake
+3. Admin CRUD setores/unidades só do banco
+4. `tenant_id` + RLS multi-tenant
+5. Provisionamento e billing

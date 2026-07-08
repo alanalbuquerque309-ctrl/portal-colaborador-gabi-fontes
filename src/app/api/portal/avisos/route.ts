@@ -13,7 +13,8 @@ const SELECT_AVISOS_SEM_PUBLICO =
   'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, unidades(slug)';
 
 /** Lista avisos para o colaborador logado conforme público-alvo. */
-export async function GET() {
+export async function GET(req: Request) {
+  const somentePendentes = new URL(req.url).searchParams.get('pendentes') === '1';
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
   const role = cookieStore.get('portal_role')?.value ?? '';
@@ -109,14 +110,34 @@ export async function GET() {
 
     const confirmadosSet = new Set((confirmacoes ?? []).map((c) => String(c.aviso_id)));
 
-    const resultado = avisos.map((a: Record<string, unknown>) => ({
+    const visualizadosSet = new Set<string>();
+    if (somentePendentes) {
+      const { data: visualizados } = await supabase
+        .from('aviso_visualizacoes')
+        .select('aviso_id')
+        .eq('colaborador_id', colaboradorId);
+      for (const row of visualizados ?? []) {
+        visualizadosSet.add(String(row.aviso_id));
+      }
+    }
+
+    let resultado = avisos.map((a: Record<string, unknown>) => ({
       id: a.id,
       titulo: a.titulo,
       conteudo: a.conteudo,
       data_publicacao: a.data_publicacao,
       exige_confirmacao: a.exige_confirmacao === true,
       confirmado: confirmadosSet.has(String(a.id)),
+      visualizado: visualizadosSet.has(String(a.id)),
     }));
+
+    if (somentePendentes) {
+      resultado = resultado.filter((a) => {
+        if (a.exige_confirmacao && a.confirmado) return false;
+        if (!a.exige_confirmacao && a.visualizado) return false;
+        return true;
+      });
+    }
 
     return NextResponse.json({ ok: true, avisos: resultado });
   } catch (e) {

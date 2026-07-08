@@ -155,11 +155,13 @@ export function AvisosHome() {
   }, []);
 
   const carregar = useCallback(() => {
-    fetch('/api/portal/avisos', { credentials: 'include', cache: 'no-store' })
+    fetch('/api/portal/avisos?pendentes=1', { credentials: 'include' })
       .then((r) => r.json())
       .then((d: { ok?: boolean; avisos?: Aviso[] }) => {
         if (d.ok && Array.isArray(d.avisos)) {
           setAvisos(d.avisos.slice(0, MAX_AVISOS_HOME));
+        } else {
+          setAvisos([]);
         }
       })
       .finally(() => setLoading(false));
@@ -200,6 +202,9 @@ export function AvisosHome() {
   }, [avisos, loading, recolhidosLocal, registrarVisualizacao]);
 
   const marcarRecolhido = (id: string) => {
+    registrarVisualizacao(id);
+    setAvisos((prev) => prev.filter((a) => a.id !== id));
+    setGavetaId((atual) => (atual === id ? null : atual));
     setRecolhidosLocal((prev) => {
       const next = new Set(prev);
       next.add(id);
@@ -219,9 +224,7 @@ export function AvisosHome() {
       });
       const data = await res.json();
       if (data.ok) {
-        setAvisos((prev) =>
-          prev.map((a) => (a.id === avisoId ? { ...a, confirmado: true } : a))
-        );
+        setAvisos((prev) => prev.filter((a) => a.id !== avisoId));
         setGavetaId((atual) => (atual === avisoId ? null : atual));
         emitPortalHomeAtualizado();
       }

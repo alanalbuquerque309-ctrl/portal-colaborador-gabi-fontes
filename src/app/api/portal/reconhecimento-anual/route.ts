@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { obterReconhecimentoMensalCacheado } from '@/lib/cache/portal-reconhecimentos-cache';
-import { AVALIACAO_RANKING_MIN_SEMANAS } from '@/lib/avaliacao-ranking';
+import { obterReconhecimentoAnualCacheado } from '@/lib/cache/portal-reconhecimentos-cache';
 
 export const dynamic = 'force-dynamic';
 
-/** Rankings mensais cumulativos (média das semanas do mês + troféus do mês). */
+/** Rankings anuais acumulados (avaliação + troféus do ano corrente). */
 export async function GET() {
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
@@ -14,14 +13,10 @@ export async function GET() {
   }
 
   try {
-    const payload = await obterReconhecimentoMensalCacheado();
-    return NextResponse.json(
-      {
-        ...payload,
-        min_semanas_ranking_mensal: AVALIACAO_RANKING_MIN_SEMANAS,
-      },
-      { headers: { 'Cache-Control': 'private, max-age=60' } }
-    );
+    const payload = await obterReconhecimentoAnualCacheado();
+    return NextResponse.json(payload, {
+      headers: { 'Cache-Control': 'private, max-age=120' },
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

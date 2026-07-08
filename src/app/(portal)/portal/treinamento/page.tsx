@@ -30,14 +30,12 @@ export default function PortalTreinamentoPage() {
   const [abertoId, setAbertoId] = useState<string | null>(null);
   const [historicoAberto, setHistoricoAberto] = useState(false);
   const [historicoItemAberto, setHistoricoItemAberto] = useState<string | null>(null);
+  const [extrasAberto, setExtrasAberto] = useState(false);
 
   const carregar = useCallback(() => {
     setErroCarregar(null);
     setLoading(true);
-    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
-      .then(() =>
-        fetch('/api/portal/treinamentos', { credentials: 'include', cache: 'no-store' })
-      )
+    fetch('/api/portal/treinamentos', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
         if (d.ok) {
@@ -348,15 +346,38 @@ export default function PortalTreinamentoPage() {
 
           {extras.length > 0 && (
             <section className="rounded-2xl border border-cafeteria-200/50 bg-cream-50/50 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-cafeteria-100/60">
-                <p className="text-xs font-bold uppercase tracking-wide text-cafeteria-600">
-                  Outros materiais
-                </p>
-              </div>
-              {extras.map((t) => {
+              <button
+                type="button"
+                onClick={() => {
+                  setExtrasAberto((v) => !v);
+                  if (extrasAberto) setAbertoId(null);
+                }}
+                className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-white/60 transition-colors min-h-[48px]"
+              >
+                <div>
+                  <span className="text-sm font-semibold text-coffee-base">
+                    Outros materiais ({extras.length})
+                  </span>
+                  <p className="text-xs text-cafeteria-600 mt-0.5">Vídeos e conteúdos fora da semana vigente.</p>
+                </div>
+                <svg
+                  className={`h-4 w-4 text-cafeteria-400 transition-transform duration-200 shrink-0 ${
+                    extrasAberto ? 'rotate-180' : ''
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {extrasAberto &&
+                extras.map((t) => {
                 const itemAberto = abertoId === t.id;
                 return (
-                  <div key={t.id} className="border-b border-cafeteria-100/60 last:border-b-0">
+                  <div key={t.id} className="border-t border-cafeteria-100/60">
                     <button
                       type="button"
                       onClick={() => abrirItem(t.id)}

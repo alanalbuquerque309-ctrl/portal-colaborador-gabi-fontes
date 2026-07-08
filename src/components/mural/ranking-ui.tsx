@@ -5,21 +5,22 @@ import { useEffect, useState } from 'react';
 /** Rankings de avaliação e troféus: semanal (top 3 notas) e mensal (acumulado no mês). */
 export const ROTULO_PERIODO_RANKING_SEMANAL = 'Ranking semanal';
 export const ROTULO_PERIODO_RANKING_MENSAL = 'Ranking mensal';
+export const ROTULO_PERIODO_RANKING_ANUAL = 'Acumulado anual';
 
-export const SUBTITULO_RANKING_AVALIACAO_SEMANAL =
-  'Top 3 da rede na semana em avaliação (segunda a domingo). Atualiza quando a liderança registra notas.';
+export const SUBTITULO_RANKING_AVALIACAO_SEMANAL = 'Top 3 da semana em avaliação.';
 
-export const SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE =
-  'Top 3 da rede pela média das notas semanais acumuladas no mês (em andamento até o dia 31).';
+export const SUBTITULO_RANKING_AVALIACAO_MENSAL_REDE = 'Top 3 pela média das semanas do mês.';
 
 export const SUBTITULO_RANKING_AVALIACAO_MENSAL_UNIDADE =
   'Top 3 de cada unidade pela média mensal das avaliações semanais.';
 
-export const SUBTITULO_RANKING_TROFEUS_MENSAL =
-  'Soma de todos os troféus entre pares recebidos no mês civil.';
+export const SUBTITULO_RANKING_AVALIACAO_ANUAL = 'Top 3 pela média acumulada do ano.';
 
-export const SUBTITULO_RANKING_TROFEUS_SEMANAL =
-  'Quem mais recebeu troféus entre pares nesta semana (Postura, Braço Direito, Eficiência).';
+export const SUBTITULO_RANKING_TROFEUS_MENSAL = 'Troféus entre pares no mês.';
+
+export const SUBTITULO_RANKING_TROFEUS_SEMANAL = 'Troféus entre pares nesta semana.';
+
+export const SUBTITULO_RANKING_TROFEUS_ANUAL = 'Troféus entre pares no ano.';
 
 /** Quantos colocados mostrar no ranking de troféus antes de "Ver mais". */
 export const TROFEUS_RANKING_VISIVEL_INICIAL = 4;

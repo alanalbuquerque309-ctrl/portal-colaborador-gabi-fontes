@@ -52,9 +52,13 @@ async function mapaAutoresElogio(
 
 /** GET: Minhas mensagens + feed de sugestões da unidade (para curtir). */
 export async function GET(req: Request) {
+  const url = new URL(req.url);
   const elogiosVigentesRede =
-    new URL(req.url).searchParams.get('elogios_vigentes') === '1' ||
-    new URL(req.url).searchParams.get('elogios_vigentes') === 'true';
+    url.searchParams.get('elogios_vigentes') === '1' ||
+    url.searchParams.get('elogios_vigentes') === 'true';
+  const escopo = url.searchParams.get('escopo') ?? 'completo';
+  const soMinhas = escopo === 'minhas';
+  const soFeeds = escopo === 'feeds';
 
   const cookieStore = await cookies();
   const colaboradorId = cookieStore.get('portal_colaborador_id')?.value;
@@ -66,7 +70,25 @@ export async function GET(req: Request) {
   try {
     const supabase = createAdminClient();
 
-    const selectsMinhas = [
+    let minhas: Array<{
+      id: unknown;
+      tipo: unknown;
+      texto: unknown;
+      anonimo: boolean;
+      created_at: unknown;
+      visualizado_em: string | null;
+      graos_destaque_em: string | null;
+      graos_resposta_bonus: number | null;
+      curtidas: number;
+      resposta_texto: string | null;
+      resposta_em: string | null;
+    }> = [];
+
+    let meuRole = normalizePortalRole('');
+    let gestaoVeSugestoesReclamacoes = false;
+
+    if (!soFeeds) {
+      const selectsMinhas = [
       'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas, resposta_texto, resposta_em',
       'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, graos_resposta_bonus, curtidas',
       'id, tipo, texto, anonimo, created_at, visualizado_em, graos_destaque_em, curtidas',
@@ -98,20 +120,41 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, erro: errMinhas || 'Erro ao carregar mensagens' }, { status: 500 });
     }
 
-    const minhas = (minhasRaw ?? []).map((r: Record<string, unknown>) => ({
-      id: r.id,
-      tipo: r.tipo,
-      texto: r.texto,
-      anonimo: r.anonimo === true,
-      created_at: r.created_at,
-      visualizado_em: r.visualizado_em ?? null,
-      graos_destaque_em: r.graos_destaque_em ?? null,
-      graos_resposta_bonus:
-        typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
-      curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
-      resposta_texto: typeof r.resposta_texto === 'string' ? r.resposta_texto : null,
-      resposta_em: r.resposta_em ? String(r.resposta_em) : null,
-    }));
+      minhas = (minhasRaw ?? []).map((r: Record<string, unknown>) => ({
+        id: r.id,
+        tipo: r.tipo,
+        texto: r.texto,
+        anonimo: r.anonimo === true,
+        created_at: r.created_at,
+        visualizado_em: r.visualizado_em != null ? String(r.visualizado_em) : null,
+        graos_destaque_em: r.graos_destaque_em != null ? String(r.graos_destaque_em) : null,
+        graos_resposta_bonus:
+          typeof r.graos_resposta_bonus === 'number' ? r.graos_resposta_bonus : null,
+        curtidas: typeof r.curtidas === 'number' ? r.curtidas : 0,
+        resposta_texto: typeof r.resposta_texto === 'string' ? r.resposta_texto : null,
+        resposta_em: r.resposta_em ? String(r.resposta_em) : null,
+      }));
+    }
+
+    if (soMinhas) {
+      const { data: perfil } = await supabase
+        .from('colaboradores')
+        .select('role')
+        .eq('id', colaboradorId)
+        .single();
+      meuRole = normalizePortalRole((perfil as { role?: string } | null)?.role);
+      gestaoVeSugestoesReclamacoes = podeGerirSugestoesReclamacoes(meuRole);
+      return NextResponse.json({
+        ok: true,
+        minhas,
+        feed: [],
+        feed_sugestoes: [],
+        feed_reclamacoes: [],
+        pode_gerir_sugestoes_reclamacoes: gestaoVeSugestoesReclamacoes,
+        pode_enviar_reclamacao: gestaoVeSugestoesReclamacoes,
+        participa_graos: podeParticiparGraosCafe(meuRole),
+      });
+    }
 
     let feed: Array<{
       id: string;
@@ -148,8 +191,12 @@ export async function GET(req: Request) {
       .select('role')
       .eq('id', colaboradorId)
       .single();
-    const meuRole = normalizePortalRole((perfil as { role?: string } | null)?.role);
-    const gestaoVeSugestoesReclamacoes = podeGerirSugestoesReclamacoes(meuRole);
+    meuRole = normalizePortalRole((perfil as { role?: string } | null)?.role);
+    gestaoVeSugestoesReclamacoes = podeGerirSugestoesReclamacoes(meuRole);
+
+    if (soFeeds) {
+      minhas = [];
+    }
 
     const { data: feedElogiosRaw, error: errFeedElogios } = await supabase
       .from('sugestoes_reclamacoes')

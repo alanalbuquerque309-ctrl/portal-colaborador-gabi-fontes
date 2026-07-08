@@ -34,7 +34,7 @@ export async function carregarTenantMirrorDb(
 
     const { data: settings } = await supabase
       .from('tenant_settings')
-      .select('branding, termos, modulos')
+      .select('branding, termos, modulos, regras_lideranca, regras_avaliacao_direta')
       .eq('tenant_id', tenant.id)
       .maybeSingle();
 
@@ -68,6 +68,8 @@ export async function carregarTenantMirrorDb(
       termos: termosRaw,
       modulos: modulosRaw,
       setores: (setoresRows ?? []).map((r) => String(r.nome)),
+      regrasLideranca: settings?.regras_lideranca ?? [],
+      regrasAvaliacaoDireta: settings?.regras_avaliacao_direta ?? [],
     };
   } catch {
     return null;
@@ -165,6 +167,17 @@ export async function getModulosTenantServer(): Promise<TenantModulos> {
   if (!mirror?.modulos) return base;
 
   return { ...base, ...mirror.modulos };
+}
+
+/** Colunas da migration 062 existem. Não implica dados espelhados nem USE_TENANT_DB. */
+export async function tenantEspelho062Disponivel(): Promise<boolean> {
+  try {
+    const supabase = createAdminClient();
+    const { error } = await supabase.from('tenant_settings').select('regras_lideranca').limit(1);
+    return !error;
+  } catch {
+    return false;
+  }
 }
 
 /** Tabelas da migration 061 existem (espelho SaaS). Não implica USE_TENANT_DB ligado. */

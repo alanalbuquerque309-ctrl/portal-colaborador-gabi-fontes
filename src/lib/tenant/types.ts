@@ -18,6 +18,7 @@ export type TenantEspelhoAdminPainel = {
   slug: string;
   use_tenant_db: boolean;
   espelho_061_disponivel: boolean;
+  espelho_062_disponivel: boolean;
   fonte_runtime: 'legado_env_defaults' | 'db_mirror';
   runtime: {
     branding: Record<string, string>;
@@ -41,10 +42,18 @@ export type TenantEspelhoAdminPainel = {
     termos: Record<string, string>;
     modulos: Partial<TenantModulos>;
     setores: string[];
+    regras_lideranca_count: number;
+    regras_avaliacao_direta_count: number;
   } | null;
+  regras_legado: {
+    lideranca_count: number;
+    avaliacao_direta_count: number;
+  };
   comparacao: {
     espelho_alinhado_legado_setores: boolean | null;
     espelho_alinhado_legado_modulos: boolean | null;
+    espelho_alinhado_legado_regras_lideranca: boolean | null;
+    espelho_alinhado_legado_regras_avaliacao: boolean | null;
     runtime_diferente_legado: boolean;
   };
 };
@@ -57,4 +66,6 @@ export type TenantMirrorDb = {
   termos: Partial<Record<string, string>>;
   modulos: Partial<TenantModulos>;
   setores: string[];
+  regrasLideranca: unknown;
+  regrasAvaliacaoDireta: unknown;
 };

@@ -4,6 +4,14 @@ import { getTenantBranding } from '@/lib/tenant/branding';
 import { getModulosTenant } from '@/lib/tenant/modulos';
 import { listarSetoresCadastro, listarUnidadesCadastro } from '@/lib/tenant/org-catalog';
 import {
+  carregarRegrasAvaliacaoDiretaLegado,
+  carregarRegrasLiderancaLegado,
+} from '@/lib/tenant/regras-legado';
+import {
+  parseRegrasAvaliacaoDiretaMirror,
+  parseRegrasLiderancaMirror,
+} from '@/lib/tenant/regras-mirror-parse';
+import {
   carregarTenantMirrorDb,
   getModulosTenantServer,
   getTenantBrandingServer,
@@ -12,6 +20,7 @@ import {
   listarSetoresCadastroServer,
   listarUnidadesCadastroServer,
   tenantEspelho061Disponivel,
+  tenantEspelho062Disponivel,
   useTenantDbMirror,
 } from '@/lib/tenant/settings-server';
 import { getTermosTenant } from '@/lib/tenant/terminology';
@@ -27,13 +36,20 @@ function modulosIguais(a: TenantModulos, b: Partial<TenantModulos> | TenantModul
   return keys.every((k) => a[k] === (b[k] ?? a[k]));
 }
 
-/** Painel read-only: runtime efetivo vs legado TS vs espelho Supabase (061). */
+function regrasJsonIguais(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Painel read-only: runtime efetivo vs legado TS vs espelho Supabase (061/062). */
 export async function montarPainelTenantEspelhoAdmin(): Promise<TenantEspelhoAdminPainel> {
   const slug = getTenantSlug();
   const useTenantDb = useTenantDbMirror();
+  const legadoRegrasLideranca = carregarRegrasLiderancaLegado();
+  const legadoRegrasAvaliacao = carregarRegrasAvaliacaoDiretaLegado();
 
   const [
     espelho061,
+    espelho062,
     espelhoDb,
     runtimeBranding,
     runtimeTermos,
@@ -42,6 +58,7 @@ export async function montarPainelTenantEspelhoAdmin(): Promise<TenantEspelhoAdm
     runtimeUnidades,
   ] = await Promise.all([
     tenantEspelho061Disponivel(),
+    tenantEspelho062Disponivel(),
     carregarTenantMirrorDb(slug),
     getTenantBrandingServer(),
     getTermosTenantServer(),
@@ -56,6 +73,9 @@ export async function montarPainelTenantEspelhoAdmin(): Promise<TenantEspelhoAdm
   const legadoSetores = [...listarSetoresCadastro()];
   const legadoUnidades = [...listarUnidadesCadastro()];
 
+  const espelhoRegrasLideranca = parseRegrasLiderancaMirror(espelhoDb?.regrasLideranca);
+  const espelhoRegrasAvaliacao = parseRegrasAvaliacaoDiretaMirror(espelhoDb?.regrasAvaliacaoDireta);
+
   const espelhoNormalizado = espelhoDb
     ? {
         tenant_id: espelhoDb.tenantId,
@@ -65,6 +85,8 @@ export async function montarPainelTenantEspelhoAdmin(): Promise<TenantEspelhoAdm
         termos: espelhoDb.termos as Record<string, string>,
         modulos: espelhoDb.modulos,
         setores: espelhoDb.setores,
+        regras_lideranca_count: espelhoRegrasLideranca?.length ?? 0,
+        regras_avaliacao_direta_count: espelhoRegrasAvaliacao?.length ?? 0,
       }
     : null;
 
@@ -79,6 +101,7 @@ export async function montarPainelTenantEspelhoAdmin(): Promise<TenantEspelhoAdm
     slug,
     use_tenant_db: useTenantDb,
     espelho_061_disponivel: espelho061,
+    espelho_062_disponivel: espelho062,
     fonte_runtime: useTenantDb ? 'db_mirror' : 'legado_env_defaults',
     runtime: {
       branding: runtimeBranding,
@@ -95,12 +118,22 @@ export async function montarPainelTenantEspelhoAdmin(): Promise<TenantEspelhoAdm
       unidades: legadoUnidades,
     },
     espelho_db: espelhoNormalizado,
+    regras_legado: {
+      lideranca_count: legadoRegrasLideranca.length,
+      avaliacao_direta_count: legadoRegrasAvaliacao.length,
+    },
     comparacao: {
       espelho_alinhado_legado_setores: espelhoNormalizado
         ? listasIguais(espelhoNormalizado.setores, legadoSetores)
         : null,
       espelho_alinhado_legado_modulos: espelhoNormalizado
         ? modulosIguais(legadoModulos, espelhoNormalizado.modulos)
+        : null,
+      espelho_alinhado_legado_regras_lideranca: espelhoRegrasLideranca
+        ? regrasJsonIguais(espelhoRegrasLideranca, legadoRegrasLideranca)
+        : null,
+      espelho_alinhado_legado_regras_avaliacao: espelhoRegrasAvaliacao
+        ? regrasJsonIguais(espelhoRegrasAvaliacao, legadoRegrasAvaliacao)
         : null,
       runtime_diferente_legado: runtimeDiferenteLegado,
     },

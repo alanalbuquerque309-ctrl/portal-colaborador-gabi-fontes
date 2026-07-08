@@ -6,17 +6,26 @@ import {
   carregarRegrasAvaliacaoDiretaLegado,
   carregarRegrasLiderancaLegado,
 } from '@/lib/tenant/regras-legado';
-import { useTenantDbMirror } from '@/lib/tenant/settings-server';
+import {
+  parseRegrasAvaliacaoDiretaMirror,
+  parseRegrasLiderancaMirror,
+} from '@/lib/tenant/regras-mirror-parse';
+import { carregarTenantMirrorDb, useTenantDbMirror } from '@/lib/tenant/settings-server';
 
-/** Servidor: legado hoje; futuro espelho DB quando USE_TENANT_DB=true. */
+/** Servidor: legado hoje; espelho DB quando USE_TENANT_DB=true (migration 062). */
 export async function carregarRegrasLiderancaLegadoResolvido(): Promise<RegraLiderancaOperacional[]> {
   if (!useTenantDbMirror()) return carregarRegrasLiderancaLegado();
-  // Fase 2.5+: ler de tenant_settings / migration 062
+  const mirror = await carregarTenantMirrorDb();
+  const parsed = parseRegrasLiderancaMirror(mirror?.regrasLideranca);
+  if (parsed?.length) return parsed;
   return carregarRegrasLiderancaLegado();
 }
 
-/** Servidor: legado hoje; futuro espelho DB quando USE_TENANT_DB=true. */
+/** Servidor: legado hoje; espelho DB quando USE_TENANT_DB=true (migration 062). */
 export async function carregarRegrasAvaliacaoDiretaResolvido(): Promise<RegraAvaliacaoDireta[]> {
   if (!useTenantDbMirror()) return carregarRegrasAvaliacaoDiretaLegado();
+  const mirror = await carregarTenantMirrorDb();
+  const parsed = parseRegrasAvaliacaoDiretaMirror(mirror?.regrasAvaliacaoDireta);
+  if (parsed?.length) return parsed;
   return carregarRegrasAvaliacaoDiretaLegado();
 }

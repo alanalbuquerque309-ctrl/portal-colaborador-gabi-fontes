@@ -47,6 +47,15 @@ export function mesAtualUTC(): { ano: number; mes: number; mesRef: string } {
   return { ano, mes, mesRef: `${ano}-${String(mes).padStart(2, '0')}` };
 }
 
+export function anoAtualUTC(): { ano: number; anoRef: string } {
+  const ano = new Date().getUTCFullYear();
+  return { ano, anoRef: String(ano) };
+}
+
+function anoBoundsUTC(ano: number): { ini: string; fim: string; anoRef: string } {
+  return { ini: `${ano}-01-01`, fim: `${ano}-12-31`, anoRef: String(ano) };
+}
+
 async function idsUnidadesPorSlugs(
   supabase: SupabaseClient,
   slugs: string[]
@@ -357,6 +366,132 @@ export async function calcularTop3PorUnidadeSemana(
   );
   return {
     semana_inicio: semanaInicio,
+    unidades: blocos.filter((b) => b.top.length > 0),
+  };
+}
+
+/** Top 3 de um grupo no ano (média acumulada das avaliações semanais). */
+export async function calcularTop3GrupoAnual(
+  supabase: SupabaseClient,
+  opts: { unidadeSlugs: string[]; ano: number }
+): Promise<{ ano_referencia: string; top: RankingMuralItem[] }> {
+  const { ini, fim, anoRef } = anoBoundsUTC(opts.ano);
+  const unidadeIds = await idsUnidadesPorSlugs(supabase, opts.unidadeSlugs);
+  if (unidadeIds.length === 0) {
+    return { ano_referencia: anoRef, top: [] };
+  }
+
+  const { data: colaboradores, error: errCol } = await supabase
+    .from('colaboradores')
+    .select('id, nome, foto_url, role, setor, unidade_id, unidades(nome, slug)')
+    .in('unidade_id', unidadeIds)
+    .eq('role', 'colaborador');
+
+  if (errCol) throw new Error(errCol.message);
+
+  const ids = (colaboradores ?? []).map((c) => String(c.id));
+  if (ids.length === 0) {
+    return { ano_referencia: anoRef, top: [] };
+  }
+
+  const refMin = inicioDataReferenciaRanking(ini);
+
+  const { data: linhas, error: errLin } = await supabase
+    .from('avaliacoes_diarias')
+    .select('colaborador_id, avaliador_id, data_referencia, media_dia, created_at')
+    .in('colaborador_id', ids)
+    .gte('data_referencia', refMin)
+    .lte('data_referencia', fim)
+    .not('media_dia', 'is', null)
+    .limit(12000);
+
+  if (errLin) throw new Error(errLin.message);
+
+  const linhasMapeadas = filtrarAvaliacoesParaMedia(
+    (linhas ?? []).map((row) => ({
+      colaborador_id: String(row.colaborador_id),
+      avaliador_id: row.avaliador_id != null ? String(row.avaliador_id) : null,
+      data_referencia: String(row.data_referencia),
+      media_dia: row.media_dia as number | null,
+      created_at: row.created_at != null ? String(row.created_at) : null,
+      ignorada: (row as { ignorada?: boolean }).ignorada,
+    }))
+  );
+
+  const ctx = await montarContextoConsolidacaoRanking(supabase, linhasMapeadas);
+  const porId = agruparMediasPorColaborador(linhasMapeadas, ids, ini, ctx, fim);
+
+  const scored = (colaboradores ?? []).map((c) => {
+    const agg = mediaMensalColaborador(porId[String(c.id)] ?? []);
+    const unidade = Array.isArray(c.unidades) ? c.unidades[0] : c.unidades;
+    return {
+      id: String(c.id),
+      nome: String(c.nome ?? ''),
+      media: agg.media ?? 0,
+      dias: agg.dias,
+      foto_url: c.foto_url ? String(c.foto_url) : null,
+      setor: (c as { setor?: string | null }).setor ? String((c as { setor?: string | null }).setor) : null,
+      unidade_nome: unidade?.nome ? String(unidade.nome) : '',
+      unidade_slug: unidade?.slug ? String(unidade.slug) : '',
+    };
+  });
+
+  const topRaw = topTresComEmpateNoTerceiro(
+    scored.map((s) => ({ id: s.id, nome: s.nome, media: s.media, dias: s.dias }))
+  );
+
+  const metaPorId = new Map(scored.map((s) => [s.id, s]));
+
+  const top: RankingMuralItem[] = topRaw.map((t, i) => {
+    const meta = metaPorId.get(t.id);
+    return {
+      posicao: i + 1,
+      colaborador_id: t.id,
+      nome: t.nome,
+      foto_url: meta?.foto_url ?? null,
+      media: t.media,
+      semanas_avaliadas: meta?.dias ?? 0,
+      unidade_nome: meta?.unidade_nome ?? '',
+      unidade_slug: meta?.unidade_slug ?? '',
+      setor: meta?.setor ?? null,
+    };
+  });
+
+  return { ano_referencia: anoRef, top };
+}
+
+/** Top 3 da rede no ano corrente (acumulado). */
+export async function calcularTop3GeralAnual(
+  supabase: SupabaseClient,
+  opts: { ano: number }
+): Promise<{ ano_referencia: string; top: RankingMuralItem[] }> {
+  const unidades = await listarUnidadesAtivas(supabase);
+  const slugs = unidades.map((u) => u.slug).filter(Boolean);
+  return calcularTop3GrupoAnual(supabase, { unidadeSlugs: slugs, ano: opts.ano });
+}
+
+/** Top 3 de cada unidade no ano (acumulado). */
+export async function calcularTop3PorUnidadeAnual(
+  supabase: SupabaseClient,
+  opts: { ano: number }
+): Promise<{ ano_referencia: string; unidades: RankingPorUnidadeBloco[] }> {
+  const unidades = await listarUnidadesAtivas(supabase);
+  const blocos = await Promise.all(
+    unidades.map(async (u) => {
+      const { top } = await calcularTop3GrupoAnual(supabase, {
+        unidadeSlugs: [u.slug],
+        ano: opts.ano,
+      });
+      return {
+        unidade_slug: u.slug,
+        unidade_nome: u.nome,
+        top,
+      };
+    })
+  );
+  const anoRef = String(opts.ano);
+  return {
+    ano_referencia: anoRef,
     unidades: blocos.filter((b) => b.top.length > 0),
   };
 }

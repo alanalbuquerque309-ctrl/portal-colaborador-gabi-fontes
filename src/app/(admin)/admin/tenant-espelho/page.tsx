@@ -181,6 +181,11 @@ export default function TenantEspelhoAdminPage() {
           labelBad="Tabela tenants ausente"
         />
         <Badge
+          ok={painel.espelho_062_disponivel}
+          labelOk="Migration 062 no banco"
+          labelBad="Colunas regras ausentes"
+        />
+        <Badge
           ok={!painel.use_tenant_db}
           labelOk="USE_TENANT_DB desligado (seguro)"
           labelBad="USE_TENANT_DB ligado"
@@ -192,6 +197,17 @@ export default function TenantEspelhoAdminPage() {
             labelBad="Setores espelho divergentes"
           />
         )}
+        {painel.comparacao.espelho_alinhado_legado_regras_lideranca != null && (
+          <Badge
+            ok={painel.comparacao.espelho_alinhado_legado_regras_lideranca}
+            labelOk="Regras liderança espelhadas"
+            labelBad="Regras liderança divergentes"
+          />
+        )}
+        {painel.comparacao.espelho_alinhado_legado_regras_lideranca === null &&
+          painel.espelho_062_disponivel && (
+            <Badge ok={false} labelOk="" labelBad="Regras liderança vazias — rode db:espelhar-regras-062" />
+          )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -268,6 +284,39 @@ export default function TenantEspelhoAdminPage() {
           )}
         </AdminSection>
       </div>
+
+      <AdminSection
+        title="Regras operacionais (062)"
+        description="Mapa de liderança e avaliação direta por nome — espelho no banco; runtime usa TS até USE_TENANT_DB."
+      >
+        <div className="grid gap-4 sm:grid-cols-2 text-sm">
+          <div className="rounded-xl border border-cream-200 p-4">
+            <p className="font-semibold text-coffee-base mb-1">Legado em código</p>
+            <p className="text-cafeteria-600">
+              Liderança: <strong>{painel.regras_legado.lideranca_count}</strong> regras
+            </p>
+            <p className="text-cafeteria-600">
+              Avaliação direta: <strong>{painel.regras_legado.avaliacao_direta_count}</strong> regras
+            </p>
+          </div>
+          <div className="rounded-xl border border-cream-200 p-4">
+            <p className="font-semibold text-coffee-base mb-1">Espelho Supabase</p>
+            {painel.espelho_db ? (
+              <>
+                <p className="text-cafeteria-600">
+                  Liderança: <strong>{painel.espelho_db.regras_lideranca_count}</strong> regras
+                </p>
+                <p className="text-cafeteria-600">
+                  Avaliação direta:{' '}
+                  <strong>{painel.espelho_db.regras_avaliacao_direta_count}</strong> regras
+                </p>
+              </>
+            ) : (
+              <p className="text-cafeteria-500">Sem espelho (061 pendente).</p>
+            )}
+          </div>
+        </div>
+      </AdminSection>
 
       <AdminSection
         title="Legado em código"

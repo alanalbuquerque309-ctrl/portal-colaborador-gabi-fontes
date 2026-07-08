@@ -320,3 +320,92 @@ export async function calcularRankingTrofeusSemanaCompleto(
 
   return { semana_inicio: semanaInicio, ranking };
 }
+
+/** Ranking de troféus entre pares no ano (rede inteira, acumulado). */
+export async function calcularRankingTrofeusAnoCompleto(
+  supabase: SupabaseClient,
+  opts: { ano: number }
+): Promise<{ ano_referencia: string; ranking: RankingTrofeuDetalheItem[] }> {
+  const ini = `${opts.ano}-01-01`;
+  const fim = `${opts.ano + 1}-01-01`;
+  const anoRef = String(opts.ano);
+
+  const { data: trofeus, error: errTrof } = await supabase
+    .from('trofeus_entre_pares')
+    .select('destinatario_id, tipo, semana_inicio, created_at')
+    .gte('created_at', `${ini}T00:00:00.000Z`)
+    .lt('created_at', `${fim}T00:00:00.000Z`)
+    .limit(12000);
+
+  if (errTrof) throw new Error(errTrof.message);
+
+  const totalPorId = new Map<string, number>();
+  const tiposPorId = new Map<string, Map<string, number>>();
+
+  for (const row of trofeus ?? []) {
+    const id = String(row.destinatario_id ?? '');
+    const tipo = String(row.tipo ?? '');
+    if (!id) continue;
+    totalPorId.set(id, (totalPorId.get(id) ?? 0) + 1);
+    const porTipo = tiposPorId.get(id) ?? new Map<string, number>();
+    porTipo.set(tipo, (porTipo.get(tipo) ?? 0) + 1);
+    tiposPorId.set(id, porTipo);
+  }
+
+  if (totalPorId.size === 0) {
+    return { ano_referencia: anoRef, ranking: [] };
+  }
+
+  const ids = Array.from(totalPorId.keys());
+  const { data: colaboradores, error: errCol } = await supabase
+    .from('colaboradores')
+    .select('id, nome, foto_url, setor, unidades(nome, slug)')
+    .in('id', ids);
+
+  if (errCol) throw new Error(errCol.message);
+
+  const scored = (colaboradores ?? [])
+    .map((c) => {
+      const cid = String(c.id);
+      const unidade = Array.isArray(c.unidades) ? c.unidades[0] : c.unidades;
+      const porTipo = tiposPorId.get(cid) ?? new Map<string, number>();
+      const trofeusLista: TrofeuRecebidoResumo[] = Array.from(porTipo.entries())
+        .map(([tipo, quantidade]) => {
+          const meta = metaTrofeuPar(tipo);
+          return {
+            tipo,
+            titulo: meta?.titulo ?? tipo,
+            emoji: meta?.emoji ?? '🏅',
+            quantidade,
+          };
+        })
+        .sort((a, b) => b.quantidade - a.quantidade || a.titulo.localeCompare(b.titulo, 'pt-BR'));
+
+      return {
+        id: cid,
+        nome: String(c.nome ?? ''),
+        foto_url: c.foto_url ? String(c.foto_url) : null,
+        setor: (c as { setor?: string | null }).setor ? String((c as { setor?: string | null }).setor) : null,
+        unidade_nome: unidade?.nome ? String(unidade.nome) : '',
+        unidade_slug: unidade?.slug ? String(unidade.slug) : '',
+        total: totalPorId.get(cid) ?? 0,
+        trofeus: trofeusLista,
+      };
+    })
+    .filter((s) => s.total > 0)
+    .sort((a, b) => b.total - a.total || a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  const ranking: RankingTrofeuDetalheItem[] = scored.map((s, i) => ({
+    posicao: i + 1,
+    colaborador_id: s.id,
+    nome: s.nome,
+    foto_url: s.foto_url,
+    unidade_nome: s.unidade_nome,
+    unidade_slug: s.unidade_slug,
+    setor: s.setor,
+    total_trofeus: s.total,
+    trofeus: s.trofeus,
+  }));
+
+  return { ano_referencia: anoRef, ranking };
+}
