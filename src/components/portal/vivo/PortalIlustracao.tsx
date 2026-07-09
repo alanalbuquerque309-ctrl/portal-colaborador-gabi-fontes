@@ -42,48 +42,60 @@ export function IlustracaoGraos({ className = 'w-28 h-20' }: { className?: strin
   );
 }
 
-export function IlustracaoMegafone({ className = 'w-28 h-24' }: { className?: string }) {
+/** Megafone vintage (arte fornecida) com tinta dourada/café — usado em avisos e comunicação. */
+export function IlustracaoMegafone({
+  className = 'w-28 h-24',
+  ondasVivas = false,
+}: {
+  className?: string;
+  /** Reforça ondas douradas/verdes (avisos pendentes). */
+  ondasVivas?: boolean;
+}) {
   return (
-    <svg className={className} viewBox="0 0 96 96" fill="none" aria-hidden xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="mg-body" x1="8" y1="40" x2="72" y2="56" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#E8C547" />
-          <stop offset="100%" stopColor="#9A7420" />
-        </linearGradient>
-        <linearGradient id="mg-handle" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#5D4037" />
-          <stop offset="100%" stopColor="#3E2723" />
-        </linearGradient>
-      </defs>
-      <ellipse cx="40" cy="84" rx="22" ry="4" fill="#3E2723" fillOpacity="0.12" />
-      <path
-        d="M18 38 L18 58 L42 68 L68 54 L68 42 L42 28 Z"
-        fill="url(#mg-body)"
-        stroke="#8B6914"
-        strokeWidth="1.2"
-        strokeLinejoin="round"
+    <span className={`relative inline-flex items-center justify-center ${className}`} aria-hidden>
+      <span
+        className={`pointer-events-none absolute inset-0 -z-10 scale-[1.15] rounded-full blur-md transition-opacity duration-500 ${
+          ondasVivas
+            ? 'bg-gradient-to-tr from-dourado-base/45 via-amber-200/30 to-emerald-300/25 opacity-100'
+            : 'bg-gradient-to-tr from-dourado-base/25 via-amber-100/20 to-transparent opacity-80'
+        }`}
       />
-      <path d="M66 44 L74 40 L74 56 L66 52 Z" fill="#F5E6C8" stroke="#8B6914" strokeWidth="1" />
-      <ellipse cx="72" cy="48" rx="4" ry="10" fill="#2E2118" fillOpacity="0.35" />
-      <rect x="10" y="42" width="10" height="18" rx="3" fill="url(#mg-handle)" />
-      <path
-        d="M76 36 C84 40 90 46 90 54 C90 62 84 68 76 72"
-        stroke="#15803D"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        fill="none"
-        opacity="0.7"
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/illustracoes/megafone-vintage.png"
+        alt=""
+        width={280}
+        height={280}
+        className={`megafone-vivo h-full w-full object-contain object-center ${
+          ondasVivas ? 'megafone-vivo--ativo' : ''
+        }`}
+        draggable={false}
       />
-      <path
-        d="M82 30 C92 36 98 44 98 54 C98 64 92 72 82 78"
-        stroke="#15803D"
-        strokeWidth="2"
-        strokeLinecap="round"
-        fill="none"
-        opacity="0.4"
-      />
-      <circle cx="15" cy="56" r="2.5" fill="#C9A227" />
-    </svg>
+      {ondasVivas ? (
+        <svg
+          className="mf-ondas pointer-events-none absolute right-[-2%] top-[8%] h-[38%] w-[28%]"
+          viewBox="0 0 48 56"
+          fill="none"
+          aria-hidden
+        >
+          <path
+            d="M4 12 L12 4 L18 18 L26 8 L34 20"
+            stroke="#E8C547"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M8 28 L16 20 L22 34 L30 24 L38 36"
+            stroke="#4ADE80"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.9"
+          />
+        </svg>
+      ) : null}
+    </span>
   );
 }
 

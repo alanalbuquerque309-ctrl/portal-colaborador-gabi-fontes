@@ -14,7 +14,8 @@ export function MegafoneAnimado({
       aria-hidden
     >
       <IlustracaoMegafone
-        className={`h-full w-full transition-opacity ${ativo ? 'animate-megafone-aviso opacity-100' : 'opacity-80'}`}
+        ondasVivas={ativo}
+        className={`h-full w-full transition-opacity ${ativo ? 'animate-megafone-aviso opacity-100' : 'opacity-90'}`}
       />
       {ativo ? (
         <span className="pointer-events-none absolute -right-0.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_6px_rgba(34,197,94,0.7)]" />
