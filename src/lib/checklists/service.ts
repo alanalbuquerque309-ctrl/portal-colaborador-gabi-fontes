@@ -113,10 +113,10 @@ type RowDb = {
 };
 
 const SELECT_BASE =
-  'id, unidade_id, tipo, turno, dia_semana, colaborador_id, respostas, observacoes, preenchido_em, updated_at, publicado_em, publicado_por_id, unidades(nome, slug), colaboradores(nome)';
+  'id, unidade_id, tipo, turno, dia_semana, colaborador_id, respostas, observacoes, preenchido_em, updated_at, publicado_em, publicado_por_id, unidades(nome, slug), colaboradores!colaborador_id(nome)';
 
 const SELECT_LEGADO =
-  'id, unidade_id, tipo, turno, dia_semana, colaborador_id, respostas, observacoes, preenchido_em, updated_at, unidades(nome, slug), colaboradores(nome)';
+  'id, unidade_id, tipo, turno, dia_semana, colaborador_id, respostas, observacoes, preenchido_em, updated_at, unidades(nome, slug), colaboradores!colaborador_id(nome)';
 
 function mapRow(row: RowDb, publicadoPorNome?: string): ChecklistRegistro {
   const u = row.unidades;
