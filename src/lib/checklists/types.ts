@@ -66,6 +66,10 @@ export type ChecklistRegistro = {
   observacoes: string | null;
   preenchido_em: string;
   updated_at: string;
+  /** Preenchido após «Publicar»; visível no portal até nova publicação. */
+  publicado_em?: string | null;
+  publicado_por_id?: string | null;
+  publicado_por_nome?: string;
 };
 
 export type ChecklistVistoriaRegistro = {

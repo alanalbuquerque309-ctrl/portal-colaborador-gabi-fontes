@@ -15,12 +15,8 @@ import {
   publicarChecklistSlot,
 } from '@/lib/checklists/service';
 import {
-  extrairRespostasPorTurno,
-  listarSlotsDia,
-  mesclarRespostasChecklist,
   outroTurno,
   particionarRespostasMultiTurno,
-  pendenciasOutroTurnoParaFormulario,
   validarProntoParaPublicarTurno,
 } from '@/lib/checklists/publicacao';
 import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
@@ -32,102 +28,6 @@ const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
 function turnoValido(v: string | null): v is ChecklistTurno {
   return v === 'manha' || v === 'tarde';
-}
-
-export async function GET(req: Request, ctx: { params: { tipo: string } }) {
-  const auth = await resolverSessaoChecklist();
-  if (!auth.ok) {
-    return NextResponse.json({ ok: false, erro: auth.erro }, { status: auth.status, headers: NO_STORE });
-  }
-  if (!podeAcessarChecklistsOperacionais(auth.sessao.role)) {
-    return NextResponse.json({ ok: false, erro: 'Acesso negado.' }, { status: 403, headers: NO_STORE });
-  }
-
-  const tipo = ctx.params.tipo?.trim();
-  if (!tipo || !tiposChecklistValidos().includes(tipo as ChecklistTipo)) {
-    return NextResponse.json({ ok: false, erro: 'Checklist inválido.' }, { status: 400, headers: NO_STORE });
-  }
-
-  const url = new URL(req.url);
-  const turnoParam = url.searchParams.get('turno');
-  const unidadeId = unidadeIdParam(auth.sessao, url.searchParams.get('unidade_id'));
-
-  if (!turnoValido(turnoParam)) {
-    return NextResponse.json({ ok: false, erro: 'Informe turno=manha ou turno=tarde.' }, { status: 400, headers: NO_STORE });
-  }
-  if (!unidadeId) {
-    return NextResponse.json({ ok: false, erro: 'Informe a unidade.' }, { status: 400, headers: NO_STORE });
-  }
-
-  const template = templateChecklistPorTipo(tipo);
-  if (!template) {
-    return NextResponse.json({ ok: false, erro: 'Modelo não encontrado.' }, { status: 404, headers: NO_STORE });
-  }
-
-  try {
-    const supabase = createAdminClient();
-    const { data: unidade } = await supabase
-      .from('unidades')
-      .select('id, nome, slug')
-      .eq('id', unidadeId)
-      .maybeSingle();
-
-    if (!unidade) {
-      return NextResponse.json({ ok: false, erro: 'Unidade não encontrada.' }, { status: 404, headers: NO_STORE });
-    }
-
-    const slug = String((unidade as { slug?: string }).slug ?? '');
-    if (!templateVisivelParaUnidade(template, slug)) {
-      return NextResponse.json(
-        { ok: false, erro: 'Este checklist não se aplica a esta unidade.' },
-        { status: 403, headers: NO_STORE }
-      );
-    }
-
-    const dia = diaSemanaOperacionalSaoPaulo();
-    const registro = await buscarChecklistSlot(supabase, {
-      unidadeId,
-      tipo: template.tipo,
-      turno: turnoParam,
-      diaSemana: dia,
-    });
-
-    const slotsDia = await listarSlotsDia(supabase, {
-      unidadeId,
-      tipo: template.tipo,
-      diaSemana: dia,
-    });
-    const pendenciasOutroTurno = pendenciasOutroTurnoParaFormulario(template, turnoParam, slotsDia);
-
-    const respostasForm =
-      registro?.respostas ??
-      mesclarRespostasChecklist(
-        ...slotsDia.filter((s) => s.turno !== turnoParam).map((s) => s.respostas)
-      );
-
-    return NextResponse.json(
-      {
-        ok: true,
-        template,
-        unidade: {
-          id: unidadeId,
-          nome: String((unidade as { nome?: string }).nome ?? ''),
-          slug,
-        },
-        turno: turnoParam,
-        turno_rotulo: rotuloTurno(turnoParam),
-        dia_semana: dia,
-        dia_semana_rotulo: rotuloDiaSemana(dia),
-        registro,
-        pendencias_outro_turno: pendenciasOutroTurno,
-        respostas_sugeridas: respostasForm,
-      },
-      { headers: NO_STORE }
-    );
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Erro';
-    return NextResponse.json({ ok: false, erro: msg }, { status: 500, headers: NO_STORE });
-  }
 }
 
 export async function POST(req: Request, ctx: { params: { tipo: string } }) {
@@ -197,6 +97,12 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
     if (erroValidacao) {
       return NextResponse.json({ ok: false, erro: erroValidacao }, { status: 400, headers: NO_STORE });
     }
+
+    const erroPublicar = validarProntoParaPublicarTurno(template, turno, respostas);
+    if (erroPublicar) {
+      return NextResponse.json({ ok: false, erro: erroPublicar }, { status: 400, headers: NO_STORE });
+    }
+
     const observacoes =
       typeof body.observacoes === 'string' && body.observacoes.trim() ? body.observacoes.trim() : null;
 
@@ -206,6 +112,12 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
     const temPatchOutro = Object.keys(patchOutro.status_itens).length > 0;
 
     if (temPatchOutro) {
+      const outroSlot = await buscarChecklistSlot(supabase, {
+        unidadeId,
+        tipo: template.tipo,
+        turno: outro,
+        diaSemana: dia,
+      });
       await salvarChecklistSlot(supabase, {
         unidadeId,
         tipo: template.tipo,
@@ -213,12 +125,12 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
         diaSemana: dia,
         colaboradorId: auth.sessao.colaboradorId,
         respostas: patchOutro,
-        observacoes: null,
+        observacoes: outroSlot?.observacoes ?? null,
         mesclarComExistente: true,
       });
     }
 
-    const registro = await salvarChecklistSlot(supabase, {
+    const registro = await publicarChecklistSlot(supabase, {
       unidadeId,
       tipo: template.tipo,
       turno,
@@ -232,7 +144,7 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
     return NextResponse.json(
       {
         ok: true,
-        mensagem: `Rascunho salvo para ${rotuloDiaSemana(dia)} (${rotuloTurno(turno)}). Use Publicar quando terminar.`,
+        mensagem: `Checklist publicado para ${rotuloDiaSemana(dia)} (${rotuloTurno(turno)}). Visível no portal até a próxima publicação.`,
         registro,
       },
       { headers: NO_STORE }

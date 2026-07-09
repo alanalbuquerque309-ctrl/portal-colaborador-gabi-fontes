@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import type { ChecklistTurno } from '@/lib/checklists/types';
 import { ChecklistVistoriaPanel } from '@/components/checklists/ChecklistVistoriaPanel';
+import { ChecklistPublicadoPanel } from '@/components/checklists/ChecklistPublicadoPanel';
 import {
   ChecklistChip,
   ChecklistHero,
@@ -160,6 +161,13 @@ export function ChecklistHubClient() {
           <ChecklistTurnoToggle value={turno} onChange={setTurno} />
         </div>
       </div>
+
+      {unidadeId && templatesGerencia.length > 0 && (
+        <ChecklistPublicadoPanel
+          unidadeId={unidadeId}
+          tipo={templatesGerencia[0]?.tipo ?? 'gerencia_diaria_mesquita'}
+        />
+      )}
 
       {templatesGerencia.length > 0 && (
         <section className="space-y-3">

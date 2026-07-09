@@ -21,6 +21,15 @@ import {
 
 type Props = { tipo: string };
 
+type PendenciaOutroTurno = {
+  id: string;
+  label: string;
+  horario?: string;
+  turno_origem: ChecklistTurno;
+  status: ChecklistItemStatus;
+  justificativa: string;
+};
+
 function contagemSecao(status: Record<string, ChecklistItemStatus | undefined>, ids: string[]) {
   let ok = 0;
   let pendente = 0;
@@ -31,6 +40,10 @@ function contagemSecao(status: Record<string, ChecklistItemStatus | undefined>, 
   return { ok, pendente, respondidos: ok + pendente, total: ids.length };
 }
 
+function rotuloTurnoOrigem(t: ChecklistTurno) {
+  return t === 'manha' ? 'manhã' : 'tarde';
+}
+
 export function ChecklistFormClient({ tipo }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,6 +52,7 @@ export function ChecklistFormClient({ tipo }: Props) {
 
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [publicando, setPublicando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [template, setTemplate] = useState<ChecklistTemplate | null>(null);
@@ -46,11 +60,13 @@ export function ChecklistFormClient({ tipo }: Props) {
   const [statusItens, setStatusItens] = useState<Record<string, ChecklistItemStatus>>({});
   const [justificativas, setJustificativas] = useState<Record<string, string>>({});
   const [notasSecoes, setNotasSecoes] = useState<Record<string, string>>({});
+  const [pendenciasPlantao, setPendenciasPlantao] = useState<PendenciaOutroTurno[]>([]);
   const [setor, setSetor] = useState('');
   const [temperatura, setTemperatura] = useState('');
   const [respAbertura, setRespAbertura] = useState('');
   const [respFechamento, setRespFechamento] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [publicadoEm, setPublicadoEm] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     if (!unidadeId) {
@@ -80,14 +96,27 @@ export function ChecklistFormClient({ tipo }: Props) {
 
       const reg = data.registro as ChecklistRegistro | null;
       const resp = reg?.respostas;
-      setStatusItens(resp?.status_itens ?? {});
-      setJustificativas(resp?.justificativas_itens ?? {});
+      const pend = (data.pendencias_outro_turno ?? []) as PendenciaOutroTurno[];
+      setPendenciasPlantao(pend);
+
+      const status: Record<string, ChecklistItemStatus> = { ...(resp?.status_itens ?? {}) };
+      const just: Record<string, string> = { ...(resp?.justificativas_itens ?? {}) };
+      for (const p of pend) {
+        if (status[p.id] !== 'ok') {
+          status[p.id] = p.status;
+          if (p.justificativa) just[p.id] = p.justificativa;
+        }
+      }
+
+      setStatusItens(status);
+      setJustificativas(just);
       setNotasSecoes(resp?.notas_secoes ?? {});
       setSetor(resp?.setor ?? '');
       setTemperatura(resp?.temperatura_geladeira ?? '');
       setRespAbertura(resp?.responsavel_abertura ?? '');
       setRespFechamento(resp?.responsavel_fechamento ?? '');
       setObservacoes(reg?.observacoes ?? '');
+      setPublicadoEm(reg?.publicado_em ?? null);
     } catch {
       setErro('Erro de conexão.');
     } finally {
@@ -127,8 +156,19 @@ export function ChecklistFormClient({ tipo }: Props) {
         delete next[id];
         return next;
       });
+      setPendenciasPlantao((lista) => lista.filter((x) => x.id !== id));
     }
   };
+
+  const payloadRespostas = () => ({
+    status_itens: statusItens,
+    justificativas_itens: justificativas,
+    notas_secoes: notasSecoes,
+    setor: setor || undefined,
+    temperatura_geladeira: temperatura || undefined,
+    responsavel_abertura: respAbertura || undefined,
+    responsavel_fechamento: respFechamento || undefined,
+  });
 
   const salvar = async () => {
     setSalvando(true);
@@ -143,15 +183,7 @@ export function ChecklistFormClient({ tipo }: Props) {
           unidade_id: unidadeId,
           turno,
           observacoes,
-          respostas: {
-            status_itens: statusItens,
-            justificativas_itens: justificativas,
-            notas_secoes: notasSecoes,
-            setor: setor || undefined,
-            temperatura_geladeira: temperatura || undefined,
-            responsavel_abertura: respAbertura || undefined,
-            responsavel_fechamento: respFechamento || undefined,
-          },
+          respostas: payloadRespostas(),
         }),
       });
       const data = await res.json();
@@ -159,12 +191,47 @@ export function ChecklistFormClient({ tipo }: Props) {
         setErro(data.erro || 'Falha ao salvar.');
         return;
       }
-      setMsg(data.mensagem || 'Checklist salvo com sucesso.');
+      setMsg(data.mensagem || 'Rascunho salvo.');
+      if (data.registro?.publicado_em) setPublicadoEm(data.registro.publicado_em);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       setErro('Erro de conexão.');
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const publicar = async () => {
+    setPublicando(true);
+    setMsg(null);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/portal/checklists/${encodeURIComponent(tipo)}/publicar`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          unidade_id: unidadeId,
+          turno,
+          observacoes,
+          respostas: payloadRespostas(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErro(data.erro || 'Falha ao publicar.');
+        return;
+      }
+      setMsg(data.mensagem || 'Checklist publicado.');
+      setPublicadoEm(data.registro?.publicado_em ?? new Date().toISOString());
+      setPendenciasPlantao((lista) =>
+        lista.filter((p) => statusItens[p.id] === 'pendente')
+      );
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      setErro('Erro de conexão.');
+    } finally {
+      setPublicando(false);
     }
   };
 
@@ -189,11 +256,13 @@ export function ChecklistFormClient({ tipo }: Props) {
 
   if (!template) return null;
 
+  const pendenciasVisiveis = pendenciasPlantao.filter((p) => statusItens[p.id] === 'pendente');
+
   return (
-    <div className="max-w-2xl mx-auto space-y-5 pb-32 md:pb-8">
+    <div className="max-w-2xl mx-auto space-y-5 pb-40 md:pb-8">
       <ChecklistHero
         titulo={template.titulo}
-        subtitulo={template.descricao}
+        subtitulo="Preencha, salve rascunho se precisar e publique para a liderança ver no portal."
         backHref="/portal/checklists"
         chips={
           meta && (
@@ -207,21 +276,24 @@ export function ChecklistFormClient({ tipo }: Props) {
               <ChecklistChip>
                 <span aria-hidden>{turno === 'manha' ? '☀️' : '🌤️'}</span> {meta.turno_rotulo}
               </ChecklistChip>
+              {publicadoEm && (
+                <ChecklistChip>
+                  <span aria-hidden>✓</span> Publicado
+                </ChecklistChip>
+              )}
             </>
           )
         }
       />
 
       <div className="rounded-2xl border border-cafeteria-200 bg-white p-4 shadow-sm">
-        <ChecklistProgressBar concluidos={concluidos} total={total} label="Itens respondidos" />
-        {total > 0 && concluidos < total && (
-          <p className="mt-2 text-xs text-cafeteria-500">
-            Marque OK ou Pendente em cada item. Pendências exigem justificativa. Você pode salvar parcialmente.
-          </p>
-        )}
+        <ChecklistProgressBar concluidos={concluidos} total={total} label="Itens do seu turno" />
+        <p className="mt-2 text-xs text-cafeteria-500">
+          Rascunho só você vê aqui. <strong className="text-coffee-base">Publicar</strong> libera para gerentes, RH, admin e sócios até o próximo envio.
+        </p>
         {pendentes > 0 && (
           <p className="mt-1 text-xs font-medium text-amber-800">
-            {pendentes} item{pendentes === 1 ? '' : 's'} pendente{pendentes === 1 ? '' : 's'} neste turno.
+            {pendentes} pendência(s) no turno; pode publicar com justificativa ou resolver antes.
           </p>
         )}
       </div>
@@ -229,16 +301,33 @@ export function ChecklistFormClient({ tipo }: Props) {
       {msg && <ChecklistFeedback tipo="sucesso" mensagem={msg} />}
       {erro && <ChecklistFeedback tipo="erro" mensagem={erro} />}
 
+      {pendenciasVisiveis.length > 0 && (
+        <ChecklistSectionCard
+          titulo={`Pendências do plantão da ${rotuloTurnoOrigem(pendenciasVisiveis[0]?.turno_origem ?? (turno === 'manha' ? 'tarde' : 'manha'))}`}
+          concluidos={pendenciasVisiveis.filter((p) => statusItens[p.id] === 'ok').length}
+          total={pendenciasVisiveis.length}
+        >
+          <p className="text-xs text-amber-900/90 px-1 pb-2 leading-relaxed">
+            Itens deixados pelo plantão anterior. Marque OK quando resolver (você ou o próximo gerente) e publique.
+          </p>
+          {pendenciasVisiveis.map((item) => (
+            <ChecklistItemStatusRow
+              key={item.id}
+              label={item.horario ? `${item.horario} — ${item.label}` : item.label}
+              status={statusItens[item.id] ?? 'pendente'}
+              justificativa={justificativas[item.id] ?? item.justificativa}
+              onStatus={(st) => definirStatus(item.id, st)}
+              onJustificativa={(texto) => setJustificativas((p) => ({ ...p, [item.id]: texto }))}
+            />
+          ))}
+        </ChecklistSectionCard>
+      )}
+
       {template.campos_extras?.map((campo) => {
         if (campo.id === 'setor') {
           return (
             <ChecklistCampoCard key={campo.id} label={campo.label}>
-              <ChecklistInput
-                type="text"
-                value={setor}
-                onChange={(e) => setSetor(e.target.value)}
-                placeholder="Ex.: Cozinha, Balcão…"
-              />
+              <ChecklistInput type="text" value={setor} onChange={(e) => setSetor(e.target.value)} placeholder="Ex.: Cozinha, Balcão…" />
             </ChecklistCampoCard>
           );
         }
@@ -255,7 +344,7 @@ export function ChecklistFormClient({ tipo }: Props) {
             </ChecklistCampoCard>
           );
         }
-        if (campo.id === 'responsavel_abertura') {
+        if (campo.id === 'responsavel_abertura' && turno === 'manha') {
           return (
             <ChecklistCampoCard key={campo.id} label={campo.label}>
               <ChecklistInput
@@ -267,7 +356,7 @@ export function ChecklistFormClient({ tipo }: Props) {
             </ChecklistCampoCard>
           );
         }
-        if (campo.id === 'responsavel_fechamento') {
+        if (campo.id === 'responsavel_fechamento' && turno === 'tarde') {
           return (
             <ChecklistCampoCard key={campo.id} label={campo.label}>
               <ChecklistInput
@@ -323,10 +412,13 @@ export function ChecklistFormClient({ tipo }: Props) {
 
       <ChecklistStickyActions
         salvando={salvando}
+        publicando={publicando}
         onSalvar={() => void salvar()}
+        onPublicar={() => void publicar()}
         onVoltar={() => router.push('/portal/checklists')}
         concluidos={concluidos}
         total={total}
+        publicadoEm={publicadoEm}
       />
     </div>
   );

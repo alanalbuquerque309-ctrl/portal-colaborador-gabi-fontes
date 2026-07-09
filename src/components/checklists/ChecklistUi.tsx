@@ -344,37 +344,57 @@ export function ChecklistTextarea(props: React.TextareaHTMLAttributes<HTMLTextAr
 
 export function ChecklistStickyActions({
   salvando,
+  publicando,
   onSalvar,
+  onPublicar,
   onVoltar,
   concluidos,
   total,
+  publicadoEm,
 }: {
   salvando: boolean;
+  publicando?: boolean;
   onSalvar: () => void;
+  onPublicar: () => void;
   onVoltar: () => void;
   concluidos: number;
   total: number;
+  publicadoEm?: string | null;
 }) {
+  const busy = salvando || publicando;
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 md:static md:mt-2">
+      {publicadoEm && (
+        <p className="hidden md:block text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-2">
+          Publicado em {new Date(publicadoEm).toLocaleString('pt-BR')}. Nova publicação substitui a visível no portal.
+        </p>
+      )}
       <div className="md:hidden border-t border-cafeteria-200 bg-cream-100/95 backdrop-blur-md px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(62,39,35,0.08)]">
         <div className="max-w-2xl mx-auto space-y-2">
-          <ChecklistProgressBar concluidos={concluidos} total={total} label="Itens conferidos" />
+          <ChecklistProgressBar concluidos={concluidos} total={total} label="Itens do turno" />
           <div className="flex gap-2">
             <button
               type="button"
               onClick={onVoltar}
-              className="flex-1 rounded-xl border border-cafeteria-300 bg-white py-3 min-h-[48px] text-sm font-semibold text-cafeteria-800"
+              className="rounded-xl border border-cafeteria-300 bg-white px-3 py-3 min-h-[48px] text-sm font-semibold text-cafeteria-800"
             >
               Voltar
             </button>
             <button
               type="button"
-              disabled={salvando}
+              disabled={busy}
               onClick={onSalvar}
-              className="flex-[1.4] rounded-xl bg-gradient-to-r from-dourado-base to-dourado-400 text-coffee-base py-3 min-h-[48px] text-sm font-bold shadow-md disabled:opacity-50"
+              className="flex-1 rounded-xl border border-cafeteria-300 bg-white py-3 min-h-[48px] text-sm font-semibold text-coffee-base disabled:opacity-50"
             >
-              {salvando ? 'Salvando…' : 'Salvar'}
+              {salvando ? 'Salvando…' : 'Rascunho'}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onPublicar}
+              className="flex-1 rounded-xl bg-coffee-base text-cream-50 py-3 min-h-[48px] text-sm font-bold shadow-md disabled:opacity-50"
+            >
+              {publicando ? 'Publicando…' : 'Publicar'}
             </button>
           </div>
         </div>
@@ -382,11 +402,19 @@ export function ChecklistStickyActions({
       <div className="hidden md:flex flex-wrap gap-3 pt-2">
         <button
           type="button"
-          disabled={salvando}
-          onClick={onSalvar}
-          className="rounded-xl bg-gradient-to-r from-dourado-base to-dourado-400 text-coffee-base font-bold px-8 py-3 min-h-[48px] shadow-md hover:shadow-lg transition-shadow disabled:opacity-50"
+          disabled={busy}
+          onClick={onPublicar}
+          className="rounded-xl bg-coffee-base text-cream-50 font-bold px-8 py-3 min-h-[48px] shadow-md hover:shadow-lg transition-shadow disabled:opacity-50"
         >
-          {salvando ? 'Salvando…' : 'Salvar checklist'}
+          {publicando ? 'Publicando…' : 'Publicar checklist'}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onSalvar}
+          className="rounded-xl border border-cafeteria-300 bg-white px-8 py-3 min-h-[48px] font-semibold text-coffee-base hover:border-dourado-base/50 transition-colors disabled:opacity-50"
+        >
+          {salvando ? 'Salvando…' : 'Salvar rascunho'}
         </button>
         <button
           type="button"
@@ -396,6 +424,45 @@ export function ChecklistStickyActions({
           Voltar
         </button>
       </div>
+    </div>
+  );
+}
+
+export function ChecklistItemStatusLeitura({
+  label,
+  status,
+  justificativa,
+}: {
+  label: string;
+  status: 'ok' | 'pendente' | null;
+  justificativa?: string;
+}) {
+  const ok = status === 'ok';
+  const pend = status === 'pendente';
+  return (
+    <div
+      className={`rounded-xl border px-3 py-3 ${
+        ok ? 'border-emerald-200 bg-emerald-50/60' : pend ? 'border-amber-200 bg-amber-50/50' : 'border-cafeteria-100 bg-cream-50/40'
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm text-cafeteria-800 leading-snug">{label}</p>
+        {ok && (
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+            OK
+          </span>
+        )}
+        {pend && (
+          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full">
+            Pendente
+          </span>
+        )}
+      </div>
+      {pend && justificativa && (
+        <p className="mt-2 text-xs text-amber-900/90 leading-relaxed border-t border-amber-200/60 pt-2">
+          <span className="font-semibold">Justificativa:</span> {justificativa}
+        </p>
+      )}
     </div>
   );
 }

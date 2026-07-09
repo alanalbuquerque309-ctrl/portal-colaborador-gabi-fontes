@@ -335,6 +335,15 @@ export function todosIdsItensTurno(template: ChecklistTemplate, turno: Checklist
   return secoesVisiveisParaTurno(template, turno).flatMap((s) => s.itens.map((i) => i.id));
 }
 
+/** Turno dono do item (seção sem turno_foco vale para ambos). */
+export function turnoDoItem(template: ChecklistTemplate, itemId: string): ChecklistTurno | null {
+  for (const sec of template.secoes) {
+    if (!sec.itens.some((i) => i.id === itemId)) continue;
+    return sec.turno_foco ?? null;
+  }
+  return null;
+}
+
 export function filtrarTemplatesPorUnidade(unidadeSlug: string | null | undefined): ChecklistTemplate[] {
   return CHECKLIST_TEMPLATES.filter((t) => templateVisivelParaUnidade(t, unidadeSlug));
 }

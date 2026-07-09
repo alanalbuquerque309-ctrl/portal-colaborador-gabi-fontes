@@ -19,7 +19,9 @@ type Linha = {
   unidade_nome?: string;
   colaborador_nome?: string;
   preenchido_em: string;
+  updated_at: string;
   observacoes: string | null;
+  publicado_em?: string | null;
   respostas: {
     status_itens?: Record<string, 'ok' | 'pendente'>;
     justificativas_itens?: Record<string, string>;
@@ -203,6 +205,15 @@ export function AdminChecklistsClient() {
                   )}
                   <p className="text-xs text-cafeteria-500">
                     {new Date(r.preenchido_em).toLocaleString('pt-BR')}
+                    {r.publicado_em ? (
+                      <>
+                        {' '}
+                        · <span className="text-emerald-700 font-medium">Publicado</span>{' '}
+                        {new Date(r.publicado_em).toLocaleString('pt-BR')}
+                      </>
+                    ) : (
+                      <span className="text-cafeteria-400"> · Rascunho</span>
+                    )}
                   </p>
                 </article>
               );
@@ -247,6 +258,12 @@ export function AdminChecklistsClient() {
                         <td className="px-4 py-3 text-cafeteria-700">{r.colaborador_nome ?? '—'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-cafeteria-600 text-xs">
                           {new Date(r.preenchido_em).toLocaleString('pt-BR')}
+                          <br />
+                          {r.publicado_em ? (
+                            <span className="text-emerald-700">Pub. {new Date(r.publicado_em).toLocaleString('pt-BR')}</span>
+                          ) : (
+                            <span className="text-cafeteria-400">Rascunho</span>
+                          )}
                         </td>
                       </tr>
                     );
