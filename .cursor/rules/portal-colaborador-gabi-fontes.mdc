@@ -64,14 +64,14 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 
 - **Componente:** `src/components/portal/TreinamentoRichText.tsx` — markdown com `react-markdown` (identidade Gabi Fontes)
 - **Página:** `src/app/(portal)/portal/treinamento/page.tsx` — layout em **3 blocos** (jul/2026, commit `190afc4`)
-- **Helpers UX:** `src/lib/treinamento-portal-ux.ts` — categorização, status honesto, progresso só da semana vigente
-- **Subcomponentes:** `TreinamentoStatusChip.tsx`, `TreinamentoItemConteudo.tsx`
+- **Helpers UX:** `src/lib/treinamento-portal-ux.ts` — categorização, status honesto, progresso só da semana vigente, **etiquetas e agrupamento por público** (`eecd816`)
+- **Subcomponentes:** `TreinamentoStatusChip.tsx`, `TreinamentoItemConteudo.tsx`, **`TreinamentoPublicoBadge.tsx`**
 
 ### Layout da aba Treinamento (cada colaborador vê só o seu)
 
 | Bloco | O que entra | UI |
 |-------|-------------|-----|
-| **Treinamento desta semana** | Itens `!arquivado`, exceto extra `video-institutional` — inclui textos vigentes **e** vídeos `quinta-colaborador` / `quinta-lider` quando aplicável | **Gavetas** (linha colapsável + chip de status); conteúdo só ao expandir |
+| **Treinamento desta semana** | Itens `!arquivado`, exceto extra `video-institutional` — textos vigentes **e** vídeos `quinta-colaborador` / `quinta-lider` quando aplicável | **Gavetas**; seções **«Para toda a equipe»** e **«Para liderança»** quando o usuário vê os dois; badge **Equipe** / **Liderança** em cada item |
 | **Treinamentos anteriores** | Textos `arquivado` (ciclos passados) | Gaveta em 2 níveis (seção + item); **status honesto** |
 | **Outros materiais** | Só `video-institutional` | Gaveta; fora da barra de progresso |
 
@@ -90,18 +90,31 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 
 ### Público-alvo (quem vê o quê)
 
+| Treinamento (1º par quinta jul/2026) | `publico_alvo` | Quem vê |
+|--------------------------------------|----------------|---------|
+| **Os pequenos detalhes contam. Muito.** | `todos` | **Toda a operação** |
+| **O clima da equipe tem um endereço** | `lideranca` | Gerentes, master, **RH**, **admin** e **sócios** |
+
 - **`publico_alvo: 'todos'`** → toda a operação; **sócios** veem e confirmam, mas **não entram na meta** do painel de gestão para treino `todos`
 - **`publico_alvo: 'lideranca'`** → gerentes, masters, sócios, **administrador e RH** (`roleRecebeAvisoLideranca` + `deveVerTreinoLiderancaPortal` em `avisos-publico.ts` / `roles.ts`; commit `34338df`)
 - Gerente/master: treino liderança na home só se **avalia equipe** (`podeUsarAvaliacaoEquipeSemanal`); admin/rh/sócio **sempre**
 - Filtro na API portal: `colaboradorRecebeAvisoPublico` em `src/app/api/portal/treinamentos/route.ts`
+- **UI explícita (`eecd816`):** API expõe `publico_alvo`; `TreinamentoPublicoBadge` + `agruparSemanaPorPublico` em `treinamento-portal-ux.ts`
 
 ### Vigência semanal (ciclo quinta)
 
 - **Lib:** `src/lib/treinamento-vigencia.ts`
 - Só o texto do **ciclo vigente** (quinta a quarta) fica pendente; anteriores vão para gaveta (`arquivado: true`)
-- Com texto de liderança vigente, vídeo `quinta-lider` **não** compete como pendência
-- Só `video-institutional` é extra permanente (fora da semana vigente)
+- Com texto de liderança vigente, vídeo `quinta-lider` **não** compete como pendência (`haTreinoTextoLiderancaVigente`)
+- **Gap conhecido (jul/2026):** vídeo `quinta-colaborador` (YouTube / «Quinta do café») ainda entra em «esta semana» **sempre** que `NEXT_PUBLIC_QUINTA_YOUTUBE_URL` está configurado — **não** há espelho de `haTreinoTextoTodosVigente` como no de liderança. Com treino de texto de equipe vigente, o vídeo deveria sair da semana (ir para «Outros materiais» ou sumir). **Correção pendente** em `treinamentos/route.ts`
+- Só `video-institutional` é extra permanente explícito (fora da barra de progresso via `TREINO_IDS_EXTRAS`)
 - Pendências home: `treinoTextoVigentePorPublico` em `portal-pendencias-home.ts`
+
+### Publicação do 1º par (script)
+
+- **Script:** `scripts/publicar-treinamentos-quinta.mjs` — `npm run treinamento:publicar-quinta`
+- Publica no Supabase os `.md` de `conteudo/treinamentos/` com `publico_alvo` correto (commit `f872d29`)
+- Alternativa manual: `/admin/treinamento/novo` na quinta do ciclo
 
 ### Admin cadastro e acompanhamento (jul/2026)
 
@@ -132,21 +145,42 @@ Rotina digital de abertura/fechamento e **vistoria da gerência** sobre os setor
 
 | Rota | Quem usa | Função |
 |------|----------|--------|
-| **`/portal/checklists`** | Gerência / sócios (prévia) | **Preencher** formulários + painel **Vistoria dos setores** |
+| **`/portal/checklists`** | Gerente, RH, admin, master, sócio | **Preencher** (rascunho / publicar), ver **último publicado**, vistoria setores |
 | **`/admin/checklists`** | Admin / sócios | **Consulta/relatório** da rede (vazio até alguém salvar) |
 
 Não confundir: admin é consulta; portal é operação do turno.
 
-### Acesso (feature flag)
+### Acesso
 
 - **Lib:** `src/lib/checklists/access.ts`
-- **Prévia (fase atual):** só `socio`, `admin`, `master` preenchem (`preview_socios: true` quando `PORTAL_CHECKLIST_LIDERES_ATIVO` ≠ `true`)
-- **Produção líderes:** `PORTAL_CHECKLIST_LIDERES_ATIVO=true` na Vercel → gerentes também acessam `/portal/checklists`
-- Admin sem flag continua só **consulta** em `/admin/checklists`
+- **Preencher no portal:** `gerente`, `rh`, `admin`, `master`, `socio` (`podeAcessarChecklistsOperacionais`)
+- **Consulta rede (admin):** `socio`, `admin`, `master`, `rh` (`podeVerHistoricoChecklistsRede`)
+- `PORTAL_CHECKLIST_LIDERES_ATIVO` — legado de flag; gerentes já entram por cargo (`checklistsLideresAtivos()`)
+
+### Itens OK / Pendente (gerência Mesquita)
+
+- Cada item: **OK** ou **Pendente**; pendente exige **justificativa** (mín. 3 caracteres) antes de salvar/publicar
+- Pendência de um plantão pode ser resolvida (OK) no plantão seguinte por **qualquer** gerente autorizado
+- Template oficial alinhado ao docx (`483e7d8`): `gerencia_diaria_mesquita` em `templates.ts`
+
+### Publicação (rascunho vs visível no portal)
+
+- **Salvar** = rascunho (`POST /api/portal/checklists/[tipo]`); **não** altera o que a rede vê
+- **Publicar** = `POST /api/portal/checklists/[tipo]/publicar` — grava `publicado_em` + `publicado_por_id`; visível até nova publicação
+- **Leitura publicada:** `GET /api/portal/checklists/publicado?tipo=…` — painel `ChecklistPublicadoPanel.tsx` na hub
+- **Lib:** `src/lib/checklists/publicacao.ts` — merge entre turnos manhã/tarde, pendências do outro plantão, cohort do dia
+- Migration **070:** colunas `publicado_em`, `publicado_por_id` → `npm run db:apply-070` ou SQL Editor
+
+### PostgREST — duas FKs para `colaboradores`
+
+- Após migration **070**, `checklists_operacionais` tem `colaborador_id` **e** `publicado_por_id` → `colaboradores`
+- Select **obrigatório:** `colaboradores!colaborador_id(nome)` (não `colaboradores(nome)` genérico) — fix `874b1ad` em `service.ts`
+- Nome de quem publicou: query separada (`nomeColaborador`) ou campo `publicado_por_nome` no map
 
 ### Modelo de dados
 
-- **`checklists_operacionais`** (migration **067**): uma linha por `(unidade_id, tipo, turno, dia_semana)` — nova segunda **substitui** a anterior (UPSERT)
+- **`checklists_operacionais`** (migration **067**): uma linha por `(unidade_id, tipo, turno, dia_semana)` — UPSERT no mesmo slot
+- **070:** `publicado_em timestamptz`, `publicado_por_id uuid → colaboradores` (publicação visível no portal)
 - **`checklists_vistoria_gerencia`** (migration **068**): gerência marca conferência por `(unidade_id, setor, dia_semana)` — setores: `estoque`, `asg`, `cozinha`, **`balcao`**, **`caixa`**
 - Migration **069** só se a 068 tiver sido aplicada **antes** com 3 setores (ALTER CHECK); instalação nova usa 068 já com 5 setores
 
@@ -179,6 +213,7 @@ Não confundir: admin é consulta; portal é operação do turno.
 | **067** | `checklists_operacionais` | `npm run db:apply-067` ou SQL Editor |
 | **068** | `checklists_vistoria_gerencia` (5 setores) | `npm run db:apply-068` ou SQL Editor |
 | **069** | expande CHECK para balcão+caixa (legado) | `npm run db:apply-069` |
+| **070** | publicação (`publicado_em`, `publicado_por_id`) | `npm run db:apply-070` ou SQL Editor |
 
 - Verificação sem `DATABASE_URL`: `node scripts/verificar-migrations-checklists-api.mjs` (usa service role)
 - `DATABASE_URL` (porta 5432) pode **não** existir no `.env.local`; migrations = colar SQL no Supabase SQL Editor
@@ -187,6 +222,9 @@ Não confundir: admin é consulta; portal é operação do turno.
 
 | Commit | Conteúdo |
 |--------|----------|
+| `874b1ad` | fix: join `colaboradores!colaborador_id` após migration 070 (erro PostgREST embed) |
+| `6894d36` | rascunho + publicar + pendências entre plantões + migration 070 + APIs publicado |
+| `483e7d8` | gerência Mesquita: OK/pendente + justificativa + acesso por cargo |
 | `f48a5d8` | vistoria 5 setores (Estoque, ASG, Cozinha, Balcão, Caixa), templates setor, API vistoria, hub reorganizada |
 | `a07d76f` | piloto: só Gerência Mesquita fiel ao PDF (33 itens) |
 | `9f6ce4c` | separar consulta admin vs formulários portal |
@@ -195,9 +233,9 @@ Não confundir: admin é consulta; portal é operação do turno.
 
 ### Próximos passos (não implementado)
 
-- Liberar gerentes Mesquita (`PORTAL_CHECKLIST_LIDERES_ATIVO`)
 - Checklists Barra, NI e demais PDFs (págs. 5–8 do png2pdf)
-- Setores preenchem só o deles (hoje sócios/gerência testam formulários setor na prévia)
+- Setores preenchem só o deles (hoje gerência testa formulários setor)
+- Ocultar vídeo `quinta-colaborador` quando houver treino de texto `todos` vigente (espelhar regra do `quinta-lider`)
 
 ## Elogios da equipe (portal)
 
@@ -246,6 +284,11 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 
 | Commit | Conteúdo |
 |--------|----------|
+| `874b1ad` | fix: checklist FK explícita `colaborador_id` (migration 070) |
+| `eecd816` | treinamento: badges Equipe/Liderança + seções + `publico_alvo` na API |
+| `6894d36` | checklist: publicação rascunho/publicar + migration 070 |
+| `483e7d8` | checklist: OK/pendente gerência Mesquita + acesso por cargo |
+| `f872d29` | script `treinamento:publicar-quinta` para Supabase |
 | `34338df` | treinamento liderança: administrador e RH no público-alvo + audiência |
 | `c58840c` | conteúdo: modelo oficial + 1º treino equipe/liderança prontos para quinta |
 | `24a1531` | portal treinamento: gavetas na semana atual; vídeos quinta só ao expandir |
@@ -286,27 +329,30 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 2. Novo pacote por tela pesada > espalhar fetches no cliente
 3. Cache: preferir **memória TTL** ou Redis futuro; evitar `unstable_cache` em APIs autenticadas dinâmicas
 4. Commit/push **só no repo do Portal**; não misturar WIP local (Tenant SaaS 2.5, scripts `diag-*`, migration `062` não aplicada) com commits operacionais
-5. `DATABASE_URL` pode não existir no `.env.local` (só URL + service role); migrations **066** elogios e **067–068** checklists = colar SQL no Supabase SQL Editor ou `node scripts/verificar-migrations-checklists-api.mjs`
+5. `DATABASE_URL` pode não existir no `.env.local` (só URL + service role); migrations **066** elogios, **067–070** checklists = SQL Editor ou scripts `db:apply-*` / `verificar-migrations-checklists-api.mjs`
 
 ## Handoff rápido (jul/2026)
 
-- **Checklists Mesquita:** `/portal/checklists` — gerência (manhã/tarde) + vistoria Estoque/ASG/Cozinha/Balcão/Caixa; migrations **067** + **068** aplicadas no Supabase; produção `f48a5d8` em `main`
-- **Treinamento:** gavetas na semana vigente (`24a1531`); 1º par equipe+liderança em `conteudo/treinamentos/` — publicar **na quinta**; admin e RH recebem treino **Liderança** (`34338df`); painel gestão lazy em `/portal/treinamento`
-- **Elogios:** 2 da Letícia Fernandes na rede até 13/07; cada um marca «lido» individualmente; migration 066 aplicada no Supabase
-- **Pendente produto:** publicar 1º treino na quinta; destaque elogio cliente rede social; liberar checklists para gerentes Mesquita; expandir para Barra/NI
-- **Produção:** `main` em `portal-colaborador-gabi-fontes`, deploy Vercel automático
+- **Checklists Mesquita:** `/portal/checklists` — gerente/RH/admin/sócio: rascunho + **Publicar**; painel último publicado; OK/pendente com justificativa; vistoria 5 setores; migrations **067–070** (070 obrigatória para publicar)
+- **Treinamento:** 1º par publicado (`f872d29`) — equipe «Pequenos detalhes» / liderança «Clima da equipe»; UI com badge **Equipe** vs **Liderança** (`eecd816`); vídeo YouTube «Quinta do café» ainda aparece na semana mesmo com texto vigente (**gap** — corrigir)
+- **Elogios:** prazo 2 semanas + marcar como lido individual; migration 066
+- **Pendente produto:** ocultar `quinta-colaborador` com texto equipe vigente; destaque elogio cliente rede social; checklists Barra/NI
+- **Produção:** `main` → Vercel; último fix checklist embed `874b1ad`
 
 ## Arquivos-chave
 
 | Área | Caminhos |
 |------|----------|
-| Checklists (hub) | `src/app/(portal)/portal/checklists/page.tsx`, `ChecklistHubClient.tsx` |
-| Checklists (form) | `src/app/(portal)/portal/checklists/[tipo]/page.tsx`, `ChecklistFormClient.tsx`, `ChecklistUi.tsx` |
-| Checklists (vistoria) | `ChecklistVistoriaPanel.tsx`, `src/lib/checklists/vistoria-service.ts`, `setores-vistoria.ts`, `api/portal/checklists/vistoria` |
-| Checklists (core) | `src/lib/checklists/templates.ts`, `types.ts`, `service.ts`, `access.ts`, `dia-semana.ts` |
-| Checklists (admin consulta) | `src/app/(admin)/admin/checklists/page.tsx`, `AdminChecklistsClient.tsx`, `api/admin/checklists` |
-| Checklists (DB) | `supabase/migrations/067_checklists_operacionais.sql`, `068_checklists_vistoria_gerencia.sql`, `069_checklists_vistoria_balcao_caixa.sql` |
-| Checklists (scripts) | `scripts/aplicar-migration-067.mjs`, `068`, `069`, `verificar-migrations-checklists-api.mjs` |
+| Checklists (hub) | `ChecklistHubClient.tsx`, **`ChecklistPublicadoPanel.tsx`** |
+| Checklists (form) | `ChecklistFormClient.tsx`, `ChecklistUi.tsx` (`ChecklistStickyActions` com Publicar) |
+| Checklists (APIs) | `api/portal/checklists/[tipo]`, **`[tipo]/publicar`**, **`publicado`** |
+| Checklists (publicação) | **`src/lib/checklists/publicacao.ts`** |
+| Checklists (core) | `src/lib/checklists/service.ts` (select `colaboradores!colaborador_id`), `templates.ts`, `access.ts` |
+| Checklists (vistoria) | `ChecklistVistoriaPanel.tsx`, `vistoria-service.ts`, `api/portal/checklists/vistoria` |
+| Checklists (admin consulta) | `admin/checklists`, `AdminChecklistsClient.tsx`, `api/admin/checklists` |
+| Checklists (DB) | `067` … `069`, **`070_checklists_publicacao.sql`**, `scripts/aplicar-migration-070.mjs` |
+| Treinamento (público UI) | **`TreinamentoPublicoBadge.tsx`**, `agruparSemanaPorPublico` em `treinamento-portal-ux.ts` |
+| Treinamento (script quinta) | **`scripts/publicar-treinamentos-quinta.mjs`**, `npm run treinamento:publicar-quinta` |
 | Treinamento (página) | `src/app/(portal)/portal/treinamento/page.tsx` |
 | Treinamento (UX/helpers) | `src/lib/treinamento-portal-ux.ts`, `TreinamentoStatusChip.tsx`, `TreinamentoItemConteudo.tsx` |
 | Treinamento (vigência) | `src/lib/treinamento-vigencia.ts` |
