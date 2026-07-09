@@ -61,15 +61,21 @@ select {
   transform-origin: left center;
 }
 
-/** Megafone vintage: preto/branco → dourado café vivo (identidade Gabi Fontes). */
+/** Megafone vintage: tinta dourada/café; PNG sem fundo branco. */
 .megafone-vivo {
-  filter: drop-shadow(0 4px 10px rgba(62, 39, 35, 0.18)) sepia(0.72) saturate(2.85) hue-rotate(352deg)
+  filter: drop-shadow(0 3px 8px rgba(62, 39, 35, 0.14)) sepia(0.72) saturate(2.85) hue-rotate(352deg)
     brightness(1.07) contrast(1.12);
 }
 
 .megafone-vivo--ativo {
-  filter: drop-shadow(0 5px 14px rgba(212, 175, 55, 0.35)) sepia(0.78) saturate(3.4) hue-rotate(350deg)
+  filter: drop-shadow(0 4px 12px rgba(212, 175, 55, 0.28)) sepia(0.78) saturate(3.4) hue-rotate(350deg)
     brightness(1.1) contrast(1.14);
+}
+
+/** Suaviza cantos do bounding box — integra no fundo cream/gradiente. */
+.megafone-vivo-mask {
+  -webkit-mask-image: radial-gradient(ellipse 78% 76% at 52% 50%, #000 52%, transparent 100%);
+  mask-image: radial-gradient(ellipse 78% 76% at 52% 50%, #000 52%, transparent 100%);
 }
 
 /** Xícara hero: bordas somem no fundo cream da página (evita efeito “recorte colado”). */

@@ -52,12 +52,12 @@ export function IlustracaoMegafone({
   ondasVivas?: boolean;
 }) {
   return (
-    <span className={`relative inline-flex items-center justify-center ${className}`} aria-hidden>
+    <span className={`relative inline-flex items-center justify-center overflow-visible ${className}`} aria-hidden>
       <span
-        className={`pointer-events-none absolute inset-0 -z-10 scale-[1.15] rounded-full blur-md transition-opacity duration-500 ${
+        className={`pointer-events-none absolute left-1/2 top-[55%] h-[62%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-xl transition-opacity duration-500 ${
           ondasVivas
-            ? 'bg-gradient-to-tr from-dourado-base/45 via-amber-200/30 to-emerald-300/25 opacity-100'
-            : 'bg-gradient-to-tr from-dourado-base/25 via-amber-100/20 to-transparent opacity-80'
+            ? 'bg-gradient-to-tr from-dourado-base/40 via-amber-200/25 to-emerald-300/20 opacity-100'
+            : 'bg-gradient-to-tr from-dourado-base/20 via-amber-100/15 to-transparent opacity-70'
         }`}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -66,7 +66,7 @@ export function IlustracaoMegafone({
         alt=""
         width={280}
         height={280}
-        className={`megafone-vivo h-full w-full object-contain object-center ${
+        className={`megafone-vivo megafone-vivo-mask h-full w-full object-contain object-center ${
           ondasVivas ? 'megafone-vivo--ativo' : ''
         }`}
         draggable={false}
