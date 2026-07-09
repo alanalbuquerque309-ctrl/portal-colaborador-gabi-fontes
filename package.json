@@ -32,6 +32,7 @@
     "db:apply-067": "node scripts/aplicar-migration-067.mjs",
     "db:apply-068": "node scripts/aplicar-migration-068.mjs",
     "db:apply-069": "node scripts/aplicar-migration-069.mjs",
+    "treinamento:publicar-quinta": "node scripts/publicar-treinamentos-quinta.mjs",
     "lideranca:aplicar": "npx tsx scripts/aplicar-lideranca-operacional.ts",
     "lideranca:snapshot": "npx tsx scripts/snapshot-lideranca.ts",
     "lideranca:auditar": "npx tsx scripts/auditar-lideranca-banco-vs-nome.ts",
