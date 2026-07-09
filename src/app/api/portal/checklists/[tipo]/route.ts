@@ -7,7 +7,7 @@ import {
   templateVisivelParaUnidade,
   tiposChecklistValidos,
 } from '@/lib/checklists/templates';
-import { buscarChecklistSlot, normalizarRespostas, salvarChecklistSlot } from '@/lib/checklists/service';
+import { buscarChecklistSlot, normalizarRespostas, salvarChecklistSlot, validarRespostasChecklist } from '@/lib/checklists/service';
 import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
 import type { ChecklistTurno, ChecklistTipo } from '@/lib/checklists/types';
 
@@ -163,6 +163,10 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
 
     const dia = diaSemanaOperacionalSaoPaulo();
     const respostas = normalizarRespostas(template.tipo, body.respostas);
+    const erroValidacao = validarRespostasChecklist(respostas);
+    if (erroValidacao) {
+      return NextResponse.json({ ok: false, erro: erroValidacao }, { status: 400, headers: NO_STORE });
+    }
     const observacoes =
       typeof body.observacoes === 'string' && body.observacoes.trim() ? body.observacoes.trim() : null;
 

@@ -1,21 +1,18 @@
 import { normalizePortalRole } from '@/lib/roles';
 
-/** Quando `true`, gerentes e masters também acessam checklists (produção). */
+/** Legado: mantido para flags de UI; gerentes já entram por cargo. */
 export function checklistsLideresAtivos(): boolean {
-  return process.env.PORTAL_CHECKLIST_LIDERES_ATIVO === 'true';
+  return process.env.PORTAL_CHECKLIST_LIDERES_ATIVO !== 'false';
 }
 
-/** Fase prévia: sócios, admin e master testam. Depois: `PORTAL_CHECKLIST_LIDERES_ATIVO=true` na Vercel. */
+/** Preencher checklists no portal: gerente de loja, RH, admin, master e sócio. */
 export function podeAcessarChecklistsOperacionais(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
-  if (checklistsLideresAtivos()) {
-    return r === 'gerente' || r === 'master' || r === 'socio' || r === 'admin';
-  }
-  return r === 'socio' || r === 'admin' || r === 'master';
+  return r === 'gerente' || r === 'master' || r === 'socio' || r === 'admin' || r === 'rh';
 }
 
-/** Histórico rede (admin checklists): sócios, admin e master. */
+/** Histórico / consulta na rede (admin). */
 export function podeVerHistoricoChecklistsRede(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
-  return r === 'socio' || r === 'admin' || r === 'master';
+  return r === 'socio' || r === 'admin' || r === 'master' || r === 'rh';
 }

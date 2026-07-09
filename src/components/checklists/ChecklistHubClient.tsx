@@ -26,7 +26,7 @@ type TemplateResumo = {
 export function ChecklistHubClient() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [preview, setPreview] = useState(true);
+  const [preview, setPreview] = useState(false);
   const [fasePiloto, setFasePiloto] = useState(false);
   const [diaRotulo, setDiaRotulo] = useState('');
   const [templates, setTemplates] = useState<TemplateResumo[]>([]);
@@ -127,7 +127,7 @@ export function ChecklistHubClient() {
         }
       />
 
-      {preview && <ChecklistPreviewBanner />}
+      <ChecklistPreviewBanner />
 
       {fasePiloto && (
         <div className="rounded-2xl border border-coffee-base/15 bg-cream-50 px-4 py-3 text-sm text-cafeteria-700">
@@ -163,7 +163,7 @@ export function ChecklistHubClient() {
 
       {templatesGerencia.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-cafeteria-500 px-1">Meu checklist (gerência)</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-cafeteria-500 px-1">Checklist de gerência</h2>
           <ul className="space-y-3">
             {templatesGerencia.map((t) => (
               <li key={t.tipo}>

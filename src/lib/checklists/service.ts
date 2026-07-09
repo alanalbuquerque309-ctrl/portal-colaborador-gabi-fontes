@@ -1,6 +1,32 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { ChecklistRegistro, ChecklistRespostasPayload, ChecklistTurno, ChecklistTipo } from '@/lib/checklists/types';
+import type {
+  ChecklistItemStatus,
+  ChecklistRegistro,
+  ChecklistRespostasPayload,
+  ChecklistTurno,
+  ChecklistTipo,
+} from '@/lib/checklists/types';
 import { templateChecklistPorTipo, todosIdsItens } from '@/lib/checklists/templates';
+
+export function contagemStatusItens(
+  status: Record<string, ChecklistItemStatus | undefined>,
+  ids: string[]
+): { ok: number; pendente: number; respondidos: number; total: number } {
+  let ok = 0;
+  let pendente = 0;
+  let respondidos = 0;
+  for (const id of ids) {
+    const s = status[id];
+    if (s === 'ok') {
+      ok += 1;
+      respondidos += 1;
+    } else if (s === 'pendente') {
+      pendente += 1;
+      respondidos += 1;
+    }
+  }
+  return { ok, pendente, respondidos, total: ids.length };
+}
 
 export function normalizarRespostas(
   templateTipo: ChecklistTipo,
@@ -9,19 +35,42 @@ export function normalizarRespostas(
   const template = templateChecklistPorTipo(templateTipo);
   const ids = template ? new Set(todosIdsItens(template)) : new Set<string>();
   const src = bruto && typeof bruto === 'object' ? (bruto as Record<string, unknown>) : {};
-  const itensSrc =
+
+  const statusSrc =
+    src.status_itens && typeof src.status_itens === 'object'
+      ? (src.status_itens as Record<string, unknown>)
+      : {};
+  const itensLegacy =
     src.itens && typeof src.itens === 'object' ? (src.itens as Record<string, unknown>) : {};
-  const itens: Record<string, boolean> = {};
+  const justSrc =
+    src.justificativas_itens && typeof src.justificativas_itens === 'object'
+      ? (src.justificativas_itens as Record<string, unknown>)
+      : {};
+
+  const status_itens: Record<string, ChecklistItemStatus> = {};
+  const justificativas_itens: Record<string, string> = {};
+
   for (const id of Array.from(ids)) {
-    itens[id] = itensSrc[id] === true;
+    const st = statusSrc[id];
+    if (st === 'ok' || st === 'pendente') {
+      status_itens[id] = st;
+    } else if (itensLegacy[id] === true) {
+      status_itens[id] = 'ok';
+    }
+    const just = justSrc[id];
+    if (typeof just === 'string' && just.trim()) {
+      justificativas_itens[id] = just.trim();
+    }
   }
+
   const notas_secoes: Record<string, string> = {};
   if (src.notas_secoes && typeof src.notas_secoes === 'object') {
     for (const [k, v] of Object.entries(src.notas_secoes as Record<string, unknown>)) {
       if (typeof v === 'string' && v.trim()) notas_secoes[k] = v.trim();
     }
   }
-  const out: ChecklistRespostasPayload = { itens, notas_secoes };
+
+  const out: ChecklistRespostasPayload = { status_itens, justificativas_itens, notas_secoes };
   if (typeof src.setor === 'string' && src.setor.trim()) out.setor = src.setor.trim();
   if (typeof src.temperatura_geladeira === 'string' && src.temperatura_geladeira.trim()) {
     out.temperatura_geladeira = src.temperatura_geladeira.trim();
@@ -33,6 +82,17 @@ export function normalizarRespostas(
     out.responsavel_fechamento = src.responsavel_fechamento.trim();
   }
   return out;
+}
+
+export function validarRespostasChecklist(respostas: ChecklistRespostasPayload): string | null {
+  for (const [id, st] of Object.entries(respostas.status_itens)) {
+    if (st !== 'pendente') continue;
+    const just = respostas.justificativas_itens?.[id]?.trim() ?? '';
+    if (just.length < 3) {
+      return 'Todo item marcado como pendente precisa de uma justificativa (mínimo 3 caracteres).';
+    }
+  }
+  return null;
 }
 
 type RowDb = {

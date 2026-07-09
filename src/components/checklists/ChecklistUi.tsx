@@ -6,19 +6,16 @@ import type { ChecklistTurno } from '@/lib/checklists/types';
 
 export function ChecklistPreviewBanner() {
   return (
-    <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-cream-50 px-4 py-3.5 text-sm text-amber-950 shadow-sm">
+    <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 via-white to-cream-50 px-4 py-3.5 text-sm text-emerald-950 shadow-sm">
       <p className="font-semibold flex items-center gap-2">
-        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-200/80 text-xs" aria-hidden>
-          β
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-200/80 text-xs" aria-hidden>
+          ✓
         </span>
-        Prévia para sócios e admin
+        Checklist operacional Mesquita
       </p>
-      <p className="mt-1.5 leading-relaxed text-amber-900/90 pl-8">
-        Valide os itens em cada loja. Quando estiver ok, liberamos gerentes com{' '}
-        <code className="text-[11px] bg-white/90 px-1.5 py-0.5 rounded-md border border-amber-100">
-          PORTAL_CHECKLIST_LIDERES_ATIVO=true
-        </code>{' '}
-        na Vercel.
+      <p className="mt-1.5 leading-relaxed text-emerald-900/90 pl-8">
+        Gerentes de loja, RH, admin e sócios podem preencher. Marque cada item como OK ou Pendente; pendências exigem
+        justificativa.
       </p>
     </div>
   );
@@ -200,6 +197,75 @@ export function ChecklistItemRow({
         {label}
       </span>
     </label>
+  );
+}
+
+export function ChecklistItemStatusRow({
+  label,
+  status,
+  justificativa,
+  onStatus,
+  onJustificativa,
+}: {
+  label: string;
+  status: 'ok' | 'pendente' | null;
+  justificativa: string;
+  onStatus: (status: 'ok' | 'pendente') => void;
+  onJustificativa: (texto: string) => void;
+}) {
+  const pendenteSemJust = status === 'pendente' && justificativa.trim().length < 3;
+
+  return (
+    <div
+      className={`rounded-xl border px-3 py-3 transition-all ${
+        status === 'ok'
+          ? 'border-emerald-200 bg-emerald-50/70'
+          : status === 'pendente'
+            ? 'border-amber-200 bg-amber-50/50'
+            : 'border-cafeteria-100 bg-cream-50/50'
+      }`}
+    >
+      <p className="text-sm leading-snug text-cafeteria-800 font-medium">{label}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => onStatus('ok')}
+          className={`min-h-[40px] rounded-xl px-4 text-sm font-semibold transition-colors ${
+            status === 'ok'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'border border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50'
+          }`}
+        >
+          OK
+        </button>
+        <button
+          type="button"
+          onClick={() => onStatus('pendente')}
+          className={`min-h-[40px] rounded-xl px-4 text-sm font-semibold transition-colors ${
+            status === 'pendente'
+              ? 'bg-amber-500 text-white shadow-sm'
+              : 'border border-amber-200 bg-white text-amber-900 hover:bg-amber-50'
+          }`}
+        >
+          Pendente
+        </button>
+      </div>
+      {status === 'pendente' && (
+        <div className="mt-3">
+          <label className="text-xs font-medium text-cafeteria-600 block mb-1.5">
+            Justificativa <span className="text-amber-700">(obrigatória)</span>
+          </label>
+          <ChecklistTextarea
+            value={justificativa}
+            onChange={(e) => onJustificativa(e.target.value)}
+            rows={2}
+            placeholder="Explique o que ficou pendente e o próximo passo…"
+            aria-invalid={pendenteSemJust}
+            className={pendenteSemJust ? 'border-amber-300 ring-1 ring-amber-200' : undefined}
+          />
+        </div>
+      )}
+    </div>
   );
 }
 

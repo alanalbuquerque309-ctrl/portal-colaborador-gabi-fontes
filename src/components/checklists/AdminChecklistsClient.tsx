@@ -20,21 +20,33 @@ type Linha = {
   colaborador_nome?: string;
   preenchido_em: string;
   observacoes: string | null;
-  respostas: { itens?: Record<string, boolean> };
+  respostas: {
+    status_itens?: Record<string, 'ok' | 'pendente'>;
+    justificativas_itens?: Record<string, string>;
+    itens?: Record<string, boolean>;
+  };
 };
 
 function statsItens(linha: Linha) {
-  const itens = linha.respostas?.itens ?? {};
-  const vals = Object.values(itens);
-  const ok = vals.filter(Boolean).length;
-  return { ok, total: vals.length };
+  const status = linha.respostas?.status_itens ?? {};
+  const legacy = linha.respostas?.itens ?? {};
+  const ids = Array.from(new Set([...Object.keys(status), ...Object.keys(legacy)]));
+  let ok = 0;
+  let pendente = 0;
+  for (const id of ids) {
+    const st = status[id];
+    if (st === 'ok') ok += 1;
+    else if (st === 'pendente') pendente += 1;
+    else if (legacy[id]) ok += 1;
+  }
+  return { ok, pendente, total: ids.length };
 }
 
 export function AdminChecklistsClient() {
   const [loading, setLoading] = useState(false);
   const [carregado, setCarregado] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [preview, setPreview] = useState(true);
+  const [preview, setPreview] = useState(false);
   const [unidades, setUnidades] = useState<Unidade[]>([]);
   const [unidadeId, setUnidadeId] = useState('');
   const [registros, setRegistros] = useState<Linha[]>([]);
@@ -152,7 +164,7 @@ export function AdminChecklistsClient() {
 
           <div className="md:hidden space-y-3">
             {registros.map((r) => {
-              const { ok, total } = statsItens(r);
+              const { ok, pendente, total } = statsItens(r);
               return (
                 <article
                   key={r.id}
@@ -175,7 +187,20 @@ export function AdminChecklistsClient() {
                       {r.colaborador_nome ?? '—'}
                     </span>
                   </div>
-                  {total > 0 && <ChecklistProgressBar concluidos={ok} total={total} label="Itens OK" />}
+                  {total > 0 && (
+                    <>
+                      <ChecklistProgressBar concluidos={ok + pendente} total={total} label="Itens respondidos" />
+                      <p className="text-xs text-cafeteria-600">
+                        <span className="text-emerald-700 font-semibold">{ok} OK</span>
+                        {pendente > 0 && (
+                          <>
+                            {' '}
+                            · <span className="text-amber-800 font-semibold">{pendente} pendente{pendente === 1 ? '' : 's'}</span>
+                          </>
+                        )}
+                      </p>
+                    </>
+                  )}
                   <p className="text-xs text-cafeteria-500">
                     {new Date(r.preenchido_em).toLocaleString('pt-BR')}
                   </p>
@@ -200,7 +225,7 @@ export function AdminChecklistsClient() {
                 </thead>
                 <tbody>
                   {registros.map((r) => {
-                    const { ok, total } = statsItens(r);
+                    const { ok, pendente, total } = statsItens(r);
                     return (
                       <tr key={r.id} className="border-b border-cafeteria-50 last:border-0 hover:bg-cream-50/50">
                         <td className="px-4 py-3 font-medium text-coffee-base">{r.unidade_nome ?? '—'}</td>
@@ -210,9 +235,9 @@ export function AdminChecklistsClient() {
                         <td className="px-4 py-3">
                           {total > 0 ? (
                             <div className="min-w-[120px]">
-                              <ChecklistProgressBar concluidos={ok} total={total} compacto />
+                              <ChecklistProgressBar concluidos={ok + pendente} total={total} compacto />
                               <span className="text-xs text-cafeteria-500 tabular-nums mt-1 block">
-                                {ok}/{total}
+                                {ok} OK · {pendente} pend.
                               </span>
                             </div>
                           ) : (

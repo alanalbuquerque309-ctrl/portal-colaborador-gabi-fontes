@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolverSessaoChecklist } from '@/lib/checklists/auth-sessao';
-import { checklistsLideresAtivos, podeAcessarChecklistsOperacionais } from '@/lib/checklists/access';
+import { podeAcessarChecklistsOperacionais } from '@/lib/checklists/access';
 import { CHECKLIST_TEMPLATES, slugsUnidadesComChecklist, templateVisivelParaUnidade } from '@/lib/checklists/templates';
 import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana } from '@/lib/checklists/dia-semana';
 
@@ -51,7 +51,7 @@ export async function GET() {
     return NextResponse.json(
       {
         ok: true,
-        preview_socios: !checklistsLideresAtivos(),
+        preview_socios: false,
         fase_piloto: slugsAtivos.length > 0,
         dia_semana: dia,
         dia_semana_rotulo: rotuloDiaSemana(dia),

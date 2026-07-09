@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
-import type { ChecklistRegistro, ChecklistTemplate, ChecklistTurno } from '@/lib/checklists/types';
+import type { ChecklistItemStatus, ChecklistRegistro, ChecklistTemplate, ChecklistTurno } from '@/lib/checklists/types';
 import { secoesVisiveisParaTurno, todosIdsItensTurno } from '@/lib/checklists/templates';
 import {
   ChecklistCampoCard,
@@ -12,7 +12,7 @@ import {
   ChecklistFeedback,
   ChecklistHero,
   ChecklistInput,
-  ChecklistItemRow,
+  ChecklistItemStatusRow,
   ChecklistProgressBar,
   ChecklistSectionCard,
   ChecklistStickyActions,
@@ -21,9 +21,14 @@ import {
 
 type Props = { tipo: string };
 
-function contagemSecao(itens: Record<string, boolean>, ids: string[]) {
-  const ok = ids.filter((id) => itens[id] === true).length;
-  return { ok, total: ids.length };
+function contagemSecao(status: Record<string, ChecklistItemStatus | undefined>, ids: string[]) {
+  let ok = 0;
+  let pendente = 0;
+  for (const id of ids) {
+    if (status[id] === 'ok') ok += 1;
+    else if (status[id] === 'pendente') pendente += 1;
+  }
+  return { ok, pendente, respondidos: ok + pendente, total: ids.length };
 }
 
 export function ChecklistFormClient({ tipo }: Props) {
@@ -38,7 +43,8 @@ export function ChecklistFormClient({ tipo }: Props) {
   const [msg, setMsg] = useState<string | null>(null);
   const [template, setTemplate] = useState<ChecklistTemplate | null>(null);
   const [meta, setMeta] = useState<{ unidade_nome: string; dia_rotulo: string; turno_rotulo: string } | null>(null);
-  const [itens, setItens] = useState<Record<string, boolean>>({});
+  const [statusItens, setStatusItens] = useState<Record<string, ChecklistItemStatus>>({});
+  const [justificativas, setJustificativas] = useState<Record<string, string>>({});
   const [notasSecoes, setNotasSecoes] = useState<Record<string, string>>({});
   const [setor, setSetor] = useState('');
   const [temperatura, setTemperatura] = useState('');
@@ -74,7 +80,8 @@ export function ChecklistFormClient({ tipo }: Props) {
 
       const reg = data.registro as ChecklistRegistro | null;
       const resp = reg?.respostas;
-      setItens(resp?.itens ?? {});
+      setStatusItens(resp?.status_itens ?? {});
+      setJustificativas(resp?.justificativas_itens ?? {});
       setNotasSecoes(resp?.notas_secoes ?? {});
       setSetor(resp?.setor ?? '');
       setTemperatura(resp?.temperatura_geladeira ?? '');
@@ -102,21 +109,26 @@ export function ChecklistFormClient({ tipo }: Props) {
     return todosIdsItensTurno(template, turno);
   }, [template, turno]);
 
-  useEffect(() => {
-    if (!template) return;
-    setItens((prev) => {
-      const next = { ...prev };
-      for (const id of idsIniciais) {
-        if (next[id] === undefined) next[id] = false;
-      }
-      return next;
-    });
-  }, [template, idsIniciais]);
+  const { concluidos, total, pendentes } = useMemo(() => {
+    let ok = 0;
+    let pend = 0;
+    for (const id of idsIniciais) {
+      if (statusItens[id] === 'ok') ok += 1;
+      else if (statusItens[id] === 'pendente') pend += 1;
+    }
+    return { concluidos: ok + pend, total: idsIniciais.length, pendentes: pend };
+  }, [idsIniciais, statusItens]);
 
-  const { concluidos, total } = useMemo(() => {
-    const ok = idsIniciais.filter((id) => itens[id] === true).length;
-    return { concluidos: ok, total: idsIniciais.length };
-  }, [idsIniciais, itens]);
+  const definirStatus = (id: string, status: ChecklistItemStatus) => {
+    setStatusItens((p) => ({ ...p, [id]: status }));
+    if (status === 'ok') {
+      setJustificativas((p) => {
+        const next = { ...p };
+        delete next[id];
+        return next;
+      });
+    }
+  };
 
   const salvar = async () => {
     setSalvando(true);
@@ -132,7 +144,8 @@ export function ChecklistFormClient({ tipo }: Props) {
           turno,
           observacoes,
           respostas: {
-            itens,
+            status_itens: statusItens,
+            justificativas_itens: justificativas,
             notas_secoes: notasSecoes,
             setor: setor || undefined,
             temperatura_geladeira: temperatura || undefined,
@@ -176,12 +189,10 @@ export function ChecklistFormClient({ tipo }: Props) {
 
   if (!template) return null;
 
-  const titulo = template.titulo;
-
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-32 md:pb-8">
       <ChecklistHero
-        titulo={titulo}
+        titulo={template.titulo}
         subtitulo={template.descricao}
         backHref="/portal/checklists"
         chips={
@@ -202,10 +213,15 @@ export function ChecklistFormClient({ tipo }: Props) {
       />
 
       <div className="rounded-2xl border border-cafeteria-200 bg-white p-4 shadow-sm">
-        <ChecklistProgressBar concluidos={concluidos} total={total} label="Itens conferidos" />
+        <ChecklistProgressBar concluidos={concluidos} total={total} label="Itens respondidos" />
         {total > 0 && concluidos < total && (
           <p className="mt-2 text-xs text-cafeteria-500">
-            Marque cada item conforme for conferindo na loja. Você pode salvar parcialmente.
+            Marque OK ou Pendente em cada item. Pendências exigem justificativa. Você pode salvar parcialmente.
+          </p>
+        )}
+        {pendentes > 0 && (
+          <p className="mt-1 text-xs font-medium text-amber-800">
+            {pendentes} item{pendentes === 1 ? '' : 's'} pendente{pendentes === 1 ? '' : 's'} neste turno.
           </p>
         )}
       </div>
@@ -268,16 +284,17 @@ export function ChecklistFormClient({ tipo }: Props) {
 
       {secoesVisiveis.map((secao) => {
         const ids = secao.itens.map((i) => i.id);
-        const { ok, total: totSec } = contagemSecao(itens, ids);
+        const { respondidos, total: totSec } = contagemSecao(statusItens, ids);
         return (
-          <ChecklistSectionCard key={secao.id} titulo={secao.titulo} concluidos={ok} total={totSec}>
+          <ChecklistSectionCard key={secao.id} titulo={secao.titulo} concluidos={respondidos} total={totSec}>
             {secao.itens.map((item) => (
-              <ChecklistItemRow
+              <ChecklistItemStatusRow
                 key={item.id}
-                id={`chk-${item.id}`}
                 label={item.horario ? `${item.horario} — ${item.label}` : item.label}
-                checked={itens[item.id] === true}
-                onChange={(v) => setItens((p) => ({ ...p, [item.id]: v }))}
+                status={statusItens[item.id] ?? null}
+                justificativa={justificativas[item.id] ?? ''}
+                onStatus={(st) => definirStatus(item.id, st)}
+                onJustificativa={(texto) => setJustificativas((p) => ({ ...p, [item.id]: texto }))}
               />
             ))}
             {secao.permite_nota && (
@@ -287,7 +304,7 @@ export function ChecklistFormClient({ tipo }: Props) {
                   value={notasSecoes[secao.id] ?? ''}
                   onChange={(e) => setNotasSecoes((p) => ({ ...p, [secao.id]: e.target.value }))}
                   rows={2}
-                  placeholder="Opcional: desvios, pendências…"
+                  placeholder="Opcional: desvios ou combinações com a equipe…"
                 />
               </div>
             )}

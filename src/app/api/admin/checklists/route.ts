@@ -6,7 +6,6 @@ import { podeVerHistoricoChecklistsRede } from '@/lib/checklists/access';
 import { listarChecklistsSemana } from '@/lib/checklists/service';
 import { CHECKLIST_TEMPLATES } from '@/lib/checklists/templates';
 import { rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
-import { checklistsLideresAtivos } from '@/lib/checklists/access';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,7 +64,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         ok: true,
-        preview_socios: !checklistsLideresAtivos(),
+        preview_socios: false,
         unidades: unidades ?? [],
         registros: linhas,
       },

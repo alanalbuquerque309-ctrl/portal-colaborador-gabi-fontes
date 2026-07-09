@@ -1,5 +1,7 @@
 export type ChecklistTurno = 'manha' | 'tarde';
 
+export type ChecklistItemStatus = 'ok' | 'pendente';
+
 export type ChecklistSetorVistoria = 'estoque' | 'asg' | 'cozinha' | 'balcao' | 'caixa';
 
 export type ChecklistVistoriaStatus = 'conferido' | 'pendente' | 'nao_preenchido';
@@ -38,7 +40,11 @@ export type ChecklistTemplate = {
 };
 
 export type ChecklistRespostasPayload = {
-  itens: Record<string, boolean>;
+  /** Status por item: OK ou pendente (com justificativa). */
+  status_itens: Record<string, ChecklistItemStatus>;
+  justificativas_itens?: Record<string, string>;
+  /** Legado (checkbox): migrado para status_itens na leitura. */
+  itens?: Record<string, boolean>;
   notas_secoes?: Record<string, string>;
   setor?: string;
   temperatura_geladeira?: string;

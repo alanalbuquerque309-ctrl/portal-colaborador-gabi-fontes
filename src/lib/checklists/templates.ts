@@ -5,7 +5,7 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
   {
     tipo: 'gerencia_diaria_mesquita',
     titulo: 'Checklist Diário Gerência',
-    descricao: 'Rotina diária da gerência Mesquita (abertura, supervisão e fechamento).',
+    descricao: 'Checklist oficial da gerência Mesquita (documento operacional).',
     turnos: ['manha', 'tarde'],
     papel: 'gerencia',
     exige_unidade_slug: ['mesquita'],
@@ -20,11 +20,22 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
         turno_foco: 'manha',
         itens: [
           { id: 'abrir_loja_0730', label: 'Abrir loja às 07:30h', horario: '07:30' },
-          { id: 'ligar_servidor', label: 'Ligar o servidor no escritório' },
+          {
+            id: 'ligar_servidor_fds',
+            label: 'Fim de semana e feriado: ligar o servidor no escritório',
+          },
           {
             id: 'chegada_funcionarios',
             label:
               'Acompanhar chegada dos funcionários; falta, atraso ou atestado → comunicar no grupo ESCALA',
+          },
+          {
+            id: 'contagem_massas_segunda',
+            label: 'Segunda-feira: contagem de massas e empanadas',
+          },
+          {
+            id: 'caixas_agua_asg',
+            label: "Conferir caixas d'água com a equipe ASG",
           },
           {
             id: 'organizacao_salao',
@@ -46,17 +57,8 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
             label: 'Acompanhar celular do delivery e itens pausados/despausados',
           },
           {
-            id: 'limpeza_balcao_frente',
-            label:
-              'Supervisionar limpeza dos balcões de frente (mármore, vitrine doces/salgados, caixa)',
-          },
-          {
-            id: 'qualidade_doces_validade',
-            label: 'Conferir qualidade dos doces e validade; pedir ajuste se necessário',
-          },
-          {
-            id: 'briefing_sexta',
-            label: 'Sexta-feira: briefing com os setores (conforme disponibilidade)',
+            id: 'briefing_equipe',
+            label: 'Briefing com a equipe (conforme rotina da loja)',
           },
         ],
       },
@@ -66,47 +68,37 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
         turno_foco: 'manha',
         itens: [
           {
-            id: 'insumos_barra',
-            label: 'Conferência da lista de insumos da Barra com estoquista e motorista',
+            id: 'portal_gf_seg_ter',
+            label: 'Segunda e terça: acompanhar portal GF',
           },
           {
-            id: 'vistoria_salao_banheiros',
-            label: 'Vistoria diária do salão e banheiros; ASG abastece se necessário',
+            id: 'contagem_talheres_quarta',
+            label: 'Quarta-feira: contagem de talheres e louças (ADM alimenta planilha Excel)',
           },
           {
-            id: 'limpeza_acucareiros',
-            label: 'Segundas e quintas: supervisionar limpeza dos açucareiros',
+            id: 'foto_cafe_conecta',
+            label: 'Quarta-feira: enviar foto do Café Conecta',
           },
           {
-            id: 'limpeza_baixo_balcao',
-            label: 'Segundas: supervisionar limpeza embaixo dos balcões/vitrines',
+            id: 'planilha_desperdicio',
+            label: 'Diário: enviar planilha de desperdício de cada setor no grupo de supervisão',
           },
           {
-            id: 'lavagem_cozinhas',
-            label: 'Segundas: supervisionar lavagem das cozinhas (preferencialmente 14h)',
+            id: 'verificar_gas_quarta',
+            label: 'Quarta-feira: verificar gás das cozinhas',
           },
           {
-            id: 'limpeza_estoque_quinta',
-            label: 'Quintas: supervisionar limpeza e organização do estoque',
+            id: 'planilha_temperatura_dia29',
+            label: 'Dia 29: conferir planilhas de temperatura de geladeiras e balcões',
           },
           {
-            id: 'contagem_talheres',
-            label: 'Quartas: contagem de talheres e louças → ADM alimenta planilha Excel',
+            id: 'supervisao_temperatura',
+            label: 'Supervisionar temperatura de geladeiras e balcões (todos os setores)',
           },
           {
-            id: 'limpeza_vidros_14h',
-            label:
-              'Diariamente 14h: limpeza de vidros e portas (3 entradas, reservados, colunas catraca)',
-            horario: '14:00',
-          },
-          {
-            id: 'lavagem_entrada_quinta',
-            label: 'Quintas: supervisionar lavagem da entrada principal e área externa',
-          },
-          {
-            id: 'insumos_balcao_doce',
-            label:
-              'Diário: conferir insumos do balcão do doce vs. vendas do dia anterior; anotar faltas',
+            id: 'luzes_externas',
+            label: 'Ligar luzes externas no horário definido (17h ou 18h conforme estação)',
+            horario: '17:00',
           },
         ],
         permite_nota: true,
@@ -117,32 +109,21 @@ export const CHECKLIST_TEMPLATES: ChecklistTemplate[] = [
         turno_foco: 'tarde',
         itens: [
           {
-            id: 'camara_dia_24',
-            label: '1× ao mês: limpeza da câmara frigorífica (dia 24)',
+            id: 'conferir_checklists_setores',
+            label:
+              'Conferir checklist dos setores antes de liberar equipe (ASG, Estoque, Cozinha, Balcão, Caixa)',
           },
           {
             id: 'recolher_radios',
             label: 'Recolher rádios ao final do expediente testando na presença dos funcionários',
           },
-          { id: 'foto_cafe_conecta', label: 'Quarta: enviar foto do Café Conecta' },
           {
-            id: 'planilha_desperdicio',
-            label: 'Diário: enviar planilha de desperdício de cada setor no grupo de supervisão',
-          },
-          { id: 'verificar_gas', label: 'Quarta: verificar gás das cozinhas' },
-          {
-            id: 'janelas_andar_superior',
-            label: 'A cada 10 dias: limpeza janelas andar superior (dias 10, 20 e 30)',
+            id: 'bolos_paes_camara',
+            label: 'Conferir bolos e pães na câmara frigorífica',
           },
           {
-            id: 'planilha_temperatura',
-            label: 'Verificar/solicitar planilha de temperatura de geladeiras e balcões (todos setores)',
-          },
-          { id: 'luzes_externas_18h', label: 'Ligar luzes externas às 18h', horario: '18:00' },
-          {
-            id: 'checklist_setores',
-            label:
-              'Conferir checklist dos setores antes de liberar equipe (Estoque, Cozinha, ASG, Balcão, Caixa)',
+            id: 'contagem_bebidas',
+            label: 'Contagem de bebidas',
           },
           { id: 'desligar_servidor', label: 'Desligar servidor ao deixar malote no escritório' },
           { id: 'desligar_luzes', label: 'Conferir e desligar todas as luzes antes de sair' },
