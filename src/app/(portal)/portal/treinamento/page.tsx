@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TreinamentoAcompanhamentoGestao } from '@/components/portal/TreinamentoAcompanhamentoGestao';
 import { TreinamentoItemConteudo } from '@/components/portal/TreinamentoItemConteudo';
+import { TreinamentoPublicoBadge } from '@/components/portal/TreinamentoPublicoBadge';
 import { TreinamentoStatusChip } from '@/components/portal/TreinamentoStatusChip';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
@@ -11,6 +12,7 @@ import { PortalActionCard } from '@/components/portal/shell/PortalActionCard';
 import { emitPortalHomeAtualizado } from '@/lib/portal-home-events';
 import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 import {
+  agruparSemanaPorPublico,
   categorizarTreinamentos,
   ehConcluidoSemana,
   ehUuid,
@@ -64,6 +66,10 @@ export default function PortalTreinamentoPage() {
   }, [carregar]);
 
   const { semana, historico, extras } = useMemo(() => categorizarTreinamentos(itens), [itens]);
+  const { equipe: semanaEquipe, lideranca: semanaLideranca, outros: semanaOutros } = useMemo(
+    () => agruparSemanaPorPublico(semana),
+    [semana]
+  );
   const concluidosSemana = useMemo(() => semana.filter((t) => ehConcluidoSemana(t)).length, [semana]);
   const progressoPct = semana.length > 0 ? Math.round((concluidosSemana / semana.length) * 100) : 0;
   const semanaEmDia = semana.length > 0 && concluidosSemana === semana.length;
@@ -144,6 +150,56 @@ export default function PortalTreinamentoPage() {
     onRegistrarAutomatico: registrarTreinoAutomatico,
   };
 
+  const renderListaSemana = (lista: TreinamentoPortalItem[]) =>
+    lista.map((t) => {
+      const itemAberto = abertoId === t.id;
+      return (
+        <div key={t.id}>
+          <button
+            type="button"
+            onClick={() => abrirItem(t.id)}
+            className="w-full flex items-center justify-between py-3 text-left hover:bg-cream-50/40 transition-colors min-h-[48px]"
+          >
+            <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
+              <TreinamentoStatusChip item={t} grande />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                  <TreinamentoPublicoBadge item={t} compacto />
+                </div>
+                <p className="text-sm font-semibold text-coffee-base">{t.titulo}</p>
+                {t.descricao ? (
+                  <p className="text-xs text-cafeteria-500 truncate mt-0.5">{t.descricao}</p>
+                ) : null}
+              </div>
+            </div>
+            <svg
+              className={`h-4 w-4 text-cafeteria-400 shrink-0 transition-transform duration-200 ${
+                itemAberto ? 'rotate-180' : ''
+              }`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {itemAberto ? (
+            <div className="pb-4 space-y-3">
+              <TreinamentoPublicoBadge item={t} />
+              <TreinamentoItemConteudo
+                item={t}
+                aberto
+                botaoPrimario={!ehConcluidoSemana(t)}
+                {...propsConteudo}
+              />
+            </div>
+          ) : null}
+        </div>
+      );
+    });
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -213,50 +269,26 @@ export default function PortalTreinamentoPage() {
                 ) : null}
 
                 <div className="divide-y divide-cafeteria-100/60 border-t border-cafeteria-100/60">
-                  {semana.map((t) => {
-                    const itemAberto = abertoId === t.id;
-                    return (
-                      <div key={t.id}>
-                        <button
-                          type="button"
-                          onClick={() => abrirItem(t.id)}
-                          className="w-full flex items-center justify-between py-3 text-left hover:bg-cream-50/40 transition-colors min-h-[48px]"
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1 pr-2">
-                            <TreinamentoStatusChip item={t} grande />
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-coffee-base">{t.titulo}</p>
-                              {t.descricao ? (
-                                <p className="text-xs text-cafeteria-500 truncate mt-0.5">{t.descricao}</p>
-                              ) : null}
-                            </div>
-                          </div>
-                          <svg
-                            className={`h-4 w-4 text-cafeteria-400 shrink-0 transition-transform duration-200 ${
-                              itemAberto ? 'rotate-180' : ''
-                            }`}
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            aria-hidden
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-
-                        {itemAberto ? (
-                          <div className="pb-4">
-                            <TreinamentoItemConteudo
-                              item={t}
-                              aberto
-                              botaoPrimario={!ehConcluidoSemana(t)}
-                              {...propsConteudo}
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                  {semanaEquipe.length > 0 ? (
+                    <div className="pt-2">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-cafeteria-600 px-0.5 pb-2">
+                        Para toda a equipe
+                      </p>
+                      {renderListaSemana(semanaEquipe)}
+                    </div>
+                  ) : null}
+                  {semanaLideranca.length > 0 ? (
+                    <div className={semanaEquipe.length > 0 ? 'pt-2 border-t border-cafeteria-100/80' : 'pt-2'}>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-coffee-base px-0.5 pb-2">
+                        Para liderança
+                      </p>
+                      <p className="text-[11px] text-cafeteria-600 px-0.5 pb-2 -mt-1">
+                        Gerentes, RH, admin e sócios
+                      </p>
+                      {renderListaSemana(semanaLideranca)}
+                    </div>
+                  ) : null}
+                  {semanaOutros.length > 0 ? renderListaSemana(semanaOutros) : null}
                 </div>
               </div>
             </section>
@@ -307,6 +339,9 @@ export default function PortalTreinamentoPage() {
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <TreinamentoStatusChip item={t} />
                             <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                                <TreinamentoPublicoBadge item={t} compacto />
+                              </div>
                               <p className="text-sm font-medium text-coffee-base truncate">
                                 {rotuloSemanaItem(t)}
                               </p>

@@ -121,6 +121,8 @@ export async function GET(req: Request) {
     const origin = new URL(req.url).origin;
     const rowsDb = (rows ?? []) as TreinamentoDbRow[];
     const treinamentos = listaDb.map((r) => {
+      const unidadeRow = r.unidades as { slug?: string } | null;
+      const publico = resolverPublicoAviso(r.publico_alvo as string | null, unidadeRow?.slug ?? null);
       const tipoConteudo = normalizarTipoConteudo((r as { tipo_conteudo?: string }).tipo_conteudo);
       const videoId = extrairYoutubeVideoId(String(r.video_youtube_url ?? ''));
       const arquivado = treinamentoTextoArquivado(
@@ -151,6 +153,7 @@ export async function GET(req: Request) {
         arquivado,
         embed_url: tipoConteudo === 'video' && videoId ? urlEmbedYoutubeTreino(videoId, origin) : null,
         created_at: r.created_at,
+        publico_alvo: publico === 'todos' || publico === 'lideranca' ? publico : null,
       };
     });
 
@@ -182,6 +185,7 @@ export async function GET(req: Request) {
         arquivado: false,
         embed_url: quintaColaborador.embed_url,
         created_at: null,
+        publico_alvo: 'todos' as const,
       });
     }
 
@@ -202,6 +206,7 @@ export async function GET(req: Request) {
           arquivado: false,
           embed_url: quintaLider.embed_url,
           created_at: null,
+          publico_alvo: 'lideranca' as const,
         });
       }
     }
@@ -219,6 +224,7 @@ export async function GET(req: Request) {
       arquivado: false,
       embed_url: null,
       created_at: null,
+      publico_alvo: 'todos' as const,
     });
 
     return NextResponse.json({

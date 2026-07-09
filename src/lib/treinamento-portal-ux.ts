@@ -10,6 +10,8 @@ export type TreinamentoPortalItem = {
   embed_url: string | null;
   created_at?: string | null;
   arquivado?: boolean;
+  /** todos = equipe inteira; lideranca = gerentes, RH, admin e sócios */
+  publico_alvo?: 'todos' | 'lideranca' | null;
 };
 
 export const TREINO_IDS_EXTRAS = new Set(['video-institutional']);
@@ -60,4 +62,52 @@ export function labelStatusTreino(status: StatusTreino): string {
     default:
       return 'Pendente';
   }
+}
+
+export type EtiquetaPublicoTreinamento = {
+  titulo: string;
+  subtitulo: string;
+  classe: string;
+};
+
+/** Rótulo visível do público-alvo (equipe vs liderança). */
+export function etiquetaPublicoTreinamento(
+  publico: TreinamentoPortalItem['publico_alvo'],
+  itemId?: string
+): EtiquetaPublicoTreinamento {
+  if (publico === 'lideranca' || itemId === 'quinta-lider') {
+    return {
+      titulo: 'Treinamento de liderança',
+      subtitulo: 'Gerentes, RH, admin e sócios',
+      classe: 'bg-coffee-base/10 text-coffee-base border border-coffee-base/25',
+    };
+  }
+  if (publico === 'todos' || itemId === 'quinta-colaborador') {
+    return {
+      titulo: 'Treinamento de equipe',
+      subtitulo: 'Toda a operação',
+      classe: 'bg-dourado-base/15 text-coffee-base border border-dourado-base/35',
+    };
+  }
+  return {
+    titulo: 'Material',
+    subtitulo: '',
+    classe: 'bg-cafeteria-100 text-cafeteria-700 border border-cafeteria-200',
+  };
+}
+
+export function ehTreinamentoLideranca(item: TreinamentoPortalItem): boolean {
+  return item.publico_alvo === 'lideranca' || item.id === 'quinta-lider';
+}
+
+export function ehTreinamentoEquipe(item: TreinamentoPortalItem): boolean {
+  if (ehTreinamentoLideranca(item)) return false;
+  return item.publico_alvo === 'todos' || item.id === 'quinta-colaborador' || Boolean(item.publico_alvo == null && ehUuid(item.id));
+}
+
+export function agruparSemanaPorPublico(semana: TreinamentoPortalItem[]) {
+  const equipe = semana.filter((t) => ehTreinamentoEquipe(t));
+  const lideranca = semana.filter((t) => ehTreinamentoLideranca(t));
+  const outros = semana.filter((t) => !ehTreinamentoEquipe(t) && !ehTreinamentoLideranca(t));
+  return { equipe, lideranca, outros };
 }
