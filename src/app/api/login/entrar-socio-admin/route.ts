@@ -6,6 +6,7 @@ import { normalizePortalRole } from '@/lib/roles';
 import { parseManterLogado } from '@/lib/portal-login-persist';
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
 import { sincronizarOnboardingGestaoNoBanco } from '@/lib/onboarding-access';
+import { destinoHomeAposLogin } from '@/lib/portal-login-response';
 
 /**
  * Legado: sessão sócio/admin após senha validada.
@@ -59,7 +60,9 @@ export async function POST(req: Request) {
     const res = NextResponse.json({
       ok: true,
       colaborador: { id: col.id, unidade_id: col.unidade_id, role },
-      redirect: onboardingCompleto ? '/portal' : `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
+      redirect: onboardingCompleto
+        ? destinoHomeAposLogin(role)
+        : `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
     });
 
     const persistent = parseManterLogado(body);

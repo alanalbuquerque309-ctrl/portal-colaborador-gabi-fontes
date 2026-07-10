@@ -28,8 +28,8 @@ export default function AdminLoginPage() {
           Ir para o login do portal
         </Link>
         <p className="mt-4 text-center">
-          <Link href="/portal" className="text-coffee-100 text-sm hover:text-coffee-base">
-            ← Voltar ao portal
+          <Link href="/login" className="text-coffee-100 text-sm hover:text-coffee-base">
+            ← Ir para o login
           </Link>
         </p>
       </div>

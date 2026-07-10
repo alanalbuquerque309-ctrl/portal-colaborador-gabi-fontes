@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { AdminHubAtalhos } from '@/components/admin/AdminHubAtalhos';
 import { AdminPageHeader } from '@/components/admin/shell/AdminPageHeader';
 import { AdminSection } from '@/components/admin/shell/AdminSection';
 import { AdminStatCard } from '@/components/admin/shell/AdminStatCard';
@@ -179,17 +180,68 @@ export function AdminDashboardCockpit() {
 
   return (
     <div className="space-y-6">
-      <AdminPageHeader
-        title="Dashboard"
-        description="Visão do dia — o que precisa da gestão agora."
-        actions={
+      <section className="relative overflow-hidden rounded-2xl border border-dourado-200/70 bg-gradient-to-br from-white via-dourado-50/50 to-cream-100 p-5 md:p-6 shadow-sm">
+        <div
+          className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-dourado-base/15 blur-2xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-12 left-1/3 h-28 w-28 rounded-full bg-terracota-200/30 blur-2xl"
+          aria-hidden
+        />
+        <div className="relative flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-wide text-dourado-base">Cockpit Gabi Fontes</p>
+            <h1 className="mt-1 font-display text-2xl md:text-[1.75rem] font-semibold text-coffee-base leading-tight">
+              Sua casa para cuidar da rede
+            </h1>
+            <p className="mt-1.5 text-sm text-cafeteria-600 leading-relaxed">
+              Termômetro, equipe, checklists e treinamentos num só lugar — claro, leve e sem o ruído da home do colaborador.
+            </p>
+          </div>
           <Link
             href="/admin/colaboradores/novo"
-            className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-4 py-2 text-sm font-semibold text-cream-100 hover:bg-dourado-400"
+            className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-4 py-2 text-sm font-semibold text-cream-100 hover:bg-dourado-400 shadow-sm"
           >
             + Colaborador
           </Link>
-        }
+        </div>
+      </section>
+
+      <Link
+        href="/admin/termometro-emocoes"
+        className={`block rounded-2xl border-2 p-4 md:p-5 shadow-sm transition-shadow hover:shadow-md ${
+          alertasEmocional > 0
+            ? 'border-rose-300 bg-gradient-to-r from-rose-50 via-white to-amber-50'
+            : 'border-emerald-200 bg-gradient-to-r from-emerald-50/90 via-white to-cream-50'
+        }`}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="text-2xl shrink-0" aria-hidden>
+              🌡️
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-cafeteria-600">Termômetro do dia</p>
+              <p className="font-display font-semibold text-coffee-base text-lg mt-0.5">
+                {alertasEmocional > 0
+                  ? `${alertasEmocional} alerta${alertasEmocional === 1 ? '' : 's'} para olhar com carinho`
+                  : 'Rede tranquila — sem alertas emocionais hoje'}
+              </p>
+              <p className="text-sm text-cafeteria-600 mt-0.5">
+                Abra o painel para ver quem precisa de conversa.
+              </p>
+            </div>
+          </div>
+          <span className="text-sm font-semibold text-dourado-base shrink-0">Abrir termômetro →</span>
+        </div>
+      </Link>
+
+      <AdminHubAtalhos />
+
+      <AdminPageHeader
+        title="Números do dia"
+        description="Saúde, pendências e o que pede atenção agora."
       />
 
       {erro && (
@@ -276,15 +328,6 @@ export function AdminDashboardCockpit() {
           sub={pendentesOnboarding.length > 0 ? 'Cadastro incompleto' : 'Todos ativos'}
           tom={pendentesOnboarding.length > 0 ? 'ambar' : 'verde'}
           href="/admin/colaboradores"
-        />
-
-        <AdminStatCard
-          emoji="🌡"
-          label="Termômetro"
-          valor={alertasEmocional}
-          sub={alertasEmocional > 0 ? 'Alertas hoje' : 'Sem alertas'}
-          tom={alertasEmocional > 0 ? 'vermelho' : 'verde'}
-          href="/admin/termometro-emocoes"
         />
 
         <AdminStatCard

@@ -335,8 +335,9 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 - **Checklists Mesquita:** `/portal/checklists` — gerente/RH/admin/sócio: rascunho + **Publicar**; painel último publicado; OK/pendente com justificativa; vistoria 5 setores; migrations **067–070** (070 obrigatória para publicar)
 - **Treinamento:** 1º par publicado — equipe «Pequenos detalhes» / liderança «Clima da equipe»; badges Equipe/Liderança; vídeo YouTube automático some quando há treino cadastrado vigente (`haTreinoCadastrado*Vigente`)
 - **Home (jul/2026):** termômetro **obrigatório** na entrada do colaborador (`TermometroEntradaGate`); alertas emocionais: líder = **só setores** (`listarEquipeDoLider`); RH/sócio/admin = rede + badge «líder conversou» quando líder deu OK; Grãos ocultos enquanto congelados; elogios disponíveis
+- **Sócio / admin (hub):** após login → **`/admin/dashboard`** (`destinoHomeAposLogin` em `portal-login-response.ts`); colaborador/líder → `/portal`. No admin: faixa termômetro + atalhos (equipe, checklists, treinamentos, elogios) + botão **Ver como colaborador** (topbar e sidebar). Visual aquecido (gradiente cream/dourado, hero do cockpit)
 - **Elogios:** prazo 2 semanas + marcar como lido individual; migration 066
-- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita; decidir home sócio (portal leve vs admin como hub)
+- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita
 - **Produção:** `main` → Vercel
 
 ## Arquivos-chave
@@ -369,6 +370,8 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 | Elogios (DB) | `supabase/migrations/066_elogio_leituras.sql`, `scripts/aplicar-migration-066.mjs` |
 | Sugestões admin | `src/app/(admin)/admin/sugestoes/page.tsx` |
 | Dashboard pacote | `src/app/api/admin/dashboard-resumo/route.ts`, `src/lib/admin-dashboard-resumo.ts` |
+| Login destino | `src/lib/portal-login-response.ts` (`destinoHomeAposLogin`) |
+| Admin hub UI | `AdminDashboardCockpit.tsx`, `AdminHubAtalhos.tsx`, `AdminTopbar.tsx`, `(admin)/admin/layout.tsx` |
 | Cache | `src/lib/cache/servidor-operacional.ts` |
 | Home | `src/app/api/portal/home-resumo/route.ts`, `src/components/portal/home/PortalHomeEntrada.tsx` |
 | Lazy home | `PortalHomeSecaoAdiada.tsx`, `PortalDetalhesLazyMount.tsx` |

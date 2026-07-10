@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
 import { urlOnboardingColaborador } from '@/lib/onboarding-reabrir';
 import { applyAdminSessionCookie, applyPortalSessionCookies } from '@/lib/portal-session-cookies';
+import { destinoHomeAposLogin } from '@/lib/portal-login-response';
 
 const CPF_ALAN = '05376259765';
 
@@ -112,7 +113,7 @@ export async function POST(req: Request) {
         role: colaborador.role,
       },
       redirect: colaborador.onboarding_completo
-        ? '/portal'
+        ? destinoHomeAposLogin(colaborador.role)
         : urlOnboardingColaborador(colaborador.id, colaborador.unidade_id),
     });
 

@@ -1,117 +1,66 @@
 /**
-
  * Resposta JSON unificada após telefone+senha validados (portal / primeira-senha).
-
  */
-
 import { normalizePortalRole } from '@/lib/roles';
 import { roleExigeOnboarding } from '@/lib/onboarding-access';
 
-
-
 export type ColaboradorLoginRow = {
-
   id: string;
-
   unidade_id: string;
-
   role?: string | null;
-
   onboarding_completo?: boolean | null;
-
   perfil_completo?: boolean;
-
 };
 
-
-
-export function buildPortalLoginJson(
-
-  col: ColaboradorLoginRow,
-
-  telefoneLogin: string,
-
-  opts?: { cpfPendente?: boolean }
-
-) {
-
-  if (opts?.cpfPendente) {
-
-    return {
-
-      ok: true as const,
-
-      mustCompleteCpf: true as const,
-
-      telefone: telefoneLogin,
-
-      colaborador: {
-
-        id: col.id,
-
-        unidade_id: col.unidade_id,
-
-        role: normalizePortalRole(col.role),
-
-      },
-
-    };
-
-  }
-
-
-
-  const role = normalizePortalRole(col.role);
-
-  const perfilCompleto = col.perfil_completo === true;
-
-
-
-  if (!perfilCompleto) {
-
-    return {
-
-      ok: true as const,
-
-      redirect: '/portal/perfil?completar=1',
-
-      colaborador: { id: col.id, unidade_id: col.unidade_id, role },
-
-    };
-
-  }
-
-
-
-  const onboardingCompleto =
-    !!col.onboarding_completo || !roleExigeOnboarding(role);
-
-  if (!onboardingCompleto) {
-
-    return {
-
-      ok: true as const,
-
-      redirect: `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
-
-      colaborador: { id: col.id, unidade_id: col.unidade_id, role },
-
-    };
-
-  }
-
-
-
-  return {
-
-    ok: true as const,
-
-    colaborador: { id: col.id, unidade_id: col.unidade_id, role },
-
-    redirect: '/portal',
-
-  };
-
+/** Sócio e admin (Daniel) entram no cockpit; equipe e líderes no portal operacional. */
+export function destinoHomeAposLogin(role: string | null | undefined): '/admin/dashboard' | '/portal' {
+  const r = normalizePortalRole(role);
+  if (r === 'socio' || r === 'admin') return '/admin/dashboard';
+  return '/portal';
 }
 
+export function buildPortalLoginJson(
+  col: ColaboradorLoginRow,
+  telefoneLogin: string,
+  opts?: { cpfPendente?: boolean }
+) {
+  if (opts?.cpfPendente) {
+    return {
+      ok: true as const,
+      mustCompleteCpf: true as const,
+      telefone: telefoneLogin,
+      colaborador: {
+        id: col.id,
+        unidade_id: col.unidade_id,
+        role: normalizePortalRole(col.role),
+      },
+    };
+  }
 
+  const role = normalizePortalRole(col.role);
+  const perfilCompleto = col.perfil_completo === true;
+
+  if (!perfilCompleto) {
+    return {
+      ok: true as const,
+      redirect: '/portal/perfil?completar=1',
+      colaborador: { id: col.id, unidade_id: col.unidade_id, role },
+    };
+  }
+
+  const onboardingCompleto = !!col.onboarding_completo || !roleExigeOnboarding(role);
+
+  if (!onboardingCompleto) {
+    return {
+      ok: true as const,
+      redirect: `/onboarding?colaborador_id=${col.id}&unidade_id=${col.unidade_id}`,
+      colaborador: { id: col.id, unidade_id: col.unidade_id, role },
+    };
+  }
+
+  return {
+    ok: true as const,
+    colaborador: { id: col.id, unidade_id: col.unidade_id, role },
+    redirect: destinoHomeAposLogin(role),
+  };
+}

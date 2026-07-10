@@ -10,6 +10,7 @@ import { getPortalSession, setPortalSession, clearPortalSession } from '@/lib/ut
 import { LogoCarregando } from '@/components/ui/LogoCarregando';
 import { roleExigeOnboarding } from '@/lib/onboarding-access';
 import { normalizePortalRole } from '@/lib/roles';
+import { destinoHomeAposLogin } from '@/lib/portal-login-response';
 
 async function processarRespostaLogin(
   data: Record<string, unknown>,
@@ -86,7 +87,7 @@ function LoginContent() {
               return;
             }
           }
-          router.replace('/portal');
+          router.replace(destinoHomeAposLogin(c.role));
           return;
         }
         clearPortalSession();

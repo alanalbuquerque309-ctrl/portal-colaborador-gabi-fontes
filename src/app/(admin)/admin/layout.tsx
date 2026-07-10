@@ -319,12 +319,30 @@ export default function AdminLayout({
     );
   };
 
+  const irVerComoColaborador = () => {
+    try {
+      sessionStorage.setItem('portal_skip_back_guard_once', '1');
+    } catch {
+      /* noop */
+    }
+    fetch('/api/admin/restaurar-portal', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    })
+      .catch(() => null)
+      .finally(() => {
+        router.push('/portal');
+      });
+  };
+
   return (
-    <div className="min-h-screen bg-cream-100 flex">
+    <div className="min-h-screen flex bg-gradient-to-br from-cream-100 via-dourado-50/35 to-cream-200/80">
       {/* Overlay para fechar sidebar no mobile */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-coffee-base/40 z-40 md:hidden backdrop-blur-[1px]"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
@@ -335,13 +353,15 @@ export default function AdminLayout({
           w-64 md:w-56
           h-full max-h-[100dvh] md:max-h-none
           flex flex-col
-          bg-coffee-base text-cream-100 shrink-0
+          bg-gradient-to-b from-coffee-base via-coffee-base to-[#2a1a12] text-cream-100 shrink-0
+          shadow-[4px_0_24px_-8px_rgba(42,26,18,0.35)]
           transform transition-transform duration-200 ease-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        <div className="px-3 py-2 border-b border-white/10 shrink-0 hidden md:block">
-          <p className="text-[10px] uppercase tracking-widest text-cream-200/70 font-semibold">Gabi Fontes</p>
+        <div className="px-3 py-2.5 border-b border-dourado-base/25 shrink-0 hidden md:block bg-gradient-to-r from-dourado-base/15 to-transparent">
+          <p className="text-[10px] uppercase tracking-widest text-dourado-200 font-semibold">Gabi Fontes</p>
+          <p className="text-[11px] text-cream-200/80 mt-0.5">Cockpit da gestão</p>
         </div>
         <div className="flex items-center justify-between p-4 pb-0 shrink-0">
           <div>
@@ -409,33 +429,16 @@ export default function AdminLayout({
                   );
                 })}
           </nav>
-          <div className="mt-8 space-y-2 border-t border-white/20 pt-6 pb-4">
-            <Link
-              href="/portal"
-              className="block text-sm font-medium text-cream-100 hover:text-white"
-              onClick={(e) => {
-                e.preventDefault();
-                try {
-                  sessionStorage.setItem('portal_skip_back_guard_once', '1');
-                } catch {
-                  /* noop */
-                }
-                fetch('/api/admin/restaurar-portal', {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: '{}',
-                })
-                  .catch(() => null)
-                  .finally(() => {
-                    router.push('/portal');
-                  });
-              }}
+          <div className="mt-8 space-y-2 border-t border-dourado-base/20 pt-6 pb-4">
+            <button
+              type="button"
+              onClick={irVerComoColaborador}
+              className="w-full text-left rounded-xl border border-dourado-base/35 bg-dourado-base/15 px-3 py-2.5 text-sm font-semibold text-cream-100 hover:bg-dourado-base/25 hover:border-dourado-base/55 transition-colors"
             >
-              Voltar ao portal
-            </Link>
+              Ver como colaborador →
+            </button>
             <form action="/api/admin/logout" method="POST">
-              <button type="submit" className="text-xs text-cream-200/90 hover:text-white underline-offset-2 hover:underline">
+              <button type="submit" className="text-xs text-cream-200/90 hover:text-white underline-offset-2 hover:underline px-1">
                 Encerrar sessão admin (senha)
               </button>
             </form>
@@ -443,7 +446,7 @@ export default function AdminLayout({
         </div>
       </aside>
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="md:hidden sticky top-0 z-30 bg-cream-100 border-b border-cafeteria-200 px-4 py-3 flex items-center justify-between gap-2">
+        <header className="md:hidden sticky top-0 z-30 bg-cream-100/90 backdrop-blur-sm border-b border-dourado-200/60 px-4 py-3 flex items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -454,13 +457,14 @@ export default function AdminLayout({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="text-sm font-display font-semibold text-coffee-base truncate">Admin</span>
-          <Link
-            href="/portal"
-            className="text-xs font-medium text-dourado-base shrink-0"
+          <span className="text-sm font-display font-semibold text-coffee-base truncate">Cockpit</span>
+          <button
+            type="button"
+            onClick={irVerComoColaborador}
+            className="text-xs font-semibold text-dourado-base shrink-0"
           >
-            Portal
-          </Link>
+            Ver portal
+          </button>
         </header>
         <main className="flex-1 p-4 md:p-6 overflow-auto">
           <div className="max-w-6xl mx-auto space-y-4">
