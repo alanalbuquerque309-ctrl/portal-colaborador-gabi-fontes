@@ -32,5 +32,6 @@ export const DEFAULT_MODULOS = {
   avaliacao_equipe: true,
   feedback_lideranca: true,
   escalas: true,
-  gorjeta: true,
+  /** Fechamento de gorjeta fora do portal — ADM/financeiro cuidam fora daqui. */
+  gorjeta: false,
 } as const;

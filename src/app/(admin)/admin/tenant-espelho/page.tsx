@@ -15,7 +15,7 @@ const MODULO_LABEL: Record<string, string> = {
   avaliacao_equipe: 'Avaliação de equipe',
   feedback_lideranca: 'Feedback liderança',
   escalas: 'Escalas',
-  gorjeta: 'Gorjeta',
+  gorjeta: 'Gorjeta (desligada no portal)',
 };
 
 function Badge({

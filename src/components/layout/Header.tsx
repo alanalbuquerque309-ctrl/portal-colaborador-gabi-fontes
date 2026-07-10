@@ -13,7 +13,7 @@ import {
   podeVerGraosCafePortal,
 } from '@/lib/roles';
 import { podeAcessarAdminPortal } from '@/lib/admin-access';
-import { podeVerBonificacaoInterna, podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
+import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
 import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';

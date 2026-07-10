@@ -339,6 +339,7 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 - **Perf Supabase free (jul/2026):** perfil único via `PortalPerfilContext` (Header/ManualEventos sem refetch); Grãos congelado short-circuit na API + sem fetch no nav; aniversário do dia com cache 1h/instância; termômetro com `sessionStorage`; `home-resumo` shell leve + `home-painel` segundo fetch; pendências rede via `obterPendenciasSemanaRedeCacheadas`
 - **Elogios:** prazo 2 semanas + marcar como lido individual; migration 066
 - **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita
+- **Gorjeta:** removida do menu/UI do portal (`DEFAULT_MODULOS.gorjeta = false`); `/admin/gorjeta` redireciona ao dashboard. Fechamento fica com ADM/financeiro fora do produto
 - **Produção:** `main` → Vercel
 
 ## Arquivos-chave

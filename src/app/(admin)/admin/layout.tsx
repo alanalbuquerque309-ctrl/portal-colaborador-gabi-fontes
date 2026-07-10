@@ -31,7 +31,6 @@ export default function AdminLayout({
   type NavItemAdmin = {
     href: string;
     label: string;
-    gorjeta?: boolean;
     auditoria?: boolean;
     sugestoesGestao?: boolean;
     checklistsRede?: boolean;
@@ -78,7 +77,6 @@ export default function AdminLayout({
       titulo: 'Gestão',
       itens: [
         { href: '/admin/checklists', label: 'Checklists (consulta)', checklistsRede: true },
-        { href: '/admin/gorjeta', label: 'Gorjeta', gorjeta: true },
         { href: '/admin/auditoria', label: 'Auditoria', auditoria: true },
         { href: '/admin/tenant-espelho', label: 'Tenant (espelho)', auditoria: true },
         { href: '/portal/ajuda-inbox', label: 'Inbox ajuda' },
@@ -119,7 +117,6 @@ export default function AdminLayout({
         if (rh && Array.isArray(d.menu_rh) && d.menu_rh.length > 0) {
           setMenuNav(d.menu_rh);
         } else {
-          const podeGorjeta = d.podeVerGorjeta === true || d.podeVerBonificacao === true;
           const podeSugestoes = d.podeGerirSugestoes === true;
           const podeAud = d.podeVerAuditoria === true;
           const podeChecklists = d.podeVerChecklistsRede === true;
@@ -127,7 +124,6 @@ export default function AdminLayout({
           setPodeVerChecklistsRede(podeChecklists);
           setMenuNav(
             navCompleto.filter((i) => {
-              if (i.gorjeta && !podeGorjeta) return false;
               if (i.auditoria && !podeAud) return false;
               if (i.sugestoesGestao && !podeSugestoes) return false;
               if (i.checklistsRede && !podeChecklists) return false;
@@ -135,6 +131,7 @@ export default function AdminLayout({
             })
           );
         }
+        /** Mesma permissão sócio/admin — usada só para badge de pendências da rede (não é menu Gorjeta). */
         setPodeVerGorjeta(d.podeVerGorjeta === true || d.podeVerBonificacao === true);
         setPodeGerirSugestoes((prev) => d.podeGerirSugestoes === true || prev);
       })
