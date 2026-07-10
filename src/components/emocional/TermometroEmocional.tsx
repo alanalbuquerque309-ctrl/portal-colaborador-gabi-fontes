@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getPortalSession } from '@/lib/utils/session';
 import { EMOCOES_TERMOMETRO, EMOCIONAL_MOTIVO_MAX, metaEmocao } from '@/lib/emocional-opcoes';
+import { gravarEmocionalCacheCliente, lerEmocionalCacheCliente } from '@/lib/emocional-cache-cliente';
 
 type Passo = 'escolher' | 'falar' | 'escrever';
 
@@ -27,12 +28,22 @@ export function TermometroEmocional({ onRegistroConcluido, modoGate = false }: P
     const session = getPortalSession();
     if (!session?.colaboradorId) return;
 
+    const cached = lerEmocionalCacheCliente(session.colaboradorId);
+    if (cached?.emocao && cached.emocao !== 'registrado') {
+      setEmocaoAtual(cached.emocao);
+      setMotivoAtual(cached.motivo);
+      return;
+    }
+
     fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) {
           setEmocaoAtual(data.emocao ?? null);
           setMotivoAtual(data.motivo ?? null);
+          if (data.emocao) {
+            gravarEmocionalCacheCliente(session.colaboradorId, data.emocao, data.motivo ?? null);
+          }
         }
       });
   }, []);
@@ -45,6 +56,10 @@ export function TermometroEmocional({ onRegistroConcluido, modoGate = false }: P
     setMotivoTexto('');
     setReescolhendo(false);
     setErro(null);
+    const session = getPortalSession();
+    if (session?.colaboradorId) {
+      gravarEmocionalCacheCliente(session.colaboradorId, emocao, motivo);
+    }
     onRegistroConcluido?.();
   };
 

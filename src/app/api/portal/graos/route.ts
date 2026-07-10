@@ -49,6 +49,20 @@ export async function GET(req: Request) {
       );
     }
 
+    /** Programa pausado: resposta leve, sem saldo/missões/catálogo (economiza I/O no free tier). */
+    if (graosCongelado()) {
+      return NextResponse.json(
+        {
+          ok: true,
+          congelado: true,
+          congelado_mensagem: GRAOS_CONGELADO_MENSAGEM,
+          modo_gestao: podeVerGraosGestaoTodos(role, viewerId),
+          apenas_visualizacao: true,
+        },
+        { headers: NO_STORE }
+      );
+    }
+
     const gestao = podeVerGraosGestaoTodos(role, viewerId);
     const colaboradorOperacao = podeParticiparGraosCafe(role, {
       tipo_escala: (viewer as { tipo_escala?: string | null }).tipo_escala,

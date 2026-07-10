@@ -180,33 +180,14 @@ export function AdminDashboardCockpit() {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-dourado-200/70 bg-gradient-to-br from-white via-dourado-50/50 to-cream-100 p-5 md:p-6 shadow-sm">
-        <div
-          className="pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full bg-dourado-base/15 blur-2xl"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -bottom-12 left-1/3 h-28 w-28 rounded-full bg-terracota-200/30 blur-2xl"
-          aria-hidden
-        />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-wide text-dourado-base">Cockpit Gabi Fontes</p>
-            <h1 className="mt-1 font-display text-2xl md:text-[1.75rem] font-semibold text-coffee-base leading-tight">
-              Sua casa para cuidar da rede
-            </h1>
-            <p className="mt-1.5 text-sm text-cafeteria-600 leading-relaxed">
-              Termômetro, equipe, checklists e treinamentos num só lugar — claro, leve e sem o ruído da home do colaborador.
-            </p>
-          </div>
-          <Link
-            href="/admin/colaboradores/novo"
-            className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-4 py-2 text-sm font-semibold text-cream-100 hover:bg-dourado-400 shadow-sm"
-          >
-            + Colaborador
-          </Link>
-        </div>
-      </section>
+      <div className="flex justify-end">
+        <Link
+          href="/admin/colaboradores/novo"
+          className="inline-flex min-h-[44px] items-center rounded-xl bg-dourado-base px-4 py-2.5 text-sm font-semibold text-cream-100 hover:bg-dourado-400 shadow-sm"
+        >
+          Cadastrar Novo Colaborador
+        </Link>
+      </div>
 
       <Link
         href="/admin/termometro-emocoes"

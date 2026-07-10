@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { getPortalSession, clearPortalSession, setPortalSession } from '@/lib/utils/session';
+import { getPortalSession, clearPortalSession } from '@/lib/utils/session';
 import { manualPorSetor } from '@/lib/manual-por-setor';
 import { podeVerRelatoriosAvaliacoesCompletos } from '@/lib/avaliacoes-relatorio-access';
 import {
@@ -18,6 +18,7 @@ import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
+import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 
 const POLL_AJUDA_MS = 60_000;
 const POLL_SUGESTOES_MS = 60_000;
@@ -185,6 +186,7 @@ type HeaderProps = {
 export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }: HeaderProps = {}) {
   const pathname = usePathname();
   const router = useRouter();
+  const perfilCtx = usePortalPerfil();
   const [podeAdmin, setPodeAdmin] = useState(false);
   const [podeGerenteAvaliador, setPodeGerenteAvaliador] = useState(false);
   const [podeAvaliarEquipe, setPodeAvaliarEquipe] = useState(false);
@@ -208,11 +210,11 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [maisAberto, setMaisAberto] = useState(false);
 
   const roleNav = perfilCarregado
-    ? normalizePortalRole(perfilRoleLayout)
-    : normalizePortalRole(perfilRoleLocal ?? 'colaborador');
+    ? normalizePortalRole(perfilRoleLayout ?? perfilCtx.role)
+    : normalizePortalRole(perfilRoleLocal ?? perfilCtx.role ?? 'colaborador');
 
   const colaboradorIdEfetivo =
-    colaboradorIdNav ?? getPortalSession()?.colaboradorId ?? null;
+    perfilCtx.colaboradorId ?? colaboradorIdNav ?? getPortalSession()?.colaboradorId ?? null;
 
   const podeContadorSugestoes = podeGerirSugestoesReclamacoes(roleNav);
 
@@ -285,7 +287,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   }, [perfilCarregado, roleNav, pathname]);
 
   useEffect(() => {
-    if (!perfilCarregado || !podeVerGraosCafePortal(roleNav, colaboradorIdEfetivo)) {
+    if (!perfilCarregado || !podeVerGraosCafePortal(roleNav, colaboradorIdEfetivo) || perfilCtx.graosCongelado) {
       setMostrarGraosNav(false);
       setGraosSaldo(null);
       return;
@@ -302,7 +304,6 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
       }) => {
         if (cancel) return;
         const ok = d.ok === true;
-        // Programa pausado: some do menu (saldo preservado na página se alguém abrir URL direta).
         if (d.congelado === true) {
           setMostrarGraosNav(false);
           setGraosSaldo(null);
@@ -324,7 +325,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     return () => {
       cancel = true;
     };
-  }, [perfilCarregado, roleNav, colaboradorIdEfetivo, pathname]);
+  }, [perfilCarregado, roleNav, colaboradorIdEfetivo, pathname, perfilCtx.graosCongelado]);
 
   useEffect(() => {
     if (!perfilCarregado) {
@@ -346,51 +347,63 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   }, [perfilCarregado, roleNav, pathname]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const aplicarRole = (r: string, cid?: string, unidadeId?: string) => {
+    const aplicarRole = (
+      r: string,
+      cid?: string | null,
+      opts?: { podeAvaliacaoEquipe?: boolean; podeVisitaRh?: boolean }
+    ) => {
       setPerfilRoleLocal(r);
       if (cid) setColaboradorIdNav(cid);
       setPodeAdmin(podeAcessarAdminPortal(r));
       setPodeGerenteAvaliador(r === 'gerente' || r === 'master');
-      setPodeAvaliarEquipe(r === 'gerente' || r === 'master' || r === 'admin');
+      setPodeAvaliarEquipe(
+        r === 'gerente' || r === 'master' || r === 'admin' || opts?.podeAvaliacaoEquipe === true
+      );
       setPodeVerMinhaLideranca(r === 'gerente' || r === 'master' || r === 'admin');
       setPodeVerDesempenho(r === 'colaborador');
       setPodeAvaliarLideranca(r === 'colaborador' || r === 'admin' || r === 'rh');
       setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(r));
-      setPodeResponderAjuda(canResponderAjudaFinal(cid, r));
-      setPodeVisualizarAjuda(canVisualizarAjuda(r, cid));
+      setPodeVisitaRh(opts?.podeVisitaRh === true);
+      setPodeResponderAjuda(canResponderAjudaFinal(cid || undefined, r));
+      setPodeVisualizarAjuda(canVisualizarAjuda(r, cid || undefined));
     };
 
-    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
-      .then((res) => res.json())
-      .then((d: { ok?: boolean; colaborador?: { role?: string; id?: string; unidade_id?: string } }) => {
-        if (cancelled) return;
-        if (d?.ok && d.colaborador) {
-          const r = normalizePortalRole(d.colaborador.role);
-          const cid = d.colaborador.id;
-          const uid = d.colaborador.unidade_id;
-          if (cid && uid) {
-            setPortalSession(String(cid), String(uid), r);
-          }
-          aplicarRole(r, cid, uid);
-          return;
-        }
-        const s = getPortalSession();
-        const r = normalizePortalRole(s?.role);
-        aplicarRole(r, s?.colaboradorId, s?.unidadeId);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        const s = getPortalSession();
-        const r = normalizePortalRole(s?.role);
-        aplicarRole(r, s?.colaboradorId, s?.unidadeId);
+    if (perfilCtx.carregado) {
+      const r = normalizePortalRole(perfilCtx.role);
+      const cid = perfilCtx.colaboradorId;
+      aplicarRole(r, cid, {
+        podeAvaliacaoEquipe: perfilCtx.podeAvaliacaoEquipe,
+        podeVisitaRh: perfilCtx.podeVisitaRh,
       });
+      const escolhido = perfilCtx.onboardingManualEscolhidoFile?.trim();
+      const porSetor = manualPorSetor(perfilCtx.setor, r, perfilCtx.cargo);
+      let file: string | null = null;
+      if (perfilCtx.onboardingCompleto && escolhido) {
+        file = escolhido;
+      } else if (porSetor?.file) {
+        file = porSetor.file;
+      }
+      setMostrarMeuManual(Boolean(file));
+      return;
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    const s = getPortalSession();
+    const r = normalizePortalRole(s?.role ?? perfilRoleLayout);
+    aplicarRole(r, s?.colaboradorId);
+    setMostrarMeuManual(false);
+  }, [
+    perfilCtx.carregado,
+    perfilCtx.role,
+    perfilCtx.colaboradorId,
+    perfilCtx.podeAvaliacaoEquipe,
+    perfilCtx.podeVisitaRh,
+    perfilCtx.onboardingCompleto,
+    perfilCtx.onboardingManualEscolhidoFile,
+    perfilCtx.setor,
+    perfilCtx.cargo,
+    perfilRoleLayout,
+    pathname,
+  ]);
 
   /** Contador no link Inbox ajuda: some sozinho quando a API já não tem pendentes (respondidos saem da lista). */
   useEffect(() => {
@@ -430,70 +443,6 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [podeVisualizarAjuda]);
-
-  useEffect(() => {
-    let cancel = false;
-    fetch('/api/portal/perfil', { credentials: 'include' })
-      .then((r) => r.json())
-      .then(
-        (data: {
-          ok?: boolean;
-          pode_visita_rh?: boolean;
-          pode_avaliacao_equipe?: boolean;
-          colaborador?: {
-            id?: string;
-            role?: string | null;
-            setor?: string | null;
-            cargo?: string | null;
-            onboarding_completo?: boolean;
-            onboarding_manual_escolhido_file?: string | null;
-          };
-        }) => {
-          if (cancel) return;
-          const roleApi = normalizePortalRole(data?.colaborador?.role ?? '');
-          const cidApi = data?.colaborador && typeof data.colaborador === 'object' && 'id' in data.colaborador
-            ? String((data.colaborador as { id?: string }).id ?? '')
-            : '';
-          if (data.ok && roleApi) {
-            setPerfilRoleLocal(roleApi);
-            if (cidApi) setColaboradorIdNav(cidApi);
-            setPodeAdmin(podeAcessarAdminPortal(roleApi));
-            setPodeGerenteAvaliador(roleApi === 'gerente' || roleApi === 'master');
-            setPodeAvaliarEquipe(
-              roleApi === 'gerente' ||
-                roleApi === 'master' ||
-                roleApi === 'admin' ||
-                data.pode_avaliacao_equipe === true
-            );
-            setPodeVerMinhaLideranca(
-              roleApi === 'gerente' || roleApi === 'master' || roleApi === 'admin'
-            );
-            setPodeVerDesempenho(roleApi === 'colaborador');
-            setPodeAvaliarLideranca(roleApi === 'colaborador' || roleApi === 'admin' || roleApi === 'rh');
-            setPodeRelatoriosAvaliacoes(podeVerRelatoriosAvaliacoesCompletos(roleApi));
-            setPodeVisitaRh(data.pode_visita_rh === true);
-            setPodeResponderAjuda(canResponderAjudaFinal(cidApi || undefined, roleApi));
-            setPodeVisualizarAjuda(canVisualizarAjuda(roleApi, cidApi || undefined));
-          }
-          const c = data.colaborador;
-          const escolhido = c?.onboarding_manual_escolhido_file?.trim();
-          const porSetor = manualPorSetor(c?.setor, c?.role, c?.cargo);
-          let file: string | null = null;
-          if (data.ok && c?.onboarding_completo && escolhido) {
-            file = escolhido;
-          } else if (porSetor?.file) {
-            file = porSetor.file;
-          }
-          setMostrarMeuManual(Boolean(data.ok && file));
-        }
-      )
-      .catch(() => {
-        if (!cancel) setMostrarMeuManual(false);
-      });
-    return () => {
-      cancel = true;
-    };
-  }, [pathname]);
 
   useEffect(() => {
     setMaisAberto(false);

@@ -107,4 +107,6 @@ export type PortalHomeResumo = {
   tarefas: PortalHomeTarefa[];
   painel: PortalHomePainel | null;
   painel_lider: PainelLider | null;
+  /** true quando o shell ainda vai buscar painel em /api/portal/home-painel */
+  painel_pendente?: boolean;
 };

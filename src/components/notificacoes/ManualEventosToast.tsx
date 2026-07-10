@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 import { normalizePortalRole } from '@/lib/roles';
 
 type EventoManual = {
@@ -50,23 +51,10 @@ function formatarData(value: string): string {
 }
 
 export function ManualEventosToast() {
-  const [podeNotificar, setPodeNotificar] = useState(false);
+  const { role, carregado } = usePortalPerfil();
+  const podeNotificar =
+    carregado && (normalizePortalRole(role) === 'socio' || normalizePortalRole(role) === 'admin');
   const [eventos, setEventos] = useState<EventoManual[]>([]);
-
-  useEffect(() => {
-    let cancel = false;
-    fetch('/api/portal/perfil', { credentials: 'include', cache: 'no-store' })
-      .then((r) => r.json())
-      .then((data: { ok?: boolean; colaborador?: { role?: string | null } }) => {
-        if (cancel || !data.ok) return;
-        const role = normalizePortalRole(data?.colaborador?.role ?? null);
-        setPodeNotificar(role === 'socio' || role === 'admin');
-      })
-      .catch(() => {});
-    return () => {
-      cancel = true;
-    };
-  }, []);
 
   const carregarEventos = useCallback(async () => {
     if (!podeNotificar) return;

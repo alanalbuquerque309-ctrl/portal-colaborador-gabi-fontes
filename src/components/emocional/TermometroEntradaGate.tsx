@@ -6,6 +6,7 @@ import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 import { normalizePortalRole } from '@/lib/roles';
 import { getPortalSession } from '@/lib/utils/session';
 import { emitPortalHomeAtualizado } from '@/lib/portal-home-events';
+import { gravarEmocionalCacheCliente, lerEmocionalCacheCliente } from '@/lib/emocional-cache-cliente';
 
 /**
  * Colaborador de operação: ao entrar na home, precisa registrar o termômetro do dia
@@ -28,10 +29,16 @@ export function TermometroEntradaGate({ children }: { children: React.ReactNode 
       setEstado('liberado');
       return;
     }
+    const cached = lerEmocionalCacheCliente(session.colaboradorId);
+    if (cached?.emocao) {
+      setEstado('liberado');
+      return;
+    }
     try {
       const res = await fetch('/api/portal/emocional', { credentials: 'include', cache: 'no-store' });
       const data = await res.json();
       if (data?.ok && data.emocao) {
+        gravarEmocionalCacheCliente(session.colaboradorId, data.emocao, data.motivo ?? null);
         setEstado('liberado');
       } else {
         setEstado('bloqueado');
@@ -55,6 +62,10 @@ export function TermometroEntradaGate({ children }: { children: React.ReactNode 
   }, [estado]);
 
   const onRegistro = () => {
+    const session = getPortalSession();
+    if (session?.colaboradorId) {
+      gravarEmocionalCacheCliente(session.colaboradorId, 'registrado', null);
+    }
     setEstado('liberado');
     emitPortalHomeAtualizado();
   };

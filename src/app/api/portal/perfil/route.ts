@@ -19,8 +19,7 @@ import { isPerfilPessoalCompleto, temFotoPerfil } from '@/lib/perfil-completo';
 import { normalizeEmail } from '@/lib/password';
 
 import { normalizeTelefoneLogin, syncTelefoneLoginFromTelefone, telefoneLoginValido } from '@/lib/telefone';
-
-
+import { graosCongelado } from '@/lib/graos/congelado';
 
 function formatDateForInput(iso: string | null | undefined): string {
 
@@ -133,13 +132,10 @@ export async function GET() {
 
 
     const response = NextResponse.json({
-
       ok: true,
-
       pode_visita_rh: podeVisitaRh,
-
       pode_avaliacao_equipe: podeAvaliacaoEquipe,
-
+      graos_congelado: graosCongelado(),
       colaborador: {
 
         id: colaboradorId,

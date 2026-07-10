@@ -26,11 +26,16 @@ type ColaboradorGate = {
   foto_cadastrada?: boolean;
   id?: string;
   unidade_id?: string;
+  setor?: string | null;
+  cargo?: string | null;
+  onboarding_manual_escolhido_file?: string | null;
 };
 
 type PerfilResposta = {
   ok?: boolean;
   pode_visita_rh?: boolean;
+  pode_avaliacao_equipe?: boolean;
+  graos_congelado?: boolean;
   colaborador?: ColaboradorGate;
 };
 
@@ -61,6 +66,19 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   const [gateOk, setGateOk] = useState(sessaoPortalAtivaNoCliente);
   const [perfilRole, setPerfilRole] = useState(roleInicialDoCookie);
   const [podeVisitaRh, setPodeVisitaRh] = useState(false);
+  const [podeAvaliacaoEquipe, setPodeAvaliacaoEquipe] = useState(false);
+  const [graosCongeladoFlag, setGraosCongeladoFlag] = useState(true);
+  const [colaboradorIdCtx, setColaboradorIdCtx] = useState<string | null>(
+    () => getPortalSession()?.colaboradorId ?? null
+  );
+  const [unidadeIdCtx, setUnidadeIdCtx] = useState<string | null>(
+    () => getPortalSession()?.unidadeId ?? null
+  );
+  const [onboardingCompleto, setOnboardingCompleto] = useState(false);
+  const [onboardingManualFile, setOnboardingManualFile] = useState<string | null>(null);
+  const [setorCtx, setSetorCtx] = useState<string | null>(null);
+  const [cargoCtx, setCargoCtx] = useState<string | null>(null);
+  const [perfilValidado, setPerfilValidado] = useState(false);
 
   const perfilCacheRef = useRef<PerfilResposta | null>(null);
   const sessaoValidadaRef = useRef(false);
@@ -68,10 +86,23 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
 
   const aplicarPerfilNaSessao = (d: PerfilResposta) => {
     perfilCacheRef.current = d;
-    const role = normalizePortalRole(d?.colaborador?.role ?? 'colaborador');
+    const col = d.colaborador;
+    const role = normalizePortalRole(col?.role ?? 'colaborador');
     setPerfilRole(role);
     setPodeVisitaRh(d.pode_visita_rh === true);
+    setPodeAvaliacaoEquipe(d.pode_avaliacao_equipe === true);
+    setGraosCongeladoFlag(d.graos_congelado !== false);
+    setColaboradorIdCtx(col?.id ? String(col.id) : null);
+    setUnidadeIdCtx(col?.unidade_id ? String(col.unidade_id) : null);
+    setOnboardingCompleto(col?.onboarding_completo === true);
+    setOnboardingManualFile(col?.onboarding_manual_escolhido_file?.trim() || null);
+    setSetorCtx(col?.setor ?? null);
+    setCargoCtx(col?.cargo ?? null);
+    if (col?.id && col?.unidade_id) {
+      setPortalSession(String(col.id), String(col.unidade_id), role);
+    }
     sessaoValidadaRef.current = true;
+    setPerfilValidado(true);
     setGateOk(true);
   };
 
@@ -199,8 +230,7 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
       .then((fresh: PerfilResposta) => {
         if (cancel || !fresh?.ok) return;
         perfilCacheRef.current = fresh;
-        setPerfilRole(normalizePortalRole(fresh.colaborador?.role ?? 'colaborador'));
-        setPodeVisitaRh(fresh.pode_visita_rh === true);
+        aplicarPerfilNaSessao(fresh);
         checarRedirecionamentos(fresh, pathname);
       })
       .catch(() => {});
@@ -288,7 +318,19 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('popstate', onPopState);
   }, [pathname, router]);
 
-  const perfilCtx = { role: perfilRole, podeVisitaRh, carregado: gateOk };
+  const perfilCtx = {
+    role: perfilRole,
+    colaboradorId: colaboradorIdCtx,
+    unidadeId: unidadeIdCtx,
+    podeVisitaRh,
+    podeAvaliacaoEquipe,
+    graosCongelado: graosCongeladoFlag,
+    onboardingCompleto,
+    onboardingManualEscolhidoFile: onboardingManualFile,
+    setor: setorCtx,
+    cargo: cargoCtx,
+    carregado: perfilValidado,
+  };
 
 
   if (isPendingRegistration()) {

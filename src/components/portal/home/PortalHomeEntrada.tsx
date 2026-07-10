@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { PortalHomeResumo, PortalHomeTarefa } from '@/lib/portal-home-types';
+import type { PainelLider, PortalHomePainel, PortalHomeResumo, PortalHomeTarefa } from '@/lib/portal-home-types';
 import { MinhaSituacaoHome } from '@/components/portal/home/MinhaSituacaoHome';
 import { MeuPainelHome } from '@/components/portal/home/MeuPainelHome';
 import { PainelLiderHome } from '@/components/portal/home/PainelLiderHome';
@@ -77,14 +77,46 @@ export function PortalHomeEntrada() {
   const [dados, setDados] = useState<PortalHomeResumo | null>(null);
   const [erro, setErro] = useState(false);
   const [drawerAberto, setDrawerAberto] = useState(false);
+  const [carregandoPainel, setCarregandoPainel] = useState(false);
   const facaAgoraRef = useRef<HTMLDivElement>(null);
+
+  const carregarPainel = () => {
+    setCarregandoPainel(true);
+    fetch('/api/portal/home-painel', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then(
+        (p: {
+          ok?: boolean;
+          is_lider?: boolean;
+          painel?: PortalHomePainel | null;
+          painel_lider?: PainelLider | null;
+        }) => {
+          if (!p.ok) return;
+          setDados((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  is_lider: p.is_lider === true,
+                  painel: p.painel ?? null,
+                  painel_lider: p.painel_lider ?? null,
+                  painel_pendente: false,
+                }
+              : prev
+          );
+        }
+      )
+      .catch(() => {})
+      .finally(() => setCarregandoPainel(false));
+  };
 
   const carregarResumo = () => {
     fetch('/api/portal/home-resumo', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
       .then((d: PortalHomeResumo & { ok?: boolean }) => {
-        if (d.ok) setDados(d);
-        else setErro(true);
+        if (d.ok) {
+          setDados(d);
+          if (d.painel_pendente) carregarPainel();
+        } else setErro(true);
       })
       .catch(() => setErro(true));
   };
@@ -95,8 +127,10 @@ export function PortalHomeEntrada() {
       .then((r) => r.json())
       .then((d: PortalHomeResumo & { ok?: boolean }) => {
         if (cancel) return;
-        if (d.ok) setDados(d);
-        else setErro(true);
+        if (d.ok) {
+          setDados(d);
+          if (d.painel_pendente) carregarPainel();
+        } else setErro(true);
       })
       .catch(() => {
         if (!cancel) setErro(true);
@@ -146,6 +180,11 @@ export function PortalHomeEntrada() {
 
       {dados.painel ? <MeuPainelHome painel={dados.painel} /> : null}
       {dados.painel_lider ? <PainelLiderHome painel={dados.painel_lider} /> : null}
+      {carregandoPainel && !dados.painel && !dados.painel_lider ? (
+        <div className="flex justify-center py-4">
+          <XicaraCarregando size="sm" label="Carregando seu painel…" />
+        </div>
+      ) : null}
 
       <div ref={facaAgoraRef}>
         <FacaAgoraHome tarefasExternas={dados.tarefas} />

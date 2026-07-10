@@ -386,11 +386,8 @@ export async function montarPendenciasPortalHome(
 
   if (podeVerPendenciasSemanaRede(nr)) {
     try {
-      const { calcularPendenciasSemana } = await import('@/lib/avaliacao-pendentes-semana');
-      const pend = await calcularPendenciasSemana(supabase, {
-        filtro: 'pendentes',
-        rhAvaliadorId: ctx.colaboradorId,
-      });
+      const { obterPendenciasSemanaRedeCacheadas } = await import('@/lib/cache/servidor-operacional');
+      const pend = await obterPendenciasSemanaRedeCacheadas(ctx.colaboradorId);
       const total = pend.itens.length;
       const alertaSexta = pend.meta?.alerta_critico_sexta === true;
       const criticosSemAvaliacao = Number(pend.resumo?.criticos_sem_avaliacao ?? 0);

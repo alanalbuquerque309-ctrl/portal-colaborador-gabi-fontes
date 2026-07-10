@@ -31,6 +31,17 @@ export type EstadoAniversarioHoje = {
   parabenizou_algum: boolean;
 };
 
+type AnivDiaRow = {
+  id: string;
+  nome: string;
+  foto_url: string | null;
+  unidade_nome: string;
+};
+
+/** Cache por data civil: 1 scan da rede por hora/instância, não por abertura de usuário. */
+const ANIV_CACHE_TTL_MS = 60 * 60 * 1000;
+let slotAnivDia: { dataRef: string; expira: number; rows: AnivDiaRow[] } | null = null;
+
 export function primeiroNome(nome: string): string {
   const p = String(nome ?? '')
     .trim()
@@ -47,6 +58,39 @@ function tabelaAniversarioAusente(error: { message?: string; code?: string } | n
     msg.includes('does not exist') ||
     msg.includes('schema cache')
   );
+}
+
+async function listarAniversariantesDoDiaCacheado(supabase: SupabaseAdmin): Promise<AnivDiaRow[]> {
+  const dataRef = dataCivilBr();
+  if (slotAnivDia && slotAnivDia.dataRef === dataRef && Date.now() < slotAnivDia.expira) {
+    return slotAnivDia.rows;
+  }
+
+  const { data: colaboradores, error: errColab } = await supabase
+    .from('colaboradores')
+    .select('id, nome, data_nascimento, foto_url, unidades(nome)')
+    .not('data_nascimento', 'is', null);
+
+  if (errColab) throw new Error(errColab.message);
+
+  const rows: AnivDiaRow[] = (colaboradores ?? [])
+    .filter((c: { data_nascimento: string | null }) => aniversarioNoDia(c.data_nascimento))
+    .map((c: Record<string, unknown>) => {
+      const un = c.unidades;
+      const nomeUnidade = Array.isArray(un)
+        ? (un[0] as { nome?: string })?.nome
+        : (un as { nome?: string })?.nome;
+      return {
+        id: String(c.id),
+        nome: String(c.nome ?? ''),
+        foto_url: (c.foto_url as string | null) ?? null,
+        unidade_nome: nomeUnidade ?? '',
+      };
+    })
+    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+  slotAnivDia = { dataRef, expira: Date.now() + ANIV_CACHE_TTL_MS, rows };
+  return rows;
 }
 
 async function contarParabensPorAlvo(
@@ -112,38 +156,18 @@ export async function carregarEstadoAniversarioHoje(
 
   if (!podeVer) return baseVazio;
 
-  const { data: colaboradores, error: errColab } = await supabase
-    .from('colaboradores')
-    .select('id, nome, data_nascimento, foto_url, unidades(nome)')
-    .not('data_nascimento', 'is', null);
-
-  if (errColab) throw new Error(errColab.message);
-
-  const todos = colaboradores ?? [];
-  const doDia = todos.filter((c: { data_nascimento: string | null }) =>
-    aniversarioNoDia(c.data_nascimento)
-  );
-
-  const idsDia = doDia.map((c: { id: string }) => c.id);
+  const doDia = await listarAniversariantesDoDiaCacheado(supabase);
+  const idsDia = doDia.map((c) => c.id);
   const contagem = await contarParabensPorAlvo(supabase, idsDia, dataRef);
 
-  const aniversariantes: AniversarianteHoje[] = doDia
-    .map((c: Record<string, unknown>) => {
-      const un = c.unidades;
-      const nomeUnidade = Array.isArray(un)
-        ? (un[0] as { nome?: string })?.nome
-        : (un as { nome?: string })?.nome;
-      const nome = String(c.nome ?? '');
-      return {
-        id: String(c.id),
-        nome,
-        primeiro_nome: primeiroNome(nome),
-        foto_url: (c.foto_url as string | null) ?? null,
-        unidade_nome: nomeUnidade ?? '',
-        parabens_count: contagem.get(String(c.id)) ?? 0,
-      };
-    })
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  const aniversariantes: AniversarianteHoje[] = doDia.map((c) => ({
+    id: c.id,
+    nome: c.nome,
+    primeiro_nome: primeiroNome(c.nome),
+    foto_url: c.foto_url,
+    unidade_nome: c.unidade_nome,
+    parabens_count: contagem.get(c.id) ?? 0,
+  }));
 
   const souAniversariante = aniversariantes.some((a) => a.id === colaboradorId);
   const meusParabens = contagem.get(colaboradorId) ?? 0;
