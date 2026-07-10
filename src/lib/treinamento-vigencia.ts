@@ -11,22 +11,31 @@ export type TreinamentoDbRow = {
   ativo?: boolean;
 };
 
+/** Treino cadastrado (texto ou vídeo) do ciclo vigente (quinta a quarta) para um público. */
+export function treinoCadastradoVigentePorPublico(
+  rows: TreinamentoDbRow[],
+  publico: PublicoAvisoKey,
+  formato?: 'texto' | 'video'
+): TreinamentoDbRow | null {
+  const cicloUtc = inicioCicloTreinoQuintaUtcIsoSp();
+  const candidatos = rows
+    .filter((r) => {
+      if (r.ativo === false) return false;
+      if (r.publico_alvo !== publico) return false;
+      if (String(r.created_at) < cicloUtc) return false;
+      if (!formato) return true;
+      return normalizarTipoConteudo(r.tipo_conteudo) === formato;
+    })
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  return candidatos[0] ?? null;
+}
+
 /** Treino de texto do ciclo vigente (quinta a quarta) para um público. */
 export function treinoTextoVigentePorPublico(
   rows: TreinamentoDbRow[],
   publico: PublicoAvisoKey
 ): TreinamentoDbRow | null {
-  const cicloUtc = inicioCicloTreinoQuintaUtcIsoSp();
-  const candidatos = rows
-    .filter(
-      (r) =>
-        r.ativo !== false &&
-        r.publico_alvo === publico &&
-        normalizarTipoConteudo(r.tipo_conteudo) === 'texto' &&
-        String(r.created_at) >= cicloUtc
-    )
-    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  return candidatos[0] ?? null;
+  return treinoCadastradoVigentePorPublico(rows, publico, 'texto');
 }
 
 /** Texto de ciclo anterior ou substituído por outro mais novo do mesmo público. */
@@ -50,7 +59,7 @@ export function treinamentoTextoArquivado(
   return String(row.created_at) < cicloUtc;
 }
 
-/** Há treino de texto de liderança no ciclo vigente — vídeo quinta-lider não deve competir como pendência. */
+/** Há treino de texto de liderança no ciclo vigente. */
 export function haTreinoTextoLiderancaVigente(rows: TreinamentoDbRow[]): boolean {
   return treinoTextoVigentePorPublico(rows, 'lideranca') !== null;
 }
@@ -58,6 +67,25 @@ export function haTreinoTextoLiderancaVigente(rows: TreinamentoDbRow[]): boolean
 /** Há treino de texto para todos no ciclo vigente. */
 export function haTreinoTextoTodosVigente(rows: TreinamentoDbRow[]): boolean {
   return treinoTextoVigentePorPublico(rows, 'todos') !== null;
+}
+
+/**
+ * Há treino cadastrado vigente (texto ou vídeo) para o público.
+ * Quando true, o vídeo automático da Quinta (env YouTube) não deve competir na semana.
+ */
+export function haTreinoCadastradoVigente(
+  rows: TreinamentoDbRow[],
+  publico: PublicoAvisoKey
+): boolean {
+  return treinoCadastradoVigentePorPublico(rows, publico) !== null;
+}
+
+export function haTreinoCadastradoTodosVigente(rows: TreinamentoDbRow[]): boolean {
+  return haTreinoCadastradoVigente(rows, 'todos');
+}
+
+export function haTreinoCadastradoLiderancaVigente(rows: TreinamentoDbRow[]): boolean {
+  return haTreinoCadastradoVigente(rows, 'lideranca');
 }
 
 /** Rótulo legível da semana de publicação (ciclo quinta da data). */

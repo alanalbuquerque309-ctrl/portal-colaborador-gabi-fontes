@@ -16,7 +16,8 @@ import { deveVerTreinoLiderancaPortal, normalizePortalRole } from '@/lib/roles';
 import { treinoLiderVideoIdAtual } from '@/lib/treino-lider-acompanhamento';
 import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 import {
-  haTreinoTextoLiderancaVigente,
+  haTreinoCadastradoLiderancaVigente,
+  haTreinoCadastradoTodosVigente,
   rotuloSemanaTreino,
   treinamentoTextoArquivado,
   type TreinamentoDbRow,
@@ -410,10 +411,12 @@ export async function montarAcompanhamentoTreinamentos(
   }
 
   if (escopo !== 'anteriores') {
-    const quintaColab = await montarAudienciaTreinoColaboradorQuinta(supabase);
-    if (quintaColab) itens.push(quintaColab);
+    if (!haTreinoCadastradoTodosVigente(rowsDb)) {
+      const quintaColab = await montarAudienciaTreinoColaboradorQuinta(supabase);
+      if (quintaColab) itens.push(quintaColab);
+    }
 
-    if (!haTreinoTextoLiderancaVigente(rowsDb)) {
+    if (!haTreinoCadastradoLiderancaVigente(rowsDb)) {
       const quintaLider = await montarAudienciaTreinoLider(supabase);
       if (quintaLider) itens.push(quintaLider);
     }

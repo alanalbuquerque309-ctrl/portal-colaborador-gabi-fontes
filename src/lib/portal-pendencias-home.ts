@@ -21,9 +21,13 @@ import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
 import { listarComunicadosPendenteConfirmacao } from '@/lib/avisos-pendencias';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 import { resolverQuintaTreino } from '@/lib/graos/quinta-treino';
-import { treinoTextoVigentePorPublico } from '@/lib/treinamento-vigencia';
+import {
+  treinoCadastradoVigentePorPublico,
+  treinoTextoVigentePorPublico,
+} from '@/lib/treinamento-vigencia';
 import { colaboradorRecebeAvisoPublico } from '@/lib/avisos-publico';
 import { socioIsentoObrigacoesOperacionaisPortal } from '@/lib/socios-negocio';
+import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 
 function formatarNomes(nomes: string[], max = 3): string {
   if (nomes.length === 0) return '';
@@ -223,24 +227,27 @@ export async function montarPendenciasPortalHome(
       .select('id, titulo, publico_alvo, tipo_conteudo, created_at, ativo')
       .eq('ativo', true);
 
-    const textoLider = treinoTextoVigentePorPublico(treinosDb ?? [], 'lideranca');
+    const treinoLiderCad = treinoCadastradoVigentePorPublico(treinosDb ?? [], 'lideranca');
 
-    if (textoLider) {
-      const { data: confTexto } = await supabase
+    if (treinoLiderCad) {
+      const { data: confCad } = await supabase
         .from('treinamento_confirmacoes')
         .select('id')
-        .eq('treinamento_id', textoLider.id)
+        .eq('treinamento_id', treinoLiderCad.id)
         .eq('colaborador_id', ctx.colaboradorId)
         .maybeSingle();
 
-      if (!confTexto) {
+      if (!confCad) {
+        const ehTexto = normalizarTipoConteudo(treinoLiderCad.tipo_conteudo) === 'texto';
         lista.push({
-          id: 'treino-lideranca-texto',
-          titulo: 'Ler treinamento de liderança',
-          detalhe: `Falta ler e confirmar: "${textoLider.titulo}".`,
+          id: 'treino-lideranca-cadastrado',
+          titulo: ehTexto ? 'Ler treinamento de liderança' : 'Assistir treinamento de liderança',
+          detalhe: ehTexto
+            ? `Falta ler e confirmar: "${treinoLiderCad.titulo}".`
+            : `Falta assistir e confirmar: "${treinoLiderCad.titulo}".`,
           href: '/portal/treinamento',
           urgente: false,
-          acaoLabel: 'Ler agora →',
+          acaoLabel: ehTexto ? 'Ler agora →' : 'Assistir agora →',
         });
       }
     } else {

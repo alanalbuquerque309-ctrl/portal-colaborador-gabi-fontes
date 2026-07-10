@@ -14,13 +14,13 @@ import {
   deveVerTreinoLiderancaPortal,
   normalizePortalRole,
   podeParticiparGraosCafe,
-  podeVerTodosTreinosQuinta,
 } from '@/lib/roles';
 import { podeUsarAvaliacaoEquipeSemanal } from '@/lib/portal-gerente-session';
 import { liderConcluiuTreinoAtual } from '@/lib/treino-lider-acompanhamento';
 import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 import {
-  haTreinoTextoLiderancaVigente,
+  haTreinoCadastradoLiderancaVigente,
+  haTreinoCadastradoTodosVigente,
   treinamentoTextoArquivado,
   type TreinamentoDbRow,
 } from '@/lib/treinamento-vigencia';
@@ -167,29 +167,31 @@ export async function GET(req: Request) {
       podeAvaliacaoEquipe = false;
     }
     const verTreinoLider = deveVerTreinoLiderancaPortal(role, podeAvaliacaoEquipe);
-    const verTodosTreinos = podeVerTodosTreinosQuinta(role);
     const participaGraos = podeParticiparGraosCafe(role);
 
-    const quintaColaborador = resolverQuintaTreino(origin, 'colaborador');
-    if (quintaColaborador.embed_url) {
-      extras.push({
-        id: 'quinta-colaborador',
-        tipo: 'cadastro' as const,
-        tipo_conteudo: 'video' as const,
-        titulo: quintaColaborador.titulo,
-        descricao: quintaColaborador.resumo,
-        conteudo_texto: null,
-        exige_confirmacao: false,
-        visualizado: true,
-        confirmado: false,
-        arquivado: false,
-        embed_url: quintaColaborador.embed_url,
-        created_at: null,
-        publico_alvo: 'todos' as const,
-      });
+    // Vídeo YouTube automático some quando há treino cadastrado vigente (texto ou vídeo).
+    if (!haTreinoCadastradoTodosVigente(rowsDb)) {
+      const quintaColaborador = resolverQuintaTreino(origin, 'colaborador');
+      if (quintaColaborador.embed_url) {
+        extras.push({
+          id: 'quinta-colaborador',
+          tipo: 'cadastro' as const,
+          tipo_conteudo: 'video' as const,
+          titulo: quintaColaborador.titulo,
+          descricao: quintaColaborador.resumo,
+          conteudo_texto: null,
+          exige_confirmacao: false,
+          visualizado: true,
+          confirmado: false,
+          arquivado: false,
+          embed_url: quintaColaborador.embed_url,
+          created_at: null,
+          publico_alvo: 'todos' as const,
+        });
+      }
     }
 
-    if (verTreinoLider && !haTreinoTextoLiderancaVigente(rowsDb)) {
+    if (verTreinoLider && !haTreinoCadastradoLiderancaVigente(rowsDb)) {
       const quintaLider = resolverQuintaTreino(origin, 'lider');
       const concluiuTreinoLider = await liderConcluiuTreinoSeguro(supabase, colaboradorId);
       if (quintaLider.embed_url) {
