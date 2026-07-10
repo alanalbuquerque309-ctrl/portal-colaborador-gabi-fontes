@@ -6,7 +6,14 @@ import { EMOCOES_TERMOMETRO, EMOCIONAL_MOTIVO_MAX, metaEmocao } from '@/lib/emoc
 
 type Passo = 'escolher' | 'falar' | 'escrever';
 
-export function TermometroEmocional() {
+type Props = {
+  /** Chamado após salvar o registro do dia (gate de entrada). */
+  onRegistroConcluido?: () => void;
+  /** Texto e tom para o modal obrigatório na entrada. */
+  modoGate?: boolean;
+};
+
+export function TermometroEmocional({ onRegistroConcluido, modoGate = false }: Props = {}) {
   const [emocaoAtual, setEmocaoAtual] = useState<string | null>(null);
   const [motivoAtual, setMotivoAtual] = useState<string | null>(null);
   const [passo, setPasso] = useState<Passo>('escolher');
@@ -38,6 +45,7 @@ export function TermometroEmocional() {
     setMotivoTexto('');
     setReescolhendo(false);
     setErro(null);
+    onRegistroConcluido?.();
   };
 
   const enviarRegistro = async (emocao: string, motivo?: string | null) => {
@@ -96,9 +104,13 @@ export function TermometroEmocional() {
     <div className="rounded-xl border border-dourado-200 bg-cream-50 p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="font-display font-semibold text-coffee-base text-sm">Como você está hoje?</h3>
+          {!modoGate ? (
+            <h3 className="font-display font-semibold text-coffee-base text-sm">Como você está hoje?</h3>
+          ) : null}
           <p className="text-coffee-100 text-xs mt-0.5 leading-relaxed">
-            Só administração, RH e sócios veem sua resposta com seu nome. Colegas e líderes não têm acesso.
+            {modoGate
+              ? 'Sua resposta ajuda a liderança e o RH a cuidarem da equipe. Colegas da operação não veem.'
+              : 'Liderança, RH, administração e sócios podem ver sua resposta com seu nome. Colegas da operação não têm acesso.'}
           </p>
         </div>
         {emocaoAtual && !emFluxo && (
@@ -222,7 +234,7 @@ export function TermometroEmocional() {
               className="mt-1.5 w-full rounded-xl border border-cream-300 bg-white px-3 py-2 text-sm text-coffee-base placeholder:text-coffee-100/70 resize-y min-h-[72px]"
             />
             <span className="text-xs text-coffee-100 mt-1 block">
-              {motivoTexto.length}/{EMOCIONAL_MOTIVO_MAX} · só administração, RH e sócios leem
+              {motivoTexto.length}/{EMOCIONAL_MOTIVO_MAX} · liderança, RH e gestão leem
             </span>
           </label>
           {erro && <p className="text-sm text-red-700">{erro}</p>}

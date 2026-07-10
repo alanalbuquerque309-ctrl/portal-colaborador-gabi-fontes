@@ -1,17 +1,34 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { montarAtalhosPerfil } from '@/lib/portal-atalhos-perfil';
 import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 
 export function PortalAtalhosPerfil() {
   const { role, podeVisitaRh, carregado } = usePortalPerfil();
   const [aberto, setAberto] = useState(false);
+  const [graosVisivel, setGraosVisivel] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; congelado?: boolean }) => {
+        if (cancel) return;
+        setGraosVisivel(d.ok === true && d.congelado !== true);
+      })
+      .catch(() => {
+        if (!cancel) setGraosVisivel(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [role]);
 
   const atalhos = useMemo(
-    () => (carregado ? montarAtalhosPerfil(role, podeVisitaRh) : []),
-    [carregado, role, podeVisitaRh]
+    () => (carregado ? montarAtalhosPerfil(role, podeVisitaRh, { graosVisivel }) : []),
+    [carregado, role, podeVisitaRh, graosVisivel]
   );
 
   if (!carregado || atalhos.length === 0) return null;

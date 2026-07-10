@@ -17,7 +17,7 @@ type Alerta = {
 };
 
 /**
- * Faixa no topo do portal e do admin para RH / sócios / admin / Daniel.
+ * Faixa no topo do portal e do admin para RH / sócios / admin / gerentes / Daniel.
  * Cada colaborador em alerta tem seu próprio OK (some só aquele, para quem clicou).
  */
 export function EmocionalAlertasGestao() {

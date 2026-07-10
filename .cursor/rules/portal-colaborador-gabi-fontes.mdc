@@ -334,8 +334,9 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 
 - **Checklists Mesquita:** `/portal/checklists` — gerente/RH/admin/sócio: rascunho + **Publicar**; painel último publicado; OK/pendente com justificativa; vistoria 5 setores; migrations **067–070** (070 obrigatória para publicar)
 - **Treinamento:** 1º par publicado — equipe «Pequenos detalhes» / liderança «Clima da equipe»; badges Equipe/Liderança; vídeo YouTube automático some quando há treino cadastrado vigente (`haTreinoCadastrado*Vigente`)
+- **Home (jul/2026):** termômetro **obrigatório** na entrada do colaborador (`TermometroEntradaGate`); alertas emocionais para RH/sócio/admin **e gerentes** (gerente = própria unidade); Grãos ocultos no menu/painel enquanto `PORTAL_GRAOS_CONGELADO` (default); elogios da rede continuam disponíveis
 - **Elogios:** prazo 2 semanas + marcar como lido individual; migration 066
-- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita
+- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita; afinar home líder vs colaborador (próxima rodada)
 - **Produção:** `main` → Vercel
 
 ## Arquivos-chave

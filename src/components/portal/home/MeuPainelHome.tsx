@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { PortalHomePainel, PortalHomeRankingEscopo } from '@/lib/portal-home-types';
 import { PainelStatCard } from '@/components/portal/home/PainelStatCard';
@@ -138,6 +138,23 @@ export function MeuPainelHome({ painel }: Props) {
   const graosCurto = getTermoCurto('reconhecimento');
   const [abaRanking, setAbaRanking] = useState<'unidade' | 'geral'>('unidade');
   const [gavetaAberta, setGavetaAberta] = useState<string | null>(null);
+  const [graosVisivel, setGraosVisivel] = useState(false);
+
+  useEffect(() => {
+    let cancel = false;
+    fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; congelado?: boolean }) => {
+        if (cancel) return;
+        setGraosVisivel(d.ok === true && d.congelado !== true);
+      })
+      .catch(() => {
+        if (!cancel) setGraosVisivel(false);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, []);
 
   const rankingAtivo = abaRanking === 'unidade' ? painel.ranking_unidade : painel.ranking_geral;
 
@@ -204,20 +221,22 @@ export function MeuPainelHome({ painel }: Props) {
             />
           </div>
 
-          <PainelStatCard
-            emoji="⭐"
-            label={graosCurto}
-            valor={String(painel.graos.saldo_confirmado)}
-            sub={
-              painel.graos.saldo_pendente > 0
-                ? `+${painel.graos.saldo_pendente} pendentes`
-                : `${painel.graos.nivel_emoji} ${painel.graos.nivel_label}`
-            }
-            tom="verde"
-            aberto={gavetaAberta === 'graos'}
-            onToggle={() => toggle('graos')}
-            gaveta={<GavetaGraos painel={painel} />}
-          />
+          {graosVisivel ? (
+            <PainelStatCard
+              emoji="⭐"
+              label={graosCurto}
+              valor={String(painel.graos.saldo_confirmado)}
+              sub={
+                painel.graos.saldo_pendente > 0
+                  ? `+${painel.graos.saldo_pendente} pendentes`
+                  : `${painel.graos.nivel_emoji} ${painel.graos.nivel_label}`
+              }
+              tom="verde"
+              aberto={gavetaAberta === 'graos'}
+              onToggle={() => toggle('graos')}
+              gaveta={<GavetaGraos painel={painel} />}
+            />
+          ) : null}
 
           <PainelStatCard
             emoji="🏅"

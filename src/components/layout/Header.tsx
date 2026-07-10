@@ -293,9 +293,21 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
     let cancel = false;
     fetch('/api/portal/graos', { credentials: 'include', cache: 'no-store' })
       .then((r) => r.json())
-      .then((d: { ok?: boolean; saldo_confirmado?: number; modo_gestao?: boolean; apenas_visualizacao?: boolean }) => {
+      .then((d: {
+        ok?: boolean;
+        saldo_confirmado?: number;
+        modo_gestao?: boolean;
+        apenas_visualizacao?: boolean;
+        congelado?: boolean;
+      }) => {
         if (cancel) return;
         const ok = d.ok === true;
+        // Programa pausado: some do menu (saldo preservado na página se alguém abrir URL direta).
+        if (d.congelado === true) {
+          setMostrarGraosNav(false);
+          setGraosSaldo(null);
+          return;
+        }
         setMostrarGraosNav(ok);
         if (d.modo_gestao || d.apenas_visualizacao) {
           setGraosSaldo(null);

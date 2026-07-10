@@ -3,9 +3,14 @@ import { getTermo } from '@/lib/tenant/terminology';
 
 export type AtalhoPerfil = { href: string; titulo: string; descricao: string };
 
-export function montarAtalhosPerfil(role: string | null | undefined, podeVisitaRh: boolean): AtalhoPerfil[] {
+export function montarAtalhosPerfil(
+  role: string | null | undefined,
+  podeVisitaRh: boolean,
+  opts?: { graosVisivel?: boolean }
+): AtalhoPerfil[] {
   const nr = normalizePortalRole(role);
   const lista: AtalhoPerfil[] = [];
+  const graosVisivel = opts?.graosVisivel !== false;
 
   lista.push({
     href: '/portal/treinamento',
@@ -13,7 +18,7 @@ export function montarAtalhosPerfil(role: string | null | undefined, podeVisitaR
     descricao: `Vídeos da ${getTermo('quinta_treino')}, liderança e boas-vindas.`,
   });
 
-  if (nr === 'colaborador' || nr === 'socio' || nr === 'admin') {
+  if (graosVisivel && (nr === 'colaborador' || nr === 'socio' || nr === 'admin')) {
     lista.push({
       href: '/portal/graos',
       titulo: getTermo('reconhecimento'),

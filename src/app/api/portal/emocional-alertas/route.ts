@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { authGestorEmocional } from '@/lib/emocional-gestao-auth';
+import { alertasEmocionalEscopoRede } from '@/lib/emocional-alertas-access';
 import { EMOCOES_ALERTA_GESTAO, metaEmocao } from '@/lib/emocional-opcoes';
 import { dataCivilBr } from '@/lib/data-civil-br';
 
@@ -8,12 +9,23 @@ import { dataCivilBr } from '@/lib/data-civil-br';
 export async function GET() {
   const auth = await authGestorEmocional();
   if (!auth.ok) return auth.response;
-  const { colaboradorId } = auth;
+  const { colaboradorId, role } = auth;
 
   const hoje = dataCivilBr();
+  const escopoRede = alertasEmocionalEscopoRede(role, colaboradorId);
 
   try {
     const supabase = createAdminClient();
+
+    let unidadeFiltro: string | null = null;
+    if (!escopoRede) {
+      const { data: eu } = await supabase
+        .from('colaboradores')
+        .select('unidade_id')
+        .eq('id', colaboradorId)
+        .maybeSingle();
+      unidadeFiltro = eu?.unidade_id ? String(eu.unidade_id) : null;
+    }
 
     const { data: vistos, error: errVistos } = await supabase
       .from('emocional_alertas_vistos')
@@ -26,8 +38,8 @@ export async function GET() {
     const idsVistos = new Set((vistos ?? []).map((v) => String(v.colaborador_id)));
 
     const selects = [
-      'emocao, motivo, data, created_at, colaborador_id, colaboradores(nome, setor, unidades(nome))',
-      'emocao, data, created_at, colaborador_id, colaboradores(nome, setor, unidades(nome))',
+      'emocao, motivo, data, created_at, colaborador_id, colaboradores(nome, setor, unidade_id, unidades(nome))',
+      'emocao, data, created_at, colaborador_id, colaboradores(nome, setor, unidade_id, unidades(nome))',
     ] as const;
 
     let data: Record<string, unknown>[] | null = null;
@@ -52,10 +64,21 @@ export async function GET() {
     if (error) return NextResponse.json({ ok: false, erro: error.message }, { status: 500 });
 
     const alertas = (data ?? [])
-      .filter((row) => !idsVistos.has(String((row as { colaborador_id?: string }).colaborador_id ?? '')))
+      .filter((row) => {
+        const cid = String((row as { colaborador_id?: string }).colaborador_id ?? '');
+        if (!cid || idsVistos.has(cid)) return false;
+        if (!unidadeFiltro) return true;
+        const col = row.colaboradores as { unidade_id?: string } | null;
+        return String(col?.unidade_id ?? '') === unidadeFiltro;
+      })
       .map((row: Record<string, unknown>) => {
         const col = row.colaboradores as
-          | { nome?: string; setor?: string | null; unidades?: { nome?: string } | { nome?: string }[] }
+          | {
+              nome?: string;
+              setor?: string | null;
+              unidade_id?: string;
+              unidades?: { nome?: string } | { nome?: string }[];
+            }
           | null;
         const un = col?.unidades;
         const unidadeNome = Array.isArray(un) ? un[0]?.nome : un?.nome;
@@ -80,6 +103,7 @@ export async function GET() {
       data_referencia: hoje,
       total: alertas.length,
       alertas,
+      escopo: escopoRede ? 'rede' : 'unidade',
     });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
