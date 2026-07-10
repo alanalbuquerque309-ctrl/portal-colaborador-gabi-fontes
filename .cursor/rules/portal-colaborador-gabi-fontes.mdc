@@ -25,9 +25,9 @@ git push origin main
 
 Reinício `isa_start` / `isa_stop` **não** aplica ao portal.
 
-## Performance e carga Supabase (jun/2026)
+## Performance e carga Supabase
 
-Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
+Objetivo: menos I/O no Supabase **free tier** sem alongar xícaras de loading. Em segunda-feira o pico de aberturas esgota I/O diário; **atrasar seções 350 ms não resolve** (só espalha loaders). Preferir: coalescer fetches, cache em memória, short-circuit de features congeladas, shell leve + painel depois.
 
 ### Dashboard admin — pacote único
 
@@ -35,28 +35,81 @@ Objetivo: menos I/O no Supabase free tier **sem mudar layout/CSS** das telas.
 - **Lib:** `src/lib/admin-dashboard-resumo.ts`
 - **Cliente:** `AdminDashboardCockpit.tsx` faz **1 fetch** (antes ~10 paralelos)
 - Agrega: colaboradores, avisos, termômetro (contagem), redefinições, alerta Café Conecta, sugestões, saúde rede, ILI, pendências semana
+- Timeouts 15–20s nos agregados pesados; página abre com cards parciais se Supabase estiver lento
 
 ### Cache servidor
 
 - **Lib:** `src/lib/cache/servidor-operacional.ts`
-- TTL em **memória por instância** (90s rede/ILI, 60s pendências padrão)
+- TTL em **memória por instância** (~120s rede/ILI/pendências)
 - **Não usar `unstable_cache`** em rotas `force-dynamic` com cookies/sessão: na Vercel travou o dashboard (deploy `1d76fd4`); hotfix `b36ca34`
-- Reutilizado em: `evolucao?resumo=1` (sem filtros), `evolucao/lideranca?rapido=1`, `avaliacoes-pendentes` (filtro `pendentes`, sem busca/data/unidade)
+- Wired em: `evolucao?resumo=1`, `evolucao/lideranca?rapido=1`, **`/api/portal/avaliacoes-pendentes`** (filtro `pendentes` sem busca/data/unidade), **`montarPendenciasPortalHome`** (sócio/admin → `obterPendenciasSemanaRedeCacheadas`)
 
-### Home portal — carregamento adiado
+### Home portal — shell leve + painel depois (jul/2026, `0342526`)
 
-- `PortalHomeSecaoAdiada`: avisos, café conecta, destaques, atalhos, termômetro (delay + IntersectionObserver)
+- **`GET /api/portal/home-resumo`**: só situação + «Faça agora» (`tarefas`); `painel` / `painel_lider` = `null`; flag `painel_pendente`
+- **`GET /api/portal/home-painel`**: rankings / ILI / Grãos no card — segundo fetch em `PortalHomeEntrada` **depois** do shell
+- `PortalHomeSecaoAdiada`: avisos, café, destaques, atalhos, termômetro (delay + IntersectionObserver) — complementar, não substitui o corte de I/O
 - `PortalDetalhesLazyMount`: `SugestoesEquipeHome` só monta com `<details>` aberto
-- Bloco principal continua em `PortalHomeEntrada` → `/api/portal/home-resumo`
 
-### Grãos na home — não bloqueante
+### Perfil uma vez por abertura (`0342526`)
 
-- Em `home-resumo/route.ts`: `sincronizarMissoesSemanaGraos` em **background** (`void` + `.catch`), após checagem `colaboradorAcessouPortalSemanaGraos`
-- Resposta JSON da home **não** espera o sync terminar
+- `PortalLayout` carrega `/api/portal/perfil` e preenche **`PortalPerfilContext`** (role, ids, flags avaliação, `graos_congelado`, manual, setor/cargo)
+- **Header** e **ManualEventosToast** consomem o context — **não** refetch de perfil
+- Refresh de perfil só ao sair de `/portal/perfil`
 
-### Timeouts no dashboard
+### Grãos congelado = zero I/O na nav (`0342526`)
 
-- Agregados pesados no `montarAdminDashboardResumo` têm timeout 15–20s; página abre com cards parciais se Supabase estiver lento
+- Default: `PORTAL_GRAOS_CONGELADO !== 'false'` → `graosCongelado() === true`
+- **`GET /api/portal/graos`**: se congelado, responde cedo `{ ok: true, congelado: true }` **sem** saldo/missões/catálogo
+- Perfil expõe `graos_congelado`; Header e `PortalAtalhosPerfil` **não** buscam Grãos quando congelado
+- Sync de missões na home só corre se **não** congelado
+
+### Aniversário do dia — cache 1h/instância (`0342526`)
+
+- `aniversario-hoje.ts`: lista do dia em memória por `data_ref` (TTL 1h) — evita scan full de `colaboradores` em **cada** abertura
+- UX do balão/confetes **intacta** (`AniversarioBalaoPortal` / `ConfettiLeve`)
+
+### Termômetro — 1 leitura no cliente (`0342526`)
+
+- Gate grava em `sessionStorage` via `emocional-cache-cliente.ts`
+- `TermometroEmocional` reusa cache do dia (sem 2º GET se já veio do gate)
+- `home-resumo` / pendências no servidor continuam fonte de verdade
+
+### Histórico perf anterior
+
+- `1d76fd4` / `b36ca34`: dashboard-resumo + cache memória
+- `683391c`: reduzir bandwidth Supabase
+- Lazy home / Grãos background: ainda válidos como complemento
+
+## Cockpit sócio / admin (jul/2026)
+
+### Destino pós-login
+
+- **`destinoHomeAposLogin(role)`** em `portal-login-response.ts`: `socio` | `admin` → **`/admin/dashboard`**; demais → `/portal`
+- Wired em: `buildPortalLoginJson`, login page (sessão já aberta), `alan-entrar`, `entrar-socio-admin`
+- **RH** e **líderes/gerentes** continuam aterrando em `/portal` (home operacional)
+
+### UI do cockpit (`aa8c0c2`, hero limpo `0342526`)
+
+- Faixa **termômetro do dia** + **AdminHubAtalhos** (termômetro, equipe, checklists, treinamentos, elogios, avisos)
+- Botão único de cadastro: **Cadastrar Novo Colaborador** (sem frase de hero)
+- Visual aquecido: gradiente cream/dourado no layout, sidebar coffee com detalhe dourado, topbar acolhedora
+- **Ver como colaborador** (topbar, sidebar, mobile): `POST /api/admin/restaurar-portal` → `/portal`
+
+### Obrigações operacionais (não mudam com o cockpit)
+
+- **Admin (Daniel):** continua avaliador semanal como gerente (`isRoleGerenteAvaliador` / `podeUsarAvaliacaoEquipeSemanal`); escopo = regras diretas + liderança/setor. Avalia em `/portal/avaliacao-master` (via «Ver como colaborador» ou URL)
+- **RH:** Visita RH na rede (`/portal/avaliacao-rh-visita`), **não** avaliação semanal de gerente; aterra em `/portal`
+- **Sócio:** isento de obrigações operacionais pessoais (`socioIsentoObrigacoesOperacionaisPortal`); cockpit é hub de gestão
+- Termômetro obrigatório na entrada: só **`colaborador`** (`TermometroEntradaGate`)
+
+## Gorjeta — fora do produto (jul/2026, `866ce38`)
+
+- Removida do menu admin; `DEFAULT_MODULOS.gorjeta = false`
+- `/admin/gorjeta` **redireciona** para `/admin/dashboard`
+- Fechamento de índice/gorjeta fica com **ADM/financeiro fora do portal**
+- Código interno (`bonificacao-*`, API índice) pode existir; **não** reexpor na UI sem pedido explícito
+- `podeVerBonificacaoInterna` / `podeVerPendenciasSemanaRede` continuam a controlar **pendências da rede** (não é menu Gorjeta)
 
 ## Treinamentos cadastrados (texto/markdown)
 
@@ -283,6 +336,12 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 
 | Commit | Conteúdo |
 |--------|----------|
+| `866ce38` | Gorjeta fora do portal (menu off, redirect dashboard, `DEFAULT_MODULOS.gorjeta = false`) |
+| `0342526` | Cockpit limpo + alívio Supabase free (perfil único, Grãos short-circuit, aniv cache, termômetro sessionStorage, home-resumo/home-painel, pendências cache) |
+| `aa8c0c2` | Sócio/admin → cockpit aquecido; atalhos; Ver como colaborador |
+| `9bb921b` | Alertas termômetro: líder por setor e OK do líder visível na rede |
+| `8bd6ba6` | Home: termômetro obrigatório, alertas para líderes e Grãos ocultos |
+| `233eca8` | fix: vídeo Quinta some quando há treino cadastrado vigente |
 | `874b1ad` | fix: checklist FK explícita `colaborador_id` (migration 070) |
 | `eecd816` | treinamento: badges Equipe/Liderança + seções + `publico_alvo` na API |
 | `6894d36` | checklist: publicação rascunho/publicar + migration 070 |
@@ -324,22 +383,24 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 
 ## Disciplina para agentes
 
-1. Otimização de perf: **backend, cache, ordem de fetch** — não alterar layout/menus/CSS sem pedido explícito
-2. Novo pacote por tela pesada > espalhar fetches no cliente
+1. Otimização de perf: **backend, cache, ordem de fetch** — não alterar layout/menus/CSS sem pedido explícito; **não** “atrasar tudo 400 ms” como solução de I/O
+2. Novo pacote por tela pesada > espalhar fetches no cliente; home = shell (`home-resumo`) + painel (`home-painel`)
 3. Cache: preferir **memória TTL** ou Redis futuro; evitar `unstable_cache` em APIs autenticadas dinâmicas
 4. Commit/push **só no repo do Portal**; não misturar WIP local (Tenant SaaS 2.5, scripts `diag-*`, migration `062` não aplicada) com commits operacionais
 5. `DATABASE_URL` pode não existir no `.env.local` (só URL + service role); migrations **066** elogios, **067–070** checklists = SQL Editor ou scripts `db:apply-*` / `verificar-migrations-checklists-api.mjs`
+6. **Não** reabrir menu Gorjeta sem pedido explícito do Alan
+7. Admin no cockpit **não** isenta avaliação de equipe do Daniel nem Visita RH
 
 ## Handoff rápido (jul/2026)
 
 - **Checklists Mesquita:** `/portal/checklists` — gerente/RH/admin/sócio: rascunho + **Publicar**; painel último publicado; OK/pendente com justificativa; vistoria 5 setores; migrations **067–070** (070 obrigatória para publicar)
 - **Treinamento:** 1º par publicado — equipe «Pequenos detalhes» / liderança «Clima da equipe»; badges Equipe/Liderança; vídeo YouTube automático some quando há treino cadastrado vigente (`haTreinoCadastrado*Vigente`)
-- **Home (jul/2026):** termômetro **obrigatório** na entrada do colaborador (`TermometroEntradaGate`); alertas emocionais: líder = **só setores** (`listarEquipeDoLider`); RH/sócio/admin = rede + badge «líder conversou» quando líder deu OK; Grãos ocultos enquanto congelados; elogios disponíveis
-- **Sócio / admin (hub):** após login → **`/admin/dashboard`** (`destinoHomeAposLogin` em `portal-login-response.ts`); colaborador/líder → `/portal`. No admin: faixa termômetro + atalhos (equipe, checklists, treinamentos, elogios) + botão **Ver como colaborador** (topbar e sidebar). Visual aquecido (gradiente cream/dourado). Hero do cockpit = só botão **Cadastrar Novo Colaborador**
-- **Perf Supabase free (jul/2026):** perfil único via `PortalPerfilContext` (Header/ManualEventos sem refetch); Grãos congelado short-circuit na API + sem fetch no nav; aniversário do dia com cache 1h/instância; termômetro com `sessionStorage`; `home-resumo` shell leve + `home-painel` segundo fetch; pendências rede via `obterPendenciasSemanaRedeCacheadas`
-- **Elogios:** prazo 2 semanas + marcar como lido individual; migration 066
-- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita
-- **Gorjeta:** removida do menu/UI do portal (`DEFAULT_MODULOS.gorjeta = false`); `/admin/gorjeta` redireciona ao dashboard. Fechamento fica com ADM/financeiro fora do produto
+- **Home:** termômetro **obrigatório** na entrada do colaborador; alertas: líder = setores; RH/sócio/admin = rede + badge «líder conversou»; Grãos ocultos se congelados; elogios OK; shell `home-resumo` + painel `home-painel`
+- **Cockpit:** sócio/admin → `/admin/dashboard` (`destinoHomeAposLogin`); atalhos + termômetro + **Cadastrar Novo Colaborador** + **Ver como colaborador**; Daniel/RH mantêm obrigações de avaliação no portal
+- **Perf free tier:** ver secção Performance (perfil único, Grãos short-circuit, aniv cache, emocional sessionStorage, pendências cache) — commits `0342526` / `aa8c0c2`
+- **Gorjeta:** fora do portal (`866ce38`) — ADM/financeiro fora do produto
+- **Elogios:** prazo 2 semanas + marcar como lido; migration 066
+- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita; plano Pro Supabase quando I/O free não aguentar
 - **Produção:** `main` → Vercel
 
 ## Arquivos-chave
@@ -358,7 +419,7 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 | Treinamento (script quinta) | **`scripts/publicar-treinamentos-quinta.mjs`**, `npm run treinamento:publicar-quinta` |
 | Treinamento (página) | `src/app/(portal)/portal/treinamento/page.tsx` |
 | Treinamento (UX/helpers) | `src/lib/treinamento-portal-ux.ts`, `TreinamentoStatusChip.tsx`, `TreinamentoItemConteudo.tsx` |
-| Treinamento (vigência) | `src/lib/treinamento-vigencia.ts` |
+| Treinamento (vigência) | `src/lib/treinamento-vigencia.ts` (`haTreinoCadastrado*Vigente`) |
 | Treinamento (acompanhamento) | `src/lib/treinamento-acompanhamento.ts`, `TreinamentoAcompanhamentoGestao.tsx`, `api/portal/treinamentos/acompanhamento` |
 | Treinamento (rich text) | `src/components/portal/TreinamentoRichText.tsx` |
 | Treinamento (conteúdo editorial) | `conteudo/treinamentos/MODELO-OFICIAL-TREINAMENTOS.md`, `01-equipe-*.md`, `02-lideranca-*.md`, `LEIA-ME.md` |
@@ -371,13 +432,18 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 | Elogios (UI/API) | `ElogioFeedItem.tsx`, `LinhaAutorElogio.tsx`, `SugestoesEquipeHome.tsx`, `api/portal/sugestoes`, `api/portal/sugestoes/[id]/marcar-lido` |
 | Elogios (DB) | `supabase/migrations/066_elogio_leituras.sql`, `scripts/aplicar-migration-066.mjs` |
 | Sugestões admin | `src/app/(admin)/admin/sugestoes/page.tsx` |
-| Dashboard pacote | `src/app/api/admin/dashboard-resumo/route.ts`, `src/lib/admin-dashboard-resumo.ts` |
-| Login destino | `src/lib/portal-login-response.ts` (`destinoHomeAposLogin`) |
+| Login destino | **`src/lib/portal-login-response.ts`** (`destinoHomeAposLogin`) |
 | Admin hub UI | `AdminDashboardCockpit.tsx`, `AdminHubAtalhos.tsx`, `AdminTopbar.tsx`, `(admin)/admin/layout.tsx` |
+| Dashboard pacote | `api/admin/dashboard-resumo`, `admin-dashboard-resumo.ts` |
+| Perfil context | **`src/contexts/PortalPerfilContext.tsx`**, `PortalLayout.tsx`, `Header.tsx` |
+| Home shell/painel | **`api/portal/home-resumo`**, **`api/portal/home-painel`**, `PortalHomeEntrada.tsx` |
+| Emocional cache cliente | **`src/lib/emocional-cache-cliente.ts`**, `TermometroEntradaGate.tsx`, `TermometroEmocional.tsx` |
+| Aniversário balão | `aniversario-hoje.ts` (cache dia), `AniversarioBalaoPortal.tsx`, `ConfettiLeve.tsx` |
+| Grãos congelado | `src/lib/graos/congelado.ts`, `api/portal/graos` (short-circuit) |
+| Gorjeta (off) | `tenant/defaults.ts` (`gorjeta: false`), `admin/gorjeta/page.tsx` (redirect) |
 | Cache | `src/lib/cache/servidor-operacional.ts` |
-| Home | `src/app/api/portal/home-resumo/route.ts`, `src/components/portal/home/PortalHomeEntrada.tsx` |
 | Lazy home | `PortalHomeSecaoAdiada.tsx`, `PortalDetalhesLazyMount.tsx` |
-| Pendências | `src/lib/portal-pendencias-home.ts`, `src/lib/avaliacao-pendentes-semana.ts` |
+| Pendências | `portal-pendencias-home.ts`, `avaliacao-pendentes-semana.ts`, `api/portal/avaliacoes-pendentes` |
 | Sessão | `src/middleware.ts` (`portal_sess`), `PortalLayout.tsx` |
 | Segurança | ver `.cursor/rules/portal-seguranca-plano.mdc` na raiz ISA AI |
 
