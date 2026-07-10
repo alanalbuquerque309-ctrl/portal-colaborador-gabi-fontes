@@ -10,18 +10,14 @@ import {
 import {
   buscarChecklistSlot,
   normalizarRespostas,
-  validarRespostasChecklist,
   salvarChecklistSlot,
-  publicarChecklistSlot,
 } from '@/lib/checklists/service';
 import {
-  extrairRespostasPorTurno,
   listarSlotsDia,
   mesclarRespostasChecklist,
   outroTurno,
   particionarRespostasMultiTurno,
   pendenciasOutroTurnoParaFormulario,
-  validarProntoParaPublicarTurno,
 } from '@/lib/checklists/publicacao';
 import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
 import type { ChecklistTurno, ChecklistTipo } from '@/lib/checklists/types';
@@ -192,11 +188,9 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
     }
 
     const dia = diaSemanaOperacionalSaoPaulo();
+    // Rascunho: permite itens incompletos / pendente sem justificativa ainda.
+    // Justificativa obrigatória só na publicação (rota /publicar).
     const respostas = normalizarRespostas(template.tipo, body.respostas);
-    const erroValidacao = validarRespostasChecklist(respostas);
-    if (erroValidacao) {
-      return NextResponse.json({ ok: false, erro: erroValidacao }, { status: 400, headers: NO_STORE });
-    }
     const observacoes =
       typeof body.observacoes === 'string' && body.observacoes.trim() ? body.observacoes.trim() : null;
 
@@ -232,7 +226,7 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
     return NextResponse.json(
       {
         ok: true,
-        mensagem: `Rascunho salvo para ${rotuloDiaSemana(dia)} (${rotuloTurno(turno)}). Use Publicar quando terminar.`,
+        mensagem: `Rascunho salvo para ${rotuloDiaSemana(dia)} (${rotuloTurno(turno)}). A liderança só vê depois de Publicar.`,
         registro,
       },
       { headers: NO_STORE }

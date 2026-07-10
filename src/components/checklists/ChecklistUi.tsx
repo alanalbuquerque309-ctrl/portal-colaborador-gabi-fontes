@@ -386,7 +386,7 @@ export function ChecklistStickyActions({
               onClick={onSalvar}
               className="flex-1 rounded-xl border border-cafeteria-300 bg-white py-3 min-h-[48px] text-sm font-semibold text-coffee-base disabled:opacity-50"
             >
-              {salvando ? 'Salvando…' : 'Rascunho'}
+              {salvando ? 'Salvando…' : 'Salvar'}
             </button>
             <button
               type="button"

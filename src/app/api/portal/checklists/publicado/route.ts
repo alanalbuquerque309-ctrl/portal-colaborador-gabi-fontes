@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { resolverSessaoChecklist, unidadeIdParam } from '@/lib/checklists/auth-sessao';
 import { podeAcessarChecklistsOperacionais } from '@/lib/checklists/access';
-import { templateChecklistPorTipo, templateVisivelParaUnidade, tiposChecklistValidos } from '@/lib/checklists/templates';
-import { buscarExibicaoPublicada } from '@/lib/checklists/publicacao';
-import { rotuloDiaSemana } from '@/lib/checklists/dia-semana';
+import {
+  templateChecklistPorTipo,
+  templateVisivelParaUnidade,
+  tiposChecklistValidos,
+  todosIdsItensTurno,
+} from '@/lib/checklists/templates';
+import { buscarExibicaoPublicada, listarSlotsDia } from '@/lib/checklists/publicacao';
+import { contagemStatusItens } from '@/lib/checklists/service';
+import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
 import type { ChecklistTipo } from '@/lib/checklists/types';
 
 export const dynamic = 'force-dynamic';
@@ -59,6 +65,29 @@ export async function GET(req: Request) {
       tipo: template.tipo,
     });
 
+    const diaHoje = diaSemanaOperacionalSaoPaulo();
+    const slotsHoje = await listarSlotsDia(supabase, {
+      unidadeId,
+      tipo: template.tipo,
+      diaSemana: diaHoje,
+    });
+    const rascunhos = slotsHoje
+      .filter((s) => !s.publicado_em)
+      .map((s) => {
+        const ids = todosIdsItensTurno(template, s.turno);
+        const c = contagemStatusItens(s.respostas.status_itens ?? {}, ids);
+        return {
+          turno: s.turno,
+          turno_rotulo: rotuloTurno(s.turno),
+          colaborador_nome: s.colaborador_nome ?? null,
+          updated_at: s.updated_at,
+          ok: c.ok,
+          pendente: c.pendente,
+          respondidos: c.respondidos,
+          total: c.total,
+        };
+      });
+
     return NextResponse.json(
       {
         ok: true,
@@ -90,6 +119,8 @@ export async function GET(req: Request) {
               })),
             }
           : null,
+        rascunhos,
+        dia_hoje_rotulo: rotuloDiaSemana(diaHoje),
       },
       { headers: NO_STORE }
     );

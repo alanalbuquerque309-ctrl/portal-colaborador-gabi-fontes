@@ -149,7 +149,8 @@ export function AdminChecklistsClient() {
           </p>
           <p className="font-semibold text-coffee-base">Nenhum registro ainda</p>
           <p className="text-sm text-cafeteria-600 mt-1 max-w-md mx-auto">
-            Normal antes do primeiro preenchimento. Use os formulários no portal; depois eles aparecem aqui.
+            Nada chegou ao banco (nem rascunho). No portal, o gerente precisa marcar os itens e clicar em{' '}
+            <strong>Publicar</strong> para a liderança ver; o rascunho também aparece aqui como “Rascunho”.
           </p>
           <Link
             href="/portal/checklists"
