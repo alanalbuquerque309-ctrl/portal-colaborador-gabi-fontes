@@ -21,6 +21,7 @@ export type AtorTipo = 'portal' | 'senha_admin' | 'sistema';
 /** Vocabulário de ações (estável; evita typos e facilita filtros/relatórios). */
 export const AUDIT_ACOES = {
   LOGIN_ADMIN_SENHA: 'login.admin_senha.sucesso',
+  COLAB_CRIAR: 'colaborador.criar',
   COLAB_ROLE_ALTERAR: 'colaborador.role.alterar',
   COLAB_EXCLUIR: 'colaborador.excluir',
   COLAB_RESET_CADASTRO: 'colaborador.reset_cadastro',

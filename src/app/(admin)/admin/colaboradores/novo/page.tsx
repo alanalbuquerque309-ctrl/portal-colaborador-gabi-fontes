@@ -54,7 +54,15 @@ export default function NovoColaboradorPage() {
     setErro('');
     const valorSelecionado = form.unidade;
     if (!valorSelecionado) {
-      setErro('Selecione uma unidade.');
+      setErro('Selecione a unidade.');
+      return;
+    }
+    if (!form.dataAdmissao) {
+      setErro('Informe a data de admissão (contratação).');
+      return;
+    }
+    if (!form.setor.trim()) {
+      setErro('Selecione o setor.');
       return;
     }
     setEnviando(true);
@@ -64,10 +72,10 @@ export default function NovoColaboradorPage() {
       email: form.email.trim() || undefined,
       telefone: form.telefone.trim() || undefined,
       endereco: form.endereco.trim() || undefined,
-      data_admissao: form.dataAdmissao ? formatDateForInput(form.dataAdmissao) : undefined,
+      data_admissao: formatDateForInput(form.dataAdmissao),
       data_nascimento: form.dataNascimento ? formatDateForInput(form.dataNascimento) : undefined,
       cargo: form.cargo.trim() || undefined,
-      setor: form.setor.trim() || undefined,
+      setor: form.setor.trim(),
       role: form.role,
     };
     if (isUuid(valorSelecionado)) {
@@ -104,9 +112,13 @@ export default function NovoColaboradorPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-display font-semibold text-coffee-base mb-6">
+      <h1 className="text-2xl font-display font-semibold text-coffee-base mb-2">
         Cadastrar colaborador
       </h1>
+      <p className="text-sm text-coffee-100 mb-6 max-w-md">
+        Novo cadastro = <strong className="text-coffee-base">contratação</strong>. Data de admissão, setor e unidade
+        são obrigatórios.
+      </p>
 
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         <div>
@@ -191,26 +203,31 @@ export default function NovoColaboradorPage() {
         </div>
         <div>
           <label htmlFor="dataAdmissao" className="block text-sm font-medium text-coffee-base mb-1">
-            Data de admissão (RH)
+            Data de admissão * (contratação)
           </label>
           <input
             id="dataAdmissao"
             name="dataAdmissao"
             type="date"
+            required
             value={form.dataAdmissao}
             onChange={(e) => setForm((f) => ({ ...f, dataAdmissao: e.target.value }))}
             className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
           />
+          <p className="text-xs text-coffee-100 mt-1">
+            Obrigatório. Usada para acompanhar contratações e rotatividade.
+          </p>
         </div>
         <div>
-          <label htmlFor="setor" className="block text-sm font-medium text-coffee-base mb-1">Setor</label>
+          <label htmlFor="setor" className="block text-sm font-medium text-coffee-base mb-1">Setor *</label>
           <select
             id="setor"
+            required
             value={form.setor}
             onChange={(e) => setForm((f) => ({ ...f, setor: e.target.value }))}
             className="w-full rounded-lg border border-cream-300 px-3 py-2 text-coffee-base focus:border-dourado-base focus:outline-none"
           >
-            <option value="">Selecione o setor (opcional)</option>
+            <option value="">Selecione o setor</option>
             {listarSetoresCadastro().map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}

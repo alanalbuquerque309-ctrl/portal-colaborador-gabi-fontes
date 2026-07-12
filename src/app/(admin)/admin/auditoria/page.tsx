@@ -27,6 +27,7 @@ type Evento = {
 
 const ACAO_LABEL: Record<string, string> = {
   'login.admin_senha.sucesso': 'Login admin (senha)',
+  'colaborador.criar': 'Contratação (novo cadastro)',
   'colaborador.role.alterar': 'Alterou acesso',
   'colaborador.excluir': 'Excluiu colaborador',
   'colaborador.reset_cadastro': 'Resetou cadastro',

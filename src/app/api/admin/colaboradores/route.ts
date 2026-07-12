@@ -2,17 +2,30 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { isAdminAuthorized, requireAdminCadastroEditApi } from '@/lib/admin-auth';
 import { isSetorCadastroValido } from '@/lib/tenant/org-catalog';
-import { ROLES_CADASTRO } from '@/lib/constants/colaborador-org';
+import {
+  normalizarSlugUnidadeOperacional,
+  ROLES_CADASTRO,
+  SLUGS_UNIDADE_OCULTOS,
+} from '@/lib/constants/colaborador-org';
 import { hashPassword } from '@/lib/password';
 import { SENHA_PADRAO_INICIAL } from '@/lib/senha-portal';
 import { syncTelefoneLoginFromTelefone } from '@/lib/telefone';
 import { sincronizarVinculosLiderancaColaborador } from '@/lib/sincronizar-vinculos-lideranca';
+import { AUDIT_ACOES, registrarAuditoria } from '@/lib/audit-log';
+import { isUnidadeSlugCadastroValidoServer } from '@/lib/tenant/settings-server';
 
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate, private' } as const;
 
 function isMissingTelefoneLoginColumnError(err: { message?: string } | null | undefined): boolean {
   const msg = String(err?.message ?? '').toLowerCase();
   return msg.includes('telefone_login') && (msg.includes('schema cache') || msg.includes('does not exist'));
+}
+
+function dataIsoValida(s: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
 }
 
 /** Lista colaboradores. Apenas admins autenticados. */
@@ -104,14 +117,31 @@ export async function POST(req: Request) {
   const { nome, cpf, email, telefone, endereco, data_admissao, data_nascimento, cargo, setor, unidade_id, unidade_slug, role } = body;
   const roleFinal =
     role && (ROLES_CADASTRO as readonly string[]).includes(role) ? role : 'colaborador';
-  if (setor !== undefined && setor !== null && String(setor).trim() && !isSetorCadastroValido(String(setor))) {
+
+  if (!nome?.trim()) {
+    return NextResponse.json({ ok: false, erro: 'Nome é obrigatório' }, { status: 400 });
+  }
+  if (!unidade_id && !unidade_slug) {
+    return NextResponse.json({ ok: false, erro: 'Unidade é obrigatória' }, { status: 400 });
+  }
+
+  const setorFinal = setor === null || setor === undefined ? '' : String(setor).trim();
+  if (!setorFinal) {
+    return NextResponse.json({ ok: false, erro: 'Setor é obrigatório' }, { status: 400 });
+  }
+  if (!isSetorCadastroValido(setorFinal)) {
     return NextResponse.json({ ok: false, erro: 'Setor inválido' }, { status: 400 });
   }
-  if (!nome?.trim() || (!unidade_id && !unidade_slug)) {
+
+  const admIso = data_admissao?.trim()?.slice(0, 10) ?? '';
+  if (!admIso) {
     return NextResponse.json(
-      { ok: false, erro: 'Nome e unidade são obrigatórios' },
+      { ok: false, erro: 'Data de admissão é obrigatória (contratação).' },
       { status: 400 }
     );
+  }
+  if (!dataIsoValida(admIso)) {
+    return NextResponse.json({ ok: false, erro: 'Data de admissão inválida.' }, { status: 400 });
   }
 
   const telefoneLogin = syncTelefoneLoginFromTelefone(telefone);
@@ -126,9 +156,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const admIso = data_admissao?.trim()?.slice(0, 10) ?? '';
   const nascIso = data_nascimento?.trim()?.slice(0, 10) ?? '';
-  if (admIso && nascIso && admIso === nascIso) {
+  if (nascIso && admIso === nascIso) {
     return NextResponse.json(
       {
         ok: false,
@@ -150,11 +179,43 @@ export async function POST(req: Request) {
   try {
     const supabase = createAdminClient();
     let unidadeIdResolvido = unidade_id;
-    if (!unidadeIdResolvido && unidade_slug) {
+    let unidadeSlugResolvido: string | null = null;
+
+    if (unidadeIdResolvido) {
+      const { data: porId } = await supabase
+        .from('unidades')
+        .select('id, slug')
+        .eq('id', unidadeIdResolvido)
+        .maybeSingle();
+      if (!porId?.id) {
+        return NextResponse.json({ ok: false, erro: 'Unidade inválida' }, { status: 400 });
+      }
+      unidadeSlugResolvido = normalizarSlugUnidadeOperacional(String(porId.slug ?? ''));
+      if (!unidadeSlugResolvido || (SLUGS_UNIDADE_OCULTOS as readonly string[]).includes(String(porId.slug))) {
+        // Aceita ID de Quiosque legado mapeando para Barra
+        if (String(porId.slug) === 'quiosque') {
+          const { data: barra } = await supabase.from('unidades').select('id, slug').eq('slug', 'barra').maybeSingle();
+          if (!barra?.id) {
+            return NextResponse.json({ ok: false, erro: 'Unidade Barra não encontrada' }, { status: 400 });
+          }
+          unidadeIdResolvido = barra.id;
+          unidadeSlugResolvido = 'barra';
+        } else {
+          return NextResponse.json({ ok: false, erro: 'Unidade inválida para cadastro' }, { status: 400 });
+        }
+      } else if (!(await isUnidadeSlugCadastroValidoServer(unidadeSlugResolvido))) {
+        return NextResponse.json({ ok: false, erro: 'Unidade inválida para cadastro' }, { status: 400 });
+      }
+    } else if (unidade_slug) {
+      const slugCanon = normalizarSlugUnidadeOperacional(unidade_slug);
+      if (!slugCanon || !(await isUnidadeSlugCadastroValidoServer(slugCanon))) {
+        return NextResponse.json({ ok: false, erro: 'Unidade inválida' }, { status: 400 });
+      }
+      unidadeSlugResolvido = slugCanon;
       const { data: porSlug } = await supabase
         .from('unidades')
         .select('id')
-        .eq('slug', unidade_slug)
+        .eq('slug', slugCanon)
         .maybeSingle();
       if (porSlug?.id) {
         unidadeIdResolvido = porSlug.id;
@@ -166,7 +227,7 @@ export async function POST(req: Request) {
           { nome: 'Fábrica', slug: 'fabrica' },
           { nome: 'Administrativo', slug: 'administrativo' },
         ];
-        const def = UNIDADES_PADRAO.find((u) => u.slug === unidade_slug);
+        const def = UNIDADES_PADRAO.find((u) => u.slug === slugCanon);
         if (def) {
           const { data: ins } = await supabase
             .from('unidades')
@@ -177,6 +238,7 @@ export async function POST(req: Request) {
         }
       }
     }
+
     if (!unidadeIdResolvido) {
       return NextResponse.json({ ok: false, erro: 'Unidade inválida' }, { status: 400 });
     }
@@ -193,6 +255,8 @@ export async function POST(req: Request) {
       unidade_id: unidadeIdResolvido,
       role: roleFinal,
       onboarding_completo: acessoSemOnboarding,
+      data_admissao: admIso,
+      setor: setorFinal,
     };
     if (obrigaOnboarding) {
       payload.senha_hash = senhaPadraoHash;
@@ -203,13 +267,8 @@ export async function POST(req: Request) {
       payload.telefone_login = telefoneLogin;
     }
     if (endereco?.trim()) payload.endereco = endereco.trim();
-    if (data_admissao?.trim()) payload.data_admissao = data_admissao.trim();
     if (data_nascimento?.trim()) payload.data_nascimento = data_nascimento.trim();
     if (cargo?.trim()) payload.cargo = cargo.trim();
-    if (setor !== undefined) {
-      const s = setor === null || setor === '' ? null : String(setor).trim();
-      payload.setor = s;
-    }
 
     let { data, error } = await supabase
       .from('colaboradores')
@@ -250,13 +309,26 @@ export async function POST(req: Request) {
     }
 
     let lideres_vinculados: string[] = [];
-    const setorFinal =
-      setor !== undefined && setor !== null && String(setor).trim()
-        ? String(setor).trim()
-        : null;
     if (data?.id && roleFinal === 'colaborador' && setorFinal) {
       const sync = await sincronizarVinculosLiderancaColaborador(supabase, String(data.id));
       lideres_vinculados = sync.lideres_ids;
+    }
+
+    if (data?.id) {
+      await registrarAuditoria(supabase, {
+        acao: AUDIT_ACOES.COLAB_CRIAR,
+        alvoTipo: 'colaborador',
+        alvoId: String(data.id),
+        unidadeId: unidadeIdResolvido,
+        detalhes: {
+          tipo: 'contratacao',
+          data_admissao: admIso,
+          setor: setorFinal,
+          unidade_slug: unidadeSlugResolvido,
+          role: roleFinal,
+        },
+        req,
+      });
     }
 
     return NextResponse.json({ ok: true, colaborador: data, lideres_vinculados });
