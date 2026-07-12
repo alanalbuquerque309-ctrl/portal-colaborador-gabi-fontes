@@ -6,6 +6,7 @@ const ROTULO_POR_SLUG: Record<string, string> = {
   fabrica: 'Fábricas',
   administrativo: 'Administrativo',
   barra: 'Barra',
+  quiosque: 'Barra',
   'nova-iguacu': 'Nova Iguaçu',
 };
 
@@ -16,6 +17,8 @@ export function slugsDoGrupoMural(unidadeSlug: string | null | undefined): strin
   if ((MURAL_GRUPO_MESQUITA_SLUGS as readonly string[]).includes(s)) {
     return [...MURAL_GRUPO_MESQUITA_SLUGS];
   }
+  // Quiosque = ponto dentro do Barra Shopping
+  if (s === 'barra' || s === 'quiosque') return ['barra', 'quiosque'];
   return [s];
 }
 

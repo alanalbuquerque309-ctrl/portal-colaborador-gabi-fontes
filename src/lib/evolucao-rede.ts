@@ -7,6 +7,11 @@ import { AVALIACAO_RANKING_EPOCA_INICIO } from '@/lib/avaliacao-ranking';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { listarSetoresCadastroServer, listarUnidadesCadastroServer } from '@/lib/tenant/settings-server';
 import {
+  normalizarSlugUnidadeOperacional,
+  rotuloUnidadeOperacional,
+  slugsUnidadeFiltroOperacional,
+} from '@/lib/constants/colaborador-org';
+import {
   agregarResumoSetor,
   agregarResumoUnidadeFromItems,
   montarResumoExecutivo,
@@ -247,8 +252,11 @@ export async function montarPayloadEvolucaoRede(
     .eq('onboarding_completo', true);
 
   if (opts?.unidade_slug) {
-    const { data: u } = await supabase.from('unidades').select('id').eq('slug', opts.unidade_slug).maybeSingle();
-    if (u?.id) qColab = qColab.eq('unidade_id', u.id);
+    const slugsFiltro = slugsUnidadeFiltroOperacional(opts.unidade_slug);
+    const { data: us } = await supabase.from('unidades').select('id').in('slug', slugsFiltro);
+    const idsUnidade = (us ?? []).map((u) => u.id).filter(Boolean);
+    if (idsUnidade.length === 1) qColab = qColab.eq('unidade_id', idsUnidade[0]);
+    else if (idsUnidade.length > 1) qColab = qColab.in('unidade_id', idsUnidade);
   }
   if (opts?.setor?.trim()) qColab = qColab.eq('setor', opts.setor.trim());
 
@@ -259,14 +267,16 @@ export async function montarPayloadEvolucaoRede(
     .map((c) => {
       const unidadeRaw = (c as { unidades?: unknown }).unidades;
       const unidadeObj = Array.isArray(unidadeRaw) ? unidadeRaw[0] : unidadeRaw;
-      const slug =
+      const slugRaw =
         unidadeObj && typeof unidadeObj === 'object' && 'slug' in unidadeObj
           ? String((unidadeObj as { slug?: string }).slug ?? '')
           : null;
+      const slug = normalizarSlugUnidadeOperacional(slugRaw);
       const unome =
-        unidadeObj && typeof unidadeObj === 'object' && 'nome' in unidadeObj
+        rotuloUnidadeOperacional(slug) ??
+        (unidadeObj && typeof unidadeObj === 'object' && 'nome' in unidadeObj
           ? String((unidadeObj as { nome?: string }).nome ?? '')
-          : null;
+          : null);
       return {
         id: String(c.id),
         nome: String(c.nome ?? ''),

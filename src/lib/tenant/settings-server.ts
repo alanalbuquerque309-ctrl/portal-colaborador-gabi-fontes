@@ -3,7 +3,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getTenantBranding, type TenantBranding } from '@/lib/tenant/branding';
 import { DEFAULT_TENANT_SLUG } from '@/lib/tenant/defaults';
-import { SETORES_PREDEFINIDOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
+import { SETORES_PREDEFINIDOS, SLUGS_UNIDADE_OCULTOS, UNIDADES_CADASTRO } from '@/lib/constants/colaborador-org';
 import type { UnidadeCadastro } from '@/lib/tenant/org-catalog';
 import { getTermosTenant, type TenantTermoId } from '@/lib/tenant/terminology';
 import type { TenantMirrorDb, TenantModulos } from '@/lib/tenant/types';
@@ -122,7 +122,7 @@ export async function listarSetoresCadastroServer(): Promise<string[]> {
   return [...SETORES_PREDEFINIDOS];
 }
 
-const SLUG_UNIDADE_MATRIZ_LEGADO = 'matriz';
+const SLUGS_OCULTOS = new Set<string>(SLUGS_UNIDADE_OCULTOS);
 
 function unidadesCadastroFallback(): UnidadeCadastro[] {
   return UNIDADES_CADASTRO.map((u) => ({ slug: u.slug, label: u.label }));
@@ -137,7 +137,7 @@ export async function listarUnidadesCadastroServer(): Promise<UnidadeCadastro[]>
     if (error || !data?.length) return unidadesCadastroFallback();
 
     const mapped = data
-      .filter((u) => u.slug && String(u.slug) !== SLUG_UNIDADE_MATRIZ_LEGADO)
+      .filter((u) => u.slug && !SLUGS_OCULTOS.has(String(u.slug)))
       .map((u) => ({
         slug: String(u.slug),
         label: String(u.nome ?? u.slug),

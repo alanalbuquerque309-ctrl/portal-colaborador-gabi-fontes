@@ -30,6 +30,34 @@ export const UNIDADES_CADASTRO: { slug: string; label: string }[] = [
   { slug: 'administrativo', label: 'Administrativo' },
 ];
 
+/** Slugs legados que não devem aparecer no catálogo operacional. */
+export const SLUGS_UNIDADE_OCULTOS = ['matriz', 'quiosque'] as const;
+
+/**
+ * Quiosque = ponto dentro do Barra Shopping (mesma loja Barra).
+ * Normaliza slug legado para o canônico usado em painéis e cadastro.
+ */
+export function normalizarSlugUnidadeOperacional(slug: string | null | undefined): string | null {
+  const s = String(slug ?? '').trim().toLowerCase();
+  if (!s) return null;
+  if (s === 'quiosque' || s === 'tijuca') return 'barra';
+  return s;
+}
+
+export function rotuloUnidadeOperacional(slug: string | null | undefined): string | null {
+  const canon = normalizarSlugUnidadeOperacional(slug);
+  if (!canon) return null;
+  return UNIDADES_CADASTRO.find((u) => u.slug === canon)?.label ?? canon;
+}
+
+/** Slugs a considerar ao filtrar uma unidade canônica (ex.: Barra inclui Quiosque). */
+export function slugsUnidadeFiltroOperacional(slug: string | null | undefined): string[] {
+  const canon = normalizarSlugUnidadeOperacional(slug);
+  if (!canon) return [];
+  if (canon === 'barra') return ['barra', 'quiosque'];
+  return [canon];
+}
+
 /** Backoffice central — não entra no agrupamento «por filial» dos relatórios. */
 export const SLUG_UNIDADE_ADMINISTRATIVO = 'administrativo' as const;
 
