@@ -212,17 +212,52 @@ Não confundir: admin é consulta; portal é operação do turno.
 
 ### Itens OK / Pendente (gerência Mesquita)
 
-- Cada item: **OK** ou **Pendente**; pendente exige **justificativa** (mín. 3 caracteres) antes de salvar/publicar
+- Cada item: **OK** ou **Pendente**; pendente exige **justificativa** (mín. 3 caracteres) **na publicação** (rascunho/autosave pode gravar pendente incompleto)
 - Pendência de um plantão pode ser resolvida (OK) no plantão seguinte por **qualquer** gerente autorizado
 - Template oficial alinhado ao docx (`483e7d8`): `gerencia_diaria_mesquita` em `templates.ts`
 
 ### Publicação (rascunho vs visível no portal)
 
-- **Salvar** = rascunho (`POST /api/portal/checklists/[tipo]`); **não** altera o que a rede vê
-- **Publicar** = `POST /api/portal/checklists/[tipo]/publicar` — grava `publicado_em` + `publicado_por_id`; visível até nova publicação
-- **Leitura publicada:** `GET /api/portal/checklists/publicado?tipo=…` — painel `ChecklistPublicadoPanel.tsx` na hub
+- **Salvar / autosave** = rascunho (`POST /api/portal/checklists/[tipo]`); **não** altera o painel da liderança
+- Rascunho **não** exige justificativa completa (só valida na publicação); formulário faz **autosave** (~1,8s) ao marcar itens (`ChecklistFormClient`, commit `7e34388`)
+- **Publicar** = `POST /api/portal/checklists/[tipo]/publicar` — grava `publicado_em` + `publicado_por_id`; **só isso** aparece para a liderança até nova publicação
+- Item **OK** = verde; **Pendente** = âmbar + justificativa no painel publicado
+- Observações gerais / notas de seção: gravadas no rascunho; **ainda não** no painel publicado (só OK/Pendente + justificativa)
+- **Leitura publicada + rascunhos do dia:** `GET /api/portal/checklists/publicado` — `ChecklistPublicadoPanel` mostra banner âmbar se há rascunho sem publicar
 - **Lib:** `src/lib/checklists/publicacao.ts` — merge entre turnos manhã/tarde, pendências do outro plantão, cohort do dia
 - Migration **070:** colunas `publicado_em`, `publicado_por_id` → `npm run db:apply-070` ou SQL Editor
+
+### Unidades operacionais (Barra = Quiosque)
+
+- Catálogo canónico: Mesquita, **Barra**, Nova Iguaçu, Fábrica, Administrativo (`UNIDADES_CADASTRO`)
+- Slugs **ocultos** no catálogo: `matriz`, **`quiosque`** (`SLUGS_UNIDADE_OCULTOS`) — Quiosque é ponto dentro do Barra Shopping, **mesma loja Barra**
+- **Normalizar:** `normalizarSlugUnidadeOperacional` / `slugsUnidadeFiltroOperacional` em `colaborador-org.ts` (`quiosque` → `barra`)
+- **Saúde da equipe** (`evolucao-rede.ts`): agrega Quiosque em Barra; filtro Barra inclui IDs `barra`+`quiosque`
+- **Mural:** `mural-unidade-grupo.ts` trata `barra`/`quiosque` no mesmo grupo
+- Commit: `da233d8`
+
+### Cadastro = contratação + rotatividade (jul/2026)
+
+#### Novo cadastro (obrigatório)
+
+- **Data de admissão**, **setor** e **unidade** obrigatórios no formulário e na API (`POST /api/admin/colaboradores`)
+- Sem esses três → 400; admissão gravada em `colaboradores.data_admissao`
+- Auditoria: `colaborador.criar` (`AUDIT_ACOES.COLAB_CRIAR`) com `detalhes.tipo = contratacao` (sem PII) — label na UI: «Contratação (novo cadastro)»
+- UI: `/admin/colaboradores/novo` — texto «Novo cadastro = contratação»
+- Commit: `e8abfd4`
+
+#### Painel Rotatividade
+
+| Rota | Quem | Função |
+|------|------|--------|
+| **`/admin/rotatividade`** | Quem edita cadastro (sócio, admin, RH, senha) | Contratações do mês (por `data_admissao`) + demissões (audit `colaborador.excluir`) |
+| Aviso laranja «faltam N datas de admissão» | **Só Admin e RH** (`podeVerAvisoAdmissaoPendente`) | Contador; **não trava**; some quando zerar |
+
+- **API:** `GET /api/admin/rotatividade?ano=&mes=` — `src/lib/rotatividade.ts`, `api/admin/rotatividade/route.ts`
+- **Aviso:** `AvisoAdmissaoPendenteBanner.tsx` no Dashboard, Colaboradores e Rotatividade
+- **Acesso:** `podeVerRotatividade` / `podeVerAvisoAdmissaoPendente` em `admin-access.ts`; flags em `/api/admin/auth`
+- Menu: Pessoas → Rotatividade (também no `ADMIN_NAV_RH`)
+- Commit: `e304a8b`
 
 ### PostgREST — duas FKs para `colaboradores`
 
@@ -275,6 +310,7 @@ Não confundir: admin é consulta; portal é operação do turno.
 
 | Commit | Conteúdo |
 |--------|----------|
+| `7e34388` | autosave rascunho + copy «só Publicar aparece»; rascunhos no painel publicado |
 | `874b1ad` | fix: join `colaboradores!colaborador_id` após migration 070 (erro PostgREST embed) |
 | `6894d36` | rascunho + publicar + pendências entre plantões + migration 070 + APIs publicado |
 | `483e7d8` | gerência Mesquita: OK/pendente + justificativa + acesso por cargo |
@@ -336,6 +372,10 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 
 | Commit | Conteúdo |
 |--------|----------|
+| `e304a8b` | Rotatividade: contratações/demissões do mês + aviso admissão só Admin/RH |
+| `e8abfd4` | Cadastro: admissão/setor/unidade obrigatórios + audit `colaborador.criar` |
+| `da233d8` | Unidades: Quiosque = Barra (Saúde da equipe / catálogo) |
+| `7e34388` | Checklists: autosave rascunho + clarificar Publicar |
 | `866ce38` | Gorjeta fora do portal (menu off, redirect dashboard, `DEFAULT_MODULOS.gorjeta = false`) |
 | `0342526` | Cockpit limpo + alívio Supabase free (perfil único, Grãos short-circuit, aniv cache, termômetro sessionStorage, home-resumo/home-painel, pendências cache) |
 | `aa8c0c2` | Sócio/admin → cockpit aquecido; atalhos; Ver como colaborador |
@@ -393,14 +433,17 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 
 ## Handoff rápido (jul/2026)
 
-- **Checklists Mesquita:** `/portal/checklists` — gerente/RH/admin/sócio: rascunho + **Publicar**; painel último publicado; OK/pendente com justificativa; vistoria 5 setores; migrations **067–070** (070 obrigatória para publicar)
+- **Checklists Mesquita:** `/portal/checklists` — autosave rascunho + **Publicar** (só publicar aparece); painel + banner rascunho; OK verde / pendente âmbar+justificativa; vistoria 5 setores; migrations **067–070**
+- **Unidades:** Quiosque = Barra (`da233d8`); não listar Quiosque separado na Saúde da equipe
+- **Cadastro/contratação:** admissão + setor + unidade obrigatórios; audit `colaborador.criar` (`e8abfd4`)
+- **Rotatividade:** `/admin/rotatividade` — contratações/demissões do mês; aviso laranja «faltam N admissões» **só Admin/RH** (`e304a8b`)
 - **Treinamento:** 1º par publicado — equipe «Pequenos detalhes» / liderança «Clima da equipe»; badges Equipe/Liderança; vídeo YouTube automático some quando há treino cadastrado vigente (`haTreinoCadastrado*Vigente`)
 - **Home:** termômetro **obrigatório** na entrada do colaborador; alertas: líder = setores; RH/sócio/admin = rede + badge «líder conversou»; Grãos ocultos se congelados; elogios OK; shell `home-resumo` + painel `home-painel`
 - **Cockpit:** sócio/admin → `/admin/dashboard` (`destinoHomeAposLogin`); atalhos + termômetro + **Cadastrar Novo Colaborador** + **Ver como colaborador**; Daniel/RH mantêm obrigações de avaliação no portal
 - **Perf free tier:** ver secção Performance (perfil único, Grãos short-circuit, aniv cache, emocional sessionStorage, pendências cache) — commits `0342526` / `aa8c0c2`
 - **Gorjeta:** fora do portal (`866ce38`) — ADM/financeiro fora do produto
 - **Elogios:** prazo 2 semanas + marcar como lido; migration 066
-- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita; plano Pro Supabase quando I/O free não aguentar
+- **Pendente produto:** destaque elogio cliente rede social; checklists Barra/NI após piloto Mesquita; plano Pro Supabase quando I/O free não aguentar; observações gerais no painel publicado do checklist
 - **Produção:** `main` → Vercel
 
 ## Arquivos-chave
@@ -415,6 +458,9 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 | Checklists (vistoria) | `ChecklistVistoriaPanel.tsx`, `vistoria-service.ts`, `api/portal/checklists/vistoria` |
 | Checklists (admin consulta) | `admin/checklists`, `AdminChecklistsClient.tsx`, `api/admin/checklists` |
 | Checklists (DB) | `067` … `069`, **`070_checklists_publicacao.sql`**, `scripts/aplicar-migration-070.mjs` |
+| Unidades (Barra/Quiosque) | `colaborador-org.ts` (`SLUGS_UNIDADE_OCULTOS`, `normalizarSlugUnidadeOperacional`), `settings-server.ts`, `evolucao-rede.ts`, `mural-unidade-grupo.ts` |
+| Cadastro / contratação | `admin/colaboradores/novo`, `api/admin/colaboradores` (POST), `audit-log.ts` (`COLAB_CRIAR`) |
+| Rotatividade | `admin/rotatividade`, `api/admin/rotatividade`, `rotatividade.ts`, `AvisoAdmissaoPendenteBanner.tsx`, `podeVerAvisoAdmissaoPendente` |
 | Treinamento (público UI) | **`TreinamentoPublicoBadge.tsx`**, `agruparSemanaPorPublico` em `treinamento-portal-ux.ts` |
 | Treinamento (script quinta) | **`scripts/publicar-treinamentos-quinta.mjs`**, `npm run treinamento:publicar-quinta` |
 | Treinamento (página) | `src/app/(portal)/portal/treinamento/page.tsx` |
