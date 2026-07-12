@@ -34,6 +34,7 @@ export default function AdminLayout({
     auditoria?: boolean;
     sugestoesGestao?: boolean;
     checklistsRede?: boolean;
+    rotatividade?: boolean;
   };
 
   const navGrupos: { titulo: string; itens: NavItemAdmin[] }[] = [
@@ -48,7 +49,7 @@ export default function AdminLayout({
       titulo: 'Pessoas',
       itens: [
         { href: '/admin/colaboradores', label: 'Colaboradores' },
-        { href: '/admin/rotatividade', label: 'Rotatividade' },
+        { href: '/admin/rotatividade', label: 'Rotatividade', rotatividade: true },
         { href: '/admin/redefinicoes-senha', label: 'Redefinições de senha' },
         { href: '/admin/termometro-emocoes', label: '🌡 Termômetro de emoções' },
         { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
@@ -110,6 +111,7 @@ export default function AdminLayout({
           podeVerAuditoria?: boolean;
           podeGerirSugestoes?: boolean;
           podeVerChecklistsRede?: boolean;
+          pode_ver_rotatividade?: boolean;
         };
         setAuthorized(d.ok === true);
         const rh = d.acesso_limitado_rh === true;
@@ -121,6 +123,7 @@ export default function AdminLayout({
           const podeSugestoes = d.podeGerirSugestoes === true;
           const podeAud = d.podeVerAuditoria === true;
           const podeChecklists = d.podeVerChecklistsRede === true;
+          const podeRot = d.pode_ver_rotatividade === true;
           setPodeGerirSugestoes(podeSugestoes);
           setPodeVerChecklistsRede(podeChecklists);
           setMenuNav(
@@ -128,6 +131,7 @@ export default function AdminLayout({
               if (i.auditoria && !podeAud) return false;
               if (i.sugestoesGestao && !podeSugestoes) return false;
               if (i.checklistsRede && !podeChecklists) return false;
+              if (i.rotatividade && !podeRot) return false;
               return true;
             })
           );

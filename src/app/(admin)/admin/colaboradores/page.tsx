@@ -7,6 +7,8 @@ import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
 import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { labelAcessoPortal } from '@/lib/colaborador-role-ui';
 import { AvisoAdmissaoPendenteBanner } from '@/components/admin/AvisoAdmissaoPendenteBanner';
+import { ModalExcluirColaborador } from '@/components/admin/ModalExcluirColaborador';
+import type { MotivoSaida } from '@/lib/rotatividade';
 
 interface Colaborador {
   id: string;
@@ -46,6 +48,7 @@ export default function ColaboradoresPage() {
   const [erroLista, setErroLista] = useState<string | null>(null);
   /** Total de linhas no Supabase (mesma consulta da API), para conferir ambiente. */
   const [totalSupabase, setTotalSupabase] = useState<number | null>(null);
+  const [excluirAlvo, setExcluirAlvo] = useState<{ id: string; nome: string } | null>(null);
 
   const handleConcluirOnboarding = async (id: string, nome: string) => {
     if (!confirm(`Marcar onboarding de "${nome}" como concluído? Ela poderá acessar o portal sem passar pelo fluxo.`)) return;
@@ -151,19 +154,26 @@ export default function ColaboradoresPage() {
     return { opcoesUnidadeDados, colaboradoresFiltrados: filtrados };
   }, [colaboradores, filtroSetor, filtroCargo, filtroAcesso, filtroUnidade, unidadesCadastro]);
 
-  const handleExcluir = async (id: string, nome: string) => {
-    if (!confirm(`Excluir colaborador "${nome}"? Esta ação não pode ser desfeita.`)) return;
+  const abrirExcluir = (id: string, nome: string) => {
+    setExcluirAlvo({ id, nome });
+  };
 
+  const confirmarExcluir = async (motivo: MotivoSaida, motivoOutro: string | null) => {
+    if (!excluirAlvo) return;
+    const { id } = excluirAlvo;
     setExcluindo(id);
     try {
-      const res = await fetch(`/api/admin/colaboradores/excluir?id=${id}`, {
-        method: 'DELETE',
+      const res = await fetch('/api/admin/colaboradores/excluir', {
+        method: 'POST',
         credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, motivo, motivo_outro: motivoOutro }),
       });
       const data = await res.json();
 
       if (data.ok) {
         setColaboradores((prev) => prev.filter((c) => c.id !== id));
+        setExcluirAlvo(null);
       } else {
         alert(data.erro || 'Erro ao excluir.');
       }
@@ -401,7 +411,7 @@ export default function ColaboradoresPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleExcluir(c.id, c.nome)}
+                            onClick={() => abrirExcluir(c.id, c.nome)}
                             disabled={excluindo === c.id || resetandoSenha === c.id}
                             className="text-red-600 hover:text-red-800 text-xs font-medium disabled:opacity-50 whitespace-nowrap"
                           >
@@ -450,6 +460,17 @@ export default function ColaboradoresPage() {
         </Link>
         .
       </p>
+
+      <ModalExcluirColaborador
+        aberto={excluirAlvo != null}
+        nome={excluirAlvo?.nome ?? ''}
+        salvando={excluindo != null}
+        onCancelar={() => {
+          if (excluindo) return;
+          setExcluirAlvo(null);
+        }}
+        onConfirmar={(motivo, motivoOutro) => void confirmarExcluir(motivo, motivoOutro)}
+      />
     </div>
   );
 }

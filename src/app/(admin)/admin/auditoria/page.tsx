@@ -29,7 +29,7 @@ const ACAO_LABEL: Record<string, string> = {
   'login.admin_senha.sucesso': 'Login admin (senha)',
   'colaborador.criar': 'Contratação (novo cadastro)',
   'colaborador.role.alterar': 'Alterou acesso',
-  'colaborador.excluir': 'Excluiu colaborador',
+  'colaborador.excluir': 'Desligamento / exclusão',
   'colaborador.reset_cadastro': 'Resetou cadastro',
   'colaborador.senha.redefinir': 'Redefiniu senha',
   'redefinicao_senha.atender': 'Atendeu pedido de senha',

@@ -27,22 +27,45 @@ type Contratacao = {
 type Demissao = {
   id: string;
   criado_em: string;
-  alvo_id: string | null;
-  unidade_nome: string | null;
-};
-
-type SemAdmissao = {
-  id: string;
-  nome: string;
+  data_saida: string;
+  nome: string | null;
   setor: string | null;
   unidade_nome: string | null;
+  data_admissao: string | null;
+  motivo_rotulo: string;
+  tempo_casa_rotulo: string;
 };
+
+type Agregado = {
+  chave: string;
+  label: string;
+  entradas: number;
+  saidas: number;
+  saldo: number;
+};
+
+type MotivoAgg = { motivo: string; rotulo: string; total: number };
 
 type Payload = {
   periodo: { ano: number; mes: number; rotulo: string };
   contratacoes: { total: number; itens: Contratacao[] };
-  demissoes: { total: number; itens: Demissao[] };
-  sem_admissao: { total: number; itens: SemAdmissao[]; oculto?: boolean };
+  demissoes: {
+    total: number;
+    itens: Demissao[];
+    tempo_medio_casa_dias: number | null;
+    tempo_medio_casa_rotulo: string;
+  };
+  agregados: {
+    por_unidade: Agregado[];
+    por_setor: Agregado[];
+    por_motivo: MotivoAgg[];
+    destaque: {
+      mais_saidas_unidade: { label: string; saidas: number } | null;
+      mais_entradas_unidade: { label: string; entradas: number } | null;
+      mais_saidas_setor: { label: string; saidas: number } | null;
+    };
+  };
+  sem_admissao: { total: number; itens: { id: string; nome: string; setor: string | null; unidade_nome: string | null }[]; oculto?: boolean };
   pode_ver_aviso_admissao?: boolean;
 };
 
@@ -100,7 +123,7 @@ export default function RotatividadePage() {
     <div className="space-y-6">
       <AdminPageHeader
         title="Rotatividade"
-        description="Contratações (pela data de admissão) e demissões (exclusões no mês)."
+        description="Contratações e saídas do mês por unidade e setor. Acesso: Admin, RH e sócios."
       />
 
       <AvisoAdmissaoPendenteBanner />
@@ -148,28 +171,145 @@ export default function RotatividadePage() {
         </div>
       ) : payload ? (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <AdminStatCard
               label={`Contratações · ${payload.periodo.rotulo}`}
               valor={payload.contratacoes.total}
-              sub="Pela data de admissão no cadastro"
+              sub="Pela data de admissão"
               tom="verde"
             />
             <AdminStatCard
-              label={`Demissões · ${payload.periodo.rotulo}`}
+              label={`Saídas · ${payload.periodo.rotulo}`}
               valor={payload.demissoes.total}
-              sub="Exclusões registradas na auditoria"
+              sub="Exclusões com motivo"
               tom={payload.demissoes.total > 0 ? 'ambar' : 'neutro'}
+            />
+            <AdminStatCard
+              label="Tempo médio de casa (saídas)"
+              valor={payload.demissoes.tempo_medio_casa_rotulo || '—'}
+              sub={
+                payload.demissoes.tempo_medio_casa_dias != null
+                  ? `${payload.demissoes.tempo_medio_casa_dias} dias`
+                  : 'Sem snapshot de admissão'
+              }
+              tom="neutro"
             />
             {payload.pode_ver_aviso_admissao && (
               <AdminStatCard
                 label="Sem data de admissão"
                 valor={payload.sem_admissao.total}
-                sub="Pendentes de preenchimento pelo RH"
+                sub="Pendentes de preenchimento"
                 tom={payload.sem_admissao.total > 0 ? 'ambar' : 'verde'}
               />
             )}
           </div>
+
+          {(payload.agregados.destaque.mais_saidas_unidade ||
+            payload.agregados.destaque.mais_entradas_unidade ||
+            payload.agregados.destaque.mais_saidas_setor) && (
+            <div className="rounded-2xl border border-cafeteria-200 bg-cream-50/80 px-4 py-3 text-sm text-cafeteria-800 space-y-1">
+              <p className="font-semibold text-coffee-base">Destaques do mês</p>
+              {payload.agregados.destaque.mais_saidas_unidade &&
+                payload.agregados.destaque.mais_saidas_unidade.saidas > 0 && (
+                  <p>
+                    Mais saídas (unidade):{' '}
+                    <strong>{payload.agregados.destaque.mais_saidas_unidade.label}</strong> (
+                    {payload.agregados.destaque.mais_saidas_unidade.saidas})
+                  </p>
+                )}
+              {payload.agregados.destaque.mais_entradas_unidade &&
+                payload.agregados.destaque.mais_entradas_unidade.entradas > 0 && (
+                  <p>
+                    Mais contratações (unidade):{' '}
+                    <strong>{payload.agregados.destaque.mais_entradas_unidade.label}</strong> (
+                    {payload.agregados.destaque.mais_entradas_unidade.entradas})
+                  </p>
+                )}
+              {payload.agregados.destaque.mais_saidas_setor &&
+                payload.agregados.destaque.mais_saidas_setor.saidas > 0 && (
+                  <p>
+                    Mais saídas (setor):{' '}
+                    <strong>{payload.agregados.destaque.mais_saidas_setor.label}</strong> (
+                    {payload.agregados.destaque.mais_saidas_setor.saidas})
+                  </p>
+                )}
+            </div>
+          )}
+
+          <AdminSection title="Por unidade" description="Entradas, saídas e saldo líquido no mês">
+            {payload.agregados.por_unidade.length === 0 ? (
+              <p className="text-sm text-cafeteria-600">Sem movimento no período.</p>
+            ) : (
+              <AdminTable>
+                <AdminTableHead>
+                  <AdminTableTh>Unidade</AdminTableTh>
+                  <AdminTableTh>Entradas</AdminTableTh>
+                  <AdminTableTh>Saídas</AdminTableTh>
+                  <AdminTableTh>Saldo</AdminTableTh>
+                </AdminTableHead>
+                <AdminTableBody>
+                  {payload.agregados.por_unidade.map((u) => (
+                    <AdminTableRow key={u.chave}>
+                      <AdminTableTd className="font-medium text-coffee-base">{u.label}</AdminTableTd>
+                      <AdminTableTd>{u.entradas}</AdminTableTd>
+                      <AdminTableTd>{u.saidas}</AdminTableTd>
+                      <AdminTableTd className={u.saldo < 0 ? 'text-red-700 font-semibold' : ''}>
+                        {u.saldo > 0 ? `+${u.saldo}` : u.saldo}
+                      </AdminTableTd>
+                    </AdminTableRow>
+                  ))}
+                </AdminTableBody>
+              </AdminTable>
+            )}
+          </AdminSection>
+
+          <AdminSection title="Por setor" description="Mesmo mês, agrupado por setor">
+            {payload.agregados.por_setor.length === 0 ? (
+              <p className="text-sm text-cafeteria-600">Sem movimento no período.</p>
+            ) : (
+              <AdminTable>
+                <AdminTableHead>
+                  <AdminTableTh>Setor</AdminTableTh>
+                  <AdminTableTh>Entradas</AdminTableTh>
+                  <AdminTableTh>Saídas</AdminTableTh>
+                  <AdminTableTh>Saldo</AdminTableTh>
+                </AdminTableHead>
+                <AdminTableBody>
+                  {payload.agregados.por_setor.map((s) => (
+                    <AdminTableRow key={s.chave}>
+                      <AdminTableTd className="font-medium text-coffee-base">{s.label}</AdminTableTd>
+                      <AdminTableTd>{s.entradas}</AdminTableTd>
+                      <AdminTableTd>{s.saidas}</AdminTableTd>
+                      <AdminTableTd className={s.saldo < 0 ? 'text-red-700 font-semibold' : ''}>
+                        {s.saldo > 0 ? `+${s.saldo}` : s.saldo}
+                      </AdminTableTd>
+                    </AdminTableRow>
+                  ))}
+                </AdminTableBody>
+              </AdminTable>
+            )}
+          </AdminSection>
+
+          <AdminSection title="Saídas por motivo" description="Contagem no mês">
+            {payload.agregados.por_motivo.length === 0 ? (
+              <p className="text-sm text-cafeteria-600">Nenhuma saída no período.</p>
+            ) : (
+              <AdminTable>
+                <AdminTableHead>
+                  <AdminTableTh>Motivo</AdminTableTh>
+                  <AdminTableTh>Total</AdminTableTh>
+                </AdminTableHead>
+                <AdminTableBody>
+                  {payload.agregados.por_motivo.map((m) => (
+                    <AdminTableRow key={m.motivo}>
+                      <AdminTableTd>{m.rotulo}</AdminTableTd>
+                      <AdminTableTd className="font-semibold">{m.total}</AdminTableTd>
+                    </AdminTableRow>
+                  ))}
+                </AdminTableBody>
+              </AdminTable>
+            )}
+          </AdminSection>
 
           <AdminSection title="Contratações no mês" description="Quem tem data de admissão neste período">
             {payload.contratacoes.itens.length === 0 ? (
@@ -186,7 +326,10 @@ export default function RotatividadePage() {
                   {payload.contratacoes.itens.map((c) => (
                     <AdminTableRow key={c.id}>
                       <AdminTableTd>
-                        <Link href={`/admin/colaboradores/${c.id}/editar`} className="font-medium text-dourado-base hover:underline">
+                        <Link
+                          href={`/admin/colaboradores/${c.id}/editar`}
+                          className="font-medium text-dourado-base hover:underline"
+                        >
                           {c.nome}
                         </Link>
                       </AdminTableTd>
@@ -200,24 +343,31 @@ export default function RotatividadePage() {
             )}
           </AdminSection>
 
-          <AdminSection title="Demissões no mês" description="Exclusões de cadastro no período">
+          <AdminSection
+            title="Saídas no mês"
+            description="Nome, motivo e tempo de casa (snapshot no desligamento). Eventos antigos podem vir incompletos."
+          >
             {payload.demissoes.itens.length === 0 ? (
-              <p className="text-sm text-cafeteria-600 px-1">Nenhuma demissão registrada neste mês.</p>
+              <p className="text-sm text-cafeteria-600 px-1">Nenhuma saída registrada neste mês.</p>
             ) : (
               <AdminTable>
                 <AdminTableHead>
                   <AdminTableTh>Quando</AdminTableTh>
+                  <AdminTableTh>Nome</AdminTableTh>
                   <AdminTableTh>Unidade</AdminTableTh>
-                  <AdminTableTh>Registro</AdminTableTh>
+                  <AdminTableTh>Setor</AdminTableTh>
+                  <AdminTableTh>Motivo</AdminTableTh>
+                  <AdminTableTh>Tempo de casa</AdminTableTh>
                 </AdminTableHead>
                 <AdminTableBody>
                   {payload.demissoes.itens.map((d) => (
                     <AdminTableRow key={d.id}>
-                      <AdminTableTd>{formatarQuando(d.criado_em)}</AdminTableTd>
+                      <AdminTableTd className="text-xs whitespace-nowrap">{formatarQuando(d.criado_em)}</AdminTableTd>
+                      <AdminTableTd className="font-medium text-coffee-base">{d.nome ?? '(sem nome)'}</AdminTableTd>
                       <AdminTableTd>{d.unidade_nome ?? '—'}</AdminTableTd>
-                      <AdminTableTd className="text-xs text-cafeteria-500">
-                        {d.alvo_id ? `${d.alvo_id.slice(0, 8)}…` : '—'}
-                      </AdminTableTd>
+                      <AdminTableTd>{d.setor ?? '—'}</AdminTableTd>
+                      <AdminTableTd>{d.motivo_rotulo}</AdminTableTd>
+                      <AdminTableTd>{d.tempo_casa_rotulo}</AdminTableTd>
                     </AdminTableRow>
                   ))}
                 </AdminTableBody>

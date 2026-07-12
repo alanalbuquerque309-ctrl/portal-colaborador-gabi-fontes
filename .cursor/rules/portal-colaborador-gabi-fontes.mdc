@@ -250,14 +250,14 @@ Não confundir: admin é consulta; portal é operação do turno.
 
 | Rota | Quem | Função |
 |------|------|--------|
-| **`/admin/rotatividade`** | Quem edita cadastro (sócio, admin, RH, senha) | Contratações do mês (por `data_admissao`) + demissões (audit `colaborador.excluir`) |
+| **`/admin/rotatividade`** | **Admin, RH e sócios** (`podeVerRotatividade`) | Contratações/saídas do mês; totais por unidade e setor; motivos; tempo de casa |
 | Aviso laranja «faltam N datas de admissão» | **Só Admin e RH** (`podeVerAvisoAdmissaoPendente`) | Contador; **não trava**; some quando zerar |
 
-- **API:** `GET /api/admin/rotatividade?ano=&mes=` — `src/lib/rotatividade.ts`, `api/admin/rotatividade/route.ts`
-- **Aviso:** `AvisoAdmissaoPendenteBanner.tsx` no Dashboard, Colaboradores e Rotatividade
-- **Acesso:** `podeVerRotatividade` / `podeVerAvisoAdmissaoPendente` em `admin-access.ts`; flags em `/api/admin/auth`
-- Menu: Pessoas → Rotatividade (também no `ADMIN_NAV_RH`)
-- Commit: `e304a8b`
+- **Desligamento:** modal com motivo obrigatório (`demissao` \| `justa_causa` \| `pedido_demissao` \| `outro` + descrição); `POST /api/admin/colaboradores/excluir` grava snapshot no audit (nome, setor, unidade_slug, data_admissao, motivo) **sem CPF/telefone**
+- **API:** `GET /api/admin/rotatividade?ano=&mes=` — agregados + listas
+- **UI:** `AvisoAdmissaoPendenteBanner.tsx`, `ModalExcluirColaborador.tsx`
+- Gerentes **não** veem o menu Rotatividade
+- Commits: `e304a8b` (base), + motivo/snapshot/agregados
 
 ### PostgREST — duas FKs para `colaboradores`
 
@@ -436,7 +436,7 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 - **Checklists Mesquita:** `/portal/checklists` — autosave rascunho + **Publicar** (só publicar aparece); painel + banner rascunho; OK verde / pendente âmbar+justificativa; vistoria 5 setores; migrations **067–070**
 - **Unidades:** Quiosque = Barra (`da233d8`); não listar Quiosque separado na Saúde da equipe
 - **Cadastro/contratação:** admissão + setor + unidade obrigatórios; audit `colaborador.criar` (`e8abfd4`)
-- **Rotatividade:** `/admin/rotatividade` — contratações/demissões do mês; aviso laranja «faltam N admissões» **só Admin/RH** (`e304a8b`)
+- **Rotatividade:** `/admin/rotatividade` — Admin/RH/sócio; motivo na exclusão + snapshot; totais unidade/setor; aviso laranja admissões **só Admin/RH**
 - **Treinamento:** 1º par publicado — equipe «Pequenos detalhes» / liderança «Clima da equipe»; badges Equipe/Liderança; vídeo YouTube automático some quando há treino cadastrado vigente (`haTreinoCadastrado*Vigente`)
 - **Home:** termômetro **obrigatório** na entrada do colaborador; alertas: líder = setores; RH/sócio/admin = rede + badge «líder conversou»; Grãos ocultos se congelados; elogios OK; shell `home-resumo` + painel `home-painel`
 - **Cockpit:** sócio/admin → `/admin/dashboard` (`destinoHomeAposLogin`); atalhos + termômetro + **Cadastrar Novo Colaborador** + **Ver como colaborador**; Daniel/RH mantêm obrigações de avaliação no portal
@@ -460,7 +460,7 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 | Checklists (DB) | `067` … `069`, **`070_checklists_publicacao.sql`**, `scripts/aplicar-migration-070.mjs` |
 | Unidades (Barra/Quiosque) | `colaborador-org.ts` (`SLUGS_UNIDADE_OCULTOS`, `normalizarSlugUnidadeOperacional`), `settings-server.ts`, `evolucao-rede.ts`, `mural-unidade-grupo.ts` |
 | Cadastro / contratação | `admin/colaboradores/novo`, `api/admin/colaboradores` (POST), `audit-log.ts` (`COLAB_CRIAR`) |
-| Rotatividade | `admin/rotatividade`, `api/admin/rotatividade`, `rotatividade.ts`, `AvisoAdmissaoPendenteBanner.tsx`, `podeVerAvisoAdmissaoPendente` |
+| Rotatividade | `admin/rotatividade`, `api/admin/rotatividade`, `rotatividade.ts`, `AvisoAdmissaoPendenteBanner.tsx`, `ModalExcluirColaborador.tsx`, `api/admin/colaboradores/excluir` (POST + motivo) |
 | Treinamento (público UI) | **`TreinamentoPublicoBadge.tsx`**, `agruparSemanaPorPublico` em `treinamento-portal-ux.ts` |
 | Treinamento (script quinta) | **`scripts/publicar-treinamentos-quinta.mjs`**, `npm run treinamento:publicar-quinta` |
 | Treinamento (página) | `src/app/(portal)/portal/treinamento/page.tsx` |
