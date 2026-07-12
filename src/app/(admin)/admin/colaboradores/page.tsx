@@ -6,6 +6,7 @@ import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { listarSetoresCadastro } from '@/lib/tenant/org-catalog';
 import { useUnidadesCadastro } from '@/lib/tenant/use-unidades-cadastro';
 import { labelAcessoPortal } from '@/lib/colaborador-role-ui';
+import { AvisoAdmissaoPendenteBanner } from '@/components/admin/AvisoAdmissaoPendenteBanner';
 
 interface Colaborador {
   id: string;
@@ -216,6 +217,10 @@ export default function ColaboradoresPage() {
           {erroLista}
         </div>
       )}
+
+      <div className="mb-4">
+        <AvisoAdmissaoPendenteBanner />
+      </div>
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-display font-semibold text-coffee-base">

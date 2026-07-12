@@ -9,8 +9,10 @@ import {
   podeEditarCpfColaboradorAdmin,
   podeEditarEscalasAdmin,
   podeEditarLiderancaMapaCompleto,
+  podeVerAvisoAdmissaoPendente,
   podeVerAuditoria,
   podeVerDetalheNotasAvaliacaoAdmin,
+  podeVerRotatividade,
 } from '@/lib/admin-access';
 
 import { podeVerHistoricoChecklistsRede } from '@/lib/checklists/access';
@@ -181,6 +183,10 @@ export async function GET() {
     pode_editar_cadastro: podeEditarCadastroColaborador(role, senhaAdmin),
 
     pode_editar_cpf: podeEditarCpfColaboradorAdmin(role, senhaAdmin),
+
+    pode_ver_aviso_admissao: podeVerAvisoAdmissaoPendente(role, senhaAdmin),
+
+    pode_ver_rotatividade: podeVerRotatividade(role, senhaAdmin),
 
     podeVerReclamacoes: canViewReclamacoesAdmin(ctx),
 

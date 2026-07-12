@@ -17,6 +17,7 @@ import {
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { formatarIli, formatarNota, rotuloSituacao, tomSituacao } from '@/lib/evolucao';
 import { getTermo } from '@/lib/tenant/terminology';
+import { AvisoAdmissaoPendenteBanner } from '@/components/admin/AvisoAdmissaoPendenteBanner';
 
 type Colaborador = { id: string; nome: string; onboarding_completo: boolean };
 type Aviso = { id: string; titulo: string; ativo?: boolean };
@@ -180,6 +181,8 @@ export function AdminDashboardCockpit() {
 
   return (
     <div className="space-y-6">
+      <AvisoAdmissaoPendenteBanner />
+
       <div className="flex justify-end">
         <Link
           href="/admin/colaboradores/novo"

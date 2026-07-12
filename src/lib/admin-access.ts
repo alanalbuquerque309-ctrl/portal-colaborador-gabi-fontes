@@ -7,6 +7,7 @@ export const ADMIN_NAV_RH: readonly { href: string; label: string }[] = [
   { href: '/admin/dashboard', label: 'Dashboard' },
   { href: '/admin/evolucao', label: 'Saúde da equipe' },
   { href: '/admin/colaboradores', label: 'Colaboradores' },
+  { href: '/admin/rotatividade', label: 'Rotatividade' },
   { href: '/admin/redefinicoes-senha', label: 'Redefinições de senha' },
   { href: '/admin/termometro-emocoes', label: 'Termômetro de emoções' },
   { href: '/admin/lideres-por-setor', label: 'Liderança por setor' },
@@ -84,6 +85,27 @@ export function podeEditarCadastroColaborador(
   if (senhaAdmin) return true;
   const r = normalizePortalRole(role);
   return r === 'socio' || r === 'admin' || r === 'rh';
+}
+
+/**
+ * Aviso laranja de admissão faltando: só Admin (Daniel) e RH.
+ * Sócios/gerentes não veem o banner (não trava ninguém).
+ */
+export function podeVerAvisoAdmissaoPendente(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): boolean {
+  if (senhaAdmin) return true;
+  const r = normalizePortalRole(role);
+  return r === 'admin' || r === 'rh';
+}
+
+/** Painel de rotatividade (contratações/demissões): quem edita cadastro. */
+export function podeVerRotatividade(
+  role: string | null | undefined,
+  senhaAdmin: boolean
+): boolean {
+  return podeEditarCadastroColaborador(role, senhaAdmin);
 }
 
 /** Admin (Daniel), RH (Keila), sócios e login por senha podem corrigir CPF. */
