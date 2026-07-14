@@ -420,6 +420,7 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 - **Sócios isentos** (`socioIsentoObrigacoesOperacionaisPortal`): sem pendências operacionais na home
 - **Pendências rede:** só sócios/admin; merge de avaliações na janela em `avaliacao-pendentes-semana.ts`
 - **RH** não fecha pendência de gerente; gerente fecha própria equipe
+- **Plantão 12x36 × Avaliar liderança:** com ≥2 gerentes (`lider_direto`) na config, a lista em `/portal/avaliacao-lideranca` trava pelo gerente que avaliou o colaborador de verdade na **semana passada** (`avaliacoes_diarias`, assiduidade ≠ `fora_plantao`). Sem sinal ainda → picker manual. Histórico de `avaliacoes_lideranca` não é reescrito. Lib: `resolver-plantao-avaliacao-lideranca.ts`
 
 ## Disciplina para agentes
 
@@ -437,6 +438,7 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 - **Unidades:** Quiosque = Barra (`da233d8`); não listar Quiosque separado na Saúde da equipe
 - **Cadastro/contratação:** admissão + setor + unidade obrigatórios; audit `colaborador.criar` (`e8abfd4`)
 - **Rotatividade:** `/admin/rotatividade` — Admin/RH/sócio; motivo na exclusão + snapshot; totais unidade/setor; aviso laranja admissões **só Admin/RH**
+- **Plantão 12x36:** Avaliar liderança só mostra o gerente do plantão quando ele já avaliou o colaborador na semana passada (`resolver-plantao-avaliacao-lideranca.ts`); o outro some na semana seguinte
 - **Treinamento:** 1º par publicado — equipe «Pequenos detalhes» / liderança «Clima da equipe»; badges Equipe/Liderança; vídeo YouTube automático some quando há treino cadastrado vigente (`haTreinoCadastrado*Vigente`)
 - **Home:** termômetro **obrigatório** na entrada do colaborador; alertas: líder = setores; RH/sócio/admin = rede + badge «líder conversou»; Grãos ocultos se congelados; elogios OK; shell `home-resumo` + painel `home-painel`
 - **Cockpit:** sócio/admin → `/admin/dashboard` (`destinoHomeAposLogin`); atalhos + termômetro + **Cadastrar Novo Colaborador** + **Ver como colaborador**; Daniel/RH mantêm obrigações de avaliação no portal
@@ -461,6 +463,7 @@ CREATE INDEX IF NOT EXISTS idx_elogio_leituras_sugestao ON elogio_leituras(suges
 | Unidades (Barra/Quiosque) | `colaborador-org.ts` (`SLUGS_UNIDADE_OCULTOS`, `normalizarSlugUnidadeOperacional`), `settings-server.ts`, `evolucao-rede.ts`, `mural-unidade-grupo.ts` |
 | Cadastro / contratação | `admin/colaboradores/novo`, `api/admin/colaboradores` (POST), `audit-log.ts` (`COLAB_CRIAR`) |
 | Rotatividade | `admin/rotatividade`, `api/admin/rotatividade`, `rotatividade.ts`, `AvisoAdmissaoPendenteBanner.tsx`, `ModalExcluirColaborador.tsx`, `api/admin/colaboradores/excluir` (POST + motivo) |
+| Plantão 12x36 (avaliar liderança) | **`resolver-plantao-avaliacao-lideranca.ts`**, `api/portal/avaliacao-lideranca`, `(portal)/portal/avaliacao-lideranca/page.tsx` |
 | Treinamento (público UI) | **`TreinamentoPublicoBadge.tsx`**, `agruparSemanaPorPublico` em `treinamento-portal-ux.ts` |
 | Treinamento (script quinta) | **`scripts/publicar-treinamentos-quinta.mjs`**, `npm run treinamento:publicar-quinta` |
 | Treinamento (página) | `src/app/(portal)/portal/treinamento/page.tsx` |

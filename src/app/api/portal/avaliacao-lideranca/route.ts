@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { domingoSemanaSaoPaulo, hojeEhDomingoSaoPaulo, segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
+import {
+  domingoSemanaSaoPaulo,
+  hojeEhDomingoSaoPaulo,
+  segundaSemanaSaoPaulo,
+  semanaAnteriorSaoPaulo,
+} from '@/lib/semana-brasil';
 import { normalizePortalRole } from '@/lib/roles';
 import {
   listarEquipeParaAvaliacaoSemanal,
@@ -12,6 +17,10 @@ import {
   colaboradorDeFeriasNaSemana,
   MOTIVO_BLOQUEIO_LIDERANCA_FERIAS,
 } from '@/lib/avaliacao-ferias-semana';
+import {
+  filtrarAvaliadosPeloPlantaoResolvido,
+  resolverLiderPlantaoPorAvaliacaoGerente,
+} from '@/lib/resolver-plantao-avaliacao-lideranca';
 
 const DIMENSOES = ['n_exemplo', 'n_comunicacao', 'n_suporte', 'n_justica', 'n_clima'] as const;
 type PapelAvaliacao = 'lider_direto' | 'rh_global' | 'admin_global' | 'subordinado_admin';
@@ -204,13 +213,31 @@ export async function GET() {
     const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
     const unidadeSlug = extrairUnidadeSlug(eu);
     const setorCol = (eu as { setor?: string | null }).setor ?? null;
-    const avaliadosPermitidos =
+    let avaliadosPermitidos =
       role === 'admin'
         ? await carregarSubordinadosDoAdmin(supabase, colaboradorId, uid ?? null)
         : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId, {
             setor: setorCol,
             unidadeSlug,
           });
+
+    let liderPlantaoResolvidoId: string | null = null;
+    if (role === 'colaborador') {
+      const lideresDiretos = avaliadosPermitidos.filter((a) => a.papel === 'lider_direto');
+      if (lideresDiretos.length >= 2) {
+        liderPlantaoResolvidoId = await resolverLiderPlantaoPorAvaliacaoGerente(
+          supabase,
+          colaboradorId,
+          lideresDiretos.map((l) => l.id),
+          semanaAnteriorSaoPaulo()
+        );
+        avaliadosPermitidos = filtrarAvaliadosPeloPlantaoResolvido(
+          avaliadosPermitidos,
+          liderPlantaoResolvidoId
+        );
+      }
+    }
+
     const ids = avaliadosPermitidos.map((l) => l.id);
     let jaAvaliados = new Set<string>();
     if (ids.length > 0) {
@@ -241,6 +268,7 @@ export async function GET() {
       ok: true,
       tipo_escala: tipoEscala,
       precisa_escolher_plantao: lideresPlantao >= 2,
+      lider_plantao_resolvido_id: liderPlantaoResolvidoId,
       qtd_lideres_plantao: lideresPlantao,
       semana_inicio: semanaInicio,
       semana_fim: domingoSemanaSaoPaulo(),
@@ -339,13 +367,40 @@ export async function POST(req: Request) {
     const liderDiretoId = String((eu as { lider_id?: string | null }).lider_id ?? '') || null;
     const unidadeSlug = extrairUnidadeSlug(eu);
     const setorCol = (eu as { setor?: string | null }).setor ?? null;
-    const permitidos =
+    let permitidos =
       role === 'admin'
         ? await carregarSubordinadosDoAdmin(supabase, colaboradorId, uid ?? null)
         : await carregarAvaliadosPorRegra(supabase, colaboradorId, liderDiretoId, {
             setor: setorCol,
             unidadeSlug,
           });
+
+    if (role === 'colaborador') {
+      const lideresDiretos = permitidos.filter((a) => a.papel === 'lider_direto');
+      if (lideresDiretos.length >= 2) {
+        const liderPlantaoId = await resolverLiderPlantaoPorAvaliacaoGerente(
+          supabase,
+          colaboradorId,
+          lideresDiretos.map((l) => l.id),
+          semanaAnteriorSaoPaulo()
+        );
+        if (
+          liderPlantaoId &&
+          lideresDiretos.some((l) => l.id === avaliadoId) &&
+          avaliadoId !== liderPlantaoId
+        ) {
+          return NextResponse.json(
+            {
+              ok: false,
+              erro: 'Este gerente não é do seu plantão nesta semana.',
+            },
+            { status: 403 }
+          );
+        }
+        permitidos = filtrarAvaliadosPeloPlantaoResolvido(permitidos, liderPlantaoId);
+      }
+    }
+
     const permitidosSet = new Set(permitidos.map((p) => p.id));
     if (!permitidosSet.has(avaliadoId)) {
       return NextResponse.json(

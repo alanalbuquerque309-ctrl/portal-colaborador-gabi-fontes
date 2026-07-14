@@ -103,6 +103,10 @@ export default function AvaliacaoLiderancaPage() {
           setMotivoBloqueioFerias(String(data.bloqueado_ferias_motivo ?? ''));
           setTipoEscala(data.tipo_escala ?? null);
           setPrecisaEscolherPlantao(data.precisa_escolher_plantao === true);
+          // API já filtrou pelo gerente do plantão (avaliacoes_diarias); não pedir escolha.
+          if (data.lider_plantao_resolvido_id) {
+            setLiderPlantaoEscolhido(String(data.lider_plantao_resolvido_id));
+          }
         } else {
           setErro(data.erro || 'Não foi possível carregar.');
         }
@@ -150,7 +154,8 @@ export default function AvaliacaoLiderancaPage() {
   };
 
   const plantaoLeaders = avaliados.filter((a) => a.papel === 'lider_direto');
-  const precisaPlantao = precisaEscolherPlantao || plantaoLeaders.length >= 2;
+  // Só pede escolha se a API ainda mandou ≥2 gerentes (sem trava pela avaliação do gerente).
+  const precisaPlantao = precisaEscolherPlantao && plantaoLeaders.length >= 2;
   const plantaoJaAvaliado = plantaoLeaders.find((a) => a.ja_avaliado_esta_semana) ?? null;
   const plantaoEscolhidoId = liderPlantaoEscolhido ?? plantaoJaAvaliado?.id ?? null;
 
