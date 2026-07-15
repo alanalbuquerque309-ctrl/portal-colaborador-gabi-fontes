@@ -36,7 +36,7 @@ async function portalColaboradorRole(colaboradorId: string): Promise<string | nu
   }
 }
 
-/** Qualquer acesso ao painel admin (completo, gerente ou RH limitado). */
+/** Qualquer acesso ao painel /admin: sócio, admin, RH limitado ou sessão por senha. */
 export async function isAdminAuthorized(): Promise<boolean> {
   const cookieStore = await cookies();
   if (isValidAdminToken(cookieStore.get(ADMIN_COOKIE)?.value)) return true;
@@ -48,7 +48,7 @@ export async function isAdminAuthorized(): Promise<boolean> {
   return isRoleAdminCompleto(role) || isRoleAdminRh(role);
 }
 
-/** Sócios, admin, master, gerente ou sessão por senha (não inclui RH). */
+/** Sócios, admin ou sessão por senha (não inclui RH nem gerente/master). */
 export async function isAdminFullAuthorized(): Promise<boolean> {
   const cookieStore = await cookies();
   if (isValidAdminToken(cookieStore.get(ADMIN_COOKIE)?.value)) return true;

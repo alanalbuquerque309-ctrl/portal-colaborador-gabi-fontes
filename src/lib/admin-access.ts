@@ -23,9 +23,10 @@ export const ADMIN_PATHS_RH: readonly string[] = ADMIN_NAV_RH.filter((i) =>
   i.href.startsWith('/admin')
 ).map((i) => i.href);
 
+/** Gestão completa do painel /admin: só sócios e admin (Daniel). Gerentes/master ficam no portal. */
 export function isRoleAdminCompleto(role: string | null | undefined): boolean {
   const r = normalizePortalRole(role);
-  return r === 'socio' || r === 'admin' || r === 'master' || r === 'gerente';
+  return r === 'socio' || r === 'admin';
 }
 
 export function isRoleAdminRh(role: string | null | undefined): boolean {
