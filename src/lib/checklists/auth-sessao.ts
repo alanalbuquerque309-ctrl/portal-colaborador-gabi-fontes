@@ -1,7 +1,11 @@
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
-import { podeAcessarChecklistsOperacionais, podeVerHistoricoChecklistsRede } from '@/lib/checklists/access';
+import {
+  colaboradorElegivelChecklistPiloto,
+  podeAcessarChecklistsOperacionais,
+  podeVerHistoricoChecklistsRede,
+} from '@/lib/checklists/access';
 
 export type SessaoChecklist = {
   colaboradorId: string;
@@ -37,11 +41,34 @@ export async function resolverSessaoChecklist(): Promise<
     return { ok: false, status: 403, erro: 'Checklists operacionais ainda não disponíveis para seu perfil.' };
   }
 
+  const unidadeId = unidadeCookie || String((col as { unidade_id?: string }).unidade_id ?? '') || null;
+
+  // Piloto Mesquita: gerentes de outras lojas não veem menu nem APIs do portal.
+  if (podeAcessarChecklistsOperacionais(role)) {
+    try {
+      const elegivel = await colaboradorElegivelChecklistPiloto(supabase, {
+        colaboradorId,
+        unidadeId,
+        role,
+      });
+      if (!elegivel) {
+        return {
+          ok: false,
+          status: 403,
+          erro: 'Checklists em piloto só na Mesquita por enquanto.',
+        };
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro ao validar unidade do checklist.';
+      return { ok: false, status: 500, erro: msg };
+    }
+  }
+
   return {
     ok: true,
     sessao: {
       colaboradorId,
-      unidadeId: unidadeCookie || String((col as { unidade_id?: string }).unidade_id ?? '') || null,
+      unidadeId,
       role,
       nome: String((col as { nome?: string }).nome ?? ''),
     },

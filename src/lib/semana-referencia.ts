@@ -79,6 +79,16 @@ export function semanaAvaliacaoEquipePadraoISO(): string {
   return semanaAnteriorSaoPaulo();
 }
 
+/**
+ * Semana passada em cobrança (padrão da avaliação da equipe).
+ * Nela os gerentes podem corrigir plantão mesmo após a edição única.
+ */
+export function ehSemanaAvaliacaoEquipePadrao(dataRef: string | null | undefined): boolean {
+  const ref = String(dataRef ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ref)) return false;
+  return inicioSemanaSegundaFeiraLocal(ref) === semanaAvaliacaoEquipePadraoISO();
+}
+
 /** Semana que pendências admin/rede monitoram (mesma da tela «Avalie sua equipe»). */
 export function semanaPendenciasAtualISO(): string {
   return semanaAvaliacaoEquipePadraoISO();

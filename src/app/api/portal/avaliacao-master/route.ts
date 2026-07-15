@@ -13,7 +13,10 @@ import {
   resolverAvaliacaoExibicaoLider,
 } from '@/lib/avaliacao-fechamento-lider';
 import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
-import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
+import {
+  ehSemanaAvaliacaoEquipePadrao,
+  inicioSemanaSegundaFeiraLocal,
+} from '@/lib/semana-referencia';
 import { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
 import { aplicarEfeitosFeriasSemanaColaborador, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
@@ -295,7 +298,9 @@ export async function PATCH(req: Request) {
     if (String(rowExistente.colaborador_id) !== validado.colaboradorAlvo) {
       return NextResponse.json({ ok: false, erro: 'Colaborador não confere com a avaliação.' }, { status: 400 });
     }
-    if ((rowExistente as { edicao_utilizada?: boolean }).edicao_utilizada === true) {
+    const edicaoJaUsada = (rowExistente as { edicao_utilizada?: boolean }).edicao_utilizada === true;
+    const correcaoPlantaoSemanaPadrao = ehSemanaAvaliacaoEquipePadrao(dataRef);
+    if (edicaoJaUsada && !correcaoPlantaoSemanaPadrao) {
       return NextResponse.json(
         { ok: false, erro: 'Você já usou a única edição permitida nesta avaliação.' },
         { status: 409 }
@@ -342,7 +347,12 @@ export async function PATCH(req: Request) {
       await aplicarEfeitosFeriasSemanaColaborador(supabase, validado.colaboradorAlvo, dataRef);
     }
 
-    return NextResponse.json({ ok: true, media_dia: validado.media, edicao_utilizada: true });
+    return NextResponse.json({
+      ok: true,
+      media_dia: validado.media,
+      edicao_utilizada: true,
+      correcao_plantao_semana_padrao: correcaoPlantaoSemanaPadrao && edicaoJaUsada,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Erro';
     return NextResponse.json({ ok: false, erro: msg }, { status: 500 });

@@ -6,7 +6,12 @@ import { getPortalSession } from '@/lib/utils/session';
 import { ColaboradorAvaliacaoCard, type AvaliacaoServidor } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
 import { normalizePortalRole } from '@/lib/roles';
 import { colaboradorPermiteMarcarForaPlantao } from '@/lib/escala-portal';
-import { formatarIntervaloSemanaPtBR, inicioSemanaSegundaFeiraLocal, semanaAvaliacaoEquipePadraoISO } from '@/lib/semana-referencia';
+import {
+  ehSemanaAvaliacaoEquipePadrao,
+  formatarIntervaloSemanaPtBR,
+  inicioSemanaSegundaFeiraLocal,
+  semanaAvaliacaoEquipePadraoISO,
+} from '@/lib/semana-referencia';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalChecklist';
 import { QuintaTreinoLiderBanner } from '@/components/portal/QuintaTreinoLiderBanner';
@@ -51,6 +56,7 @@ export default function AvaliacaoMasterPage() {
   const intervaloSemana = formatarIntervaloSemanaPtBR(dataRef);
   const semanaPadrao = semanaAvaliacaoEquipePadraoISO();
   const dataRefEhSemanaCorrente = dataRef === segundaSemanaSaoPaulo() && dataRef !== semanaPadrao;
+  const permiteCorrecaoPlantaoExtra = ehSemanaAvaliacaoEquipePadrao(dataRef);
 
   useEffect(() => {
     const s = getPortalSession();
@@ -130,6 +136,17 @@ export default function AvaliacaoMasterPage() {
         </div>
       )}
 
+      {permiteCorrecaoPlantaoExtra && (
+        <div className="rounded-xl border border-violet-300 bg-violet-50 px-4 py-3 text-sm text-violet-950">
+          <p className="font-semibold">Correção de plantão liberada nesta semana</p>
+          <p className="mt-1">
+            Mesmo quem já usou a edição única pode tocar em <strong>Corrigir plantão</strong>: troque «meu plantão»
+            por «outro plantão» (ou o inverso) se a pessoa estava com o outro gerente. Isso libera a avaliação de
+            liderança correta para o colaborador.
+          </p>
+        </div>
+      )}
+
       <section className="rounded-2xl border border-mel-200 bg-gradient-to-br from-mel-50/70 via-white to-cream-50 overflow-hidden shadow-sm">
         <details className="group">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 hover:bg-mel-50/60 transition-colors [&::-webkit-details-marker]:hidden">
@@ -169,7 +186,9 @@ export default function AvaliacaoMasterPage() {
             </p>
             <p className="rounded-lg bg-mel-50 border border-mel-200 px-3 py-2 text-cafeteria-800">
               Avaliação <strong>obrigatória</strong>. Depois de salvar, use <strong>✏️ Editar</strong> (uma correção por
-              semana). Para semanas anteriores, mude a data abaixo e toque em <strong>Atualizar lista</strong>.
+              semana). Na <strong>semana passada em cobrança</strong>, quem já editou ainda pode{' '}
+              <strong>Corrigir plantão</strong>. Para outras semanas, mude a data e toque em{' '}
+              <strong>Atualizar lista</strong>.
             </p>
           </div>
         </details>
@@ -207,8 +226,12 @@ export default function AvaliacaoMasterPage() {
             id: m.id,
             nome: m.nome,
             concluido: m.avaliacao != null,
-            editavel:
-              Boolean(m.avaliacao && !m.avaliacao.avaliado_por_outro_lider && !m.avaliacao.edicao_utilizada && m.avaliacao.id),
+            editavel: Boolean(
+              m.avaliacao &&
+                !m.avaliacao.avaliado_por_outro_lider &&
+                m.avaliacao.id &&
+                (!m.avaliacao.edicao_utilizada || permiteCorrecaoPlantaoExtra)
+            ),
             subtitulo:
               [
                 m.avaliacao?.avaliado_por_outro_lider ? 'já avaliado por outro líder' : null,
@@ -301,6 +324,7 @@ export default function AvaliacaoMasterPage() {
                 mostrarForaPlantao={colaboradorPermiteMarcarForaPlantao(m.tipo_escala, {
                   unidadeSlug: m.unidade_slug,
                 })}
+                permiteCorrecaoPlantaoExtra={permiteCorrecaoPlantaoExtra}
                 mostrarFerias
               />
             </li>

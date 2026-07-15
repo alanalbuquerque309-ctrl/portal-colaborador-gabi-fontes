@@ -47,6 +47,11 @@ type Props = {
   onModoEdicaoChange?: (ativo: boolean) => void;
   /** Desabilita edição única (ex.: visita RH). */
   permiteEdicaoUnica?: boolean;
+  /**
+   * Semana passada em cobrança: permite corrigir plantão mesmo após a edição única.
+   * Usado para ajustar «meu plantão» / «outro plantão» quando a trava de liderança depende disso.
+   */
+  permiteCorrecaoPlantaoExtra?: boolean;
   /** Gerente de loja: botão «fora do plantão». Visita RH não usa. */
   mostrarForaPlantao?: boolean;
   /** Botão «de férias» (semana sem nota, fora da média). */
@@ -98,6 +103,7 @@ export function ColaboradorAvaliacaoCard({
   forcarEdicao = false,
   onModoEdicaoChange,
   permiteEdicaoUnica = true,
+  permiteCorrecaoPlantaoExtra = false,
   mostrarForaPlantao = true,
   mostrarFerias = true,
 }: Props) {
@@ -106,11 +112,12 @@ export function ColaboradorAvaliacaoCard({
   const [avaliando, setAvaliando] = useState(false);
   const edicaoUtilizada = avaliacaoInicial?.edicao_utilizada === true;
   const avaliadoPorOutroLider = avaliacaoInicial?.avaliado_por_outro_lider === true;
+  const correcaoPlantaoExtra = permiteCorrecaoPlantaoExtra && edicaoUtilizada;
   const podeEditarAvaliacao =
     permiteEdicaoUnica &&
     avaliacaoInicial != null &&
     !avaliadoPorOutroLider &&
-    !edicaoUtilizada &&
+    (!edicaoUtilizada || permiteCorrecaoPlantaoExtra) &&
     !!avaliacaoInicial.id;
   const somenteLeitura = avaliacaoInicial != null && !modoEdicao;
   const cadastroPortalPendente = !onboardingCompleto;
@@ -501,7 +508,13 @@ export function ColaboradorAvaliacaoCard({
       }
       setModoEdicao(false);
       onModoEdicaoChange?.(false);
-      setMsg(modoEdicao ? 'Correção salva (edição única usada).' : 'Salvo.');
+      setMsg(
+        modoEdicao
+          ? correcaoPlantaoExtra
+            ? 'Plantão corrigido. A avaliação de liderança do colaborador usa este sinal.'
+            : 'Correção salva (edição única usada).'
+          : 'Salvo.'
+      );
       onSalvo();
     } catch {
       setErro('Erro de conexão.');
@@ -523,15 +536,29 @@ export function ColaboradorAvaliacaoCard({
             <button
               type="button"
               onClick={iniciarEdicao}
-              className="inline-flex items-center gap-1 rounded-lg border border-cafeteria-300 bg-white px-3 py-2 text-sm font-medium text-cafeteria-800 hover:bg-cafeteria-50 min-h-[44px]"
-              title="Editar avaliação (uma vez)"
+              className={`inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium min-h-[44px] ${
+                correcaoPlantaoExtra
+                  ? 'border-violet-400 bg-violet-50 text-violet-950 hover:bg-violet-100'
+                  : 'border-cafeteria-300 bg-white text-cafeteria-800 hover:bg-cafeteria-50'
+              }`}
+              title={
+                correcaoPlantaoExtra
+                  ? 'Corrigir plantão nesta semana (exceção após edição única)'
+                  : 'Editar avaliação (uma vez)'
+              }
             >
-              ✏️ Editar
+              {correcaoPlantaoExtra ? '🔄 Corrigir plantão' : '✏️ Editar'}
             </button>
           ) : null}
           {modoEdicao ? (
-            <span className="text-xs sm:text-sm font-medium rounded-full bg-sky-100 text-sky-900 px-2.5 py-0.5">
-              Editando (única vez)
+            <span
+              className={`text-xs sm:text-sm font-medium rounded-full px-2.5 py-0.5 ${
+                correcaoPlantaoExtra
+                  ? 'bg-violet-100 text-violet-950'
+                  : 'bg-sky-100 text-sky-900'
+              }`}
+            >
+              {correcaoPlantaoExtra ? 'Corrigindo plantão' : 'Editando (única vez)'}
             </span>
           ) : null}
         </div>
