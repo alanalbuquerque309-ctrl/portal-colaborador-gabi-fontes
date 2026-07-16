@@ -212,7 +212,7 @@ export default function PortalTreinamentoPage() {
     <main className="space-y-6">
       <PortalPageHeader
         title="Treinamento"
-        description="Material da semana em destaque. Confirme ao final quando solicitado."
+        description="Material atual em destaque. Confirme ao final quando solicitado."
         backHref="/portal"
         backLabel="Voltar ao portal"
         breadcrumb={[{ label: 'Portal', href: '/portal' }, { label: 'Treinamento' }]}
@@ -241,7 +241,7 @@ export default function PortalTreinamentoPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-dourado-base">
-                      Treinamento desta semana
+                      Treinamento atual
                     </p>
                     <p className="text-sm text-cafeteria-700 mt-0.5">
                       {concluidosSemana} de {semana.length} concluído{semana.length === 1 ? '' : 's'}
@@ -264,7 +264,7 @@ export default function PortalTreinamentoPage() {
 
                 {semanaEmDia ? (
                   <p className="text-sm font-medium text-emerald-800 mb-4">
-                    Tudo em dia nesta semana. Você concluiu o material vigente.
+                    Tudo em dia. Você concluiu o material atual e pode revê-lo quando quiser.
                   </p>
                 ) : null}
 
@@ -309,7 +309,7 @@ export default function PortalTreinamentoPage() {
                     Treinamentos anteriores ({historico.length})
                   </span>
                   <p className="text-xs text-cafeteria-600 mt-0.5">
-                    Semanas passadas. Status real: concluído, visualizado ou não concluiu.
+                    Materiais substituídos. Status real: concluído, visualizado ou não concluiu.
                   </p>
                 </div>
                 <svg

@@ -38,25 +38,26 @@ export function treinoTextoVigentePorPublico(
   return treinoCadastradoVigentePorPublico(rows, publico, 'texto');
 }
 
-/** Texto de ciclo anterior ou substituído por outro mais novo do mesmo público. */
+/**
+ * Texto substituído por outro mais novo do mesmo público.
+ *
+ * A confirmação muda apenas o status pessoal. O último treinamento de cada
+ * público continua atual e disponível até a publicação do próximo, mesmo
+ * depois da virada do ciclo de quinta-feira.
+ */
 export function treinamentoTextoArquivado(
   row: TreinamentoDbRow,
   rows: TreinamentoDbRow[]
 ): boolean {
   if (normalizarTipoConteudo(row.tipo_conteudo) !== 'texto') return false;
-  const cicloUtc = inicioCicloTreinoQuintaUtcIsoSp();
   const publico = String(row.publico_alvo ?? '');
-  const maisNovo = rows
-    .filter(
-      (r) =>
-        r.ativo !== false &&
-        r.publico_alvo === publico &&
-        normalizarTipoConteudo(r.tipo_conteudo) === 'texto' &&
-        String(r.created_at) > String(row.created_at)
-    )
-    .length;
-  if (maisNovo > 0) return true;
-  return String(row.created_at) < cicloUtc;
+  return rows.some(
+    (r) =>
+      r.ativo !== false &&
+      r.publico_alvo === publico &&
+      normalizarTipoConteudo(r.tipo_conteudo) === 'texto' &&
+      String(r.created_at) > String(row.created_at)
+  );
 }
 
 /** Há treino de texto de liderança no ciclo vigente. */

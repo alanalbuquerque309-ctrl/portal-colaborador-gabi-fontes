@@ -157,7 +157,8 @@ Objetivo: menos I/O no Supabase **free tier** sem alongar xícaras de loading. E
 ### Vigência semanal (ciclo quinta)
 
 - **Lib:** `src/lib/treinamento-vigencia.ts`
-- Só o texto do **ciclo vigente** (quinta a quarta) fica pendente; anteriores vão para gaveta (`arquivado: true`)
+- O texto mais novo de cada público (**Todos** / **Liderança**) continua em «Treinamento atual» até outro do mesmo público ser publicado; confirmar muda o status para concluído, **não remove nem arquiva**
+- Ao entrar um texto novo do mesmo público, o anterior vai para a gaveta (`arquivado: true`)
 - Com treino cadastrado vigente (texto **ou** vídeo) para `todos`, vídeo automático `quinta-colaborador` **não** aparece na semana
 - Com treino cadastrado vigente para `lideranca`, vídeo automático `quinta-lider` **não** aparece
 - Só `video-institutional` é extra permanente explícito (fora da barra de progresso via `TREINO_IDS_EXTRAS`)
