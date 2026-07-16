@@ -12,7 +12,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const portalRoot = path.join(__dirname, '..');
 const conteudoDir = path.join(portalRoot, 'conteudo', 'treinamentos');
 
-const ARQUIVOS = ['01-equipe-pequenos-detalhes.md', '02-lideranca-clima-equipe.md'];
+const ARQUIVOS = [
+  '03-equipe-cliente-nao-deveria-pedir-atencao.md',
+  '04-lideranca-acompanha-vira-padrao.md',
+];
 
 const SLUG_UNIDADE = {
   todos: 'matriz',

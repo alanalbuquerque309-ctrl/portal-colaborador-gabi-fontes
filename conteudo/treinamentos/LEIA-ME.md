@@ -8,6 +8,8 @@ Arquivos prontos para colar no admin do portal (`/admin/treinamento/novo`).
 |---------|---------|--------|
 | `01-equipe-pequenos-detalhes.md` | **Todos** | Os pequenos detalhes contam. Muito. |
 | `02-lideranca-clima-equipe.md` | **Liderança** | O clima da equipe tem um endereço |
+| `03-equipe-cliente-nao-deveria-pedir-atencao.md` | **Todos** | O cliente não deveria precisar pedir atenção |
+| `04-lideranca-acompanha-vira-padrao.md` | **Liderança** | O que você acompanha vira padrão |
 
 ## Como publicar (quinta-feira)
 
