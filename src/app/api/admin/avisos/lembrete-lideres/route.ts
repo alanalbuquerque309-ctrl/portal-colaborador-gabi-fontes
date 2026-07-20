@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminViewerContext } from '@/lib/admin-auth';
 import { podeVerPendenciasSemanaRede } from '@/lib/bonificacao-access';
 import { calcularPendenciasSemana } from '@/lib/avaliacao-pendentes-semana';
+import { erroColunaAutorAviso, resolverAutorPublicacaoAviso } from '@/lib/avisos-autor';
 import { montarPreviewAvisoLideres } from '@/lib/avisos-lembrete-lideres';
 import { slugUnidadeReferenciaPublico } from '@/lib/avisos-publico';
 import { isDateIsoAvaliacao } from '@/lib/semana-referencia';
@@ -108,14 +109,17 @@ export async function POST(req: Request) {
     const titulo = body.titulo?.trim() || preview.titulo;
     const conteudo = body.conteudo?.trim() || preview.conteudo;
     const exigeConfirmacao = body.exige_confirmacao !== false;
+    const autor = await resolverAutorPublicacaoAviso(supabase);
 
-    const payloadBase = {
+    const payloadBase: Record<string, unknown> = {
       titulo,
       conteudo,
       unidade_id: unidadeId,
       ativo: true,
       exige_confirmacao: exigeConfirmacao,
       data_publicacao: new Date().toISOString(),
+      publicado_por_id: autor.id,
+      publicado_por_nome: autor.nome,
     };
 
     let insert = await supabase
@@ -123,6 +127,15 @@ export async function POST(req: Request) {
       .insert({ ...payloadBase, publico_alvo: 'lideranca' })
       .select('id, titulo')
       .single();
+
+    if (insert.error && erroColunaAutorAviso(insert.error.message)) {
+      const { publicado_por_id: _a, publicado_por_nome: _b, ...semAutor } = payloadBase;
+      insert = await supabase
+        .from('avisos')
+        .insert({ ...semAutor, publico_alvo: 'lideranca' })
+        .select('id, titulo')
+        .single();
+    }
 
     if (insert.error && /publico_alvo/i.test(insert.error.message)) {
       insert = await supabase.from('avisos').insert(payloadBase).select('id, titulo').single();

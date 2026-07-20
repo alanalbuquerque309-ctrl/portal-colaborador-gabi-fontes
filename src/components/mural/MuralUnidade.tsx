@@ -9,9 +9,11 @@ interface Aviso {
   titulo: string;
   conteudo: string | null;
   data_publicacao: string;
-  unidade_nome?: string;
+  unidade_nome?: string | null;
   exige_confirmacao?: boolean;
   confirmado?: boolean;
+  publicado_por_nome?: string | null;
+  publico_label?: string | null;
 }
 
 export function MuralUnidade() {
@@ -115,8 +117,13 @@ export function MuralUnidade() {
           )}
           <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t border-cream-200">
             <p className="text-coffee-100/70 text-xs">
-              {new Date(a.data_publicacao).toLocaleDateString('pt-BR')}
-              {a.unidade_nome && ` · ${a.unidade_nome}`}
+              {[
+                a.publicado_por_nome ? `Por ${a.publicado_por_nome}` : null,
+                a.publico_label ? `Público: ${a.publico_label}` : null,
+                new Date(a.data_publicacao).toLocaleDateString('pt-BR'),
+              ]
+                .filter(Boolean)
+                .join(' · ')}
             </p>
             {a.exige_confirmacao && (
               a.confirmado ? (

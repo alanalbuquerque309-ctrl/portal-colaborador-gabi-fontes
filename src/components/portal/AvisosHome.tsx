@@ -14,7 +14,18 @@ type Aviso = {
   data_publicacao: string;
   exige_confirmacao?: boolean;
   confirmado?: boolean;
+  publicado_por_nome?: string | null;
+  publico_label?: string | null;
 };
+
+function MetaComunicado({ aviso }: { aviso: Aviso }) {
+  const partes = [
+    aviso.publicado_por_nome ? `Por ${aviso.publicado_por_nome}` : null,
+    aviso.publico_label ? `Público: ${aviso.publico_label}` : null,
+    new Date(aviso.data_publicacao).toLocaleDateString('pt-BR'),
+  ].filter(Boolean);
+  return <span className="text-xs text-cafeteria-500">{partes.join(' · ')}</span>;
+}
 
 const MAX_AVISOS_HOME = 2;
 const STORAGE_RECOLHIDOS = 'portal_comunicados_recolhidos';
@@ -68,9 +79,7 @@ function ConteudoComunicado({
         <p className="text-sm text-cafeteria-700 mt-2 leading-relaxed whitespace-pre-wrap">{aviso.conteudo}</p>
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t border-cream-200">
-        <span className="text-xs text-cafeteria-500">
-          {new Date(aviso.data_publicacao).toLocaleDateString('pt-BR')}
-        </span>
+        <MetaComunicado aviso={aviso} />
         <div className="flex flex-wrap gap-2">
           {modoGaveta && onRecolher ? (
             <button

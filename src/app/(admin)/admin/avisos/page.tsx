@@ -16,6 +16,7 @@ interface Aviso {
   unidade_id: string;
   unidade_nome: string;
   publico_label: string;
+  publicado_por_nome?: string | null;
 }
 
 export default function AvisosPage() {
@@ -136,6 +137,7 @@ export default function AvisosPage() {
             <thead className="bg-cream-200">
               <tr>
                 <th className="text-left px-4 py-3 text-coffee-base font-medium">Título</th>
+                <th className="text-left px-4 py-3 text-coffee-base font-medium">Autor</th>
                 <th className="text-left px-4 py-3 text-coffee-base font-medium">Público</th>
                 <th className="text-left px-4 py-3 text-coffee-base font-medium">Data</th>
                 <th className="text-left px-4 py-3 text-coffee-base font-medium">Confirmação</th>
@@ -147,6 +149,7 @@ export default function AvisosPage() {
               {avisos.map((a) => (
                 <tr key={a.id} className="border-t border-cream-300 hover:bg-cream-50">
                   <td className="px-4 py-3 text-coffee-base font-medium">{a.titulo}</td>
+                  <td className="px-4 py-3 text-coffee-100">{a.publicado_por_nome || '—'}</td>
                   <td className="px-4 py-3 text-coffee-100">{a.publico_label || a.unidade_nome}</td>
                   <td className="px-4 py-3 text-coffee-100">
                     {new Date(a.data_publicacao).toLocaleDateString('pt-BR')}

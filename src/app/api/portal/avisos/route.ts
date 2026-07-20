@@ -1,16 +1,20 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { erroColunaAutorAviso, nomeAutorAvisoExibicao } from '@/lib/avisos-autor';
 import {
   colaboradorRecebeAvisoPublico,
+  labelPublicoAviso,
   resolverPublicoAviso,
 } from '@/lib/avisos-publico';
 import { avisoVisivelNoPortal } from '@/lib/avisos-vigencia';
 
 const SELECT_AVISOS =
-  'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, publico_alvo, unidades(slug)';
+  'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, publico_alvo, publicado_por_id, publicado_por_nome, unidades(slug, nome)';
+const SELECT_AVISOS_SEM_AUTOR =
+  'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, publico_alvo, unidades(slug, nome)';
 const SELECT_AVISOS_SEM_PUBLICO =
-  'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, unidades(slug)';
+  'id, titulo, conteudo, data_publicacao, exige_confirmacao, unidade_id, unidades(slug, nome)';
 
 /** Lista avisos para o colaborador logado conforme público-alvo. */
 export async function GET(req: Request) {
@@ -44,14 +48,28 @@ export async function GET(req: Request) {
         ? String((unidadeObj as { slug?: string }).slug ?? '')
         : '';
 
+    let avisosRows: Record<string, unknown>[] = [];
+    let erroSelect: { message: string } | null = null;
+
     const primario = await supabase
       .from('avisos')
       .select(SELECT_AVISOS)
       .eq('ativo', true)
       .order('data_publicacao', { ascending: false });
+    avisosRows = (primario.data ?? []) as unknown as Record<string, unknown>[];
+    erroSelect = primario.error;
 
-    let avisosRows: Record<string, unknown>[] = [];
-    if (primario.error && /publico_alvo/i.test(primario.error.message)) {
+    if (erroSelect && erroColunaAutorAviso(erroSelect.message)) {
+      const r2 = await supabase
+        .from('avisos')
+        .select(SELECT_AVISOS_SEM_AUTOR)
+        .eq('ativo', true)
+        .order('data_publicacao', { ascending: false });
+      avisosRows = (r2.data ?? []) as unknown as Record<string, unknown>[];
+      erroSelect = r2.error;
+    }
+
+    if (erroSelect && /publico_alvo/i.test(erroSelect.message)) {
       const retry = await supabase
         .from('avisos')
         .select(SELECT_AVISOS_SEM_PUBLICO)
@@ -59,9 +77,9 @@ export async function GET(req: Request) {
         .order('data_publicacao', { ascending: false });
       if (retry.error) return NextResponse.json({ ok: false, erro: retry.error.message }, { status: 500 });
       avisosRows = (retry.data ?? []) as unknown as Record<string, unknown>[];
-    } else {
-      if (primario.error) return NextResponse.json({ ok: false, erro: primario.error.message }, { status: 500 });
-      avisosRows = (primario.data ?? []) as unknown as Record<string, unknown>[];
+      erroSelect = null;
+    } else if (erroSelect) {
+      return NextResponse.json({ ok: false, erro: erroSelect.message }, { status: 500 });
     }
 
     let avisos = avisosRows.filter((a: Record<string, unknown>) =>
@@ -121,15 +139,29 @@ export async function GET(req: Request) {
       }
     }
 
-    let resultado = avisos.map((a: Record<string, unknown>) => ({
-      id: a.id,
-      titulo: a.titulo,
-      conteudo: a.conteudo,
-      data_publicacao: a.data_publicacao,
-      exige_confirmacao: a.exige_confirmacao === true,
-      confirmado: confirmadosSet.has(String(a.id)),
-      visualizado: visualizadosSet.has(String(a.id)),
-    }));
+    let resultado = avisos.map((a: Record<string, unknown>) => {
+      const unidadeAviso = a.unidades as { slug?: string; nome?: string } | null;
+      const publico = resolverPublicoAviso(
+        a.publico_alvo as string | null | undefined,
+        unidadeAviso?.slug
+      );
+      const autor = nomeAutorAvisoExibicao({
+        publicado_por_nome: a.publicado_por_nome as string | null | undefined,
+      });
+      return {
+        id: a.id,
+        titulo: a.titulo,
+        conteudo: a.conteudo,
+        data_publicacao: a.data_publicacao,
+        exige_confirmacao: a.exige_confirmacao === true,
+        confirmado: confirmadosSet.has(String(a.id)),
+        visualizado: visualizadosSet.has(String(a.id)),
+        publico_alvo: publico,
+        publico_label: labelPublicoAviso(publico),
+        publicado_por_nome: autor || null,
+        unidade_nome: unidadeAviso?.nome ? String(unidadeAviso.nome) : null,
+      };
+    });
 
     if (somentePendentes) {
       resultado = resultado.filter((a) => {
