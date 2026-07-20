@@ -366,7 +366,8 @@ export function ChecklistStickyActions({
     <div className="fixed bottom-0 left-0 right-0 z-40 md:static md:mt-2">
       {publicadoEm && (
         <p className="hidden md:block text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 mb-2">
-          Publicado em {new Date(publicadoEm).toLocaleString('pt-BR')}. Nova publicação substitui a visível no portal.
+          Publicado em {new Date(publicadoEm).toLocaleString('pt-BR')}. Amanhã o formulário abre de novo; este dia
+          fica 7 dias para conferência.
         </p>
       )}
       <div className="md:hidden border-t border-cafeteria-200 bg-cream-100/95 backdrop-blur-md px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(62,39,35,0.08)]">

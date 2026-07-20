@@ -8,16 +8,24 @@ import {
   tiposChecklistValidos,
   todosIdsItensTurno,
 } from '@/lib/checklists/templates';
-import { buscarExibicaoPublicada, listarSlotsDia } from '@/lib/checklists/publicacao';
+import {
+  buscarExibicaoPublicada,
+  listarHistoricoPublicado7Dias,
+  listarSlotsDia,
+} from '@/lib/checklists/publicacao';
 import { contagemStatusItens } from '@/lib/checklists/service';
-import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
+import {
+  dataOperacionalSaoPaulo,
+  rotuloDataChecklist,
+  rotuloTurno,
+} from '@/lib/checklists/dia-semana';
 import type { ChecklistTipo } from '@/lib/checklists/types';
 
 export const dynamic = 'force-dynamic';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
-/** Checklist publicado visível no portal (última publicação da loja). */
+/** Checklist publicado + histórico dos últimos 7 dias (janela rolante). */
 export async function GET(req: Request) {
   const auth = await resolverSessaoChecklist();
   if (!auth.ok) {
@@ -60,16 +68,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ ok: false, erro: 'Checklist não disponível para esta unidade.' }, { status: 403 });
     }
 
+    const dataHoje = dataOperacionalSaoPaulo();
     const exibicao = await buscarExibicaoPublicada(supabase, {
       unidadeId,
       tipo: template.tipo,
     });
+    const historico = await listarHistoricoPublicado7Dias(supabase, {
+      unidadeId,
+      tipo: template.tipo,
+    });
 
-    const diaHoje = diaSemanaOperacionalSaoPaulo();
     const slotsHoje = await listarSlotsDia(supabase, {
       unidadeId,
       tipo: template.tipo,
-      diaSemana: diaHoje,
+      dataReferencia: dataHoje,
     });
     const rascunhos = slotsHoje
       .filter((s) => !s.publicado_em)
@@ -88,6 +100,8 @@ export async function GET(req: Request) {
         };
       });
 
+    const hojePublicado = Boolean(exibicao?.eh_hoje);
+
     return NextResponse.json(
       {
         ok: true,
@@ -102,10 +116,15 @@ export async function GET(req: Request) {
           nome: String((unidade as { nome?: string }).nome ?? ''),
           slug,
         },
+        data_hoje: dataHoje,
+        dia_hoje_rotulo: rotuloDataChecklist(dataHoje),
+        hoje_publicado: hojePublicado,
         publicado: exibicao
           ? {
+              data_referencia: exibicao.data_referencia,
               dia_semana: exibicao.dia_semana,
-              dia_semana_rotulo: rotuloDiaSemana(exibicao.dia_semana),
+              dia_semana_rotulo: rotuloDataChecklist(exibicao.data_referencia),
+              eh_hoje: exibicao.eh_hoje,
               publicado_em: exibicao.publicado_em,
               publicado_por_nome: exibicao.publicado_por_nome,
               respostas: exibicao.respostas,
@@ -119,8 +138,18 @@ export async function GET(req: Request) {
               })),
             }
           : null,
+        historico: historico.map((h) => ({
+          data_referencia: h.data_referencia,
+          dia_semana_rotulo: rotuloDataChecklist(h.data_referencia),
+          publicado_em: h.publicado_em,
+          publicado_por_nome: h.publicado_por_nome,
+          ok: h.ok,
+          pendente: h.pendente,
+          total: h.total,
+          eh_hoje: h.eh_hoje,
+          respostas: h.respostas,
+        })),
         rascunhos,
-        dia_hoje_rotulo: rotuloDiaSemana(diaHoje),
       },
       { headers: NO_STORE }
     );

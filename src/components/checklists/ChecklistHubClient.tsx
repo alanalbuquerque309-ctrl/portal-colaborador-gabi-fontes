@@ -112,7 +112,7 @@ export function ChecklistHubClient() {
         subtitulo={
           fasePiloto
             ? 'Piloto Mesquita: seu checklist de gerência por turno e vistoria dos setores (Estoque, ASG, Cozinha, Balcão, Caixa).'
-            : 'Escolha a loja e o turno, depois abra o checklist. Cada envio atualiza o registro deste dia da semana.'
+            : 'Escolha a loja e o turno, depois abra o checklist. Cada dia civil abre em branco; os últimos 7 dias ficam para conferência.'
         }
         chips={
           <>

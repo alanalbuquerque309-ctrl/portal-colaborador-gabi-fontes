@@ -59,6 +59,8 @@ export type ChecklistRegistro = {
   unidade_slug?: string;
   tipo: ChecklistTipo;
   turno: ChecklistTurno;
+  /** Data civil YYYY-MM-DD (chave da janela de 7 dias). */
+  data_referencia?: string;
   dia_semana: number;
   colaborador_id: string;
   colaborador_nome?: string;
@@ -66,7 +68,7 @@ export type ChecklistRegistro = {
   observacoes: string | null;
   preenchido_em: string;
   updated_at: string;
-  /** Preenchido após «Publicar»; visível no portal até nova publicação. */
+  /** Preenchido após «Publicar»; visível no portal para conferência. */
   publicado_em?: string | null;
   publicado_por_id?: string | null;
   publicado_por_nome?: string;

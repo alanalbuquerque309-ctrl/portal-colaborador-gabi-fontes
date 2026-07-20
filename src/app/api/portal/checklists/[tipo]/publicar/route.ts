@@ -19,7 +19,12 @@ import {
   particionarRespostasMultiTurno,
   validarProntoParaPublicarTurno,
 } from '@/lib/checklists/publicacao';
-import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
+import {
+  dataOperacionalSaoPaulo,
+  diaSemanaDeDataIso,
+  rotuloDataChecklist,
+  rotuloTurno,
+} from '@/lib/checklists/dia-semana';
 import type { ChecklistTurno, ChecklistTipo } from '@/lib/checklists/types';
 
 export const dynamic = 'force-dynamic';
@@ -91,7 +96,8 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
       );
     }
 
-    const dia = diaSemanaOperacionalSaoPaulo();
+    const dataRef = dataOperacionalSaoPaulo();
+    const dia = diaSemanaDeDataIso(dataRef);
     const respostas = normalizarRespostas(template.tipo, body.respostas);
     const erroValidacao = validarRespostasChecklist(respostas);
     if (erroValidacao) {
@@ -116,12 +122,14 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
         unidadeId,
         tipo: template.tipo,
         turno: outro,
+        dataReferencia: dataRef,
         diaSemana: dia,
       });
       await salvarChecklistSlot(supabase, {
         unidadeId,
         tipo: template.tipo,
         turno: outro,
+        dataReferencia: dataRef,
         diaSemana: dia,
         colaboradorId: auth.sessao.colaboradorId,
         respostas: patchOutro,
@@ -134,6 +142,7 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
       unidadeId,
       tipo: template.tipo,
       turno,
+      dataReferencia: dataRef,
       diaSemana: dia,
       colaboradorId: auth.sessao.colaboradorId,
       respostas: particoes[turno],
@@ -144,7 +153,7 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
     return NextResponse.json(
       {
         ok: true,
-        mensagem: `Checklist publicado para ${rotuloDiaSemana(dia)} (${rotuloTurno(turno)}). Visível no portal até a próxima publicação.`,
+        mensagem: `Checklist publicado para ${rotuloDataChecklist(dataRef)} (${rotuloTurno(turno)}). Fica disponível para conferência por 7 dias; amanhã o formulário abre em branco.`,
         registro,
       },
       { headers: NO_STORE }

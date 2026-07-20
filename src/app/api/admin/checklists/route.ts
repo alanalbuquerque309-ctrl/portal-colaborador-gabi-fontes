@@ -5,7 +5,7 @@ import { normalizePortalRole } from '@/lib/roles';
 import { podeVerHistoricoChecklistsRede } from '@/lib/checklists/access';
 import { listarChecklistsSemana } from '@/lib/checklists/service';
 import { CHECKLIST_TEMPLATES } from '@/lib/checklists/templates';
-import { rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
+import { rotuloDataChecklist, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +57,9 @@ export async function GET(req: Request) {
     const linhas = registros.map((r) => ({
       ...r,
       tipo_titulo: templatesMap[r.tipo] ?? r.tipo,
-      dia_semana_rotulo: rotuloDiaSemana(r.dia_semana),
+      dia_semana_rotulo: r.data_referencia
+        ? rotuloDataChecklist(r.data_referencia)
+        : rotuloDiaSemana(r.dia_semana),
       turno_rotulo: rotuloTurno(r.turno),
     }));
 

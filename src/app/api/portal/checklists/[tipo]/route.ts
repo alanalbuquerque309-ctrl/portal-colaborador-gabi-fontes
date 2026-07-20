@@ -19,7 +19,12 @@ import {
   particionarRespostasMultiTurno,
   pendenciasOutroTurnoParaFormulario,
 } from '@/lib/checklists/publicacao';
-import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana, rotuloTurno } from '@/lib/checklists/dia-semana';
+import {
+  dataOperacionalSaoPaulo,
+  diaSemanaDeDataIso,
+  rotuloDataChecklist,
+  rotuloTurno,
+} from '@/lib/checklists/dia-semana';
 import type { ChecklistTurno, ChecklistTipo } from '@/lib/checklists/types';
 
 export const dynamic = 'force-dynamic';
@@ -80,17 +85,20 @@ export async function GET(req: Request, ctx: { params: { tipo: string } }) {
       );
     }
 
-    const dia = diaSemanaOperacionalSaoPaulo();
+    const dataRef = dataOperacionalSaoPaulo();
+    const dia = diaSemanaDeDataIso(dataRef);
     const registro = await buscarChecklistSlot(supabase, {
       unidadeId,
       tipo: template.tipo,
       turno: turnoParam,
+      dataReferencia: dataRef,
       diaSemana: dia,
     });
 
     const slotsDia = await listarSlotsDia(supabase, {
       unidadeId,
       tipo: template.tipo,
+      dataReferencia: dataRef,
       diaSemana: dia,
     });
     const pendenciasOutroTurno = pendenciasOutroTurnoParaFormulario(template, turnoParam, slotsDia);
@@ -112,8 +120,9 @@ export async function GET(req: Request, ctx: { params: { tipo: string } }) {
         },
         turno: turnoParam,
         turno_rotulo: rotuloTurno(turnoParam),
+        data_referencia: dataRef,
         dia_semana: dia,
-        dia_semana_rotulo: rotuloDiaSemana(dia),
+        dia_semana_rotulo: rotuloDataChecklist(dataRef),
         registro,
         pendencias_outro_turno: pendenciasOutroTurno,
         respostas_sugeridas: respostasForm,
@@ -187,7 +196,8 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
       );
     }
 
-    const dia = diaSemanaOperacionalSaoPaulo();
+    const dataRef = dataOperacionalSaoPaulo();
+    const dia = diaSemanaDeDataIso(dataRef);
     // Rascunho: permite itens incompletos / pendente sem justificativa ainda.
     // Justificativa obrigatória só na publicação (rota /publicar).
     const respostas = normalizarRespostas(template.tipo, body.respostas);
@@ -204,6 +214,7 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
         unidadeId,
         tipo: template.tipo,
         turno: outro,
+        dataReferencia: dataRef,
         diaSemana: dia,
         colaboradorId: auth.sessao.colaboradorId,
         respostas: patchOutro,
@@ -216,6 +227,7 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
       unidadeId,
       tipo: template.tipo,
       turno,
+      dataReferencia: dataRef,
       diaSemana: dia,
       colaboradorId: auth.sessao.colaboradorId,
       respostas: particoes[turno],
@@ -226,7 +238,7 @@ export async function POST(req: Request, ctx: { params: { tipo: string } }) {
     return NextResponse.json(
       {
         ok: true,
-        mensagem: `Rascunho salvo para ${rotuloDiaSemana(dia)} (${rotuloTurno(turno)}). A liderança só vê depois de Publicar.`,
+        mensagem: `Rascunho salvo para ${rotuloDataChecklist(dataRef)} (${rotuloTurno(turno)}). A liderança só vê depois de Publicar.`,
         registro,
       },
       { headers: NO_STORE }

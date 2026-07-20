@@ -3,7 +3,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { resolverSessaoChecklist } from '@/lib/checklists/auth-sessao';
 import { podeAcessarChecklistsOperacionais } from '@/lib/checklists/access';
 import { CHECKLIST_TEMPLATES, slugsUnidadesComChecklist, templateVisivelParaUnidade } from '@/lib/checklists/templates';
-import { diaSemanaOperacionalSaoPaulo, rotuloDiaSemana } from '@/lib/checklists/dia-semana';
+import {
+  dataOperacionalSaoPaulo,
+  diaSemanaDeDataIso,
+  rotuloDataChecklist,
+} from '@/lib/checklists/dia-semana';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +27,8 @@ export async function GET() {
     );
   }
 
-  const dia = diaSemanaOperacionalSaoPaulo();
+  const dataRef = dataOperacionalSaoPaulo();
+  const dia = diaSemanaDeDataIso(dataRef);
 
   try {
     const supabase = createAdminClient();
@@ -53,8 +58,9 @@ export async function GET() {
         ok: true,
         preview_socios: false,
         fase_piloto: slugsAtivos.length > 0,
+        data_referencia: dataRef,
         dia_semana: dia,
-        dia_semana_rotulo: rotuloDiaSemana(dia),
+        dia_semana_rotulo: rotuloDataChecklist(dataRef),
         unidades,
         templates,
       },

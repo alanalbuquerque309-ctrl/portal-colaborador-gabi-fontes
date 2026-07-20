@@ -130,7 +130,7 @@ export function AdminChecklistsClient() {
           </button>
         </div>
         <p className="mt-3 text-xs text-cafeteria-500 leading-relaxed">
-          Consulta sob demanda, sem atualização automática. Um slot por dia da semana + tipo + turno + loja.
+          Consulta sob demanda, sem atualização automática. Um slot por data (últimos 7 dias) + tipo + turno + loja.
         </p>
       </div>
 

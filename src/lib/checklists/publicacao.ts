@@ -9,7 +9,12 @@ import type {
 } from '@/lib/checklists/types';
 import { templateChecklistPorTipo, todosIdsItensTurno, turnoDoItem } from '@/lib/checklists/templates';
 import { normalizarRespostas, contagemStatusItens, buscarChecklistSlot } from '@/lib/checklists/service';
-import { diaSemanaOperacionalSaoPaulo } from '@/lib/checklists/dia-semana';
+import {
+  dataMinimaRetencaoChecklist,
+  dataOperacionalSaoPaulo,
+  diaSemanaDeDataIso,
+  diaSemanaOperacionalSaoPaulo,
+} from '@/lib/checklists/dia-semana';
 
 export type PendenciaOutroTurno = {
   id: string;
@@ -23,7 +28,10 @@ export type PendenciaOutroTurno = {
 export type ChecklistExibicaoPublicada = {
   unidade_id: string;
   tipo: ChecklistTipo;
+  data_referencia: string;
   dia_semana: number;
+  /** true = publicação de hoje; false = último dia publicado (ainda na janela de 7 dias). */
+  eh_hoje: boolean;
   registros: ChecklistRegistro[];
   respostas: ChecklistRespostasPayload;
   publicado_em: string;
@@ -31,6 +39,18 @@ export type ChecklistExibicaoPublicada = {
   ok: number;
   pendente: number;
   total: number;
+};
+
+export type ChecklistHistoricoDia = {
+  data_referencia: string;
+  dia_semana: number;
+  publicado_em: string;
+  publicado_por_nome?: string;
+  ok: number;
+  pendente: number;
+  total: number;
+  eh_hoje: boolean;
+  respostas: ChecklistRespostasPayload;
 };
 
 export function outroTurno(turno: ChecklistTurno): ChecklistTurno {
@@ -146,71 +166,56 @@ export function validarProntoParaPublicarTurno(
 
 export async function listarSlotsDia(
   supabase: SupabaseClient,
-  opts: { unidadeId: string; tipo: ChecklistTipo; diaSemana: number }
+  opts: {
+    unidadeId: string;
+    tipo: ChecklistTipo;
+    dataReferencia?: string;
+    diaSemana?: number;
+  }
 ): Promise<ChecklistRegistro[]> {
+  const dataRef = opts.dataReferencia?.trim() || dataOperacionalSaoPaulo();
+  const diaSemana = opts.diaSemana ?? diaSemanaDeDataIso(dataRef);
   const turnos: ChecklistTurno[] = ['manha', 'tarde'];
   const rows: ChecklistRegistro[] = [];
   for (const turno of turnos) {
-    const reg = await buscarChecklistSlot(supabase, { ...opts, turno });
+    const reg = await buscarChecklistSlot(supabase, {
+      unidadeId: opts.unidadeId,
+      tipo: opts.tipo,
+      turno,
+      dataReferencia: dataRef,
+      diaSemana,
+    });
     if (reg) rows.push(reg);
   }
   return rows;
 }
 
-/** Última publicação visível no portal (dia atual ou cohort do último publicado). */
-export async function buscarExibicaoPublicada(
-  supabase: SupabaseClient,
-  opts: { unidadeId: string; tipo: ChecklistTipo }
-): Promise<ChecklistExibicaoPublicada | null> {
-  const template = templateChecklistPorTipo(opts.tipo);
-  if (!template) return null;
-
-  const diaHoje = diaSemanaOperacionalSaoPaulo();
-
-  let cohortDia = diaHoje;
-  const slotsHoje = (await listarSlotsPublicadosCohort(supabase, opts.unidadeId, opts.tipo, diaHoje)).filter(
-    (r) => r.publicado_em
-  );
-  if (slotsHoje.length === 0) {
-    const { data: ultimo, error } = await supabase
-      .from('checklists_operacionais')
-      .select('dia_semana, publicado_em')
-      .eq('unidade_id', opts.unidadeId)
-      .eq('tipo', opts.tipo)
-      .not('publicado_em', 'is', null)
-      .order('publicado_em', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (error) {
-      if (error.message.includes('publicado_em')) return null;
-      throw new Error(error.message);
-    }
-    if (!ultimo?.publicado_em) return null;
-    cohortDia = Number(ultimo.dia_semana);
-  }
-
-  const registros = (await listarSlotsPublicadosCohort(supabase, opts.unidadeId, opts.tipo, cohortDia)).filter(
-    (r) => r.publicado_em
-  );
-  if (registros.length === 0) return null;
-
-  const respostas = mesclarRespostasChecklist(...registros.map((r) => r.respostas));
+function montarExibicaoDoDia(
+  template: NonNullable<ReturnType<typeof templateChecklistPorTipo>>,
+  unidadeId: string,
+  tipo: ChecklistTipo,
+  dataRef: string,
+  registros: ChecklistRegistro[],
+  ehHoje: boolean
+): ChecklistExibicaoPublicada | null {
+  const publicados = registros.filter((r) => r.publicado_em);
+  if (publicados.length === 0) return null;
+  const respostas = mesclarRespostasChecklist(...publicados.map((r) => r.respostas));
   const ids = template.secoes.flatMap((s) => s.itens.map((i) => i.id));
   const { ok, pendente, total } = contagemStatusItens(respostas.status_itens, ids);
-
-  const publicadoEm = registros
+  const publicadoEm = publicados
     .map((r) => r.publicado_em ?? '')
     .filter(Boolean)
     .sort()
     .reverse()[0];
-
-  const porNome = registros.find((r) => r.publicado_em === publicadoEm)?.publicado_por_nome;
-
+  const porNome = publicados.find((r) => r.publicado_em === publicadoEm)?.publicado_por_nome;
   return {
-    unidade_id: opts.unidadeId,
-    tipo: opts.tipo,
-    dia_semana: cohortDia,
-    registros,
+    unidade_id: unidadeId,
+    tipo,
+    data_referencia: dataRef,
+    dia_semana: diaSemanaDeDataIso(dataRef),
+    eh_hoje: ehHoje,
+    registros: publicados,
     respostas,
     publicado_em: publicadoEm,
     publicado_por_nome: porNome,
@@ -220,13 +225,141 @@ export async function buscarExibicaoPublicada(
   };
 }
 
-async function listarSlotsPublicadosCohort(
+/** Publicação de hoje; se ainda não houver, o último dia publicado na janela de 7 dias (só leitura). */
+export async function buscarExibicaoPublicada(
   supabase: SupabaseClient,
-  unidadeId: string,
-  tipo: ChecklistTipo,
-  diaSemana: number
-): Promise<ChecklistRegistro[]> {
-  return listarSlotsDia(supabase, { unidadeId, tipo, diaSemana });
+  opts: { unidadeId: string; tipo: ChecklistTipo }
+): Promise<ChecklistExibicaoPublicada | null> {
+  const template = templateChecklistPorTipo(opts.tipo);
+  if (!template) return null;
+
+  const hoje = dataOperacionalSaoPaulo();
+  const slotsHoje = await listarSlotsDia(supabase, {
+    unidadeId: opts.unidadeId,
+    tipo: opts.tipo,
+    dataReferencia: hoje,
+  });
+  const deHoje = montarExibicaoDoDia(template, opts.unidadeId, opts.tipo, hoje, slotsHoje, true);
+  if (deHoje) return deHoje;
+
+  const minimo = dataMinimaRetencaoChecklist();
+  const { data: ultimo, error } = await supabase
+    .from('checklists_operacionais')
+    .select('data_referencia, dia_semana, publicado_em')
+    .eq('unidade_id', opts.unidadeId)
+    .eq('tipo', opts.tipo)
+    .not('publicado_em', 'is', null)
+    .gte('data_referencia', minimo)
+    .order('data_referencia', { ascending: false })
+    .order('publicado_em', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    if (error.message.includes('publicado_em')) return null;
+    if (/data_referencia/i.test(error.message)) {
+      // Pré-071: fallback pelo dia da semana do último publicado.
+      const { data: leg } = await supabase
+        .from('checklists_operacionais')
+        .select('dia_semana, publicado_em')
+        .eq('unidade_id', opts.unidadeId)
+        .eq('tipo', opts.tipo)
+        .not('publicado_em', 'is', null)
+        .order('publicado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!leg?.publicado_em) return null;
+      const dia = Number(leg.dia_semana);
+      const slots = await listarSlotsDia(supabase, {
+        unidadeId: opts.unidadeId,
+        tipo: opts.tipo,
+        diaSemana: dia,
+        dataReferencia: hoje,
+      });
+      // Sem data_referencia, não inventa data — usa hoje só se o dia_semana coincidir.
+      if (diaSemanaOperacionalSaoPaulo() === dia) {
+        return montarExibicaoDoDia(template, opts.unidadeId, opts.tipo, hoje, slots, true);
+      }
+      return null;
+    }
+    throw new Error(error.message);
+  }
+  if (!ultimo?.publicado_em || !ultimo.data_referencia) return null;
+
+  const dataRef = String(ultimo.data_referencia).slice(0, 10);
+  const slots = await listarSlotsDia(supabase, {
+    unidadeId: opts.unidadeId,
+    tipo: opts.tipo,
+    dataReferencia: dataRef,
+  });
+  return montarExibicaoDoDia(template, opts.unidadeId, opts.tipo, dataRef, slots, dataRef === hoje);
+}
+
+/** Histórico publicado dos últimos 7 dias (para conferência; o dia seguinte continua livre). */
+export async function listarHistoricoPublicado7Dias(
+  supabase: SupabaseClient,
+  opts: { unidadeId: string; tipo: ChecklistTipo }
+): Promise<ChecklistHistoricoDia[]> {
+  const template = templateChecklistPorTipo(opts.tipo);
+  if (!template) return [];
+  const hoje = dataOperacionalSaoPaulo();
+  const minimo = dataMinimaRetencaoChecklist();
+  const { data, error } = await supabase
+    .from('checklists_operacionais')
+    .select('data_referencia, dia_semana, turno, respostas, publicado_em, publicado_por_id, updated_at')
+    .eq('unidade_id', opts.unidadeId)
+    .eq('tipo', opts.tipo)
+    .not('publicado_em', 'is', null)
+    .gte('data_referencia', minimo)
+    .order('data_referencia', { ascending: false });
+
+  if (error) {
+    if (/data_referencia|publicado_em/i.test(error.message)) return [];
+    throw new Error(error.message);
+  }
+
+  const porData = new Map<string, ChecklistRegistro[]>();
+  for (const raw of data ?? []) {
+    const dataRef = String((raw as { data_referencia?: string }).data_referencia ?? '').slice(0, 10);
+    if (!dataRef) continue;
+    const reg = {
+      id: '',
+      unidade_id: opts.unidadeId,
+      tipo: opts.tipo,
+      turno: (raw as { turno: ChecklistTurno }).turno,
+      data_referencia: dataRef,
+      dia_semana: Number((raw as { dia_semana: number }).dia_semana),
+      colaborador_id: '',
+      respostas: (raw as { respostas: ChecklistRespostasPayload }).respostas,
+      observacoes: null,
+      preenchido_em: '',
+      updated_at: String((raw as { updated_at?: string }).updated_at ?? ''),
+      publicado_em: String((raw as { publicado_em?: string }).publicado_em ?? ''),
+      publicado_por_id: (raw as { publicado_por_id?: string | null }).publicado_por_id ?? null,
+    } as ChecklistRegistro;
+    const lista = porData.get(dataRef) ?? [];
+    lista.push(reg);
+    porData.set(dataRef, lista);
+  }
+
+  const out: ChecklistHistoricoDia[] = [];
+  for (const [dataRef, regs] of Array.from(porData.entries())) {
+    const ex = montarExibicaoDoDia(template, opts.unidadeId, opts.tipo, dataRef, regs, dataRef === hoje);
+    if (!ex) continue;
+    out.push({
+      data_referencia: dataRef,
+      dia_semana: ex.dia_semana,
+      publicado_em: ex.publicado_em,
+      publicado_por_nome: ex.publicado_por_nome,
+      ok: ex.ok,
+      pendente: ex.pendente,
+      total: ex.total,
+      eh_hoje: ex.eh_hoje,
+      respostas: ex.respostas,
+    });
+  }
+  out.sort((a, b) => b.data_referencia.localeCompare(a.data_referencia));
+  return out;
 }
 
 export function pendenciasOutroTurnoParaFormulario(

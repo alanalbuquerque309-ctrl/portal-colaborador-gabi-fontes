@@ -31,6 +31,8 @@
     "db:apply-064": "node scripts/aplicar-migration-064.mjs",
     "db:apply-067": "node scripts/aplicar-migration-067.mjs",
     "db:apply-070": "node scripts/aplicar-migration-070.mjs",
+    "db:apply-071": "node scripts/aplicar-migration-071.mjs",
+    "db:apply-072": "node scripts/aplicar-migration-072.mjs",
     "db:apply-068": "node scripts/aplicar-migration-068.mjs",
     "db:apply-069": "node scripts/aplicar-migration-069.mjs",
     "treinamento:publicar-quinta": "node scripts/publicar-treinamentos-quinta.mjs",

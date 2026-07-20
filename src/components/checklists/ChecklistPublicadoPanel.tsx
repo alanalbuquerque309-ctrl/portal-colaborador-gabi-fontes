@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import type { ChecklistItemStatus, ChecklistSecao } from '@/lib/checklists/types';
 import {
@@ -16,13 +16,15 @@ type Props = {
   tipo?: string;
 };
 
-type PublicadoPayload = {
+type HistoricoItem = {
+  data_referencia: string;
   dia_semana_rotulo: string;
   publicado_em: string;
   publicado_por_nome?: string;
   ok: number;
   pendente: number;
   total: number;
+  eh_hoje: boolean;
   respostas: {
     status_itens: Record<string, ChecklistItemStatus>;
     justificativas_itens?: Record<string, string>;
@@ -49,14 +51,16 @@ export function ChecklistPublicadoPanel({ unidadeId, tipo = 'gerencia_diaria_mes
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [template, setTemplate] = useState<TemplatePayload | null>(null);
-  const [publicado, setPublicado] = useState<PublicadoPayload | null>(null);
+  const [historico, setHistorico] = useState<HistoricoItem[]>([]);
   const [rascunhos, setRascunhos] = useState<RascunhoPayload[]>([]);
   const [diaHojeRotulo, setDiaHojeRotulo] = useState('');
+  const [hojePublicado, setHojePublicado] = useState(false);
   const [unidadeNome, setUnidadeNome] = useState('');
+  const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     if (!unidadeId) {
-      setPublicado(null);
+      setHistorico([]);
       setRascunhos([]);
       setLoading(false);
       return;
@@ -71,15 +75,19 @@ export function ChecklistPublicadoPanel({ unidadeId, tipo = 'gerencia_diaria_mes
       const data = await res.json();
       if (!res.ok || !data.ok) {
         setErro(data.erro || 'Não foi possível carregar.');
-        setPublicado(null);
+        setHistorico([]);
         setRascunhos([]);
         return;
       }
+      const hist: HistoricoItem[] = Array.isArray(data.historico) ? data.historico : [];
       setTemplate(data.template ?? null);
       setUnidadeNome(data.unidade?.nome ?? '');
-      setPublicado(data.publicado ?? null);
+      setHistorico(hist);
       setRascunhos(Array.isArray(data.rascunhos) ? data.rascunhos : []);
       setDiaHojeRotulo(String(data.dia_hoje_rotulo ?? ''));
+      setHojePublicado(Boolean(data.hoje_publicado));
+      const hoje = hist.find((h) => h.eh_hoje);
+      setDiaSelecionado(hoje?.data_referencia ?? hist[0]?.data_referencia ?? null);
     } catch {
       setErro('Erro de conexão.');
     } finally {
@@ -90,6 +98,11 @@ export function ChecklistPublicadoPanel({ unidadeId, tipo = 'gerencia_diaria_mes
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  const selecionado = useMemo(
+    () => historico.find((h) => h.data_referencia === diaSelecionado) ?? null,
+    [historico, diaSelecionado]
+  );
 
   if (!unidadeId) return null;
 
@@ -111,6 +124,23 @@ export function ChecklistPublicadoPanel({ unidadeId, tipo = 'gerencia_diaria_mes
 
   return (
     <div className="space-y-3">
+      {!hojePublicado && (
+        <section className="rounded-2xl border border-dourado-base/40 bg-gradient-to-br from-amber-50/90 via-white to-cream-50 px-4 py-4 text-sm space-y-2 shadow-sm">
+          <p className="font-semibold text-coffee-base">
+            Checklist de hoje{diaHojeRotulo ? ` — ${diaHojeRotulo}` : ''} ainda não foi publicado
+          </p>
+          <p className="text-xs text-cafeteria-600 leading-relaxed">
+            Cada dia abre em branco. Os últimos 7 dias ficam aqui só para conferência e não travam o dia seguinte.
+          </p>
+          <Link
+            href={hrefEditar}
+            className="inline-flex items-center justify-center rounded-xl bg-coffee-base px-4 py-2.5 text-sm font-semibold text-cream-50 hover:opacity-95 min-h-[44px]"
+          >
+            Preencher checklist de hoje →
+          </Link>
+        </section>
+      )}
+
       {rascunhos.length > 0 && (
         <section className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-4 text-sm text-amber-950 space-y-2">
           <p className="font-semibold text-coffee-base">
@@ -141,22 +171,62 @@ export function ChecklistPublicadoPanel({ unidadeId, tipo = 'gerencia_diaria_mes
         </section>
       )}
 
-      {!publicado || !template ? (
+      {historico.length === 0 && !hojePublicado ? (
         <section className="rounded-2xl border border-dashed border-cafeteria-300 bg-cream-50/80 px-4 py-6 text-center text-sm text-cafeteria-600">
           <p className="font-semibold text-coffee-base">Nenhum checklist publicado ainda</p>
           <p className="mt-1">
-            Quando o gerente clicar em <strong className="text-coffee-base">Publicar</strong>, o último envio aparece
-            aqui para toda a liderança.
+            Quando o gerente clicar em <strong className="text-coffee-base">Publicar</strong>, o envio fica visível por
+            até 7 dias.
           </p>
         </section>
-      ) : (
+      ) : null}
+
+      {historico.length > 0 && (
+        <section className="rounded-2xl border border-cafeteria-200 bg-white px-4 py-3 space-y-2">
+          <p className="text-xs font-bold uppercase tracking-wider text-cafeteria-500">Últimos 7 dias</p>
+          <ul className="flex flex-wrap gap-2">
+            {historico.map((h) => {
+              const ativo = h.data_referencia === diaSelecionado;
+              return (
+                <li key={h.data_referencia}>
+                  <button
+                    type="button"
+                    onClick={() => setDiaSelecionado(h.data_referencia)}
+                    className={`rounded-xl border px-3 py-2 text-xs font-semibold min-h-[40px] ${
+                      ativo
+                        ? 'border-coffee-base bg-coffee-base text-cream-50'
+                        : 'border-cafeteria-200 bg-cream-50 text-coffee-base hover:border-dourado-base'
+                    }`}
+                  >
+                    {h.dia_semana_rotulo}
+                    {h.eh_hoje ? ' · hoje' : ''}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-[11px] text-cafeteria-500 leading-relaxed">
+            No 8º dia o mais antigo some sozinho. Publicar ontem não bloqueia o checklist de hoje.
+          </p>
+        </section>
+      )}
+
+      {selecionado && template && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-cafeteria-500">Checklist publicado</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wider text-cafeteria-500">
+              {selecionado.eh_hoje ? 'Publicado hoje' : 'Conferência'}
+            </h2>
             <Link href={hrefEditar} className="text-xs font-semibold text-dourado-base hover:underline">
-              Editar / novo plantão →
+              {hojePublicado ? 'Editar / republicar hoje →' : 'Preencher hoje →'}
             </Link>
           </div>
+
+          {!selecionado.eh_hoje && (
+            <p className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+              Dia anterior (só leitura). O formulário de hoje continua livre.
+            </p>
+          )}
 
           <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-white to-cream-50 p-4 md:p-5 shadow-sm space-y-3">
             <div className="flex flex-wrap gap-2">
@@ -164,33 +234,33 @@ export function ChecklistPublicadoPanel({ unidadeId, tipo = 'gerencia_diaria_mes
                 <span aria-hidden>📍</span> {unidadeNome}
               </ChecklistChip>
               <ChecklistChip>
-                <span aria-hidden>📅</span> {publicado.dia_semana_rotulo}
+                <span aria-hidden>📅</span> {selecionado.dia_semana_rotulo}
               </ChecklistChip>
-              {publicado.publicado_por_nome && (
+              {selecionado.publicado_por_nome && (
                 <ChecklistChip>
-                  <span aria-hidden>✓</span> {publicado.publicado_por_nome}
+                  <span aria-hidden>✓</span> {selecionado.publicado_por_nome}
                 </ChecklistChip>
               )}
             </div>
             <ChecklistProgressBar
-              concluidos={publicado.ok + publicado.pendente}
-              total={publicado.total}
+              concluidos={selecionado.ok + selecionado.pendente}
+              total={selecionado.total}
               label="Itens publicados"
             />
             <p className="text-xs text-cafeteria-600">
-              Publicado em {new Date(publicado.publicado_em).toLocaleString('pt-BR')}
-              {publicado.pendente > 0 && (
+              Publicado em {new Date(selecionado.publicado_em).toLocaleString('pt-BR')}
+              {selecionado.pendente > 0 && (
                 <>
                   {' '}
-                  · <span className="text-amber-800 font-semibold">{publicado.pendente} pendência(s)</span>
+                  · <span className="text-amber-800 font-semibold">{selecionado.pendente} pendência(s)</span>
                 </>
               )}
             </p>
           </div>
 
           {template.secoes.map((secao) => {
-            const status = publicado.respostas.status_itens ?? {};
-            const just = publicado.respostas.justificativas_itens ?? {};
+            const status = selecionado.respostas.status_itens ?? {};
+            const just = selecionado.respostas.justificativas_itens ?? {};
             const ids = secao.itens.map((i) => i.id);
             const respondidos = ids.filter((id) => status[id] === 'ok' || status[id] === 'pendente').length;
             return (
