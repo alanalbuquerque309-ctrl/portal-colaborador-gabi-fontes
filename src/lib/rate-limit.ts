@@ -102,6 +102,10 @@ export async function registrarTentativa(
       chave,
       sucesso,
     });
+    // Poda oportunista (~2% das gravações): sem cron, a tabela cresceria para sempre.
+    if (Math.random() < 0.02) {
+      await podarTentativasAntigas(supabase);
+    }
   } catch {
     /* fail-open: rate limit é defesa adicional, não pode derrubar o fluxo */
   }
