@@ -194,7 +194,7 @@ export function AvaliacoesPortalHome() {
               Avaliar liderança
             </h3>
             <p className="text-sm text-cafeteria-600 mt-2">
-              Feedback sobre seus líderes (Daniel e demais chefes do mapa).
+              Avaliação de Liderança (Daniel e demais chefes do mapa).
             </p>
             <span className="inline-block mt-3 text-sm font-medium text-dourado-base group-hover:underline">
               Abrir →

@@ -364,7 +364,7 @@ export default function RelatoriosAvaliacoesPage() {
           )}
           <div>
             <h2 className="text-lg font-display font-semibold text-cafeteria-900">
-              Feedback sobre liderança
+              Avaliação de Liderança
             </h2>
           <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
               Toque no líder para ver cada semana. Notas ≤3 aparecem em destaque; o pilar mais fraco fica

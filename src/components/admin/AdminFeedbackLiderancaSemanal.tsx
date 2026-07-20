@@ -107,7 +107,7 @@ export function AdminFeedbackLiderancaSemanal({
 
           {linhasSemanaAtual.length === 0 ? (
             <p className="text-sm text-amber-950 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mt-3 leading-relaxed">
-              Nenhuma avaliação esta semana ainda. Colaboradores podem enviar feedback até domingo.
+              Nenhuma avaliação esta semana ainda. A equipe e o RH podem avaliar até domingo.
             </p>
           ) : (
             <div className="flex flex-wrap items-center gap-3 mt-3">

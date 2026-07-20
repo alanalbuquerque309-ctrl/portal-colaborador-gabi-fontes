@@ -57,8 +57,8 @@ export function montarAtalhosPerfil(
   if (nr === 'colaborador' || nr === 'admin' || nr === 'rh') {
     lista.push({
       href: '/portal/avaliacao-lideranca',
-      titulo: 'Avaliar liderança',
-      descricao: 'Feedback sobre seus líderes.',
+      titulo: 'Avaliação de Liderança',
+      descricao: 'Avalie seus líderes (pilares semanais).',
     });
   }
   if (podeVisitaRh) {

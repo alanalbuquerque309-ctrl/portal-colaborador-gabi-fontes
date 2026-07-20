@@ -184,7 +184,7 @@ export default function AvaliacaoLiderancaPage() {
           ← Voltar ao portal
         </Link>
         <h1 className="text-2xl md:text-3xl font-display font-semibold text-cafeteria-900 mt-2">
-          Avaliar liderança
+          Avaliação de Liderança
         </h1>
         <p className="text-cafeteria-600 mt-1 text-sm md:text-base">
           {perfilRole === 'admin'

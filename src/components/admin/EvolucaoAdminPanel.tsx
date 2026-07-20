@@ -817,7 +817,7 @@ export function EvolucaoAdminPanel() {
                     href="/admin/avaliacoes-lideranca"
                     className="text-sm font-medium text-dourado-base hover:underline"
                   >
-                    Feedback liderança →
+                    Avaliação de Liderança →
                   </Link>
                 }
                 className="lg:col-span-2"

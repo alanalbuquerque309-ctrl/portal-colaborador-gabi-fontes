@@ -13,7 +13,7 @@ const MODULO_LABEL: Record<string, string> = {
   trofeus_pares: 'Troféus entre pares',
   termometro_emocional: 'Termômetro emocional',
   avaliacao_equipe: 'Avaliação de equipe',
-  feedback_lideranca: 'Feedback liderança',
+  feedback_lideranca: 'Avaliação de Liderança',
   escalas: 'Escalas',
   gorjeta: 'Gorjeta (desligada no portal)',
 };

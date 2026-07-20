@@ -64,14 +64,25 @@ export function CardAvaliacaoLideranca({ row }: { row: LinhaLiderRelatorio }) {
             {formatarSemanaLider(row.semana_inicio)}
           </p>
           <p className="text-xs sm:text-sm text-cafeteria-600 mt-0.5 break-words">
-            {autorVisivel ? (
+            {autorVisivel || row.origem_visita_rh ? (
               <>
                 <strong
-                  className={row.avaliador_anonimo ? 'text-amber-950' : 'text-cafeteria-900'}
+                  className={
+                    row.origem_visita_rh
+                      ? 'text-sky-900'
+                      : row.avaliador_anonimo
+                        ? 'text-amber-950'
+                        : 'text-cafeteria-900'
+                  }
                 >
                   {row.avaliador_label}
                 </strong>
-                {row.avaliador_setor ? ` · ${row.avaliador_setor}` : ''}
+                {row.origem_visita_rh ? (
+                  <span className="ml-1 inline-block rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800">
+                    RH
+                  </span>
+                ) : null}
+                {!row.origem_visita_rh && row.avaliador_setor ? ` · ${row.avaliador_setor}` : ''}
               </>
             ) : (
               <>

@@ -5,7 +5,7 @@ import { requireAdminFullApi } from '@/lib/admin-auth';
 import { listarAvaliacoesLiderancaRelatorio } from '@/lib/avaliacoes-lideranca-relatorio';
 
 /**
- * Feedback sobre liderança — painel admin (visão total, autor visível).
+ * Avaliação de Liderança — painel admin (equipe + Visita RH).
  */
 export async function GET(req: Request) {
   const auth = await requireAdminFullApi();

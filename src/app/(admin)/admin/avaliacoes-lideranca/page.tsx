@@ -63,11 +63,11 @@ export default function AdminAvaliacoesLiderancaPage() {
           ← Dashboard
         </Link>
         <h1 className="text-2xl font-display font-semibold text-coffee-base mt-2">
-          Feedback sobre a liderança
+          Avaliação de Liderança
         </h1>
         <p className="text-xs sm:text-sm text-cafeteria-500 mt-1">
           Visão por <strong>semana</strong>: destaque na semana corrente ({rotuloSemanaSaoPaulo(semanaAtualInicio)}),
-          média do mês e histórico recolhível. Sócios veem quem avaliou (inclusive anônimo).
+          média do mês e histórico recolhível. Inclui Visita RH. Sócios veem quem avaliou (inclusive anônimo da equipe).
         </p>
         <p className="text-sm mt-2">
           <Link href="/portal/relatorios-avaliacoes" className="text-dourado-500 hover:underline">

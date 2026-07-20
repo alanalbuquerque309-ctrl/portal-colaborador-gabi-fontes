@@ -43,6 +43,7 @@ export type LinhaLiderRelatorio = {
   avaliador_id?: string;
   avaliador_anonimo?: boolean;
   avaliador_setor?: string | null;
+  origem_visita_rh?: boolean;
   n_exemplo: number;
   n_comunicacao: number;
   n_suporte: number;
@@ -134,10 +135,19 @@ function TabelaLiderancaDesktop({ linhas }: { linhas: LinhaLiderRelatorio[] }) {
               <td className="px-2 py-2 whitespace-nowrap">{row.semana_inicio}</td>
               <td
                 className={`px-2 py-2 max-w-[180px] break-words ${
-                  row.avaliador_anonimo ? 'text-amber-950 font-medium' : 'text-cafeteria-600'
+                  row.origem_visita_rh
+                    ? 'text-sky-900 font-medium'
+                    : row.avaliador_anonimo
+                      ? 'text-amber-950 font-medium'
+                      : 'text-cafeteria-600'
                 }`}
               >
                 {row.avaliador_label}
+                {row.origem_visita_rh ? (
+                  <span className="ml-1 inline-block rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800">
+                    RH
+                  </span>
+                ) : null}
               </td>
               <td className="px-2 py-2 text-center font-medium">{row.media.toFixed(2)}</td>
               {PILARES_LIDERANCA.map((p) => (

@@ -3,6 +3,8 @@ import {
   relatorioRestringeUnidade,
 } from '@/lib/avaliacoes-relatorio-access';
 import { viewerTemAuditoriaLideranca, normalizarCpfAuditoria } from '@/lib/auditoria-lideranca-viewer';
+import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
+import { isAvaliacaoDeVisitaRh } from '@/lib/avaliacao-rh-visita-access';
 import { normalizePortalRole } from '@/lib/roles';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -22,6 +24,8 @@ export type LinhaLiderancaRelatorio = {
   /** Preenchido só na resposta para sócios (auditoria). */
   avaliador_anonimo?: boolean;
   avaliador_setor?: string | null;
+  /** Avaliação da Visita RH (avaliacoes_diarias), não o formulário de pilares da equipe. */
+  origem_visita_rh?: boolean;
   n_exemplo: number;
   n_comunicacao: number;
   n_suporte: number;
@@ -47,6 +51,124 @@ function mapNotas(r: RowLider) {
   const nClima = Number(r.n_clima ?? r.n_ambiente ?? 3);
   const media = (nExemplo + nComunicacao + nSuporte + nJustica + nClima) / 5;
   return { nExemplo, nComunicacao, nSuporte, nJustica, nClima, media };
+}
+
+function pickNota(n: unknown, fallback: number): number {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : fallback;
+}
+
+/** Mapeia notas da Visita RH (desempenho semanal) para os 5 pilares do relatório de liderança. */
+function mapNotasVisitaRh(r: RowLider) {
+  const mediaBruta = Number(r.media_dia);
+  const fallback = Number.isFinite(mediaBruta) ? mediaBruta : 3;
+  const nExemplo = pickNota(r.nota_desempenho_tarefas, fallback);
+  const nComunicacao = pickNota(r.nota_trabalho_equipe, fallback);
+  const nSuporte = pickNota(r.nota_proatividade, fallback);
+  const nJustica = pickNota(r.nota_pontualidade, fallback);
+  const nClima = pickNota(r.nota_vestimenta, fallback);
+  const media = Number.isFinite(mediaBruta)
+    ? mediaBruta
+    : (nExemplo + nComunicacao + nSuporte + nJustica + nClima) / 5;
+  return { nExemplo, nComunicacao, nSuporte, nJustica, nClima, media };
+}
+
+async function listarIdsLideresAlvo(
+  supabase: SupabaseAdmin,
+  avaliadoIdsDasLinhas: string[],
+  unidadeIdFilter: string | null
+): Promise<string[]> {
+  const ids = new Set(avaliadoIdsDasLinhas.filter(Boolean));
+
+  let qLideres = supabase
+    .from('colaboradores')
+    .select('id, role')
+    .in('role', ['gerente', 'master', 'admin']);
+  if (unidadeIdFilter) qLideres = qLideres.eq('unidade_id', unidadeIdFilter);
+  const { data: porRole } = await qLideres;
+  for (const c of porRole ?? []) ids.add(String((c as { id: string }).id));
+
+  let qSetor = supabase.from('lideres_por_setor').select('lider_id').eq('ativo', true);
+  if (unidadeIdFilter) qSetor = qSetor.eq('unidade_id', unidadeIdFilter);
+  const { data: porSetor } = await qSetor;
+  for (const r of porSetor ?? []) {
+    if (r?.lider_id) ids.add(String(r.lider_id));
+  }
+
+  return Array.from(ids);
+}
+
+async function fetchVisitasRhSobreLideres(
+  supabase: SupabaseAdmin,
+  opts: {
+    liderIds: string[];
+    unidadeIdFilter: string | null;
+    inicio: string | null;
+    fim: string | null;
+    limite: number;
+  }
+): Promise<RowLider[]> {
+  if (opts.liderIds.length === 0) return [];
+
+  const { data: candidatosRh } = await supabase
+    .from('colaboradores')
+    .select('id, role, setor, nome');
+  const rhIds = construirConjuntoIdsRh(
+    (candidatosRh ?? []).map((c) => ({
+      id: String((c as { id: string }).id),
+      role: (c as { role?: string | null }).role,
+      setor: (c as { setor?: string | null }).setor,
+      nome: (c as { nome?: string | null }).nome,
+    }))
+  );
+  if (rhIds.size === 0) return [];
+
+  let q = supabase
+    .from('avaliacoes_diarias')
+    .select(
+      'id, colaborador_id, avaliador_id, data_referencia, media_dia, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, justificativa_nota_baixa, created_at, ignorada'
+    )
+    .in('colaborador_id', opts.liderIds)
+    .in('avaliador_id', Array.from(rhIds))
+    .order('data_referencia', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(opts.limite);
+
+  if (opts.inicio && /^\d{4}-\d{2}-\d{2}$/.test(opts.inicio)) {
+    q = q.gte('data_referencia', opts.inicio);
+  }
+  if (opts.fim && /^\d{4}-\d{2}-\d{2}$/.test(opts.fim)) {
+    q = q.lte('data_referencia', opts.fim);
+  }
+
+  const { data, error } = await q;
+  if (error) {
+    // Coluna ignorada pode não existir em bases antigas.
+    if (/ignorada/i.test(error.message)) {
+      let q2 = supabase
+        .from('avaliacoes_diarias')
+        .select(
+          'id, colaborador_id, avaliador_id, data_referencia, media_dia, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, justificativa_nota_baixa, created_at'
+        )
+        .in('colaborador_id', opts.liderIds)
+        .in('avaliador_id', Array.from(rhIds))
+        .order('data_referencia', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(opts.limite);
+      if (opts.inicio && /^\d{4}-\d{2}-\d{2}$/.test(opts.inicio)) {
+        q2 = q2.gte('data_referencia', opts.inicio);
+      }
+      if (opts.fim && /^\d{4}-\d{2}-\d{2}$/.test(opts.fim)) {
+        q2 = q2.lte('data_referencia', opts.fim);
+      }
+      const r2 = await q2;
+      if (r2.error) return [];
+      return (r2.data ?? []) as unknown as RowLider[];
+    }
+    return [];
+  }
+
+  return ((data ?? []) as unknown as RowLider[]).filter((r) => r.ignorada !== true);
 }
 
 async function fetchRows(
@@ -163,7 +285,44 @@ export async function listarAvaliacoesLiderancaRelatorio(
     return { itens: [], nota: '', auditoria_socio: auditoriaSocio, viewer_role: role, erro: error };
   }
 
-  const uids = Array.from(new Set(rows.map((r) => r.unidade_id as string).filter(Boolean)));
+  const liderIds = await listarIdsLideresAlvo(
+    supabase,
+    rows.map((r) => String(r.avaliado_id ?? '')).filter(Boolean),
+    unidadeIdFilter
+  );
+  const visitasRh = await fetchVisitasRhSobreLideres(supabase, {
+    liderIds,
+    unidadeIdFilter,
+    inicio,
+    fim,
+    limite: Math.min(2000, limite),
+  });
+
+  // Unidade dos líderes avaliados pela RH (avaliacoes_diarias não traz unidade_id).
+  const idsPessoasRh = Array.from(
+    new Set(
+      visitasRh.flatMap((r) =>
+        [r.colaborador_id, r.avaliador_id].filter(Boolean).map((x) => String(x))
+      )
+    )
+  );
+  const unidadePorColab: Record<string, string> = {};
+  if (idsPessoasRh.length > 0) {
+    const { data: colsUn } = await supabase
+      .from('colaboradores')
+      .select('id, unidade_id')
+      .in('id', idsPessoasRh);
+    for (const c of colsUn ?? []) {
+      if (c?.unidade_id) unidadePorColab[String(c.id)] = String(c.unidade_id);
+    }
+  }
+
+  const uids = Array.from(
+    new Set([
+      ...rows.map((r) => r.unidade_id as string).filter(Boolean),
+      ...Object.values(unidadePorColab),
+    ])
+  );
   let unidadeMeta: Record<string, { nome: string; slug: string }> = {};
   if (uids.length > 0) {
     const { data: uns } = await supabase.from('unidades').select('id, nome, slug').in('id', uids);
@@ -176,20 +335,36 @@ export async function listarAvaliacoesLiderancaRelatorio(
   }
 
   const ids = Array.from(
-    new Set(rows.flatMap((r) => [r.avaliado_id, r.avaliador_id].filter(Boolean) as string[]))
+    new Set([
+      ...rows.flatMap((r) => [r.avaliado_id, r.avaliador_id].filter(Boolean) as string[]),
+      ...visitasRh.flatMap((r) => [r.colaborador_id, r.avaliador_id].filter(Boolean) as string[]),
+    ])
   );
-  const metaPorId: Record<string, { nome: string; setor: string | null }> = {};
+  const metaPorId: Record<string, { nome: string; setor: string | null; role: string | null }> = {};
   if (ids.length > 0) {
-    const { data: pessoas } = await supabase.from('colaboradores').select('id, nome, setor').in('id', ids);
+    const { data: pessoas } = await supabase
+      .from('colaboradores')
+      .select('id, nome, setor, role')
+      .in('id', ids);
     for (const p of pessoas ?? []) {
       metaPorId[p.id as string] = {
         nome: String(p.nome ?? ''),
         setor: (p as { setor?: string | null }).setor ?? null,
+        role: (p as { role?: string | null }).role ?? null,
       };
     }
   }
 
-  const itens = rows.map((r) => {
+  const rhIds = construirConjuntoIdsRh(
+    Object.entries(metaPorId).map(([id, m]) => ({
+      id,
+      role: m.role,
+      setor: m.setor,
+      nome: m.nome,
+    }))
+  );
+
+  const itensEquipe = rows.map((r): LinhaLiderancaRelatorio => {
     const uid = String(r.unidade_id ?? '');
     const meta = unidadeMeta[uid];
     const { nExemplo, nComunicacao, nSuporte, nJustica, nClima, media } = mapNotas(r);
@@ -231,6 +406,7 @@ export async function listarAvaliacoesLiderancaRelatorio(
       avaliador_id: avaliador_id_out,
       avaliador_anonimo,
       avaliador_setor,
+      origem_visita_rh: false,
       n_exemplo: nExemplo,
       n_comunicacao: nComunicacao,
       n_suporte: nSuporte,
@@ -241,9 +417,64 @@ export async function listarAvaliacoesLiderancaRelatorio(
     };
   });
 
+  const itensRh = visitasRh
+    .filter((r) => {
+      const avaliadorId = String(r.avaliador_id ?? '');
+      const roleAv = metaPorId[avaliadorId]?.role ?? null;
+      return isAvaliacaoDeVisitaRh(avaliadorId, roleAv, rhIds);
+    })
+    .map((r): LinhaLiderancaRelatorio => {
+      const avaliadoId = String(r.colaborador_id ?? '');
+      const avaliadorId = String(r.avaliador_id ?? '');
+      const uid = unidadePorColab[avaliadoId] || unidadePorColab[avaliadorId] || '';
+      const meta = unidadeMeta[uid];
+      const { nExemplo, nComunicacao, nSuporte, nJustica, nClima, media } = mapNotasVisitaRh(r);
+      const avaliadoMeta = metaPorId[avaliadoId];
+      const avaliadorMeta = metaPorId[avaliadorId];
+      const nomeRh = avaliadorMeta?.nome?.trim() || 'RH';
+      const just = (r.justificativa_nota_baixa as string | null)?.trim() || null;
+      const justComOrigem = just
+        ? `Visita RH — ${just}`
+        : 'Visita RH (avaliação semanal de desempenho).';
+
+      return {
+        id: `rh-${String(r.id)}`,
+        unidade_id: uid,
+        filial_nome: meta?.nome ?? '—',
+        filial_slug: meta?.slug ?? '',
+        semana_inicio: String(r.data_referencia ?? ''),
+        created_at: String(r.created_at ?? ''),
+        avaliado_nome: avaliadoMeta?.nome ?? '—',
+        avaliado_setor: avaliadoMeta?.setor ?? null,
+        avaliado_id: avaliadoId,
+        avaliador_label: `${nomeRh} (Visita RH)`,
+        avaliador_id: avaliadorId,
+        avaliador_anonimo: false,
+        avaliador_setor: avaliadorMeta?.setor ?? 'RH',
+        origem_visita_rh: true,
+        n_exemplo: nExemplo,
+        n_comunicacao: nComunicacao,
+        n_suporte: nSuporte,
+        n_justica: nJustica,
+        n_clima: nClima,
+        justificativa_nota_baixa: justComOrigem,
+        media: Math.round(media * 100) / 100,
+      };
+    })
+    .filter((l) => {
+      if (!unidadeIdFilter) return true;
+      return l.unidade_id === unidadeIdFilter;
+    });
+
+  const itens = [...itensEquipe, ...itensRh].sort((a, b) => {
+    const s = b.semana_inicio.localeCompare(a.semana_inicio);
+    if (s !== 0) return s;
+    return b.created_at.localeCompare(a.created_at);
+  });
+
   const nota = auditoriaSocio
-    ? 'Visão exclusiva de sócio: aparece quem avaliou cada líder — com ou sem «de forma anônima». Ninguém mais no portal vê estes nomes.'
-    : 'Feedback dos colaboradores sobre a liderança. Avaliador anônimo nesta visão. Filtro por semana de referência (segunda-feira).';
+    ? 'Visão exclusiva de sócio: aparece quem avaliou cada líder (equipe e Visita RH). Avaliações anônimas da equipe vêm com o nome do autor.'
+    : 'Avaliação de liderança pela equipe (anônima nesta visão) e Visita RH identificada. Filtro por semana de referência (segunda-feira).';
 
   return { itens, nota, auditoria_socio: auditoriaSocio, viewer_role: role };
 }

@@ -61,7 +61,7 @@ export default function AdminLayout({
       itens: [
         { href: '/admin/avaliacoes-diarias', label: 'Avaliação de Equipe (semanal)' },
         { href: '/admin/pendencias-semana', label: 'Pendências da semana' },
-        { href: '/admin/avaliacoes-lideranca', label: 'Feedback liderança' },
+        { href: '/admin/avaliacoes-lideranca', label: 'Avaliação de Liderança' },
         { href: '/admin/avaliacao-entre-pares', label: 'Avaliação entre pares' },
       ],
     },

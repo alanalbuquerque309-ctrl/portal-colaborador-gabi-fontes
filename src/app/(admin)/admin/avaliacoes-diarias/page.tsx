@@ -224,7 +224,7 @@ export default function AdminAvaliacoesDiariasPage() {
             </p>
             <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:gap-x-4">
               <Link href="/admin/avaliacoes-lideranca" className="text-dourado-500 hover:underline">
-                Feedback sobre liderança →
+                Avaliação de Liderança →
               </Link>
               <Link href="/admin/pendencias-semana" className="text-dourado-500 hover:underline">
                 Pendências da semana (ao vivo) →
