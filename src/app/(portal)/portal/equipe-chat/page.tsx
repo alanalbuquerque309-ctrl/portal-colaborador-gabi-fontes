@@ -188,11 +188,12 @@ function EquipeChatInner() {
   useEffect(() => {
     if (indisponivel) return;
     const tick = () => {
+      if (document.visibilityState !== 'visible') return;
       if (aba === 'sala') void carregarSala();
       else if (contatoAtivo) void carregarDireto(contatoAtivo);
       else void carregarResumo();
     };
-    const id = window.setInterval(tick, 12000);
+    const id = window.setInterval(tick, 20000);
     return () => window.clearInterval(id);
   }, [aba, contatoAtivo, indisponivel, carregarSala, carregarDireto, carregarResumo]);
 

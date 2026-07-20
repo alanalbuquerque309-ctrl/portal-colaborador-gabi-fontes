@@ -4,8 +4,8 @@ import { getPortalSessionFromCookies } from '@/lib/portal-session-server';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
-/** Janela “online”: último ping dentro deste intervalo. */
-const ONLINE_MINUTOS = 3;
+/** Janela “online”: último ping dentro deste intervalo (heartbeat de 2 min). */
+const ONLINE_MINUTOS = 5;
 
 function tabelaPresencaInexistente(msg: string): boolean {
   const m = msg.toLowerCase();

@@ -17,7 +17,7 @@ import {
   type AjudaChatTopico,
 } from '@/lib/ajuda-chat-threads';
 
-const POLL_MS = 8000;
+const POLL_MS = 20000;
 const NOVO_TOPICO_ID = '__novo__';
 
 type MensagemAjuda = AjudaChatLinha;
@@ -176,7 +176,9 @@ export function CanalAjudaPainel({ variant = 'embedded', onClose, onChatAtualiza
     const onVis = () => {
       if (document.visibilityState === 'visible') void carregar(true);
     };
-    const id = window.setInterval(() => void carregar(true), POLL_MS);
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void carregar(true);
+    }, POLL_MS);
     window.addEventListener('focus', onVis);
     document.addEventListener('visibilitychange', onVis);
     return () => {

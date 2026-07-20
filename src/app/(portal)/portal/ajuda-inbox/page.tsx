@@ -8,7 +8,7 @@ import {
   type AjudaChatTopico,
 } from '@/lib/ajuda-chat-threads';
 
-const POLL_MS = 10000;
+const POLL_MS = 20000;
 
 type ItemInbox = AjudaChatLinha & {
   colaborador_telefone: string | null;
@@ -74,7 +74,9 @@ export default function AjudaInboxPage() {
     const onVis = () => {
       if (document.visibilityState === 'visible') void carregar({ silent: true });
     };
-    const t = window.setInterval(() => void carregar({ silent: true }), POLL_MS);
+    const t = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void carregar({ silent: true });
+    }, POLL_MS);
     window.addEventListener('focus', onVis);
     document.addEventListener('visibilitychange', onVis);
     return () => {

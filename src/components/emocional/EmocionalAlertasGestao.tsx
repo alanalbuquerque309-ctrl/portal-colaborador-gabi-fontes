@@ -54,7 +54,9 @@ export function EmocionalAlertasGestao() {
 
   useEffect(() => {
     carregar();
-    const id = window.setInterval(carregar, 5 * 60 * 1000);
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') carregar();
+    }, 10 * 60 * 1000);
     return () => window.clearInterval(id);
   }, [carregar]);
 

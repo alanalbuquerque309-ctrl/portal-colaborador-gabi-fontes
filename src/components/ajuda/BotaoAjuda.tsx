@@ -51,7 +51,9 @@ export function BotaoAjuda() {
       return;
     }
     carregarPendentes();
-    const timer = window.setInterval(carregarPendentes, 60_000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') carregarPendentes();
+    }, 180_000);
     const onVisible = () => {
       if (document.visibilityState === 'visible') carregarPendentes();
     };

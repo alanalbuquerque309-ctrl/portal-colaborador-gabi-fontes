@@ -47,7 +47,7 @@ function itemCritico(item: ItemPendenciaSemana): boolean {
 export function AvaliacoesPendentesPainel({
   apiBase = '/api/admin/avaliacoes-pendentes',
   autoRefresh = false,
-  intervaloMs = 30000,
+  intervaloMs = 120000,
   compacto = false,
   filtroInicial,
 }: Props) {
@@ -312,7 +312,9 @@ export function AvaliacoesPendentesPainel({
 
   useEffect(() => {
     if (!autoRefresh) return;
-    const timer = window.setInterval(() => void carregar(), intervaloMs);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void carregar();
+    }, intervaloMs);
     const onFocus = () => void carregar();
     const onVisibility = () => {
       if (document.visibilityState === 'visible') void carregar();

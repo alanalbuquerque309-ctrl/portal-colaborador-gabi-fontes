@@ -163,7 +163,9 @@ export default function AdminLayout({
         .catch(() => {});
     };
     carregar();
-    const timer = window.setInterval(carregar, 60_000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') carregar();
+    }, 180_000);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') carregar();
     };
@@ -198,7 +200,9 @@ export default function AdminLayout({
         .catch(() => {});
     };
     carregar();
-    const timer = window.setInterval(carregar, 90_000);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') carregar();
+    }, 300_000);
     const onVisibility = () => {
       if (document.visibilityState === 'visible') carregar();
     };

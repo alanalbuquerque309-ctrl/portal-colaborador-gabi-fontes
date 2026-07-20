@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-const PING_MS = 60_000;
-const POLL_ONLINE_MS = 45_000;
+const PING_MS = 120_000;
+const POLL_ONLINE_MS = 120_000;
+
+function abaVisivel(): boolean {
+  return typeof document === 'undefined' || document.visibilityState === 'visible';
+}
 
 async function ping(): Promise<void> {
   try {
@@ -17,7 +21,9 @@ async function ping(): Promise<void> {
 export function PortalPresenceHeartbeat() {
   useEffect(() => {
     void ping();
-    const id = window.setInterval(() => void ping(), PING_MS);
+    const id = window.setInterval(() => {
+      if (abaVisivel()) void ping();
+    }, PING_MS);
     const onVis = () => {
       if (document.visibilityState === 'visible') void ping();
     };
@@ -47,7 +53,7 @@ export function PortalOnlineStrip() {
   const [titulo, setTitulo] = useState<string>('');
 
   const carregar = useCallback(async () => {
-    await ping();
+    // O heartbeat global já faz o ping; aqui só lê quem está online.
     try {
       const res = await fetch(`/api/portal/presenca/online?_=${Date.now()}`, {
         credentials: 'include',
@@ -95,7 +101,9 @@ export function PortalOnlineStrip() {
 
   useEffect(() => {
     void carregar();
-    const id = window.setInterval(() => void carregar(), POLL_ONLINE_MS);
+    const id = window.setInterval(() => {
+      if (abaVisivel()) void carregar();
+    }, POLL_ONLINE_MS);
     const onVis = () => {
       if (document.visibilityState === 'visible') void carregar();
     };

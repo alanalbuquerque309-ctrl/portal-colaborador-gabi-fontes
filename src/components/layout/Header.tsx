@@ -20,9 +20,10 @@ import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
 import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 
-const POLL_AJUDA_MS = 60_000;
-const POLL_SUGESTOES_MS = 60_000;
-const POLL_PENDENCIAS_MS = 90_000;
+// Contadores de badge não precisam de tempo real; o servidor cacheia pendências por 120s.
+const POLL_AJUDA_MS = 180_000;
+const POLL_SUGESTOES_MS = 180_000;
+const POLL_PENDENCIAS_MS = 300_000;
 
 function pollSeAbaVisivel(fn: () => void) {
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;

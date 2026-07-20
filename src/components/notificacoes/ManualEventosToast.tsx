@@ -14,7 +14,7 @@ type EventoManual = {
   created_at: string;
 };
 
-const POLL_MS = 15000;
+const POLL_MS = 60000;
 const ACK_IDS_KEY = 'manual_eventos_ack_v1';
 const BASELINE_KEY = 'manual_eventos_baseline_v1';
 
@@ -87,7 +87,9 @@ export function ManualEventosToast() {
   useEffect(() => {
     if (!podeNotificar) return;
     void carregarEventos();
-    const timer = window.setInterval(() => void carregarEventos(), POLL_MS);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void carregarEventos();
+    }, POLL_MS);
     return () => window.clearInterval(timer);
   }, [podeNotificar, carregarEventos]);
 
