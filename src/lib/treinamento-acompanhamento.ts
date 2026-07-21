@@ -19,7 +19,7 @@ import {
   haTreinoCadastradoLiderancaVigente,
   haTreinoCadastradoTodosVigente,
   rotuloSemanaTreino,
-  treinamentoTextoArquivado,
+  treinamentoArquivado,
   type TreinamentoDbRow,
 } from '@/lib/treinamento-vigencia';
 
@@ -387,7 +387,7 @@ export async function montarAcompanhamentoTreinamentos(
         created_at: String(created_at ?? ''),
         ativo: true,
       };
-      const arquivado = treinamentoTextoArquivado(dbRow, rowsDb);
+      const arquivado = treinamentoArquivado(dbRow, rowsDb);
       if (escopo === 'vigentes' && arquivado) continue;
       if (escopo === 'anteriores' && !arquivado) continue;
 
@@ -489,7 +489,7 @@ export async function montarDetalheAcompanhamentoItem(
     created_at: String(created_at ?? ''),
     ativo: true,
   };
-  const arquivado = treinamentoTextoArquivado(dbRow, rowsDb);
+  const arquivado = treinamentoArquivado(dbRow, rowsDb);
 
   return {
     id: itemId,

@@ -9,7 +9,7 @@ import {
 import {
   agruparAvaliacoesPorColaborador,
   carregarAvaliacoesFechamentoColaboradores,
-  colaboradorFechouSemanaPorOutroLider,
+  colegaLiderJaFechouSemana,
   resolverAvaliacaoExibicaoLider,
 } from '@/lib/avaliacao-fechamento-lider';
 import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
@@ -59,6 +59,7 @@ export async function GET(req: Request) {
     }
 
     let avaliacoesPorColab: Record<string, Record<string, unknown>> = {};
+    const colegaJaAvaliou: Record<string, boolean> = {};
 
     if (ids.length > 0) {
       const { data: todosAvaliadores } = await supabase
@@ -77,8 +78,10 @@ export async function GET(req: Request) {
 
       const porColab = agruparAvaliacoesPorColaborador(avalRows);
       for (const id of ids) {
+        const rowsColab = porColab.get(id) ?? [];
+        colegaJaAvaliou[id] = colegaLiderJaFechouSemana(rowsColab, rhIds, colaboradorId);
         const exibicao = resolverAvaliacaoExibicaoLider({
-          rows: porColab.get(id) ?? [],
+          rows: rowsColab,
           avaliadorAtualId: colaboradorId,
           rhIds,
         });
@@ -108,6 +111,7 @@ export async function GET(req: Request) {
         unidade_nome: unidadePorColab[c.id] ?? null,
         unidade_slug: unidadeSlugPorColab[c.id] ?? null,
         avaliacao: avaliacoesPorColab[c.id] ?? null,
+        colega_ja_avaliou: colegaJaAvaliou[c.id] === true,
       })),
     });
   } catch (e) {
@@ -178,29 +182,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: todosAvaliadores } = await supabase
-      .from('colaboradores')
-      .select('id, role, setor, nome');
-    const rhIds = construirConjuntoIdsRh(todosAvaliadores ?? []);
-    const { rows: avalOutros, error: errOutros } = await carregarAvaliacoesFechamentoColaboradores(
-      supabase,
-      [dataRef],
-      [validado.colaboradorAlvo]
-    );
-    if (errOutros) {
-      return NextResponse.json({ ok: false, erro: errOutros }, { status: 500 });
-    }
-    if (colaboradorFechouSemanaPorOutroLider(avalOutros, rhIds, colaboradorId)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          erro:
-            'Outro líder da unidade já avaliou este colaborador nesta semana. Não é necessário enviar de novo.',
-        },
-        { status: 409 }
-      );
-    }
-
+    // Co-líderes (ex.: Fábrica de doces) avaliam em paralelo; Grãos já fecha com um.
     const row = { ...validado.row, avaliador_id: colaboradorId };
     const { error: insErr, proatividade_omitida } = await insertAvaliacaoDiariaCompat(supabase, row);
 

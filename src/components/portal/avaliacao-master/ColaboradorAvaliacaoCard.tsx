@@ -22,7 +22,7 @@ export type AvaliacaoServidor = {
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
   edicao_utilizada?: boolean;
-  /** Semana já fechada por outro líder da unidade (somente leitura). */
+  /** @deprecated Não bloqueia mais; co-líderes avaliam em paralelo. */
   avaliado_por_outro_lider?: boolean;
 } | null;
 
@@ -36,6 +36,8 @@ type Props = {
   /** Intervalo legível (ex.: 26 mai a 1 jun 2026) — usado no botão fora do plantão. */
   semanaLabel?: string;
   avaliacaoInicial: AvaliacaoServidor;
+  /** Outro líder já enviou; você ainda pode enviar a sua. */
+  colegaJaAvaliou?: boolean;
   /** Cadastro do portal ainda pendente (informativo; não bloqueia avaliação). */
   onboardingCompleto?: boolean;
   operacaoApto?: boolean;
@@ -95,6 +97,7 @@ export function ColaboradorAvaliacaoCard({
   dataReferencia,
   semanaLabel,
   avaliacaoInicial,
+  colegaJaAvaliou = false,
   onboardingCompleto = true,
   operacaoApto = false,
   onSalvo,
@@ -111,12 +114,11 @@ export function ColaboradorAvaliacaoCard({
   const [modoEdicao, setModoEdicao] = useState(false);
   const [avaliando, setAvaliando] = useState(false);
   const edicaoUtilizada = avaliacaoInicial?.edicao_utilizada === true;
-  const avaliadoPorOutroLider = avaliacaoInicial?.avaliado_por_outro_lider === true;
+  const avaliadoPorOutroLider = false; // co-líderes avaliam em paralelo; não trava o formulário
   const correcaoPlantaoExtra = permiteCorrecaoPlantaoExtra && edicaoUtilizada;
   const podeEditarAvaliacao =
     permiteEdicaoUnica &&
     avaliacaoInicial != null &&
-    !avaliadoPorOutroLider &&
     (!edicaoUtilizada || permiteCorrecaoPlantaoExtra) &&
     !!avaliacaoInicial.id;
   const somenteLeitura = avaliacaoInicial != null && !modoEdicao;
@@ -611,9 +613,10 @@ export function ColaboradorAvaliacaoCard({
       </div>
 
       <div className="p-4 space-y-5">
-        {avaliadoPorOutroLider ? (
-          <p className="text-sm rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-950">
-            Outro líder da unidade já fechou a avaliação desta semana. Você não precisa enviar de novo.
+        {colegaJaAvaliou && !avaliacaoInicial ? (
+          <p className="text-sm rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-950">
+            Outro líder já avaliou esta pessoa nesta semana (conta para Grãos). Você ainda pode registrar a sua
+            avaliação normalmente.
           </p>
         ) : null}
         {mostrarAcoesRapidas && (

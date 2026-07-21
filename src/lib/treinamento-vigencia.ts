@@ -39,25 +39,29 @@ export function treinoTextoVigentePorPublico(
 }
 
 /**
- * Texto substituído por outro mais novo do mesmo público.
+ * Material substituído por outro mais novo do mesmo público (texto ou vídeo).
  *
- * A confirmação muda apenas o status pessoal. O último treinamento de cada
- * público continua atual e disponível até a publicação do próximo, mesmo
- * depois da virada do ciclo de quinta-feira.
+ * A confirmação muda só o status pessoal. O último treino de cada público
+ * continua na semana até publicar o próximo — os anteriores vão para histórico.
  */
+export function treinamentoArquivado(row: TreinamentoDbRow, rows: TreinamentoDbRow[]): boolean {
+  const publico = String(row.publico_alvo ?? '');
+  if (!publico) return false;
+  return rows.some(
+    (r) =>
+      r.ativo !== false &&
+      String(r.id) !== String(row.id) &&
+      r.publico_alvo === publico &&
+      String(r.created_at) > String(row.created_at)
+  );
+}
+
+/** @deprecated Use `treinamentoArquivado` (vale para texto e vídeo). */
 export function treinamentoTextoArquivado(
   row: TreinamentoDbRow,
   rows: TreinamentoDbRow[]
 ): boolean {
-  if (normalizarTipoConteudo(row.tipo_conteudo) !== 'texto') return false;
-  const publico = String(row.publico_alvo ?? '');
-  return rows.some(
-    (r) =>
-      r.ativo !== false &&
-      r.publico_alvo === publico &&
-      normalizarTipoConteudo(r.tipo_conteudo) === 'texto' &&
-      String(r.created_at) > String(row.created_at)
-  );
+  return treinamentoArquivado(row, rows);
 }
 
 /** Há treino de texto de liderança no ciclo vigente. */

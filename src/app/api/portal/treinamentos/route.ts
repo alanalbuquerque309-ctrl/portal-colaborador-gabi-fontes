@@ -21,7 +21,7 @@ import { normalizarTipoConteudo } from '@/lib/treinamento-conteudo';
 import {
   haTreinoCadastradoLiderancaVigente,
   haTreinoCadastradoTodosVigente,
-  treinamentoTextoArquivado,
+  treinamentoArquivado,
   type TreinamentoDbRow,
 } from '@/lib/treinamento-vigencia';
 
@@ -125,7 +125,7 @@ export async function GET(req: Request) {
       const publico = resolverPublicoAviso(r.publico_alvo as string | null, unidadeRow?.slug ?? null);
       const tipoConteudo = normalizarTipoConteudo((r as { tipo_conteudo?: string }).tipo_conteudo);
       const videoId = extrairYoutubeVideoId(String(r.video_youtube_url ?? ''));
-      const arquivado = treinamentoTextoArquivado(
+      const arquivado = treinamentoArquivado(
         {
           id: String(r.id),
           publico_alvo: r.publico_alvo as string | null,

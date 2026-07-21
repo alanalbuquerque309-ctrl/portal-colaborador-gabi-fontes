@@ -85,28 +85,34 @@ function linhaParaLeitura(row: AvaliacaoFechamentoRow): AvaliacaoDiariaLeitura &
 }
 
 /**
- * Prioriza avaliação do líder logado; senão, se outro líder fechou a semana, devolve leitura somente informativa.
+ * Só a avaliação do líder logado.
+ * Co-líderes (ex.: Sabrina e Henrique na Fábrica de doces) avaliam em paralelo;
+ * um basta para Grãos, mas o outro continua podendo enviar a própria.
  */
 export function resolverAvaliacaoExibicaoLider(opts: {
   rows: AvaliacaoFechamentoRow[];
   avaliadorAtualId: string;
   rhIds: Set<string>;
-}): (AvaliacaoDiariaLeitura & { avaliado_por_outro_lider?: boolean }) | null {
+}): AvaliacaoDiariaLeitura | null {
   const doAtual = opts.rows.filter(
     (r) => String(r.avaliador_id) === String(opts.avaliadorAtualId) && !avaliacaoEstaIgnorada(r)
   );
-  if (doAtual.length > 0) {
-    doAtual.sort((a, b) => {
-      const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-      const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-      return tb - ta;
-    });
-    return linhaParaLeitura(doAtual[0]!);
-  }
+  if (doAtual.length === 0) return null;
+  doAtual.sort((a, b) => {
+    const ta = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const tb = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+    return tb - ta;
+  });
+  return linhaParaLeitura(doAtual[0]!);
+}
 
-  const deColega = escolherMelhorFechamento(opts.rows, opts.rhIds);
-  if (!deColega) return null;
-  return { ...linhaParaLeitura(deColega), avaliado_por_outro_lider: true };
+/** Outro líder já fechou a semana (só aviso; não bloqueia o formulário). */
+export function colegaLiderJaFechouSemana(
+  rows: AvaliacaoFechamentoRow[],
+  rhIds: Set<string>,
+  avaliadorAtualId: string
+): boolean {
+  return colaboradorFechouSemanaPorOutroLider(rows, rhIds, avaliadorAtualId);
 }
 
 export async function carregarAvaliacoesFechamentoColaboradores(

@@ -34,6 +34,7 @@ type MembroEquipe = {
   onboarding_completo?: boolean;
   operacao_apto?: boolean;
   avaliacao: AvaliacaoServidor;
+  colega_ja_avaliou?: boolean;
 };
 
 export default function AvaliacaoMasterPage() {
@@ -228,13 +229,12 @@ export default function AvaliacaoMasterPage() {
             concluido: m.avaliacao != null,
             editavel: Boolean(
               m.avaliacao &&
-                !m.avaliacao.avaliado_por_outro_lider &&
                 m.avaliacao.id &&
                 (!m.avaliacao.edicao_utilizada || permiteCorrecaoPlantaoExtra)
             ),
             subtitulo:
               [
-                m.avaliacao?.avaliado_por_outro_lider ? 'já avaliado por outro líder' : null,
+                !m.avaliacao && m.colega_ja_avaliou ? 'colega já avaliou — você ainda pode' : null,
                 m.avaliacao?.assiduidade === 'fora_plantao' ? 'fora do plantão' : null,
                 m.cargo,
                 m.setor,
@@ -311,6 +311,7 @@ export default function AvaliacaoMasterPage() {
                 dataReferencia={dataRef}
                 semanaLabel={intervaloSemana}
                 avaliacaoInicial={m.avaliacao}
+                colegaJaAvaliou={m.colega_ja_avaliou === true}
                 onboardingCompleto={m.onboarding_completo !== false}
                 operacaoApto={m.operacao_apto === true}
                 forcarEdicao={editandoId === m.id}
