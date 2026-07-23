@@ -10,6 +10,7 @@ import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
 import { PortalEmptyState } from '@/components/portal/shell/PortalEmptyState';
 import { PortalActionCard } from '@/components/portal/shell/PortalActionCard';
 import { emitPortalHomeAtualizado } from '@/lib/portal-home-events';
+import { emitTreinamentoPendenciasAtualizado } from '@/lib/treinamento-events';
 import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 import {
   agruparSemanaPorPublico,
@@ -113,6 +114,7 @@ export default function PortalTreinamentoPage() {
             )
           );
           emitPortalHomeAtualizado();
+          emitTreinamentoPendenciasAtualizado();
         }
       } finally {
         setConfirmando(null);
@@ -132,6 +134,7 @@ export default function PortalTreinamentoPage() {
           prev.map((t) => (t.id === id ? { ...t, confirmado: true, visualizado: true } : t))
         );
         emitPortalHomeAtualizado();
+        emitTreinamentoPendenciasAtualizado();
       }
     } finally {
       setConfirmando(null);

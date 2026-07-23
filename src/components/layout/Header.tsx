@@ -18,12 +18,14 @@ import { podeGerirSugestoesReclamacoes } from '@/lib/sugestoes-acesso';
 import { getTermo, getTermoCurto } from '@/lib/tenant/terminology';
 import { AJUDA_CHAT_ATUALIZADO } from '@/lib/ajuda-chat-events';
 import { SUGESTOES_ATUALIZADO } from '@/lib/sugestoes-events';
+import { TREINAMENTO_PENDENCIAS_ATUALIZADO } from '@/lib/treinamento-events';
 import { usePortalPerfil } from '@/contexts/PortalPerfilContext';
 
 // Contadores de badge não precisam de tempo real; o servidor cacheia pendências por 120s.
 const POLL_AJUDA_MS = 180_000;
 const POLL_SUGESTOES_MS = 180_000;
 const POLL_PENDENCIAS_MS = 300_000;
+const POLL_TREINAMENTO_MS = 180_000;
 
 function pollSeAbaVisivel(fn: () => void) {
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
@@ -202,6 +204,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
   const [sugestoesPendentes, setSugestoesPendentes] = useState(0);
   const [pendenciasSemana, setPendenciasSemana] = useState(0);
   const [pendenciasSemanaCriticas, setPendenciasSemanaCriticas] = useState(false);
+  const [treinoPendentes, setTreinoPendentes] = useState(0);
   const [mostrarMeuManual, setMostrarMeuManual] = useState(false);
   const [perfilRoleLocal, setPerfilRoleLocal] = useState<string | null>(null);
   const [colaboradorIdNav, setColaboradorIdNav] = useState<string | null>(null);
@@ -250,6 +253,43 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
       window.removeEventListener(SUGESTOES_ATUALIZADO, carregar);
     };
   }, [perfilCarregado, podeContadorSugestoes, pathname]);
+
+  useEffect(() => {
+    if (!perfilCarregado) {
+      setTreinoPendentes(0);
+      return;
+    }
+    let cancel = false;
+    const carregar = () => {
+      pollSeAbaVisivel(() => {
+        fetch(`/api/portal/treinamentos/pendentes?_=${Date.now()}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+          .then((r) => r.json())
+          .then((d: { ok?: boolean; pendentes?: number }) => {
+            if (cancel || d.ok !== true) return;
+            setTreinoPendentes(Math.max(0, Number(d.pendentes ?? 0)));
+          })
+          .catch(() => {});
+      });
+    };
+    carregar();
+    const timer = window.setInterval(carregar, POLL_TREINAMENTO_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') carregar();
+    };
+    window.addEventListener('focus', carregar);
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener(TREINAMENTO_PENDENCIAS_ATUALIZADO, carregar);
+    return () => {
+      cancel = true;
+      window.clearInterval(timer);
+      window.removeEventListener('focus', carregar);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener(TREINAMENTO_PENDENCIAS_ATUALIZADO, carregar);
+    };
+  }, [perfilCarregado, pathname, roleNav]);
 
   useEffect(() => {
     if (!perfilCarregado || !podeVerPendenciasSemanaRede(roleNav)) {
@@ -576,13 +616,24 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                 href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
               const alertaSugestoes =
                 href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
+              const alertaTreino = href === '/portal/treinamento' && treinoPendentes > 0;
               return (
                 <Link
                   key={href}
                   href={href}
                   className={`relative hover:text-cafeteria-900 ${ativo ? 'font-semibold text-cafeteria-800' : ''}`}
+                  title={
+                    alertaTreino
+                      ? `${treinoPendentes} treinamento(s) da semana para concluir`
+                      : undefined
+                  }
                 >
                   {label}
+                  {alertaTreino && (
+                    <span className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-terracota-500 text-white text-xs font-bold items-center justify-center align-middle">
+                      {treinoPendentes > 9 ? '9+' : treinoPendentes}
+                    </span>
+                  )}
                   {alertaSugestoes && (
                     <span
                       className="ml-1.5 inline-flex min-w-[20px] h-5 px-1 rounded-full bg-amber-500 text-coffee-base text-xs font-bold items-center justify-center align-middle"
@@ -657,8 +708,10 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
         const primarios = navMobile.slice(0, 4);
         const extras = dedupeNavPorHref(navMobile.slice(4));
         const extraTemAlerta =
-          extras.some((i) => i.href === '/portal/comunicacao') &&
-          ((podeContadorSugestoes && sugestoesPendentes > 0) || (podeVisualizarAjuda && pendenciasAjuda > 0));
+          (extras.some((i) => i.href === '/portal/comunicacao') &&
+            ((podeContadorSugestoes && sugestoesPendentes > 0) ||
+              (podeVisualizarAjuda && pendenciasAjuda > 0))) ||
+          (extras.some((i) => i.href === '/portal/treinamento') && treinoPendentes > 0);
         const maisAtivo =
           extras.some((i) => navAtivo(pathname, i.href)) || (pathname?.startsWith('/admin') ?? false);
 
@@ -704,6 +757,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                     const alertaAjuda = href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
                     const alertaSugestoes =
                       href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
+                    const alertaTreino = href === '/portal/treinamento' && treinoPendentes > 0;
                     const badgeGraos =
                       href === '/portal/graos' &&
                       !naAbaGraos &&
@@ -723,7 +777,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                         >
                           <span className="relative shrink-0 text-cafeteria-600">
                             <NavIcon type={iconKey} />
-                            {(badgeGraos || alertaSugestoes || alertaAjuda) && (
+                            {(badgeGraos || alertaSugestoes || alertaAjuda || alertaTreino) && (
                               <span className="absolute -top-1.5 -right-1.5 h-2.5 w-2.5 rounded-full bg-terracota-500" />
                             )}
                           </span>
@@ -784,6 +838,7 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                   const alertaAjuda = href === '/portal/comunicacao' && podeVisualizarAjuda && pendenciasAjuda > 0;
                   const alertaSugestoes =
                     href === '/portal/comunicacao' && podeContadorSugestoes && sugestoesPendentes > 0;
+                  const alertaTreino = href === '/portal/treinamento' && treinoPendentes > 0;
                   const badgeGraos =
                     href === '/portal/graos' &&
                     !naAbaGraos &&
@@ -795,16 +850,23 @@ export function Header({ perfilRole: perfilRoleLayout, perfilCarregado = false }
                       href={href}
                       aria-current={ativo ? 'page' : undefined}
                       aria-label={
-                        alertaSugestoes
-                          ? `${label}: ${sugestoesPendentes} sugestão(ões) aguardando análise`
-                          : alertaAjuda
-                            ? `${label}: ${pendenciasAjuda} sem resposta`
-                            : label
+                        alertaTreino
+                          ? `${label}: ${treinoPendentes} treinamento(s) da semana para concluir`
+                          : alertaSugestoes
+                            ? `${label}: ${sugestoesPendentes} sugestão(ões) aguardando análise`
+                            : alertaAjuda
+                              ? `${label}: ${pendenciasAjuda} sem resposta`
+                              : label
                       }
                       className={itemClasse(ativo)}
                     >
                       <span className="relative">
                         <NavIcon type={iconKey} />
+                        {alertaTreino && (
+                          <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-terracota-500 text-white text-[10px] font-bold flex items-center justify-center">
+                            {treinoPendentes > 9 ? '9+' : treinoPendentes}
+                          </span>
+                        )}
                         {badgeGraos && (
                           <span className="absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold flex items-center justify-center">
                             {graosSaldo > 99 ? '99+' : graosSaldo}
