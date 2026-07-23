@@ -20,7 +20,7 @@ import { PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
 import {
   roleAplicaBloqueioQuintaHard,
   rotaLiberadaComBloqueioQuinta,
-} from '@/lib/graos/lider-quinta-bloqueio';
+} from '@/lib/graos/lider-quinta-bloqueio-shared';
 
 type ColaboradorGate = {
   role?: string | null;
