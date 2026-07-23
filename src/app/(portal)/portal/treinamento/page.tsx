@@ -35,9 +35,10 @@ export default function PortalTreinamentoPage() {
   const [historicoItemAberto, setHistoricoItemAberto] = useState<string | null>(null);
   const [extrasAberto, setExtrasAberto] = useState(false);
 
-  const carregar = useCallback(() => {
+  const carregar = useCallback((opts?: { silencioso?: boolean }) => {
+    const silencioso = opts?.silencioso === true;
     setErroCarregar(null);
-    setLoading(true);
+    if (!silencioso) setLoading(true);
     fetch('/api/portal/treinamentos', { credentials: 'include' })
       .then((r) => r.json())
       .then((d) => {
@@ -59,7 +60,9 @@ export default function PortalTreinamentoPage() {
         setItens([]);
         setErroCarregar('Falha de conexão ao carregar treinamentos. Tente de novo.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (!silencioso) setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -115,6 +118,7 @@ export default function PortalTreinamentoPage() {
           );
           emitPortalHomeAtualizado();
           emitTreinamentoPendenciasAtualizado();
+          carregar({ silencioso: true });
         }
       } finally {
         setConfirmando(null);
@@ -135,6 +139,7 @@ export default function PortalTreinamentoPage() {
         );
         emitPortalHomeAtualizado();
         emitTreinamentoPendenciasAtualizado();
+        carregar({ silencioso: true });
       }
     } finally {
       setConfirmando(null);

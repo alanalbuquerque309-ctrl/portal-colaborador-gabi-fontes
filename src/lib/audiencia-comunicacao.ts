@@ -26,7 +26,8 @@ export type ResumoAudienciaComunicacao = {
 
 async function listarColaboradoresPublico(
   supabase: SupabaseAdmin,
-  publico: PublicoAvisoKey
+  publico: PublicoAvisoKey,
+  opts?: { incluirSocios?: boolean }
 ): Promise<PessoaAudiencia[]> {
   const { data, error } = await supabase
     .from('colaboradores')
@@ -45,7 +46,14 @@ async function listarColaboradoresPublico(
       publico
     );
     if (!recebe) continue;
-    if (publico !== 'lideranca' && normalizePortalRole(c.role) === 'socio') continue;
+    // Avisos: sócio fica de fora de «todos» (não opera). Treinos: conta, porque o sócio pode fazer e confirmar.
+    if (
+      !opts?.incluirSocios &&
+      publico !== 'lideranca' &&
+      normalizePortalRole(c.role) === 'socio'
+    ) {
+      continue;
+    }
     out.push({
       id: String(c.id),
       nome: String(c.nome ?? ''),
@@ -143,7 +151,8 @@ export async function montarAudienciaTreinamento(
 
   const unidade = treino.unidades as { slug?: string } | null;
   const publico = resolverPublicoAviso(treino.publico_alvo as string | null, unidade?.slug ?? null);
-  const esperados = await listarColaboradoresPublico(supabase, publico);
+  // Inclui sócios: eles recebem o material e a confirmação precisa aparecer no «X fez».
+  const esperados = await listarColaboradoresPublico(supabase, publico, { incluirSocios: true });
   const ids = esperados.map((p) => p.id);
 
   const visualMap = new Map<string, string>();
