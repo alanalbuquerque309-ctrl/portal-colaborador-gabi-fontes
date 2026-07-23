@@ -13,8 +13,8 @@ const portalRoot = path.join(__dirname, '..');
 const conteudoDir = path.join(portalRoot, 'conteudo', 'treinamentos');
 
 const ARQUIVOS = [
-  '03-equipe-cliente-nao-deveria-pedir-atencao.md',
-  '04-lideranca-acompanha-vira-padrao.md',
+  '05-equipe-isso-tambem-e-comigo.md',
+  '06-lideranca-quando-voce-assume.md',
 ];
 
 const SLUG_UNIDADE = {

@@ -1,6 +1,7 @@
 # Treinamentos — publicação na quinta
 
-**Modelo oficial:** `MODELO-OFICIAL-TREINAMENTOS.md` (gabarito de redação e estrutura).
+**Modelo oficial:** `MODELO-OFICIAL-TREINAMENTOS.md` (gabarito de redação e estrutura).  
+**Calendário / pilares:** `PLANEJAMENTO-QUINTAS.md` (temas por quinta; não repetir os já publicados).
 
 Arquivos prontos para colar no admin do portal (`/admin/treinamento/novo`).
 
@@ -10,6 +11,8 @@ Arquivos prontos para colar no admin do portal (`/admin/treinamento/novo`).
 | `02-lideranca-clima-equipe.md` | **Liderança** | O clima da equipe tem um endereço |
 | `03-equipe-cliente-nao-deveria-pedir-atencao.md` | **Todos** | O cliente não deveria precisar pedir atenção |
 | `04-lideranca-acompanha-vira-padrao.md` | **Liderança** | O que você acompanha vira padrão |
+| `05-equipe-isso-tambem-e-comigo.md` | **Todos** | Isso também é comigo |
+| `06-lideranca-quando-voce-assume.md` | **Liderança** | Quando você assume, a equipe aprende a assumir |
 
 ## Como publicar (quinta-feira)
 
