@@ -17,6 +17,10 @@ import { PortalPerfilProvider } from '@/contexts/PortalPerfilContext';
 import { XicaraCarregando } from '@/components/ui/XicaraCarregando';
 import { PortalNavigationLoader } from '@/components/portal/PortalNavigationLoader';
 import { PortalPresenceHeartbeat } from '@/components/portal/PortalPresence';
+import {
+  roleAplicaBloqueioQuintaHard,
+  rotaLiberadaComBloqueioQuinta,
+} from '@/lib/graos/lider-quinta-bloqueio';
 
 type ColaboradorGate = {
   role?: string | null;
@@ -244,9 +248,9 @@ export function PortalLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!gateOk || isPendingRegistration()) return;
     const role = normalizePortalRole(perfilRole);
-    const isLider = role === 'gerente' || role === 'master' || role === 'admin';
-    if (!isLider) return;
-    if (pathname === '/portal/avaliacao-master') return;
+    // Só gerente/master: admin (Daniel) e sócios não são jogados para Avaliação.
+    if (!roleAplicaBloqueioQuintaHard(role)) return;
+    if (rotaLiberadaComBloqueioQuinta(pathname)) return;
 
     try {
       const cached = sessionStorage.getItem('portal_lider_bloqueio');

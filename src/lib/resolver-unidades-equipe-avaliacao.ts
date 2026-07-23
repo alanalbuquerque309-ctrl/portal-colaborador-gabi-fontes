@@ -64,7 +64,7 @@ function slugsExtraTemporariosParaNome(nome: string): string[] {
 export async function resolverUnidadesListaCompletaEquipeAvaliacao(
   supabase: SupabaseAdmin,
   liderId: string,
-  unidadeIdCadastro: string
+  _unidadeIdCadastro: string
 ): Promise<string[]> {
   const ids = new Set<string>();
   const catalogoUnidades = await listarUnidadesCadastroServer();
@@ -98,7 +98,8 @@ export async function resolverUnidadesListaCompletaEquipeAvaliacao(
     }
   }
 
-  if (ids.size === 0 && unidadeIdCadastro) ids.add(unidadeIdCadastro);
-
+  // Sem fallback para unidade de cadastro: líder só por setor não vira “gerente da loja inteira”.
+  // Sem `*` / unidade_todos, ids fica vazio; `listarEquipeParaAvaliacaoSemanal` usa setor + direta
+  // e só então o fallback da unidade de cadastro.
   return Array.from(ids);
 }

@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePortalRole } from '@/lib/roles';
-import { verificarBloqueioQuintaLider } from '@/lib/graos/lider-quinta-bloqueio';
+import {
+  roleAplicaBloqueioQuintaHard,
+  verificarBloqueioQuintaLider,
+} from '@/lib/graos/lider-quinta-bloqueio';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +28,8 @@ export async function GET() {
       .maybeSingle();
 
     const role = normalizePortalRole((colab as { role?: string }).role);
-    const isLider = role === 'gerente' || role === 'master' || role === 'admin';
-    if (!isLider || !unidadeId) {
+    // Admin/sócio: sem trava dura (Daniel precisa acessar Treinamento e o painel).
+    if (!roleAplicaBloqueioQuintaHard(role) || !unidadeId) {
       return NextResponse.json({ ok: true, bloqueado: false, pendentes: 0, motivo: null }, { headers: NO_STORE });
     }
 

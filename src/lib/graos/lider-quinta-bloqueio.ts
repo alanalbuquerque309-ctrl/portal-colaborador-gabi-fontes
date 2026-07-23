@@ -11,7 +11,22 @@ export type LiderBloqueioQuinta = {
   motivo: string | null;
 };
 
-/** Quinta: líder com avaliações pendentes da semana só acessa Avaliação da equipe. */
+/**
+ * Trava dura de quinta (só Avaliação da equipe): gerentes/masters de loja.
+ * Admin (Daniel) e sócios não entram — precisam usar Treinamento, Admin e o resto do portal.
+ */
+export function roleAplicaBloqueioQuintaHard(role: string | null | undefined): boolean {
+  return role === 'gerente' || role === 'master';
+}
+
+/** Rotas liberadas mesmo com bloqueio de quinta (além de Avaliação da equipe). */
+export function rotaLiberadaComBloqueioQuinta(pathname: string): boolean {
+  if (pathname === '/portal/avaliacao-master') return true;
+  if (pathname === '/portal/treinamento' || pathname.startsWith('/portal/treinamento/')) return true;
+  return false;
+}
+
+/** Quinta: líder de loja com avaliações pendentes — só Avaliação (e Treinamento). */
 export async function verificarBloqueioQuintaLider(
   supabase: SupabaseClient,
   liderId: string,
