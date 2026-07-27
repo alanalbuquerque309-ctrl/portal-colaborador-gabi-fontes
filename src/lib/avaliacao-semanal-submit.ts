@@ -5,10 +5,13 @@ import {
   type NotasCriterios,
 } from '@/lib/avaliacao-diaria';
 import { notaCriterioValida } from '@/lib/avaliacao-notas';
+import { validarDataRetornoAusencia } from '@/lib/avaliacao-retorno-ausencia';
 import {
   assiduidadeParaBanco,
+  justificativaIndicaLicencaOuAfastamento,
   JUSTIFICATIVA_FERIAS,
   JUSTIFICATIVA_FORA_PLANTAO,
+  JUSTIFICATIVA_LICENCA_SEMANA,
 } from '@/lib/avaliacao-semanal-shared';
 
 export type BodyAvaliacaoSemanal = {
@@ -21,6 +24,8 @@ export type BodyAvaliacaoSemanal = {
   nota_desempenho_tarefas?: number | null;
   nota_proatividade?: number | null;
   justificativa_nota_baixa?: string;
+  /** Retorno previsto (obrigatório em férias e licença). */
+  data_retorno_previsto?: string;
 };
 
 export function isAssiduidadeSemanal(s: string): s is AssiduidadeTipo {
@@ -45,9 +50,11 @@ function assiduidadePermitidaNovoEnvio(s: string): s is AssiduidadeTipo {
   );
 }
 
-/** Semana sem nota: fora do plantão e férias não exigem critérios. */
-function assiduidadeSemNota(s: AssiduidadeTipo): boolean {
-  return s === 'fora_plantao' || s === 'ferias';
+/** Semana sem nota: fora do plantão, férias e licença/afastamento (marcador). */
+function assiduidadeSemNota(s: AssiduidadeTipo, justificativa: string): boolean {
+  if (s === 'fora_plantao' || s === 'ferias') return true;
+  if (s === 'falta_justificada' && justificativaIndicaLicencaOuAfastamento(justificativa)) return true;
+  return false;
 }
 
 export function sanitizeJustificativaSemanal(value: unknown): string {
@@ -64,7 +71,7 @@ export function validarBodyAvaliacaoSemanal(
 ): AvaliacaoSemanalValidada {
   const colaboradorAlvo = String(body.colaborador_id ?? '').trim();
   const assidRaw = String(body.assiduidade ?? '').trim();
-  const justificativaNotaBaixa = sanitizeJustificativaSemanal(body.justificativa_nota_baixa);
+  let justificativaNotaBaixa = sanitizeJustificativaSemanal(body.justificativa_nota_baixa);
 
   if (!colaboradorAlvo || !isAssiduidadeSemanal(assidRaw)) {
     return { ok: false, status: 400, erro: 'Dados obrigatórios inválidos' };
@@ -77,6 +84,15 @@ export function validarBodyAvaliacaoSemanal(
     };
   }
 
+  // Licença pela UI: assiduidade falta_justificada + marcador (sem notas).
+  if (
+    assidRaw === 'falta_justificada' &&
+    (justificativaNotaBaixa === JUSTIFICATIVA_LICENCA_SEMANA ||
+      justificativaIndicaLicencaOuAfastamento(justificativaNotaBaixa))
+  ) {
+    justificativaNotaBaixa = JUSTIFICATIVA_LICENCA_SEMANA;
+  }
+
   const notasEntrada: NotasCriterios = {
     vestimenta: body.nota_vestimenta ?? null,
     pontualidade: body.nota_pontualidade ?? null,
@@ -86,14 +102,26 @@ export function validarBodyAvaliacaoSemanal(
   };
 
   const { media, notasPersistidas } = calcularMediaDia(assidRaw, notasEntrada);
-  const semNota = assiduidadeSemNota(assidRaw);
+  const semNota = assiduidadeSemNota(assidRaw, justificativaNotaBaixa);
   const temNotaBaixa = !semNota && temNotaBaixaEquipe(assidRaw, notasPersistidas);
   const justificativaFinal =
     assidRaw === 'fora_plantao'
       ? JUSTIFICATIVA_FORA_PLANTAO
       : assidRaw === 'ferias'
         ? JUSTIFICATIVA_FERIAS
-        : justificativaNotaBaixa;
+        : semNota && justificativaIndicaLicencaOuAfastamento(justificativaNotaBaixa)
+          ? JUSTIFICATIVA_LICENCA_SEMANA
+          : justificativaNotaBaixa;
+
+  const precisaRetorno = assidRaw === 'ferias' || justificativaFinal === JUSTIFICATIVA_LICENCA_SEMANA;
+  const dataRetorno = precisaRetorno ? validarDataRetornoAusencia(body.data_retorno_previsto) : null;
+  if (precisaRetorno && !dataRetorno) {
+    return {
+      ok: false,
+      status: 400,
+      erro: 'Informe a data de retorno (volta de férias/licença).',
+    };
+  }
 
   if (temNotaBaixa && justificativaFinal.length < 10) {
     return {
@@ -110,7 +138,7 @@ export function validarBodyAvaliacaoSemanal(
     };
   }
 
-  if (assidRaw === 'presente' || assidRaw === 'falta_justificada') {
+  if (!semNota && (assidRaw === 'presente' || assidRaw === 'falta_justificada')) {
     const campos = [
       notasPersistidas.vestimenta,
       notasPersistidas.pontualidade,
@@ -130,32 +158,46 @@ export function validarBodyAvaliacaoSemanal(
     }
   }
 
+  const mediaFinal = semNota ? null : media;
+  const notasFinais = semNota
+    ? {
+        vestimenta: null,
+        pontualidade: null,
+        trabalhoEquipe: null,
+        desempenhoTarefas: null,
+        proatividade: null,
+      }
+    : notasPersistidas;
+
   return {
     ok: true,
     dataRef: dataRefNormalizada,
     colaboradorAlvo,
     assidRaw,
-    media,
+    media: mediaFinal,
     row: {
       colaborador_id: colaboradorAlvo,
       data_referencia: dataRefNormalizada,
       assiduidade: assiduidadeParaBanco(assidRaw),
-      nota_vestimenta: notasPersistidas.vestimenta,
-      nota_pontualidade: notasPersistidas.pontualidade,
-      nota_trabalho_equipe: notasPersistidas.trabalhoEquipe,
-      nota_desempenho_tarefas: notasPersistidas.desempenhoTarefas,
-      nota_proatividade: notasPersistidas.proatividade,
-      media_dia: media,
+      nota_vestimenta: notasFinais.vestimenta,
+      nota_pontualidade: notasFinais.pontualidade,
+      nota_trabalho_equipe: notasFinais.trabalhoEquipe,
+      nota_desempenho_tarefas: notasFinais.desempenhoTarefas,
+      nota_proatividade: notasFinais.proatividade,
+      media_dia: mediaFinal,
       justificativa_nota_baixa:
         assidRaw === 'fora_plantao'
           ? JUSTIFICATIVA_FORA_PLANTAO
           : assidRaw === 'ferias'
             ? JUSTIFICATIVA_FERIAS
-            : assidRaw === 'falta_justificada'
-              ? justificativaFinal || null
-              : temNotaBaixa
-                ? justificativaFinal
-                : null,
+            : justificativaFinal === JUSTIFICATIVA_LICENCA_SEMANA
+              ? JUSTIFICATIVA_LICENCA_SEMANA
+              : assidRaw === 'falta_justificada'
+                ? justificativaFinal || null
+                : temNotaBaixa
+                  ? justificativaFinal
+                  : null,
+      data_retorno_previsto: dataRetorno,
     },
   };
 }

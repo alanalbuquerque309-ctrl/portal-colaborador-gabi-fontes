@@ -20,6 +20,7 @@ import {
 import { isDateIsoAvaliacao } from '@/lib/avaliacao-semanal-shared';
 import { validarBodyAvaliacaoSemanal } from '@/lib/avaliacao-semanal-submit';
 import { aplicarEfeitosFeriasSemanaColaborador, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
+import { idsColaboradoresAusentesPorRetorno } from '@/lib/avaliacao-retorno-ausencia';
 import { aplicarTipoEscala12x36PorForaPlantao } from '@/lib/escala-portal';
 
 /** Equipe do gerente + avaliações já salvas na semana (segunda de `data`); leitura após envio. */
@@ -39,8 +40,14 @@ export async function GET(req: Request) {
     const { colaboradorId, unidadeId } = auth.ctx;
 
     const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, colaboradorId, unidadeId);
+    const ausentesRetorno = await idsColaboradoresAusentesPorRetorno(
+      supabase,
+      equipe.map((c) => c.id),
+      dataRef
+    );
+    const equipeVisivel = equipe.filter((c) => !ausentesRetorno.has(c.id));
 
-    const ids = equipe.map((c) => c.id);
+    const ids = equipeVisivel.map((c) => c.id);
 
     const unidadePorColab: Record<string, string> = {};
     const unidadeSlugPorColab: Record<string, string> = {};
@@ -106,7 +113,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ok: true,
       data_referencia: dataRef,
-      equipe: equipe.map((c) => ({
+      equipe: equipeVisivel.map((c) => ({
         ...c,
         unidade_nome: unidadePorColab[c.id] ?? null,
         unidade_slug: unidadeSlugPorColab[c.id] ?? null,

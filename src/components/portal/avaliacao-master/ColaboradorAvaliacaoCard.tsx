@@ -9,6 +9,7 @@ import {
   type AssiduidadeTipo,
 } from '@/lib/avaliacao-diaria';
 import { DICA_CRITERIO_PROATIVIDADE, notaCriterioValida } from '@/lib/avaliacao-notas';
+import { JUSTIFICATIVA_LICENCA_SEMANA } from '@/lib/avaliacao-semanal-shared';
 import { getTermoCurto } from '@/lib/tenant/terminology';
 
 export type AvaliacaoServidor = {
@@ -21,6 +22,7 @@ export type AvaliacaoServidor = {
   nota_proatividade?: number | null;
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
+  data_retorno_previsto?: string | null;
   edicao_utilizada?: boolean;
   /** @deprecated Não bloqueia mais; co-líderes avaliam em paralelo. */
   avaliado_por_outro_lider?: boolean;
@@ -152,6 +154,10 @@ export function ColaboradorAvaliacaoCard({
   const [justificativaNotaBaixa, setJustificativaNotaBaixa] = useState(
     avaliacaoInicial?.justificativa_nota_baixa ?? ''
   );
+  const [pendenteAusencia, setPendenteAusencia] = useState<null | 'ferias' | 'licenca'>(null);
+  const [dataRetornoPrevisto, setDataRetornoPrevisto] = useState(
+    () => String(avaliacaoInicial?.data_retorno_previsto ?? '').slice(0, 10)
+  );
   const [apto, setApto] = useState(operacaoApto);
   const [marcandoApto, setMarcandoApto] = useState(false);
 
@@ -227,7 +233,13 @@ export function ColaboradorAvaliacaoCard({
   const estrelasDesabilitadas = somenteLeitura || injustificada;
   /** Painel de atalhos antes de abrir estrelas. */
   const mostrarAcoesRapidas =
-    !avaliadoPorOutroLider && !somenteLeitura && !avaliando && !foraPlantao && !ferias && !injustificada;
+    !avaliadoPorOutroLider &&
+    !somenteLeitura &&
+    !avaliando &&
+    !foraPlantao &&
+    !ferias &&
+    !injustificada &&
+    !pendenteAusencia;
   /** Bloco de notas: presente ou falta justificada (com critérios). */
   const mostrarNotas = !semNotaSemanal && !injustificada && (somenteLeitura || avaliando);
   const temNotaBaixa = temNotaBaixaEquipe(assiduidade, {
@@ -399,6 +411,7 @@ export function ColaboradorAvaliacaoCard({
 
   const abrirFaltaJustificada = (motivoPreset?: string) => {
     if (somenteLeitura) return;
+    setPendenteAusencia(null);
     setAssiduidade('falta_justificada');
     setJustificativaNotaBaixa(motivoPreset ?? '');
     setV(null);
@@ -412,22 +425,28 @@ export function ColaboradorAvaliacaoCard({
     setAvaliando(true);
   };
 
-  const marcarFerias = async () => {
+  const iniciarAusencia = (tipo: 'ferias' | 'licenca') => {
     if (somenteLeitura) return;
-    if (
-      !window.confirm(
-        `${nome} está de férias na semana ${semanaLabel ?? 'selecionada'}?\n\nA semana não recebe nota e não entra na média do colaborador.`
-      )
-    ) {
+    setPendenteAusencia(tipo);
+    setDataRetornoPrevisto('');
+    setErro(null);
+    setMsg(null);
+  };
+
+  const confirmarAusencia = async () => {
+    if (somenteLeitura || !pendenteAusencia) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataRetornoPrevisto)) {
+      setErro('Informe a data de retorno (volta de férias/licença).');
       return;
     }
-    setAssiduidade('ferias');
+    const ehFerias = pendenteAusencia === 'ferias';
+    setAssiduidade(ehFerias ? 'ferias' : 'falta_justificada');
     setV(null);
     setP(null);
     setE(null);
     setD(null);
     setPr(null);
-    setJustificativaNotaBaixa('');
+    setJustificativaNotaBaixa(ehFerias ? '' : JUSTIFICATIVA_LICENCA_SEMANA);
     setErro(null);
     setMsg(null);
     setSalvando(true);
@@ -435,13 +454,14 @@ export function ColaboradorAvaliacaoCard({
       const payload = {
         data_referencia: dataReferencia,
         colaborador_id: colaboradorId,
-        assiduidade: 'ferias' as const,
+        assiduidade: ehFerias ? ('ferias' as const) : ('falta_justificada' as const),
         nota_vestimenta: null,
         nota_pontualidade: null,
         nota_trabalho_equipe: null,
         nota_desempenho_tarefas: null,
         nota_proatividade: null,
-        justificativa_nota_baixa: '',
+        justificativa_nota_baixa: ehFerias ? '' : JUSTIFICATIVA_LICENCA_SEMANA,
+        data_retorno_previsto: dataRetornoPrevisto,
       };
       const res = await fetch(postUrl, {
         method: 'POST',
@@ -454,7 +474,12 @@ export function ColaboradorAvaliacaoCard({
         setErro(data.erro || 'Não foi possível registrar.');
         return;
       }
-      setMsg('Registrado: de férias nesta semana.');
+      setPendenteAusencia(null);
+      setMsg(
+        ehFerias
+          ? `Registrado: férias até ${dataRetornoPrevisto.split('-').reverse().join('/')}.`
+          : `Registrado: licença/afastamento até ${dataRetornoPrevisto.split('-').reverse().join('/')}.`
+      );
       onSalvo();
     } catch {
       setErro('Erro de conexão.');
@@ -653,11 +678,11 @@ export function ColaboradorAvaliacaoCard({
                 <button
                   type="button"
                   disabled={salvando}
-                  onClick={() => void marcarFerias()}
+                  onClick={() => iniciarAusencia('ferias')}
                   className="text-left rounded-xl border border-sky-400 bg-sky-50 text-sky-950 px-3 py-3 min-h-[44px] hover:bg-sky-100 disabled:opacity-50"
                 >
                   <span className="block text-sm font-semibold">Férias</span>
-                  <span className="block text-xs mt-0.5 text-sky-800">Sem nota; fora da média do mês</span>
+                  <span className="block text-xs mt-0.5 text-sky-800">Sem nota; informe a data de retorno</span>
                 </button>
               )}
               <button
@@ -674,12 +699,12 @@ export function ColaboradorAvaliacaoCard({
               <button
                 type="button"
                 disabled={salvando}
-                onClick={() => abrirFaltaJustificada('Licença médica / afastamento')}
+                onClick={() => iniciarAusencia('licenca')}
                 className="text-left rounded-xl border border-amber-300 bg-white text-amber-950 px-3 py-3 min-h-[44px] hover:bg-amber-50 disabled:opacity-50"
               >
                 <span className="block text-sm font-semibold">Licença / afastamento</span>
                 <span className="block text-xs mt-0.5 text-amber-900">
-                  Afastamento com atestado; lançar nota normalmente
+                  Sem nota; informe a data de retorno
                 </span>
               </button>
               <button
@@ -696,6 +721,54 @@ export function ColaboradorAvaliacaoCard({
             </div>
           </div>
         )}
+        {pendenteAusencia && !somenteLeitura && (
+          <div
+            className={`rounded-xl border px-4 py-3 space-y-3 ${
+              pendenteAusencia === 'ferias'
+                ? 'border-sky-300 bg-sky-50'
+                : 'border-amber-300 bg-amber-50'
+            }`}
+          >
+            <p className="text-sm font-semibold text-cafeteria-900">
+              {pendenteAusencia === 'ferias' ? 'Férias' : 'Licença / afastamento'} · {nome}
+            </p>
+            <label className="block text-sm text-cafeteria-800">
+              Volta de {pendenteAusencia === 'ferias' ? 'férias' : 'licença/afastamento'} quando?
+              <input
+                type="date"
+                value={dataRetornoPrevisto}
+                onChange={(e) => setDataRetornoPrevisto(e.target.value)}
+                className="mt-1.5 block w-full max-w-xs rounded-lg border border-cafeteria-300 bg-white px-3 py-2 text-sm min-h-[44px]"
+              />
+            </label>
+            <p className="text-xs text-cafeteria-600">
+              A pessoa some da lista de avaliações até a semana seguinte a essa data.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={salvando}
+                onClick={() => void confirmarAusencia()}
+                className="rounded-lg bg-cafeteria-800 text-white text-sm font-medium px-4 py-2 min-h-[44px] hover:bg-cafeteria-900 disabled:opacity-50"
+              >
+                {salvando ? 'Salvando…' : 'Confirmar'}
+              </button>
+              <button
+                type="button"
+                disabled={salvando}
+                onClick={() => {
+                  setPendenteAusencia(null);
+                  setDataRetornoPrevisto('');
+                  setErro(null);
+                }}
+                className="rounded-lg border border-cafeteria-300 px-4 py-2 text-sm font-medium text-cafeteria-800 hover:bg-white disabled:opacity-50 min-h-[44px]"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         {cadastroPortalPendente && !mostrarAcoesRapidas && !avaliando && (
           <p className="text-sm text-cafeteria-800 bg-cafeteria-50 border border-cafeteria-200 rounded-lg px-3 py-2">
             Cadastro no portal ainda não concluído. Você pode avaliar a operação da semana normalmente.
@@ -945,6 +1018,13 @@ export function ColaboradorAvaliacaoCard({
         {ferias && somenteLeitura && (
           <p className="text-sm text-sky-900 bg-sky-50 border border-sky-200 rounded-lg px-3 py-2">
             Colaborador <strong>de férias</strong> nesta semana. Sem nota e fora da média.
+            {avaliacaoInicial?.data_retorno_previsto ? (
+              <>
+                {' '}
+                Retorno previsto:{' '}
+                {avaliacaoInicial.data_retorno_previsto.split('-').reverse().join('/')}.
+              </>
+            ) : null}
           </p>
         )}
 

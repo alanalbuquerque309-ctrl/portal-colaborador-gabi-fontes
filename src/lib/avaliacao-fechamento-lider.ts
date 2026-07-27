@@ -14,6 +14,7 @@ export type AvaliacaoFechamentoRow = {
   assiduidade: string | null;
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
+  data_retorno_previsto?: string | null;
   ignorada?: boolean | null;
   avaliador_role?: string | null;
   updated_at?: string | null;
@@ -67,7 +68,10 @@ export function colaboradorFechouSemanaPorOutroLider(
   return fechamento != null && String(fechamento.avaliador_id) !== String(avaliadorAtualId);
 }
 
-function linhaParaLeitura(row: AvaliacaoFechamentoRow): AvaliacaoDiariaLeitura & { avaliador_id?: string } {
+function linhaParaLeitura(row: AvaliacaoFechamentoRow): AvaliacaoDiariaLeitura & {
+  avaliador_id?: string;
+  data_retorno_previsto?: string | null;
+} {
   return {
     id: row.id,
     colaborador_id: row.colaborador_id,
@@ -81,6 +85,7 @@ function linhaParaLeitura(row: AvaliacaoFechamentoRow): AvaliacaoDiariaLeitura &
     justificativa_nota_baixa: row.justificativa_nota_baixa ?? null,
     edicao_utilizada: row.edicao_utilizada === true,
     avaliador_id: row.avaliador_id,
+    data_retorno_previsto: row.data_retorno_previsto ?? null,
   };
 }
 
@@ -126,7 +131,7 @@ export async function carregarAvaliacoesFechamentoColaboradores(
 
   const semanas = Array.from(new Set(dataReferencias));
   const selectFull =
-    'id, colaborador_id, avaliador_id, assiduidade, media_dia, justificativa_nota_baixa, edicao_utilizada, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, ignorada, updated_at';
+    'id, colaborador_id, avaliador_id, assiduidade, media_dia, justificativa_nota_baixa, data_retorno_previsto, edicao_utilizada, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, nota_proatividade, ignorada, updated_at';
   const selectBase =
     'id, colaborador_id, avaliador_id, assiduidade, media_dia, justificativa_nota_baixa, edicao_utilizada, nota_vestimenta, nota_pontualidade, nota_trabalho_equipe, nota_desempenho_tarefas, updated_at';
 
@@ -141,7 +146,7 @@ export async function carregarAvaliacoesFechamentoColaboradores(
 
   if (!resFull.error) {
     raw = (resFull.data ?? []) as Record<string, unknown>[];
-  } else if (/nota_proatividade|ignorada|does not exist|schema cache/i.test(resFull.error.message)) {
+  } else if (/data_retorno_previsto|nota_proatividade|ignorada|does not exist|schema cache/i.test(resFull.error.message)) {
     const resBase = await supabase
       .from('avaliacoes_diarias')
       .select(selectBase)
@@ -172,6 +177,8 @@ export async function carregarAvaliacoesFechamentoColaboradores(
     assiduidade: (r.assiduidade as string | null) ?? null,
     media_dia: r.media_dia != null ? Number(r.media_dia) : null,
     justificativa_nota_baixa: (r.justificativa_nota_baixa as string | null) ?? null,
+    data_retorno_previsto:
+      r.data_retorno_previsto != null ? String(r.data_retorno_previsto).slice(0, 10) : null,
     edicao_utilizada: r.edicao_utilizada === true,
     nota_vestimenta: r.nota_vestimenta != null ? Number(r.nota_vestimenta) : null,
     nota_pontualidade: r.nota_pontualidade != null ? Number(r.nota_pontualidade) : null,

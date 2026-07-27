@@ -15,6 +15,7 @@ import { construirConjuntoIdsRh } from '@/lib/avaliacao-semanal-agregacao';
 import { listarEquipeParaAvaliacaoSemanal, listarLideresDoColaborador } from '@/lib/colaborador-lideres';
 import { colaboradorDeFeriasNaSemana, idsColaboradoresDeFeriasNaSemana } from '@/lib/avaliacao-ferias-semana';
 import { idsColaboradoresDeLicencaOuAfastamentoNaSemana } from '@/lib/avaliacao-licenca-semana';
+import { idsColaboradoresAusentesPorRetorno } from '@/lib/avaliacao-retorno-ausencia';
 import { segundaSemanaSaoPaulo } from '@/lib/semana-brasil';
 import { TROFEUS_PARES_CREDITOS_SEMANA } from '@/lib/trofeus-pares';
 import { inicioSemanaSegundaFeiraLocal } from '@/lib/semana-referencia';
@@ -282,6 +283,10 @@ export async function montarPendenciasPortalHome(
       ids.length > 0
         ? await idsColaboradoresDeLicencaOuAfastamentoNaSemana(supabase, ids, dataRef)
         : new Set<string>();
+    const retornoIds =
+      ids.length > 0 ? await idsColaboradoresAusentesPorRetorno(supabase, ids, dataRef) : new Set<string>();
+
+    const jaAvalieiIds = new Set<string>();
 
     if (ids.length > 0) {
       const { data: todosAvaliadores } = await supabase
@@ -300,12 +305,21 @@ export async function montarPendenciasPortalHome(
           if (colaboradorFechouSemanaPorAlgumLider(linhas, rhIds)) {
             avaliacoesPorColab[id] = true;
           }
+          if (linhas.some((r) => String(r.avaliador_id) === String(ctx.colaboradorId))) {
+            jaAvalieiIds.add(id);
+          }
         }
       }
     }
 
-    const equipeElegivel = equipe.filter((m) => !feriasIds.has(m.id) && !licencaIds.has(m.id));
-    const pendentesMembros = equipeElegivel.filter((m) => !avaliacoesPorColab[m.id]);
+    const equipeElegivel = equipe.filter(
+      (m) => !feriasIds.has(m.id) && !licencaIds.has(m.id) && !retornoIds.has(m.id)
+    );
+    // Pendência pessoal: não cobramos quem este líder já registrou (ex.: fora do plantão),
+    // mesmo que a semana ainda não tenha fechado por outro líder — evita «2 pendências» vazias.
+    const pendentesMembros = equipeElegivel.filter(
+      (m) => !avaliacoesPorColab[m.id] && !jaAvalieiIds.has(m.id)
+    );
     const pendentes = pendentesMembros.length;
     const total = equipeElegivel.length;
 

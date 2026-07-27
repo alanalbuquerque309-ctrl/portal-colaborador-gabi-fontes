@@ -51,6 +51,8 @@ function gravarRecolhidosLocal(ids: Set<string>) {
 }
 
 function estaRecolhido(a: Aviso, index: number, recolhidosLocal: Set<string>): boolean {
+  // Pendente de confirmação fica aberto (evita «pendência» sem nada visível).
+  if (a.exige_confirmacao && !a.confirmado) return false;
   if (index >= 1) return true;
   if (a.exige_confirmacao && a.confirmado) return true;
   if (!a.exige_confirmacao && recolhidosLocal.has(a.id)) return true;

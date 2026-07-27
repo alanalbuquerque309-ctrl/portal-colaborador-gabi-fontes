@@ -88,6 +88,7 @@ export type AvaliacaoDiariaLeitura = {
   nota_proatividade?: number | null;
   media_dia: number | null;
   justificativa_nota_baixa?: string | null;
+  data_retorno_previsto?: string | null;
   edicao_utilizada?: boolean;
 };
 
@@ -180,6 +181,11 @@ export async function selectAvaliacoesDiariasPorColaboradores(
   return { rows: [], error: lastError };
 }
 
+function faltaColunaDataRetorno(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return m.includes('data_retorno_previsto') && erroColunaAusente(msg);
+}
+
 function stripColunasAusentesInsert(
   row: Record<string, unknown>,
   msg: string
@@ -197,6 +203,11 @@ function stripColunasAusentesInsert(
   }
   if (faltaColunaEdicao(msg)) {
     const { edicao_utilizada: _e, ...rest } = next;
+    next = rest;
+    return next;
+  }
+  if (faltaColunaDataRetorno(msg)) {
+    const { data_retorno_previsto: _r, ...rest } = next;
     next = rest;
     return next;
   }
