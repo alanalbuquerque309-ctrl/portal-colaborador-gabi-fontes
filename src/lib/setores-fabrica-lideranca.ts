@@ -3,7 +3,7 @@ import {
   SETORES_LIDERANCA_DANIEL_TRANSVERSAL,
 } from '@/lib/config-lideranca-operacional';
 import { MURAL_GRUPO_MESQUITA_SLUGS } from '@/lib/mural-unidade-grupo';
-import { normalizarSetorOrganizacional } from '@/lib/lideranca-org';
+import { setorOrganogramaCoincide, textoSetorNorm } from '@/lib/lideranca-org';
 import type { createAdminClient } from '@/lib/supabase/admin';
 
 type SupabaseAdmin = ReturnType<typeof createAdminClient>;
@@ -15,15 +15,18 @@ export const SETORES_LIDERANCA_NA_FABRICA = REGRAS_LIDERANCA_OPERACIONAL.filter(
 ).map((r) => r.setor);
 
 export function isSetorLiderancaDanielTransversal(setor: string | null | undefined): boolean {
-  const s = normalizarSetorOrganizacional(setor);
-  if (!s) return false;
-  return (SETORES_LIDERANCA_DANIEL_TRANSVERSAL as readonly string[]).includes(s);
+  const n = textoSetorNorm(setor);
+  if (!n) return false;
+  return (SETORES_LIDERANCA_DANIEL_TRANSVERSAL as readonly string[]).some(
+    (s) => setorOrganogramaCoincide(s, setor)
+  );
 }
 
 export function isSetorLideradoNaFabrica(setor: string | null | undefined): boolean {
-  const s = String(setor ?? '').trim();
-  if (!s) return false;
-  return (SETORES_LIDERANCA_NA_FABRICA as readonly string[]).includes(s);
+  if (!String(setor ?? '').trim()) return false;
+  return (SETORES_LIDERANCA_NA_FABRICA as readonly string[]).some((s) =>
+    setorOrganogramaCoincide(s, setor)
+  );
 }
 
 /** Setores da fábrica não entram na lista completa (`*`) de gerentes de loja. */

@@ -37,11 +37,24 @@ export function listarSetoresAvaliacaoEquipeBackoffice(): readonly string[] {
   return SETORES_AVALIACAO_EQUIPE_BACKOFFICE;
 }
 
-export function isSetorCadastroValido(s: string | null | undefined): boolean {
-  if (!s || !s.trim()) return false;
+function normSetorCadastro(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Nome canónico do catálogo, ou Estoque legado. Aceita acento/caixa diferentes. */
+export function resolverSetorCadastro(s: string | null | undefined): string | null {
+  if (!s || !s.trim()) return null;
   const t = s.trim();
-  if (t === SETOR_ESTOQUE_LEGADO) return true;
-  return listarSetoresCadastro().includes(t);
+  if (normSetorCadastro(t) === normSetorCadastro(SETOR_ESTOQUE_LEGADO)) return SETOR_ESTOQUE_LEGADO;
+  return listarSetoresCadastro().find((nome) => normSetorCadastro(nome) === normSetorCadastro(t)) ?? null;
+}
+
+export function isSetorCadastroValido(s: string | null | undefined): boolean {
+  return resolverSetorCadastro(s) != null;
 }
 
 export function isUnidadeSlugCadastroValido(slug: string): boolean {

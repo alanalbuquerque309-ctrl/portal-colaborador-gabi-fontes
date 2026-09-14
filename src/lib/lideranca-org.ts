@@ -27,11 +27,31 @@ export const SETORES_ADMINISTRACAO_EMPRESA = [
 
 const SLUGS_LOJA = ['mesquita', 'barra', 'nova-iguacu'] as const;
 
+export function textoSetorNorm(value: string | null | undefined): string {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
 export function normalizarSetorOrganizacional(setor: string | null | undefined): string {
   const s = String(setor ?? '').trim();
   if (!s) return '';
-  if (s === SETOR_ESTOQUE_LEGADO) return 'CD';
+  if (s === SETOR_ESTOQUE_LEGADO || textoSetorNorm(s) === textoSetorNorm(SETOR_ESTOQUE_LEGADO)) {
+    return 'CD';
+  }
   return s;
+}
+
+/** Compara setores do cadastro com a vaga (acento/caixa e CD=Estoque). */
+export function setorOrganogramaCoincide(
+  a: string | null | undefined,
+  b: string | null | undefined
+): boolean {
+  const na = textoSetorNorm(normalizarSetorOrganizacional(a));
+  const nb = textoSetorNorm(normalizarSetorOrganizacional(b));
+  return Boolean(na && nb && na === nb);
 }
 
 /** Valores aceitos no banco para um setor canónico (ex.: CD inclui legado Estoque). */

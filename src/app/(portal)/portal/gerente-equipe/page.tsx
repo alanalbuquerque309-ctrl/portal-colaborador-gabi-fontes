@@ -28,13 +28,8 @@ export default function GerenteEquipeMesPage() {
 
   useEffect(() => {
     const s = getPortalSession();
-    const r = (s?.role || '').toLowerCase();
     if (!s?.colaboradorId || s.colaboradorId === 'pending') {
       router.replace('/login');
-      return;
-    }
-    if (r !== 'gerente' && r !== 'master') {
-      router.replace('/portal');
       return;
     }
     setSessionOk(true);
@@ -136,7 +131,9 @@ export default function GerenteEquipeMesPage() {
           <p className="text-xs text-cafeteria-500 mb-4">Referência: {mesRef}</p>
           {linhas.length === 0 ? (
             <p className="text-sm text-cafeteria-700">
-              Nenhum colaborador com você como líder direto, ou ainda não há avaliações neste mês.
+              Nenhum colaborador na sua equipe neste mapa de liderança. Se a Avaliação da equipe mostra gente e
+              aqui não, atualize a página. Se as duas telas estiverem vazias, o Admin precisa conferir{' '}
+              <strong>Liderança por setor</strong>.
             </p>
           ) : (
             <ul className="divide-y divide-cafeteria-100">

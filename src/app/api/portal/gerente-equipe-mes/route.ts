@@ -8,7 +8,7 @@ import {
 import { filtrarAvaliacoesParaMedia } from '@/lib/avaliacao-ignorada';
 import { montarContextoConsolidacaoRanking } from '@/lib/avaliacao-ranking-contexto';
 import { requirePortalGerenteSession } from '@/lib/portal-gerente-session';
-import { listarEquipeDoLider } from '@/lib/colaborador-lideres';
+import { listarEquipeParaAvaliacaoSemanal } from '@/lib/colaborador-lideres';
 import { normalizePortalRole } from '@/lib/roles';
 
 function mesBoundsUTC(ano: number, mes: number): { ini: string; fim: string } {
@@ -47,7 +47,7 @@ export async function GET(req: Request) {
 
   try {
     const supabase = createAdminClient();
-    const equipe = await listarEquipeDoLider(supabase, gerenteId, unidadeId);
+    const equipe = await listarEquipeParaAvaliacaoSemanal(supabase, gerenteId, unidadeId);
 
     const membros = equipe.filter((membro) => normalizePortalRole(membro.role) === 'colaborador');
     if (membros.length === 0) {

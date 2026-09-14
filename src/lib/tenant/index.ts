@@ -9,6 +9,7 @@ export {
   slugUnidadeAdministrativo,
   setorEstoqueLegado,
   isSetorCadastroValido,
+  resolverSetorCadastro,
   isUnidadeSlugCadastroValido,
   type UnidadeCadastro,
 } from '@/lib/tenant/org-catalog';

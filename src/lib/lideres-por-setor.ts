@@ -1,5 +1,9 @@
 import type { createAdminClient } from '@/lib/supabase/admin';
-import { isSetorCadastroValido, listarSetoresAvaliacaoEquipeBackoffice } from '@/lib/tenant/org-catalog';
+import {
+  isSetorCadastroValido,
+  listarSetoresAvaliacaoEquipeBackoffice,
+  resolverSetorCadastro,
+} from '@/lib/tenant/org-catalog';
 import { SETORES_LIDERANCA_DANIEL_TRANSVERSAL } from '@/lib/config-lideranca-operacional';
 import { SETOR_TODOS_NA_UNIDADE } from '@/lib/lideranca-constants';
 import { isLiderAdministradorTransversal } from '@/lib/lideranca-transversal';
@@ -12,7 +16,11 @@ import {
   resolverUnidadeIdsGrupoMesquita,
   resolverTodasUnidadeIds,
 } from '@/lib/setores-fabrica-lideranca';
-import { normalizarSetorOrganizacional, setoresDbEquivalentes } from '@/lib/lideranca-org';
+import {
+  normalizarSetorOrganizacional,
+  setorOrganogramaCoincide,
+  setoresDbEquivalentes,
+} from '@/lib/lideranca-org';
 
 function normalizarTextoOrg(value: string | null | undefined): string {
   return String(value ?? '')
@@ -91,8 +99,9 @@ export async function listarLideresConfigPorUnidadeSetor(
   if (!unidadeId) return [];
 
   const setorTrim = String(setor ?? '').trim();
-  const setorCanon = normalizarSetorOrganizacional(setorTrim);
-  const setorEspecifico = setorTrim && isSetorCadastroValido(setorTrim);
+  const setorCatalogo = resolverSetorCadastro(setorTrim);
+  const setorCanon = normalizarSetorOrganizacional(setorCatalogo ?? setorTrim);
+  const setorEspecifico = Boolean(setorCatalogo);
   const setorFabrica = setorEspecifico && isSetorLideradoNaFabrica(setorCanon || setorTrim);
 
   const unidadeIdLideranca = setorFabrica
@@ -193,10 +202,9 @@ export async function listarColaboradoresPorUnidadeSetor(
     const setorCol = (c as { setor?: string | null }).setor;
     const r = normalizePortalRole(role);
     if (r === 'colaborador') return true;
-    const setorTrim = normalizarSetorOrganizacional(String(setorCol ?? ''));
     return (
       (r === 'gerente' || r === 'admin') &&
-      listarSetoresAvaliacaoEquipeBackoffice().includes(setorTrim)
+      listarSetoresAvaliacaoEquipeBackoffice().some((s) => setorOrganogramaCoincide(s, setorCol))
     );
   };
 
@@ -219,11 +227,13 @@ export async function listarColaboradoresPorUnidadeSetor(
       .from('colaboradores')
       .select('id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto')
       .in('unidade_id', grupoIds)
-      .eq('setor', setorCfg)
       .order('nome');
 
     if (error) throw new Error(error.message);
-    return (data ?? []).filter(filtrarMembro).map(mapearMembro);
+    return (data ?? [])
+      .filter((c) => setorOrganogramaCoincide((c as { setor?: string | null }).setor, setorCfg))
+      .filter(filtrarMembro)
+      .map(mapearMembro);
   }
 
   if (setorCfg !== SETOR_TODOS_NA_UNIDADE && isSetorLiderancaDanielTransversal(setorCfg)) {
@@ -234,11 +244,13 @@ export async function listarColaboradoresPorUnidadeSetor(
       .from('colaboradores')
       .select('id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto')
       .in('unidade_id', todasIds)
-      .in('setor', setoresDbEquivalentes(setorCfg))
       .order('nome');
 
     if (error) throw new Error(error.message);
-    return (data ?? []).filter(filtrarMembro).map(mapearMembro);
+    return (data ?? [])
+      .filter((c) => setorOrganogramaCoincide((c as { setor?: string | null }).setor, setorCfg))
+      .filter(filtrarMembro)
+      .map(mapearMembro);
   }
 
   const { data: unidadeRow } = await supabase
@@ -248,29 +260,23 @@ export async function listarColaboradoresPorUnidadeSetor(
     .maybeSingle();
   const unidadeSlug = unidadeRow?.slug ? String(unidadeRow.slug) : null;
 
-  let query = supabase
+  const { data, error } = await supabase
     .from('colaboradores')
     .select('id, nome, role, cargo, setor, tipo_escala, onboarding_completo, operacao_apto')
     .eq('unidade_id', unidadeId)
     .order('nome');
 
-  if (setorCfg !== SETOR_TODOS_NA_UNIDADE) {
-    const equiv = setoresDbEquivalentes(setorCfg);
-    if (equiv.length === 1) query = query.eq('setor', equiv[0]);
-    else query = query.in('setor', equiv);
-  }
-
-  const { data, error } = await query;
   if (error) throw new Error(error.message);
 
   return (data ?? [])
     .filter((c) => {
       if (!filtrarMembro(c as Record<string, unknown>)) return false;
+      const setorCol = (c as { setor?: string | null }).setor;
       if (setorCfg === SETOR_TODOS_NA_UNIDADE) {
-        const setorCol = (c as { setor?: string | null }).setor;
         if (deveExcluirSetorDaListaCompletaUnidade(unidadeSlug, setorCol)) return false;
+        return true;
       }
-      return true;
+      return setorOrganogramaCoincide(setorCol, setorCfg);
     })
     .map((c) => mapearMembro(c as Record<string, unknown>));
 }

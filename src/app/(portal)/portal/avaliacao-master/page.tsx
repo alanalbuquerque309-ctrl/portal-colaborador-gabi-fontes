@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getPortalSession } from '@/lib/utils/session';
 import { ColaboradorAvaliacaoCard, type AvaliacaoServidor } from '@/components/portal/avaliacao-master/ColaboradorAvaliacaoCard';
-import { normalizePortalRole } from '@/lib/roles';
 import { colaboradorPermiteMarcarForaPlantao } from '@/lib/escala-portal';
 import {
   ehSemanaAvaliacaoEquipePadrao,
@@ -17,11 +16,6 @@ import { AvaliacaoSemanalChecklist } from '@/components/portal/AvaliacaoSemanalC
 import { QuintaTreinoLiderBanner } from '@/components/portal/QuintaTreinoLiderBanner';
 import { PortalPageHeader } from '@/components/portal/shell/PortalPageHeader';
 import { PortalPaginaCarregando } from '@/components/ui/PortalPaginaCarregando';
-
-function isRoleGerenteAvaliadorPortal(role: string | null | undefined): boolean {
-  const r = normalizePortalRole(role);
-  return r === 'gerente' || r === 'master' || r === 'admin';
-}
 
 type MembroEquipe = {
   id: string;
@@ -47,10 +41,7 @@ export default function AvaliacaoMasterPage() {
   const [filtroPendentes, setFiltroPendentes] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
 
-  const autorizado =
-    !!session?.colaboradorId &&
-    session.colaboradorId !== 'pending' &&
-    isRoleGerenteAvaliadorPortal(session.role);
+  const autorizado = !!session?.colaboradorId && session.colaboradorId !== 'pending';
   const avaliadosNaSemana = equipe.filter((m) => m.avaliacao != null).length;
   const pendentesNaSemana = Math.max(0, equipe.length - avaliadosNaSemana);
   const naoAtivaramPortal = equipe.filter((m) => m.onboarding_completo === false);
@@ -63,10 +54,6 @@ export default function AvaliacaoMasterPage() {
     const s = getPortalSession();
     if (!s?.colaboradorId || s.colaboradorId === 'pending') {
       router.replace('/login');
-      return;
-    }
-    if (!isRoleGerenteAvaliadorPortal(s.role)) {
-      router.replace('/portal');
       return;
     }
     setSession(s);
@@ -86,7 +73,11 @@ export default function AvaliacaoMasterPage() {
         credentials: 'include',
       });
       const data = await res.json();
-      if (res.status === 403 || res.status === 401) {
+      if (res.status === 401) {
+        router.replace('/login');
+        return;
+      }
+      if (res.status === 403) {
         router.replace('/portal');
         return;
       }
@@ -289,13 +280,20 @@ export default function AvaliacaoMasterPage() {
         <div className="rounded-xl border border-dourado-base/40 bg-dourado-50/50 p-6 text-cafeteria-800">
           <p className="font-medium">Nenhum colaborador na sua equipe</p>
           <p className="text-sm mt-2 text-cafeteria-700">
-            Confira se está logado como <strong>Daniel Brito Martins</strong> (administrador). Toque em{' '}
-            <strong>Atualizar lista</strong>. Se continuar vazio, no Admin peça para aplicar o mapa em{' '}
-            <strong>Liderança por setor</strong>.
+            Toque em <strong>Atualizar lista</strong>. Se continuar vazio, o Admin precisa conferir o mapa em{' '}
+            <strong>Liderança por setor</strong> (a vaga da loja ou do setor, não o nome da pessoa).
           </p>
           <p className="text-sm mt-2 text-cafeteria-600">
             A tela <strong>Avaliar liderança</strong> é outro fluxo (feedback 1–5 sobre chefia). A avaliação
             semanal da equipe (presença, estrelas) fica aqui.
+          </p>
+        </div>
+      ) : filtroPendentes && equipe.every((m) => m.avaliacao) ? (
+        <div className="rounded-xl border border-cafeteria-200 bg-white p-6 text-cafeteria-800">
+          <p className="font-medium">Ninguém pendente nesta semana</p>
+          <p className="text-sm mt-2 text-cafeteria-700">
+            Sua equipe tem {equipe.length} colaborador{equipe.length === 1 ? '' : 'es'}. Desligue o filtro de
+            pendentes para ver a lista completa.
           </p>
         </div>
       ) : (
