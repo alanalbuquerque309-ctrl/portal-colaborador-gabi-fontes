@@ -29,7 +29,14 @@ type MembroEquipe = {
   operacao_apto?: boolean;
   avaliacao: AvaliacaoServidor;
   colega_ja_avaliou?: boolean;
+  retorno_previsto_vigente?: string | null;
 };
+
+function formatarRetornoCurto(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return iso;
+  return `${m[3]}/${m[2]}`;
+}
 
 export default function AvaliacaoMasterPage() {
   const router = useRouter();
@@ -226,6 +233,9 @@ export default function AvaliacaoMasterPage() {
             subtitulo:
               [
                 !m.avaliacao && m.colega_ja_avaliou ? 'colega já avaliou — você ainda pode' : null,
+                !m.avaliacao && m.retorno_previsto_vigente
+                  ? `retorno ${formatarRetornoCurto(m.retorno_previsto_vigente)}: avalie, férias ou outro plantão`
+                  : null,
                 m.avaliacao?.assiduidade === 'fora_plantao' ? 'fora do plantão' : null,
                 m.cargo,
                 m.setor,
@@ -310,6 +320,7 @@ export default function AvaliacaoMasterPage() {
                 semanaLabel={intervaloSemana}
                 avaliacaoInicial={m.avaliacao}
                 colegaJaAvaliou={m.colega_ja_avaliou === true}
+                retornoPrevistoVigente={m.retorno_previsto_vigente ?? null}
                 onboardingCompleto={m.onboarding_completo !== false}
                 operacaoApto={m.operacao_apto === true}
                 forcarEdicao={editandoId === m.id}

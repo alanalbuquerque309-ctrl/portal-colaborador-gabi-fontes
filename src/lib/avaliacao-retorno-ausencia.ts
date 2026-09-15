@@ -11,8 +11,9 @@ import {
 } from '@/lib/avaliacao-semanal-shared';
 
 /**
- * Primeira segunda-feira em que a pessoa volta a aparecer na avaliação:
- * a semana seguinte à semana que contém a data de retorno.
+ * Semana seguinte à que contém a data de retorno (referência de vigência).
+ * Não esconde o colaborador da lista do líder: o card continua visível para
+ * avaliar, marcar férias ou «outro plantão».
  */
 export function primeiraSemanaAvaliavelAposRetorno(dataRetornoIso: string): string {
   const segDaSemanaDoRetorno = inicioSemanaSegundaFeiraLocal(dataRetornoIso);
@@ -22,7 +23,7 @@ export function primeiraSemanaAvaliavelAposRetorno(dataRetornoIso: string): stri
   return formatarDataLocalISO(d);
 }
 
-/** Ainda está ausente na semana cobrada (não deve aparecer na lista). */
+/** Retorno previsto ainda cobre a semana cobrada (aviso no card; não some da lista). */
 export function ausenciaVigenteNaSemanaCobrada(
   dataRetornoIso: string | null | undefined,
   semanaCobradaIso: string
@@ -40,15 +41,15 @@ export function validarDataRetornoAusencia(raw: unknown): string | null {
 }
 
 /**
- * IDs com férias/licença e data de retorno ainda vigente para a semana cobrada.
- * Usa o retorno mais recente por colaborador.
+ * Retorno previsto ainda vigente na semana cobrada (id → YYYY-MM-DD).
+ * Só para aviso no card; o líder continua vendo a pessoa.
  */
-export async function idsColaboradoresAusentesPorRetorno(
+export async function mapaRetornoAusenciaVigente(
   supabase: SupabaseClient,
   colaboradorIds: string[],
   semanaCobradaIso: string
-): Promise<Set<string>> {
-  const out = new Set<string>();
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
   if (colaboradorIds.length === 0) return out;
 
   const semana = inicioSemanaSegundaFeiraLocal(semanaCobradaIso);
@@ -82,7 +83,7 @@ export async function idsColaboradoresAusentesPorRetorno(
   }
 
   for (const [cid, retorno] of Array.from(melhorRetorno.entries())) {
-    if (ausenciaVigenteNaSemanaCobrada(retorno, semana)) out.add(cid);
+    if (ausenciaVigenteNaSemanaCobrada(retorno, semana)) out.set(cid, retorno);
   }
   return out;
 }

@@ -40,6 +40,8 @@ type Props = {
   avaliacaoInicial: AvaliacaoServidor;
   /** Outro líder já enviou; você ainda pode enviar a sua. */
   colegaJaAvaliou?: boolean;
+  /** Retorno de férias/licença ainda vigente: o card aparece para o líder decidir. */
+  retornoPrevistoVigente?: string | null;
   /** Cadastro do portal ainda pendente (informativo; não bloqueia avaliação). */
   onboardingCompleto?: boolean;
   operacaoApto?: boolean;
@@ -100,6 +102,7 @@ export function ColaboradorAvaliacaoCard({
   semanaLabel,
   avaliacaoInicial,
   colegaJaAvaliou = false,
+  retornoPrevistoVigente = null,
   onboardingCompleto = true,
   operacaoApto = false,
   onSalvo,
@@ -642,6 +645,13 @@ export function ColaboradorAvaliacaoCard({
           <p className="text-sm rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-950">
             Outro líder já avaliou esta pessoa nesta semana (conta para Grãos). Você ainda pode registrar a sua
             avaliação normalmente.
+          </p>
+        ) : null}
+        {retornoPrevistoVigente && !avaliacaoInicial ? (
+          <p className="text-sm rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-950">
+            Retorno previsto em {retornoPrevistoVigente.split('-').reverse().join('/')}. Se trabalhou na semana,
+            avalie; se estava no outro gerente, toque em <strong>Outro plantão</strong>; se continua fora, use
+            férias ou licença.
           </p>
         ) : null}
         {mostrarAcoesRapidas && (
